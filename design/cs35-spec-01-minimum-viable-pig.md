@@ -229,6 +229,14 @@ ids, missing ids fall back to crab lines), `dossier[3]`, `refuseHire`,
 `foreign`. Both options keep DRIFTWOOD as a proper noun (it is the
 island's hotel; a pig names the place they slept).
 
+**THE PIGTATOR (canon, Matt 2026-08-21)**: the Pigpublic's head of state.
+MVP scope: voice hints only — one dossier line per register references
+the office (A: "TRAVELING BY LEAVE OF THE PIGTATOR"; B: "BACK HOME, THE
+PIGTATOR. HERE, GULLS."), and A's report-filing mannerism now has an
+addressee. The office itself is mainland civics,
+out of MVP scope, and the eventual civics-format contrast case to the
+crabocracy's ballot (spectrum proof, charter Ruling 3).
+
 ### 5.3 Tastes (static MVP weights over the real dish ids)
 
 ```js
@@ -274,23 +282,24 @@ raised), `s` (bottom-anchored slumped loaf in the same 12×16 box — zero
 draw-code changes since `y = c.y - h` still grounds it):
 
 ```
-a:  ..KK....KK..    s (rows 7-16):  ..KK....KK..
-    .KPPKKKKPPK.                    .KPPKKKKPPK.
-    .KPPPPPPPPK.                    .KPPPPPPPPK.
-    .KPBPPPBPPK.                    .KPKKPKKPPK.   eyes closed
-    .KPQQQQQQPK.                    .KPQQQQQQPK.
-    .KPQBQQBQPK.   nostrils         .KPQBQQBQPK.
-    .KPPQQQQPPK.                    .KPPQQQQPPK.
-    ..KPPPPPPK..                    KPPPPPPPPPPK   slumped full-width
-    ..KKKKKKKK..                    KPQQPPPPQQPK   legs splayed
-    .KPPPPPPPPK.                    .KKKKKKKKKK.
-    KPKPQQQQPKPK   arms down
+a:  ..KK....KK..    s — ON HER SIDE (rev 3, owner ruling; bottom 7 rows
+    .KPPKKKKPPK.        of the 12x16 box, 9 blank above):
+    .KPPPPPOPPK.
+    .KPBPPPBPPK.        ..KK..KKKK..   flopped ear + back
+    .KPQQQQQQPK.        .KPPKPPPPPK.   ear + flank
+    .KPQBQQBQPK.        KPPPPPPPOPPK   head/body + flank spot
+    .KPPQQQQPPK.        KPKKPPPPPPPK   closed-eye dash
+    ..KPPPPPPK..        KQQQPPPPPPPK   snout to the sand
+    ..KKKKKKKK..        KQBQPQQPQQPK   nostril + trotter nubs
+    .KPPPPPPPPK.        .KKKKKKKKKK.   ground line
+    KPKPQQQQPKPK
     KQKPQQQQPKQK
-    .KPPPPPPPPK.
+    .KPPPPPPOPK.
     ..KPPKKPPK..   legs together    b swaps rows 13-15:  .KPPK..KPPK.
     ..KQQKKQQK..   hooves                                .KQQK..KQQK.
     ..KKKKKKKK..                                         .KKKK..KKKK.
 ```
+(Spot pixels `O` shown in rows 2/9/12 of pose a per §5.4 rev 2.)
 
 Anchors: `hat {1,2}` (head dome top-left, brim lands ON the anchor row —
 the tophat no-bob rule), `carry {2,-7}` (9×7 item floats above the ears,
@@ -298,11 +307,12 @@ same 1px-right-of-center bias as the crab), `mark {9,-6}` (air over the
 ear), `bar {w:12}`. REV 2: the body template carries `O` spot pixels
 (rows 2/9/12 in pose a, mirrored per pose) — see §5.4.
 
-Accessory **strawhat** — REV 2, owner ruled the original 10-wide "bigger
-or smaller": two candidates in the preview page, ONE ships:
-- SMALL (8×4, dx +1, dy −3): perches between the ears, ear tips stay out.
-- BIG (14×5, dx −2, dy −4): sun brim wider than the pig herself (blit
-  clips fine; the flip formula handles negative dx once w is data).
+Accessory **strawhat** — RESOLVED (owner, 2026-08-21): **BIG WINS.**
+14×5 sun brim, dx −2, dy −4 — wider than the pig herself (blit clips
+fine; the flip formula handles negative dx once w is data; the small
+8-wide candidate is retired). MVP rule: accessories are NOT drawn while a
+save-defined culture's pose is `s` (a side-sleeper's hat would float;
+the crab's hard-coded path is untouched — revisit at the capstone).
 
 Item **bao** (9×7, phase-2 good, drawn now): steamed bun, three pleat
 crimps at the crown — the crimp is what says *bao* and not *egg* at 9
@@ -365,7 +375,8 @@ Plus: full matrix re-run vs the pinned baseline after each landing step.
 
 - **Voice register: Option A (Alderman) or Option B (Farmhand)?** (Or A
   for a rare "official visitor" flavor later — MVP wants exactly one.)
-- **Strawhat: SMALL or BIG?** (Both in the preview page; §5.5 rev 2.)
+- ~~Strawhat: SMALL or BIG?~~ **RESOLVED: BIG** (owner, 2026-08-21).
+- ~~Sleep pose~~ **RESOLVED: on her side** (owner, 2026-08-21; §5.5 rev 3).
 - The gate numbers (`repGate 80, shareMax 0.25, shareRamp 80`) are
   proposals to measure, not rulings — the matrix referees.
 - Sprite draft wants your pixel pass (weak points listed in §5.5).

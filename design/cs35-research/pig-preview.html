@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>PIGPUBLIC PREVIEW — CS3.5 spec 01 (rev 2)</title>
+<title>PIGPUBLIC PREVIEW — CS3.5 spec 01 (rev 3)</title>
 <style>
   body { background:#14101c; color:#e8e2f0; font-family:ui-monospace,Menlo,monospace; margin:24px; }
   h1 { font-size:20px; letter-spacing:2px; color:#ffb5c5; }
@@ -30,11 +30,12 @@
 </style>
 </head>
 <body>
-<h1>PORKRESENTATIVE PIGPUBLIC — spec 01 preview <span class="rev">rev 2</span></h1>
-<div class="note">Rev 2 changes: MUD BROWN retired (read as bear) → BERKSHIRE PLUM;
-spots are now REAL — a third palette slot 'O' baked into the body template, so any
-colorway can switch spots on (dark) or off (same as body) with no extra art, in every
-pose; and TWO straw hat sizes to pick between.</div>
+<h1>PORKRESENTATIVE PIGPUBLIC — spec 01 preview <span class="rev">rev 3</span></h1>
+<div class="note">Rev 3: BIG HAT WINS (ruled); sleep pose is now ON HER SIDE (ruled) —
+head left, flopped ear, closed-eye dash, snout to the sand; the Pigtator enters both
+voice registers as a dossier hint. Carried from rev 2: BERKSHIRE PLUM replaces the
+bear-brown, and spots are a third palette slot 'O' in the template — any colorway
+switches them on or off with no extra art.</div>
 
 <h2>THE PIG (walk cycle, 10x, on sand / plank / night)</h2>
 <div class="row" id="walkRow"></div>
@@ -42,7 +43,7 @@ pose; and TWO straw hat sizes to pick between.</div>
 <h2>SIX COLORWAYS (pose A, 6x) — OLD SPOT now has real spots</h2>
 <div class="row"><div class="strip sand" id="colorRow"></div></div>
 
-<h2>THE HAT DECISION — small (jaunty, ears out) vs big (sun brim, wider than the pig)</h2>
+<h2>THE HAT — BIG WINS (owner ruling): 14-wide sun brim, wider than the pig</h2>
 <div class="row"><div class="strip sand" id="hatRow"></div></div>
 
 <h2>POSES — A / B / W (working) / S (sleeping), 6x</h2>
@@ -64,7 +65,8 @@ pose; and TWO straw hat sizes to pick between.</div>
     <p><b>depart</b> THE DRIFTWOOD KEEPS A BED FIT FOR A CONSUL.</p>
     <p><b>depart</b> SPENT EVERY DOLLAR OF MY PURSE. QUITE CORRECT.</p>
     <p><b>foreign</b> NOTHING ON ANY MENU A PIG WOULD RECOGNIZE.</p>
-    <p><b>dossier</b> MY PAPERS ARE ENTIRELY IN ORDER</p></div>
+    <p><b>dossier</b> MY PAPERS ARE ENTIRELY IN ORDER</p>
+    <p><b>dossier</b> TRAVELING BY LEAVE OF THE PIGTATOR</p></div>
   <div class="vcol"><h3>OPTION B — THE FARMHAND ON HOLIDAY</h3>
     <p><b>diary</b> OFF THE BOAT AND HUNGRY ALREADY</p>
     <p><b>diary</b> SLEPT ROUGH. DONE WORSE AT HARVEST.</p>
@@ -73,7 +75,8 @@ pose; and TWO straw hat sizes to pick between.</div>
     <p><b>depart</b> SPENT THE LOT. THAT'S WHAT MONEY'S FOR.</p>
     <p><b>depart</b> ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.</p>
     <p><b>foreign</b> NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE.</p>
-    <p><b>dossier</b> THE SEA'S BIGGER THAN THEY SAID</p></div>
+    <p><b>dossier</b> THE SEA'S BIGGER THAN THEY SAID</p>
+    <p><b>dossier</b> BACK HOME, THE PIGTATOR. HERE, GULLS.</p></div>
 </div>
 
 <h2>THE NAME POOL (26)</h2>
@@ -104,9 +107,12 @@ const PIG_A = [
 const PIG_B = PIG_A.slice(0,13).concat([".KPPK..KPPK.",".KQQK..KQQK.",".KKKK..KKKK."]);
 const PIG_W = PIG_A.slice(0,7).concat(
 ["KQKPPPPPPKQK","KPKKKKKKKKPK","KPKOOPPPPKPK",".KPPQQQQPPK.",".KPPQQQQPPK."], PIG_A.slice(12));
-const PIG_S = Array(6).fill("............").concat([
-"..KK....KK..",".KPPKKKKPPK.",".KPPPPPOPPK.",".KPKKPKKPPK.",".KPQQQQQQPK.",
-".KPQBQQBQPK.",".KPPQQQQPPK.","KPPOPPPPPPPK","KPQQPPPPQQPK",".KKKKKKKKKK."]);
+// sleep rev 3: ON HER SIDE (owner ruling) — head left, flopped ear, closed-eye
+// dash, snout + nostril at the ground, trotter nubs along the bottom, spot on
+// the up-facing flank. Bottom-anchored in the same 12x16 box.
+const PIG_S = Array(9).fill("............").concat([
+"..KK..KKKK..",".KPPKPPPPPK.","KPPPPPPPOPPK","KPKKPPPPPPPK","KQQQPPPPPPPK",
+"KQBQPQQPQQPK",".KKKKKKKKKK."]);
 
 // two hat candidates — pick one
 const HAT_SMALL = [   // 8x4, dx +1: perches between the ears, ear tips stay out
@@ -173,7 +179,7 @@ const P0 = cwPal(COLORWAYS[0]);
 const SPOT = cwPal(COLORWAYS[5]);
 
 // walk cycle on three grounds (old spot walks the plank so you can judge spots in motion)
-for (const [ground, cw, hat] of [["sand", COLORWAYS[0], null], ["plank", COLORWAYS[5], null], ["night", COLORWAYS[3], null]]) {
+for (const [ground, cw, hat] of [["sand", COLORWAYS[0], null], ["plank", COLORWAYS[5], "big"], ["night", COLORWAYS[3], null]]) {
   const strip = document.createElement("div"); strip.className = "strip " + ground;
   const d = document.createElement("div"); d.className = "cell";
   const holder = document.createElement("div"); strip.appendChild(holder);
@@ -189,10 +195,10 @@ for (const [ground, cw, hat] of [["sand", COLORWAYS[0], null], ["plank", COLORWA
 
 for (const cw of COLORWAYS) cell("#colorRow", draw(PIG_A, cwPal(cw), 6), cw[0]);
 
-cell("#hatRow", draw(PIG_A, P0, 8, {hat:"small"}), "SMALL — EARS OUT");
-cell("#hatRow", draw(PIG_A, P0, 8, {hat:"big"}), "BIG — SUN BRIM");
-cell("#hatRow", draw(PIG_A, SPOT, 8, {hat:"small"}), "SMALL ON OLD SPOT");
-cell("#hatRow", draw(PIG_A, SPOT, 8, {hat:"big"}), "BIG ON OLD SPOT");
+cell("#hatRow", draw(PIG_A, P0, 8, {hat:"big"}), "PIGLET PINK");
+cell("#hatRow", draw(PIG_A, cwPal(COLORWAYS[3]), 8, {hat:"big"}), "TAMWORTH");
+cell("#hatRow", draw(PIG_A, SPOT, 8, {hat:"big"}), "OLD SPOT");
+cell("#hatRow", draw(PIG_A, cwPal(COLORWAYS[4]), 8, {hat:"big"}), "BERKSHIRE PLUM");
 
 cell("#poseRow", draw(PIG_A, P0, 6), "A");
 cell("#poseRow", draw(PIG_B, P0, 6), "B");

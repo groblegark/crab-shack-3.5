@@ -105,6 +105,15 @@ The matrix remains a regression detector, never a difficulty dial.
 - **Pigs DO get off the boat now.** This supersedes PLAN.md's "a pig does not
   get off the boat in this game" (that was CS3 scope; CS3.5 changes it). The
   mainland-pigs canon itself (PLAN "THE CULTURE OF THE CRAB PEOPLE") stands.
+- **The Pigpublic's head of state is the PIGTATOR** (Matt, verbatim: "the
+  mayor will be the Pigtator"). A republic in name with a strongman office —
+  the Porkresentative Pigpublic sits at the far end of the governance
+  spectrum from the crabocracy's weekly paper ballots, so the two cultures
+  bracket the anarchy-to-totalitarian range Ruling 3 opened, and the
+  eventual civics format gets proven from both ends. Until pig civics
+  exist, the Pigtator is a HINT (voice lines only — pigs quote them the
+  way the hints-not-characters doctrine wants); their office runs on the
+  mainland, never on the island.
 - The town-name spoiler embargo is untouched by any of this.
 - CS4 remains "build your own cultureway"; CS3.5 builds the substrate the
   builder will use.
