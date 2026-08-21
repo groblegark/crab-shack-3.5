@@ -7069,6 +7069,10 @@ scenario("departures: every quote is DERIVED - one changed fact, one changed lin
     ["quits", `{ quits: 3, quitBiz: "CRAB SHACK", quitMin: 300 }`],
     ["quit", `{ quits: 1, quitBiz: "CRAB SHACK", quitMin: 300 }`],
     ["nothing", `{ buys: 0, serves: 0, meals: 0, left: 100, spent: 0 }`],
+    // the settled counter (CS3.5): a cultured guest who ate what was going,
+    // twice - reachable species-blind through the closure literal; the
+    // register-template rendering is the cultureways card scenario's job
+    ["foreign", `{ foreign: 2 }`],
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`],
     ["idle", `{ left: 70, spent: 30 }`],
     ["hungry", `{ hunger: 1, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
@@ -10481,6 +10485,161 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
   if (probe.bodyStray) return "a pig body blitted away from every pig";
   if (!probe.pigDome) return "the pig bather never drew over the curtain";
   if (probe.crabDome) return "a crab dome drew for a pig bather";
+  return true;
+});
+
+scenario("cultureways: the hat picks the voice, and the chain falls back", () => {
+  // THE HAT IS THE CLASS MARKER: a strawhat pig speaks farmhand, a bare
+  // head speaks clerk - resolved from the acc rolled at mint, no draw. The
+  // fallback chain (own register, first register, crab literal) is probed
+  // with a clerk whose table is missing a key, then missing entirely.
+  const store = new Map();
+  const a = createSim({ seed: 71, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  delete fx.voice.registers[1].diary.turnin;   // clerk gap -> farmhand line
+  env.cultures = { pig: fx };
+  env.visitors = (env.visitors || []).concat([
+    { n: "TROTTER", cu: "pig", c: 0, a: "strawhat", x: 1100, y: 150, s: "roam",
+      w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} },
+    { n: "HAMLET", cu: "pig", c: 1, a: "none", x: 1140, y: 150, s: "roam",
+      w: 90, p: 90, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 72, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const t = customers.find(k => k.name === "TROTTER");
+    const h = customers.find(k => k.name === "HAMLET");
+    if (!t || !h) return null;
+    return {
+      farmAshore: vline(t, "ashore", "X"),
+      clerkAshore: vline(h, "ashore", "X"),
+      clerkGap: vline(h, "turnin", "X"),          // deleted key -> farmhand's
+      bogus: vline(t, "nosuchevent", "THE LITERAL"),
+      slots: vline(h, "checkin", "X", { N: 7 }),
+      regs: [visRegister(t).id, visRegister(h).id],
+    }; })())`));
+  if (!got) return "the pigs did not come ashore";
+  if (got.regs.join() !== "farmhand,clerk") return "registers resolved " + got.regs.join();
+  if (got.farmAshore !== "OFF THE BOAT AND HUNGRY ALREADY") return "farmhand ashore: " + got.farmAshore;
+  if (got.clerkAshore !== "DISEMBARKED IN GOOD ORDER") return "clerk ashore: " + got.clerkAshore;
+  if (got.clerkGap !== "FULL DAY. STRAIGHT TO THE HAY.") return "clerk gap fell to: " + got.clerkGap;
+  if (got.bogus !== "THE LITERAL") return "bogus event returned: " + got.bogus;
+  if (got.slots !== "REGISTERED - ROOM 7 AT THE DRIFTWOOD") return "slot resolution: " + got.slots;
+  return true;
+});
+
+scenario("cultureways: the strawhat purse is the lighter purse", () => {
+  // Class is money: farmhands mint at 0.7x, clerks at 1.3x, applied AFTER
+  // every draw. Sixty mints give both classes a mean; the ratio must sit
+  // around 0.54 (0.7/1.3) with honest slack for the purse's own spread.
+  const store = new Map();
+  const a = createSim({ seed: 73, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.cultures = { pig: PIG_FIXTURE };
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 74, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const farm = [], clerk = [];
+    for (let i = 0; i < 60; i++) {
+      const v = newVisitor(false, "pig");
+      (v.acc === "strawhat" ? farm : clerk).push(v.wallet);
+      if (v.wallet !== v.purse) return { bad: "wallet != purse at mint" };
+      if (v.wallet < 1 || v.wallet !== Math.round(v.wallet)) return { bad: "bad wallet " + v.wallet };
+    }
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    return { nf: farm.length, nc: clerk.length, mf: mean(farm), mc: mean(clerk) }; })())`));
+  if (got.bad) return got.bad;
+  if (got.nf < 10 || got.nc < 10) return "the accessory roll starved a class: " + JSON.stringify(got);
+  const ratio = got.mf / got.mc;
+  if (!(ratio > 0.35 && ratio < 0.75)) return "class ratio " + ratio.toFixed(2) + " (means " + got.mf.toFixed(0) + "/" + got.mc.toFixed(0) + ")";
+  return true;
+});
+
+scenario("cultureways: a settling pig is counted, and the card speaks her register", () => {
+  // Live half: a pig facing a menu she rates at 0.5-0.6 settles, and the
+  // stay ledger counts it. Pure half: visQuote over hand-built rows speaks
+  // the register's template - farmhand foreign line, clerk quit line with
+  // the {BIZ} slot resolved - while a crab row keeps the closure literal.
+  const store = new Map();
+  const a = createSim({ seed: 75, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  for (const k in fx.tastes) fx.tastes[k] = 0.5;   // everything is settling
+  fx.tastes.juice = 0.6;                            // ...unequal, so the weighted path runs
+  env.cultures = { pig: fx };
+  env.visitors = (env.visitors || []).concat([
+    { n: "GAMMON", cu: "pig", c: 2, a: "strawhat", x: 700, y: 150, s: "roam",
+      w: 80, p: 80, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      hu: 0.95, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 76, storage: store, fresh: false });
+  b.G('coins = 2000;');
+  b.runUntil('(() => { const k = customers.find(q => q.name === "GAMMON"); return !k || k.buys > 0 || stayOf(k).foreign > 0; })()', { maxSteps: 60000 });
+  const fo = b.G('(() => { const k = customers.find(q => q.name === "GAMMON"); return k ? stayOf(k).foreign || 0 : -1; })()');
+  if (fo === 0) return "GAMMON bought without ever counting a settle";
+  if (fo === -1) return "GAMMON left before the probe could read her ledger";
+  const q = JSON.parse(b.G(`JSON.stringify((() => {
+    const base = { name: "X", color: 0, days: 1, nights: 0, nightsBed: 0, rough: 0,
+      purse: 60, left: 30, spent: 30, buys: 1, serves: 1, tables: 0, meals: 1,
+      drinks: 0, washes: 0, games: 0, rooms: 0, topItem: "FISH TACO", topBiz: "CRAB SHACK",
+      topPaid: 17, tips: 0, dues: 0, waitMin: 0, worstMin: 0, worstBiz: "COUNTER",
+      quits: 0, quitMin: 0, quitBiz: "COUNTER", shut: 0, full: 0, broke: 0, blocked: null,
+      mistMin: 0, missed: 0, sandWhy: null, hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
+    const pigRow = Object.assign({}, base, { cu: "pig", acc: "strawhat", foreign: 3 });
+    const clerkRow = Object.assign({}, base, { cu: "pig", acc: "none", quits: 1, quitMin: 30, quitBiz: "JUICE BAR" });
+    const crabRow = Object.assign({}, base, { acc: "cap", quits: 1, quitMin: 30, quitBiz: "JUICE BAR" });
+    return { pig: visQuote(pigRow), clerk: visQuote(clerkRow), crab: visQuote(crabRow) }; })())`));
+  if (q.pig.id !== "foreign") return "the settled pig row spoke " + q.pig.id;
+  if (q.pig.line !== "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE.") return "farmhand foreign line: " + q.pig.line;
+  if (q.clerk.id !== "quit") return "the clerk row spoke " + q.clerk.id;
+  if (q.clerk.line !== "ABANDONED THE JUICE BAR QUEUE UNDER PROTEST.") return "clerk quit template: " + q.clerk.line;
+  if (q.crab.id !== "quit" || q.crab.line.indexOf("JUICE BAR") < 0 || q.crab.line.indexOf("PROTEST") >= 0)
+    return "the crab row lost its own literal: " + q.crab.line;
+  return true;
+});
+
+scenario("cultureways: the apron is refused - a pig is never converted", () => {
+  // The preferred recruit is a pig: she declines in her register, stays a
+  // visitor, and the hire falls through - to the crab tourist if one is
+  // about, and the pig is still ashore afterwards with her diary line.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.cultures = { pig: PIG_FIXTURE };
+  env.visitors = [
+    { n: "RASHER", cu: "pig", c: 3, a: "none", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} },
+    { n: "MISTY", c: 1, a: "cap", x: 940, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  b.G('customers.forEach(k => { if (k.name === "RASHER") k.state = "arriving"; });');
+  const before = b.G("crabs.length");
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = customers.find(k => k.name === "RASHER");
+    const hired = crabs[crabs.length - 1];
+    return { n: crabs.length, pigStays: !!pig, pigCu: pig ? pig.culture : null,
+      hiredName: hired ? hired.p.name : null,
+      refusal: pig && pig.log.some(e => e[3] === "AN APRON? I HOLD A CLERKSHIP, MADAM."),
+      pigHired: crabs.some(c => c.p.name === "RASHER") }; })())`));
+  if (got.n !== before + 1) return "the hire did not complete: " + got.n + " vs " + before;
+  if (got.pigHired) return "RASHER took the apron - the guard failed";
+  if (!got.pigStays || got.pigCu !== "pig") return "the pig left the world on refusal";
+  if (got.hiredName !== "MISTY") return "the fallback hired " + got.hiredName + ", not the crab tourist";
+  if (!got.refusal) return "the refusal never reached her diary";
   return true;
 });
 

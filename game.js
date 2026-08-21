@@ -6095,16 +6095,27 @@ function cultureProblem(d) {
       if (!(Number.isInteger(r[4]) && r[4] >= 0 && r[4] < b.slots.length)) return "A BAD BATHER";
     }
   }
+  // VOICE IS A LIST OF REGISTERS (CS3.5 step 4), each bound to an accessory -
+  // THE HAT IS THE CLASS MARKER (owner ruling): the acc rolled at mint picks
+  // the register, so class costs no draw and shows on the sprite. purseMul is
+  // the class's money: strawhat folk land lighter than bare-headed clerks.
   const v = d.voice;
   const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
   if (v != null) {
     if (typeof v !== "object" || Array.isArray(v)) return "A BAD VOICE";
-    for (const part of ["diary", "depart"]) if (v[part] != null) {
-      if (typeof v[part] !== "object" || Array.isArray(v[part])) return "A BAD VOICE";
-      for (const k in v[part]) if (!line(v[part][k])) return "A BAD VOICE LINE";
+    if (!Array.isArray(v.registers) || !v.registers.length) return "A VOICE WITH NO REGISTERS";
+    for (const g of v.registers) {
+      if (!g || typeof g !== "object" || Array.isArray(g)) return "A BAD REGISTER";
+      if (typeof g.id !== "string" || !g.id.length || typeof g.acc !== "string") return "A BAD REGISTER";
+      if (g.purseMul != null && !(typeof g.purseMul === "number" && isFinite(g.purseMul)
+        && g.purseMul >= 0.1 && g.purseMul <= 5)) return "A BAD PURSE CLASS";
+      for (const part of ["diary", "depart"]) if (g[part] != null) {
+        if (typeof g[part] !== "object" || Array.isArray(g[part])) return "A BAD REGISTER";
+        for (const k in g[part]) if (!line(g[part][k])) return "A BAD VOICE LINE";
+      }
+      if (g.dossier != null && (!Array.isArray(g.dossier) || g.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
+      for (const k of ["refuseHire", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
     }
-    if (v.dossier != null && (!Array.isArray(v.dossier) || v.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
-    for (const k of ["refuseHire", "foreign"]) if (v[k] != null && !line(v[k])) return "A BAD VOICE LINE";
   }
   if (d.tastes != null) {
     if (typeof d.tastes !== "object" || Array.isArray(d.tastes)) return "A BAD TASTE";
@@ -6135,8 +6146,9 @@ function buildCulture(def) {
   }
   const items = {};
   for (const k in a.items || {}) items[k] = parseArt(a.items[k].rows, a.palette);
+  const regs = (def.voice && Array.isArray(def.voice.registers)) ? def.voice.registers : [];
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs };
 }
 function loadCultures(raw) {
   for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
@@ -6171,6 +6183,40 @@ function cultureSlotCol(cul, color, slotIdx) {
   const ch = slots[Math.max(0, Math.min(slots.length - 1, slotIdx | 0))];
   const cw = cul.def.art.colorways[Math.max(0, Math.min(cul.colorways - 1, color | 0))];
   return cw[ch] || cul.def.art.palette[ch] || [255, 0, 255];
+}
+// THE REGISTER: which of the culture's voices this visitor speaks in. Bound
+// to the accessory rolled at mint - the hat IS the class - so it costs no
+// draw, shows on the sprite, and survives save/load through the acc field.
+function visRegister(k) {
+  const cul = visCulture(k);
+  if (!cul || !cul.regs.length) return null;
+  return cul.regs.find(g => g.acc === k.acc) || cul.regs[0];
+}
+// {SLOT} substitution for culture voice templates. Plain text-in, text-out;
+// no RNG, no formatting cleverness - the diary rule ("consumes no RNG and is
+// behaviour-neutral") holds by construction.
+function vfmt(tpl, slots) {
+  return slots ? tpl.replace(/\{([A-Z]+)\}/g, (m, s) => slots[s] != null ? String(slots[s]) : m) : tpl;
+}
+// A visitor's line for a diary event: own register first, then the culture's
+// first register, then the crab literal the call site always carried. A crab
+// (or a walk-in with no culture at all) takes the fallback without a lookup.
+function vline(k, id, fallback, slots) {
+  const reg = visRegister(k);
+  if (!reg) return fallback;
+  const cul = visCulture(k);
+  const tpl = (reg.diary && reg.diary[id])
+    || (cul.regs[0].diary && cul.regs[0].diary[id]) || null;
+  return tpl ? vfmt(tpl, slots) : fallback;
+}
+// A culture's taste for a recipe: a plain multiplier, 1 when unstated. Crabs
+// exit before any lookup - their scoring floats are never touched.
+function tasteW(k, recipe) {
+  if (!k || !k.culture || k.culture === "crab" || !recipe) return 1;
+  const cul = CULTURES[k.culture];
+  const t = cul && cul.def.tastes;
+  const w = t && t[recipe.id];
+  return typeof w === "number" ? w : 1;
 }
 
 // The one gate every save passes - stored, migrated or imported. Returns null
@@ -6383,6 +6429,7 @@ function save() {
         ti: s.topItem, tz: s.topBiz, tp: Math.round(s.topPaid),
         tp2: Math.round(s.tips), du: Math.round(s.dues),
         sh: s.shut, fu: s.full, br: s.broke,
+        ...(s.foreign ? { fo: s.foreign } : {}),
         mi: Math.round(s.mistMin), ms: s.missed, sw: s.sandWhy };
       })(),
     })),
@@ -6765,6 +6812,7 @@ function load(slot) {
       s.topItem = nm(st.ti); s.topBiz = nm(st.tz); s.topPaid = num(st.tp, 9999);
       s.tips = num(st.tp2, 9999); s.dues = num(st.du, 9999);
       s.shut = num(st.sh, 9999); s.full = num(st.fu, 9999); s.broke = num(st.br, 9999);
+      if (st.fo) s.foreign = num(st.fo, 9999);
       s.mistMin = num(st.mi, 99999); s.missed = num(st.ms, 99);
       s.sandWhy = ["broke", "shut", "unmade", "full"].indexOf(st.sw) >= 0 ? st.sw : null;
     }
@@ -7263,6 +7311,15 @@ function hireShift() {
 // checklist, tourist-side: stall, table + plate, any chef mid-claim), drop
 // the customer entity from the queue, and stand a crew crab up in its place
 function convertTourist(k) {
+  // A PIG DOES NOT TAKE THE APRON (CS3.5 MVP): a cultured visitor declines in
+  // her own register and stays a visitor - makeCrabPersona never runs on her.
+  // Settlers are a later chapter; today the refusal IS the content.
+  if (k.culture && k.culture !== "crab") {
+    const reg = visRegister(k);
+    popText((reg && reg.refuseHire) || "KIND OFFER. NO.", k.x - 20, custY(k) - 24, [255, 200, 140]);
+    visLog(k, "life", (reg && reg.refuseHire) || "TURNED DOWN A JOB");
+    return null;
+  }
   if (k.room) { k.room.occupant = null; k.room.dirty = true; k.room = null; }   // they've checked out for good
   if (k.stall) { k.stall.occupant = null; k.stall.dirty = true; k.stall = null; }
   if (k.table) { k.table.occupant = null; k.table.dishes = 0; k.table = null; }
@@ -7298,9 +7355,17 @@ function hireCrew() {
   // lives) and anyone already walking out; prefer someone standing in line
   // over someone mid-shower
   const eligible = customers.filter(k => !k.isCrab && k.state !== "leaving" && k.state !== "outStall");
-  const pick = eligible.find(k => k.state === "waiting" || k.state === "arriving")
-    || eligible.find(k => k.state !== "showering" && k.state !== "toStall" && k.state !== "waitStall")
-    || eligible[0];
+  const prefer = (pool) => pool.find(k => k.state === "waiting" || k.state === "arriving")
+    || pool.find(k => k.state !== "showering" && k.state !== "toStall" && k.state !== "waitStall")
+    || pool[0];
+  let pick = prefer(eligible);
+  // A CULTURED VISITOR DECLINES THE APRON (CS3.5): she refuses out loud and
+  // the ad falls through to the next candidate - a crab if one is about, the
+  // bus if not. The refusal is once per hire, not a barrage.
+  if (pick && pick.culture && pick.culture !== "crab") {
+    convertTourist(pick);   // the refusal quip + diary line; returns null
+    pick = prefer(eligible.filter(k => !k.culture || k.culture === "crab"));
+  }
   let c, how;
   if (pick) {
     c = convertTourist(pick);
@@ -9078,8 +9143,10 @@ function visBenefit(k) {
   if (DRINKS[r.id]) k.thirst = 0;
   if (k.need === "food" || (!DRINKS[r.id] && k.biz === "shack")) k.hunger = 0;
   if (k.need === "fun" || k.biz === "arcade") k.bored = 0;
-  visLog(k, "need", "BOUGHT " + (ITEM_NAMES[r.icon] || "SOMETHING")
-    + " AT THE " + BIZ[k.biz].short + " - $" + menuPrice(k.biz, r));
+  visLog(k, "need", vline(k, "bought",
+    "BOUGHT " + (ITEM_NAMES[r.icon] || "SOMETHING")
+    + " AT THE " + BIZ[k.biz].short + " - $" + menuPrice(k.biz, r),
+    { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short }));
 }
 function serve(c) {
   const cust = c.cust;
@@ -9345,7 +9412,7 @@ function newVisitor(overnightOnly, cu) {
   if (Math.random() < 0.12) wallet *= 0.6;                        // ...and a few travelling light
   const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + Math.random() * 90
     : nights * 1440 - 60 - Math.random() * 60));
-  return {
+  const v = {
     visitor: true, gone: false, culture: cul ? cu : "crab",
     name: cul ? freeVisitorName(cul.def.people.names) : freeVisitorName(),
     color: cul ? (Math.random() * cul.colorways) | 0 : (Math.random() * CRAB_COLORS.length) | 0,
@@ -9367,6 +9434,17 @@ function newVisitor(overnightOnly, cu) {
     stay: newStay(), qJoin: null,
     hunger: n.hunger, thirst: n.thirst, dirt: n.dirt, bored: n.bored, tired: n.tired,
   };
+  // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
+  // accessory carries a purse multiplier - strawhat farmhands land lighter
+  // than bare-headed clerks, because pig society is not so egalitarian. One
+  // multiplication AFTER every draw, so the RNG stream is untouched; the crab
+  // path never enters this branch.
+  if (cul) {
+    const reg = visRegister(v);
+    const mul = reg && typeof reg.purseMul === "number" ? reg.purseMul : 1;
+    if (mul !== 1) { v.wallet = Math.max(1, Math.round(v.wallet * mul)); v.purse = v.wallet; }
+  }
+  return v;
 }
 // THE OPENING IS THE TOWN, AND THEN THE BOAT (owner, 2026-08-19: "the game
 // should start with no tourists present"). A new town no longer calls this at
@@ -9438,7 +9516,7 @@ function ferryDock(n, idx) {
     v.x = FERRY.gangway - 4 - i * 7;   // down the plank and along the deck, in a line
     v.thinkT = i * 3 + Math.random() * 8;   // ...and they do not all want lunch at 9:01
     customers.push(v);
-    visLog(v, "life", "CAME ASHORE OFF THE FERRY");
+    visLog(v, "life", vline(v, "ashore", "CAME ASHORE OFF THE FERRY"));
     // HARBOUR DUES, if that is the purse the town voted for. Charged at the
     // gangway, out of a wallet that was minted two lines ago and will be
     // destroyed when they sail - so it is a live balance moving, not a coin
@@ -9446,7 +9524,7 @@ function ferryDock(n, idx) {
     today.heads = (today.heads || 0) + 1;
     const due = harbourDues(v);
     if (due > 0) {
-      visLog(v, "money", "PAID $" + Math.round(due) + " HARBOUR DUE");
+      visLog(v, "money", vline(v, "dues", "PAID $" + Math.round(due) + " HARBOUR DUE", { N: Math.round(due) }));
       stayOf(v).dues += due;   // ...and they will mention it on the way out
     }
     landed.push(v.name);
@@ -9505,7 +9583,7 @@ function visLeave(k) {
   // back to housekeeping, then send them down the pier
   if (k.room) checkOut(k);
   k.state = "toPier"; k.leg = 0; k.target = null;
-  visLog(k, "life", "HEADING BACK TO THE FERRY");
+  visLog(k, "life", vline(k, "leaving", "HEADING BACK TO THE FERRY"));
 }
 // SHE HAS SAILED. Anybody who made it aboard goes home with whatever is left
 // in their pocket - and that money leaves the town, which is what keeps the
@@ -9524,7 +9602,7 @@ function ferryGo() {
     if (k.gone || k.nights > 0) continue;
     k.nights = 1; k.leaveT = nearestSail(gnow() + 900);
     stayOf(k).missed++;
-    visLog(k, "life", "MISSED THE LAST BOAT - STAYING OVER");
+    visLog(k, "life", vline(k, "missedboat", "MISSED THE LAST BOAT - STAYING OVER"));
   }
   ferryNotify("sail");
 }
@@ -9624,7 +9702,7 @@ function checkIn(k) {
   const r = k.room;
   if (!r) return;
   k.roomN = hotelRooms().indexOf(r) + 1;
-  visLog(k, "home", "CHECKED IN - ROOM " + k.roomN + " AT THE DRIFTWOOD");
+  visLog(k, "home", vline(k, "checkin", "CHECKED IN - ROOM " + k.roomN + " AT THE DRIFTWOOD", { N: k.roomN }));
   if (window._stats) window._stats.roomLets = (window._stats.roomLets || 0) + 1;
   today.roomsLet = (today.roomsLet || 0) + 1;
 }
@@ -9633,7 +9711,7 @@ function checkOut(k) {
   k.nightsHad++;
   k.state = "roam"; k.biz = null; k.target = null;
   k.wy = FLOOR_Y; k.y = FLOOR_Y;
-  visLog(k, "home", "CHECKED OUT - SLEPT WELL");
+  visLog(k, "home", vline(k, "checkout", "CHECKED OUT - SLEPT WELL"));
 }
 // THE ANSWER TO A FULL HOUSE, and it is an ENVIRONMENT answer, not a scripted
 // sulk (PLAN's standing thesis). A visitor with nowhere to sleep does not
@@ -9663,7 +9741,7 @@ function sleepOnSand(k) {
       : hotelRooms().some(r => r.dirty || r.cleaning) ? "unmade" : "full";
     // they came for two nights; one on the sand is enough - the next boat will do
     k.leaveT = Math.min(k.leaveT, nearestSail(gnow() + 540));
-    visLog(k, "peril", "NO ROOM AT THE HOTEL - SLEPT ON THE BEACH");
+    visLog(k, "peril", vline(k, "rough", "NO ROOM AT THE HOTEL - SLEPT ON THE BEACH"));
     today.moved.push(k.name + " SLEPT ON THE BEACH - HOTEL FULL");
     // ...and whether the room they could not have was LET or merely UNMADE.
     // freeRoom() refuses a dirty or half-cleaned room, so a guest on the sand
@@ -9748,7 +9826,22 @@ function visPick(k) {
   // the average ticket down with it. Somebody on holiday orders off the menu;
   // the only thing that stops them is not being able to afford it at all,
   // which `add` has already checked (price + the room money held back).
-  const treat = (rs) => rs[(Math.random() * rs.length) | 0];
+  // A VISITOR ORDERS WHAT THEY FANCY - and what a pig fancies is not what a
+  // crab fancies (CS3.5 tastes). EQUAL WEIGHTS TAKE THE OLD DRAW VERBATIM:
+  // for a crab every weight is 1, the legacy expression runs, and the frozen
+  // fingerprints hold because the draw maps to the same recipe. A cultured
+  // guest's weights tilt the same single draw - one Math.random() either way.
+  const treat = (rs) => {
+    const ws = rs.map(r => tasteW(k, r));
+    let equal = true;
+    for (let i = 1; i < ws.length; i++) if (ws[i] !== ws[0]) { equal = false; break; }
+    if (equal) return rs[(Math.random() * rs.length) | 0];
+    let total = 0;
+    for (const w of ws) total += w;
+    let roll = Math.random() * total;
+    for (let i = 0; i < rs.length; i++) { roll -= ws[i]; if (roll < 0) return rs[i]; }
+    return rs[rs.length - 1];
+  };
   const plate = (rs) => { const f = rs.filter(r => !DRINKS[r.id]); return treat(f.length ? f : rs); };
   if (k.hunger >= VIS_WANT.food) add("shack", "food", plate);
   if (k.thirst >= VIS_WANT.drink) {
@@ -9787,8 +9880,20 @@ function visPick(k) {
       // bit-identically.
       s = (VIS_RANK[e.need] + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
     }
+    // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
+    // its picked recipe, so the weight is a straight lookup. Guarded so a
+    // crab's scoring floats are never multiplied - not even by 1.
+    if (k.culture && k.culture !== "crab" && e.recipe) {
+      const tw = tasteW(k, e.recipe);
+      if (tw !== 1) s *= tw;
+    }
     if (s > bestScore) { bestScore = s; best = e; }
   }
+  // SETTLING IS COUNTED (CS3.5): a cultured guest whose winning pick carried
+  // a taste at or under 0.6 is eating what was going, not what they wanted.
+  // The count feeds the FOREIGN departure rule - the card teaches the demand.
+  if (best && best.recipe && k.culture && k.culture !== "crab" && tasteW(k, best.recipe) <= 0.6)
+    stayBlocked(k, "foreign");
   return best;
 }
 function visGo(k, e) {
@@ -9829,7 +9934,7 @@ function visTick(k, dt) {
     k.dirt = Math.min(1, k.dirt + VIS_RATE.dirt * hrs * 1.5);
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) {
       k.state = "roam"; k.rough = false; k.roughFlag = false; k.target = null;
-      visLog(k, "peril", "WOKE UP ON THE SAND - NOT A GREAT NIGHT");
+      visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
     }
     return;
   }
@@ -9857,7 +9962,7 @@ function updateVisitor(k, dt) {
     // ...and they stand at the door, wherever the door is: 148 for the back
     // wall's rooms (unchanged, to the pixel) and the boardwalk line for a
     // cabana in the forecourt (ACCOMMODATION UPGRADES).
-    if (visStep(k, r.x + 2, Math.min(FLOOR_MAX, r.y + 12), dt)) { k.state = "inRoom"; visLog(k, "home", "TURNED IN FOR THE NIGHT"); }
+    if (visStep(k, r.x + 2, Math.min(FLOOR_MAX, r.y + 12), dt)) { k.state = "inRoom"; visLog(k, "home", vline(k, "turnin", "TURNED IN FOR THE NIGHT")); }
     return;
   }
   // ASLEEP, AND THERE IS NOWHERE TO WALK. This guard is not decoration: with
@@ -9930,7 +10035,7 @@ function visAfterCounter(k) {
     k.buys++;
     if (k.need === "room") checkIn(k);
   } else {
-    visLog(k, "peril", "GAVE UP WAITING AT THE " + (BIZ[k.biz] ? BIZ[k.biz].short : "COUNTER"));
+    visLog(k, "peril", vline(k, "gaveup", "GAVE UP WAITING AT THE " + (BIZ[k.biz] ? BIZ[k.biz].short : "COUNTER"), { BIZ: BIZ[k.biz] ? BIZ[k.biz].short : "COUNTER" }));
     stayQuit(k);   // the loudest thing in a stay: they will say so on the boat
     k.bored = Math.min(1, k.bored + 0.05);
   }
@@ -13241,7 +13346,12 @@ function drawVisDossier(k) {
   visBars(k, x + 8, ly, w2 - 16); ly += 14;
   const log = Array.isArray(k.log) ? k.log : [];
   smallText(ctx, "THE VISIT", x + 8, ly, [110, 100, 110]); ly += 8;
-  if (!log.length) smallText(ctx, "JUST OFF THE BOAT.", x + 8, ly, [150, 140, 160]);
+  if (!log.length) {
+    const reg = visRegister(k);
+    const dq = reg && reg.dossier && reg.dossier.length
+      ? reg.dossier[(k.name.length + k.color) % reg.dossier.length] : "JUST OFF THE BOAT.";
+    smallText(ctx, dq, x + 8, ly, [150, 140, 160]);
+  }
   for (let i = 0; i < 5; i++) {
     const e = log[log.length - 1 - i];
     if (!e) break;
@@ -14659,6 +14769,10 @@ function departRecord(k) {
   const blocked = blk[0][1] >= 3 && blk[0][1] > blk[1][1] ? blk[0][0] : null;
   return {
     name: k.name, color: k.color, acc: k.acc,
+    // species + the settled-for-it count ride only when they say something:
+    // a crab's row is byte-identical to every row written before cultures
+    ...(k.culture && k.culture !== "crab" ? { cu: k.culture } : {}),
+    ...(s.foreign ? { foreign: s.foreign } : {}),
     days: Math.max(1, day - k.arrived + 1),
     nights: k.nights, nightsBed: k.nightsHad, rough: k.roughNights,
     purse, left, spent: Math.max(0, purse - left), buys: k.buys,
@@ -14765,6 +14879,15 @@ const DEPART_RULES = [
       : r.blocked === "full" ? "NEVER GOT NEAR A COUNTER. EVERY LINE WAS FULL."
       : r.blocked === "broke" ? "NOTHING HERE I COULD AFFORD. NOT ONE THING."
       : "DIDN'T SPEND A DOLLAR. NOTHING TOOK MY FANCY." },
+  // THE FOREIGN PALATE (CS3.5). Counted when a cultured guest SETTLED - their
+  // chosen treat carried a taste weight at or under 0.6, meaning they ate
+  // what was going, not what they wanted. Two settles is a pattern, and the
+  // line is how the player learns a demand exists before any venue serves
+  // it (the departure card teaching, applied to cuisine). Sits under the
+  // bought-nothing headline: eating grudgingly beats not eating at all.
+  { id: "foreign", mood: "mixed",
+    w: (r) => (r.foreign || 0) >= 2 ? 60 + 4 * Math.min(5, r.foreign) : 0,
+    line: () => "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
   // home unspent since the visitor pass shipped, and the reason clause is what
   // turns that from a complaint into something the player can act on.
@@ -14864,7 +14987,28 @@ function visQuote(r) {
     const w = rule.w(r) || 0;
     if (w > bw) { bw = w; best = rule; }
   }
-  return { id: best.id, mood: best.mood, weight: bw, line: best.line(r) };
+  return { id: best.id, mood: best.mood, weight: bw, line: departLine(r, best) };
+}
+// THE SENTENCE IS CULTURE; THE RULE IS ENGINE. A cultured guest's register
+// may carry its own template for the rule that spoke - same weights, same
+// winner, different voice. Slots are resolved from the row alone, so this
+// stays the pure function the scenarios hand hand-built stays to.
+function departLine(r, rule) {
+  if (r.cu && CULTURES[r.cu]) {
+    const cul = CULTURES[r.cu];
+    const reg = cul.regs.find(g => g.acc === r.acc) || cul.regs[0];
+    const tpl = reg && ((reg.depart && reg.depart[rule.id])
+      || (rule.id === "foreign" ? reg.foreign : null)
+      || (cul.regs[0].depart && cul.regs[0].depart[rule.id])
+      || (rule.id === "foreign" ? cul.regs[0].foreign : null));
+    if (tpl) return vfmt(tpl, {
+      LEFT: r.left, PURSE: r.purse, STOPS: r.buys, DAYS: r.days,
+      N: r.nightsBed, ITEM: r.topItem || "SOMETHING",
+      MINS: depMins(r.quits ? r.quitMin : r.worstMin),
+      BIZ: r.quits ? r.quitBiz : (r.worstMin >= 1 ? r.worstBiz : (r.topBiz || "COUNTER")),
+    });
+  }
+  return rule.line(r);
 }
 
 // ---- THE CARD --------------------------------------------------------------
