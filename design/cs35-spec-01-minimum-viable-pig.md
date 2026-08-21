@@ -384,7 +384,10 @@ highlight pixel).
 
 Plus: full matrix re-run vs the pinned baseline after each landing step.
 
-## 7. IMPLEMENTATION ORDER (each step lands suite-green)
+## 7. IMPLEMENTATION ORDER — **ALL FOUR STEPS LANDED 2026-08-21,
+suite 253/253, crab saves byte-identical throughout.** (1) registry
+`edd9336` → (2) geometry `8ea81a9` → (3) arrival `b798f30` → (4) voice
+`a28b610`. THE MINIMUM VIABLE PIG IS COMPLETE. Original plan follows.
 
 1. **Registry + validation + species plumbing** (`cultures` key,
    `cu` field, clamps, `cultureProblem`) — no behavior change.
