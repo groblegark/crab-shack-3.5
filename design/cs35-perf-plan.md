@@ -77,11 +77,24 @@ instances on GPU). The assessment, recorded as a ladder:
    slots, furniture x's — the world-art work wants those exposed anyway),
    and it would let the browser game run the sim in a Worker (real
    fast-forward, honest forecasting).
-2. **TRIGGER-GATED — the deterministic core rewrite.** Any backend that
-   must agree with itself and CI needs fixed-point integer numerics, flat
-   state, event codes instead of strings. This is the one big cost.
-   Trigger: the workload becomes thousands of runs per validation (CS4
-   generate-and-prove cultureway loops, node networks of many towns).
+2. **SCHEDULED — the deterministic core rewrite.** (Was trigger-gated;
+   owner override 2026-08-21: *"let's do that numeric rewrite too, im
+   well excited about it."*) Fixed-point integer numerics, flat state,
+   event codes instead of strings. Sequenced AFTER the MVP pig (steps
+   3-4) and the rung-1 sim/view split, BEFORE foodways/civics — so the
+   cultureway expression layer lands on deterministic ground instead of
+   being ported to it later. Executed as a STRANGLER, one subsystem per
+   slice with a deliberate fingerprint re-baseline and a matrix
+   referee per slice (the payroll re-baseline discipline): money →
+   integer cents first (the conservation audit becomes EXACT — a
+   theorem, not a float comparison), then the clock, then
+   movement/space, then the transcendental tail (hypot, pow(x,1.2),
+   the ramps) via integer/table forms. Consequences accepted: every
+   frozen fingerprint re-baselines once per slice, and Ruling 7's CS3
+   ports validate behavior-equivalent rather than byte-equivalent after
+   the boundary. Bonus the browser game keeps: cross-browser bit
+   determinism (today's float sim can drift across JS engines on
+   transcendentals). Design doc: cs35-numeric-core.md (research first).
 3. **After the rewrite, CPU already wins.** The deterministic core
    compiles to WASM and runs perfectly reproducibly on every core
    available (80 free on Actions, hundreds rentable) — most of the
