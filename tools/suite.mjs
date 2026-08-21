@@ -2,8 +2,18 @@
 // Regression suite: assertion-based scenarios over the real game code.
 //   node tools/suite.mjs            run everything
 //   node tools/suite.mjs stuck ff   run scenarios matching any arg substring
+//   node tools/suite.mjs --jobs 12  fan out over 12 forked workers: a dynamic
+//                                   longest-first queue ordered by
+//                                   tools/suite-timings.json, printed in
+//                                   registration order so the output matches
+//                                   a sequential run line for line
+//   --timings-out f.json            dump this run's measured ms per scenario
+// Regenerate the timings file after a full run (stale timings only cost
+// efficiency, never correctness):
+//   node tools/suite.mjs --jobs 12 --timings-out /tmp/t.json
+//   node tools/regen-timings.mjs /tmp/t.json
 import { createSim } from "./simlib.mjs";
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 
 const results = [];
 function scenario(name, fn) { results.push({ name, fn }); }
@@ -10550,17 +10560,99 @@ scenario("cultureways: a minted pig round-trips and a minted crab stays byte-sha
 });
 
 // ---- runner
-const filters = process.argv.slice(2);
+// Everything that isn't a flag is a name-substring filter, as ever. Flags:
+// --jobs N (worker pool), --timings-out FILE, and the internal --_run used
+// by the pool's forked children (registration indices, stable under filters).
+const argv = process.argv.slice(2);
+const flags = {};
+const filters = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === "--jobs" || argv[i] === "--timings-out" || argv[i] === "--_run") flags[argv[i]] = argv[++i];
+  else filters.push(argv[i]);
+}
+const JOBS = Math.max(1, parseInt(flags["--jobs"] || "1") || 1);
+
+if (flags["--_run"] != null) {
+  // ---- worker mode: run the listed registration indices, report each result
+  // over IPC and exit 0 regardless - the PARENT is the judge. This file is
+  // its own worker entry, the headless.mjs `--_worker` idiom.
+  for (const idx of flags["--_run"].split(",").map(Number)) {
+    const { fn } = results[idx];
+    const s = Date.now();
+    let out;
+    try { out = fn(); } catch (e) { out = "EXCEPTION: " + (e.stack || e).toString().split("\n").slice(0, 4).join(" / "); }
+    process.send({ idx, pass: out === true, msg: out === true ? null : String(out), ms: Date.now() - s });
+  }
+  process.exit(0);
+}
+
 const list = filters.length ? results.filter(r => filters.some(f => r.name.includes(f))) : results;
+const timed = [];   // [name, ms] measured this run, for --timings-out
 let pass = 0, fail = 0;
 const t0 = Date.now();
-for (const { name, fn } of list) {
-  const s = Date.now();
-  let out;
-  try { out = fn(); } catch (e) { out = "EXCEPTION: " + (e.stack || e).toString().split("\n").slice(0, 4).join(" / "); }
-  const ms = Date.now() - s;
-  if (out === true) { pass++; console.log(`  PASS  ${name} (${ms}ms)`); }
-  else { fail++; console.log(`  FAIL  ${name} (${ms}ms)\n        ${out}`); }
+
+if (JOBS <= 1) {
+  // the exact sequential path, unchanged - and still the reference output
+  for (const { name, fn } of list) {
+    const s = Date.now();
+    let out;
+    try { out = fn(); } catch (e) { out = "EXCEPTION: " + (e.stack || e).toString().split("\n").slice(0, 4).join(" / "); }
+    const ms = Date.now() - s;
+    timed.push([name, ms]);
+    if (out === true) { pass++; console.log(`  PASS  ${name} (${ms}ms)`); }
+    else { fail++; console.log(`  FAIL  ${name} (${ms}ms)\n        ${out}`); }
+  }
+} else {
+  // ---- parent pool: dynamic longest-first queue over forked copies of this
+  // file. Hand each idle child the next-longest remaining scenario (batch of
+  // one - a fork boots in ~12ms against a 2.3s median scenario); buffer every
+  // result and print in REGISTRATION order, so the report reads identically
+  // to a sequential run whatever order the work finished in. A child that
+  // dies mid-scenario fails that scenario and the pool carries on.
+  const { fork } = await import("child_process");
+  const { fileURLToPath } = await import("url");
+  const self = fileURLToPath(import.meta.url);
+  let known = {};
+  try { known = JSON.parse(readFileSync(new URL("./suite-timings.json", import.meta.url), "utf8")); } catch (e) {}
+  const MEDIAN = 2300;   // an unknown scenario is assumed median-sized
+  const listSet = new Set(list);
+  const listIdx = [];
+  results.forEach((r, i) => { if (listSet.has(r)) listIdx.push(i); });
+  const queue = listIdx.slice().sort((a, b) =>
+    (known[results[b].name] || MEDIAN) - (known[results[a].name] || MEDIAN));
+  const out = {};
+  await new Promise((resolve) => {
+    let next = 0, done = 0, live = 0;
+    const launch = () => {
+      while (live < JOBS && next < queue.length) {
+        const idx = queue[next++];
+        live++;
+        const child = fork(self, ["--_run", String(idx)], { stdio: ["ignore", "ignore", "inherit", "ipc"] });
+        child.on("message", (m) => { out[m.idx] = m; });
+        child.on("exit", (code) => {
+          live--;
+          if (out[idx] === undefined)
+            out[idx] = { idx, pass: false, msg: "WORKER DIED (exit " + code + ")", ms: 0 };
+          if (++done === queue.length) return resolve();
+          launch();
+        });
+      }
+    };
+    launch();
+  });
+  for (const idx of listIdx) {
+    const { name } = results[idx];
+    const m = out[idx];
+    timed.push([name, m.ms]);
+    if (m.pass) { pass++; console.log(`  PASS  ${name} (${m.ms}ms)`); }
+    else { fail++; console.log(`  FAIL  ${name} (${m.ms}ms)\n        ${m.msg}`); }
+  }
 }
+
 console.log(`\n${pass}/${pass + fail} passed in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+if (flags["--timings-out"]) {
+  const o = {};
+  for (const [n, ms] of timed) o[n] = ms;
+  writeFileSync(flags["--timings-out"], JSON.stringify(o, null, 1) + "\n");
+}
 process.exit(fail ? 1 : 0);
