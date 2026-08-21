@@ -242,19 +242,28 @@ shack rather than starving anyone — pigs eat, grudgingly, which is what
 makes the `foreign` quote land. Bounds [0.5, 2.0] per the Victoria-3
 precedent.
 
-### 5.4 Colorways (6, named for real pig breeds)
+### 5.4 Colorways (6, named for real pig breeds — REV 2, owner feedback
+2026-08-21: MUD BROWN retired, "looks too much like a bear"; real spots
+requested)
+
+Colorways are now TRIPLES `[body, shade, spot]`, because **spots are a
+third palette slot `O` baked into the body template**: a handful of `O`
+pixels sit in the P fields (cheek, shoulder, hip — asymmetric, Gloucester
+style), and a colorway either maps `O` to the body color (invisible) or to
+a contrast color (real spots). No extra art, works in every pose, and the
+schema's `slots` list becomes `["P","Q","O"]`.
 
 ```js
-[ ["PIGLET PINK",     [248,176,168],[200,120,120]],
-  ["ROSE",            [232,136,144],[176, 88,104]],
-  ["OXFORD SANDY",    [224,184,136],[168,128, 88]],
-  ["TAMWORTH GINGER", [208,136, 80],[152, 88, 48]],
-  ["MUD BROWN",       [136, 96, 64],[ 88, 56, 40]],
-  ["OLD SPOT GREY",   [184,184,192],[ 64, 64, 72]] ]  // wide gap = spots
+[ ["PIGLET PINK",     [248,176,168],[200,120,120],[248,176,168]],
+  ["ROSE",            [232,136,144],[176, 88,104],[232,136,144]],
+  ["OXFORD SANDY",    [224,184,136],[168,128, 88],[168,128, 88]],  // subtle mottle
+  ["TAMWORTH GINGER", [208,136, 80],[152, 88, 48],[208,136, 80]],
+  ["BERKSHIRE PLUM",  [136, 96,136],[ 88, 56, 88],[136, 96,136]],  // replaces MUD BROWN
+  ["OLD SPOT",        [224,216,208],[168,160,152],[ 64, 56, 72]] ] // real spots
 ```
-The pig ramp lives in the warm-neutral band (tan/brown/grey) no crab
-colorway occupies — species reads at a glance before the silhouette does.
-All values multiples of 8 (exact through 15-bit quantization).
+The pig ramp lives in the warm-neutral band no crab colorway occupies —
+species reads at a glance before the silhouette does. All values multiples
+of 8 (exact through 15-bit quantization).
 
 ### 5.5 Body art (12×16 upright pig-person; DRAFT, validated 45/45
 structural checks — rect-ness, palette closure, pose completeness, anchor
@@ -286,10 +295,18 @@ a:  ..KK....KK..    s (rows 7-16):  ..KK....KK..
 Anchors: `hat {1,2}` (head dome top-left, brim lands ON the anchor row —
 the tophat no-bob rule), `carry {2,-7}` (9×7 item floats above the ears,
 same 1px-right-of-center bias as the crab), `mark {9,-6}` (air over the
-ear), `bar {w:12}`. Accessory **strawhat** (10×4, dx 0 dy −3): straw crown,
-amber band, full-width brim, all-K bottom row per the toque idiom. Item
-**bao** (9×7, phase-2 good, drawn now): steamed bun, three pleat crimps at
-the crown — the crimp is what says *bao* and not *egg* at 9 pixels.
+ear), `bar {w:12}`. REV 2: the body template carries `O` spot pixels
+(rows 2/9/12 in pose a, mirrored per pose) — see §5.4.
+
+Accessory **strawhat** — REV 2, owner ruled the original 10-wide "bigger
+or smaller": two candidates in the preview page, ONE ships:
+- SMALL (8×4, dx +1, dy −3): perches between the ears, ear tips stay out.
+- BIG (14×5, dx −2, dy −4): sun brim wider than the pig herself (blit
+  clips fine; the flip formula handles negative dx once w is data).
+
+Item **bao** (9×7, phase-2 good, drawn now): steamed bun, three pleat
+crimps at the crown — the crimp is what says *bao* and not *egg* at 9
+pixels.
 
 **Known-weak points for the pixel pass** (owner's brush): nostril B-on-Q
 contrast after quantization; the Q belly patch may read as clothing;
@@ -348,6 +365,7 @@ Plus: full matrix re-run vs the pinned baseline after each landing step.
 
 - **Voice register: Option A (Alderman) or Option B (Farmhand)?** (Or A
   for a rare "official visitor" flavor later — MVP wants exactly one.)
+- **Strawhat: SMALL or BIG?** (Both in the preview page; §5.5 rev 2.)
 - The gate numbers (`repGate 80, shareMax 0.25, shareRamp 80`) are
   proposals to measure, not rulings — the matrix referees.
 - Sprite draft wants your pixel pass (weak points listed in §5.5).

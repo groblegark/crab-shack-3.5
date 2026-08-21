@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>PIGPUBLIC PREVIEW — CS3.5 spec 01</title>
+<title>PIGPUBLIC PREVIEW — CS3.5 spec 01 (rev 2)</title>
 <style>
   body { background:#14101c; color:#e8e2f0; font-family:ui-monospace,Menlo,monospace; margin:24px; }
   h1 { font-size:20px; letter-spacing:2px; color:#ffb5c5; }
@@ -26,27 +26,32 @@
   td,th { border:1px solid #3a3050; padding:4px 12px; text-align:left; color:#cfc6e0; }
   th { color:#ffd878; font-weight:normal; letter-spacing:1px; }
   .note { font-size:10px; color:#9a90b0; max-width:820px; line-height:1.6; }
+  .rev { color:#8ee6a0; }
 </style>
 </head>
 <body>
-<h1>PORKRESENTATIVE PIGPUBLIC — spec 01 preview</h1>
-<div class="note">Draft content from design/cs35-spec-01-minimum-viable-pig.md, rendered
-through the same rows-and-palette semantics as the game (15-bit color crush included).
-The pixels are a first pass awaiting your brush — weak points are listed in the spec §5.5.</div>
+<h1>PORKRESENTATIVE PIGPUBLIC — spec 01 preview <span class="rev">rev 2</span></h1>
+<div class="note">Rev 2 changes: MUD BROWN retired (read as bear) → BERKSHIRE PLUM;
+spots are now REAL — a third palette slot 'O' baked into the body template, so any
+colorway can switch spots on (dark) or off (same as body) with no extra art, in every
+pose; and TWO straw hat sizes to pick between.</div>
 
 <h2>THE PIG (walk cycle, 10x, on sand / plank / night)</h2>
 <div class="row" id="walkRow"></div>
 
-<h2>SIX COLORWAYS (pose A, 6x)</h2>
+<h2>SIX COLORWAYS (pose A, 6x) — OLD SPOT now has real spots</h2>
 <div class="row"><div class="strip sand" id="colorRow"></div></div>
 
-<h2>POSES — A / B / W (working) / S (sleeping), + STRAWHAT (6x)</h2>
+<h2>THE HAT DECISION — small (jaunty, ears out) vs big (sun brim, wider than the pig)</h2>
+<div class="row"><div class="strip sand" id="hatRow"></div></div>
+
+<h2>POSES — A / B / W (working) / S (sleeping), 6x</h2>
 <div class="row"><div class="strip sand" id="poseRow"></div></div>
 
 <h2>SCALE CHECK — pig (12x16) beside crab (16x12), 6x</h2>
 <div class="row"><div class="strip sand" id="scaleRow"></div></div>
 
-<h2>ITEMS — BAO 9x7 (phase-2 good) and the STRAWHAT, 10x</h2>
+<h2>ITEMS — BAO 9x7 (phase-2 good), 10x</h2>
 <div class="row"><div class="strip plank" id="itemRow"></div></div>
 
 <h2>THE VOICE — pick a register</h2>
@@ -90,24 +95,43 @@ The pixels are a first pass awaiting your brush — weak points are listed in th
 const q15 = v => v & 0xF8;
 const css = c => `rgb(${q15(c[0])},${q15(c[1])},${q15(c[2])})`;
 
-// ---- pig draft (spec 5.4/5.5, verbatim)
+// ---- pig body rev 2: 'O' = spot slot, baked into the template.
+// Plain colorways map O to the body color (invisible); spotted map it dark.
 const PIG_A = [
-"..KK....KK..",".KPPKKKKPPK.",".KPPPPPPPPK.",".KPBPPPBPPK.",".KPQQQQQQPK.",
-".KPQBQQBQPK.",".KPPQQQQPPK.","..KPPPPPPK..","..KKKKKKKK..",".KPPPPPPPPK.",
-"KPKPQQQQPKPK","KQKPQQQQPKQK",".KPPPPPPPPK.","..KPPKKPPK..","..KQQKKQQK..","..KKKKKKKK.."];
+"..KK....KK..",".KPPKKKKPPK.",".KPPPPPOPPK.",".KPBPPPBPPK.",".KPQQQQQQPK.",
+".KPQBQQBQPK.",".KPPQQQQPPK.","..KPPPPPPK..","..KKKKKKKK..",".KPOOPPPPPK.",
+"KPKPQQQQPKPK","KQKPQQQQPKQK",".KPPPPPPOPK.","..KPPKKPPK..","..KQQKKQQK..","..KKKKKKKK.."];
 const PIG_B = PIG_A.slice(0,13).concat([".KPPK..KPPK.",".KQQK..KQQK.",".KKKK..KKKK."]);
 const PIG_W = PIG_A.slice(0,7).concat(
-["KQKPPPPPPKQK","KPKKKKKKKKPK","KPKPPPPPPKPK",".KPPQQQQPPK.",".KPPQQQQPPK."], PIG_A.slice(12));
+["KQKPPPPPPKQK","KPKKKKKKKKPK","KPKOOPPPPKPK",".KPPQQQQPPK.",".KPPQQQQPPK."], PIG_A.slice(12));
 const PIG_S = Array(6).fill("............").concat([
-"..KK....KK..",".KPPKKKKPPK.",".KPPPPPPPPK.",".KPKKPKKPPK.",".KPQQQQQQPK.",
-".KPQBQQBQPK.",".KPPQQQQPPK.","KPPPPPPPPPPK","KPQQPPPPQQPK",".KKKKKKKKKK."]);
-const HAT = ["..KYYYYK..","..KAAAAK..","KYYYYYYYYK","KKKKKKKKKK"];
+"..KK....KK..",".KPPKKKKPPK.",".KPPPPPOPPK.",".KPKKPKKPPK.",".KPQQQQQQPK.",
+".KPQBQQBQPK.",".KPPQQQQPPK.","KPPOPPPPPPPK","KPQQPPPPQQPK",".KKKKKKKKKK."]);
+
+// two hat candidates — pick one
+const HAT_SMALL = [   // 8x4, dx +1: perches between the ears, ear tips stay out
+"..KYYK..",
+".KAAAAK.",
+"KYYYYYYK",
+".KKKKKK."];
+const HAT_BIG = [     // 14x5, dx -2: sun brim wider than the pig herself
+"....KYYYYK....",
+"....KAAAAK....",
+".KYYYYYYYYYYK.",
+"KYYYYYYYYYYYYK",
+".KKKKKKKKKKKK."];
+const HATS = { small: {rows:HAT_SMALL, dx:1, dy:-3}, big: {rows:HAT_BIG, dx:-2, dy:-4} };
 const BAO = [".........","...KKK...","..KLKLK..",".KLLPLLK.",".KLLLLLK.",".KLLLLLK.","..KKKKK.."];
-const HAT_POS = { x:1, y:-1 };  // hat anchor {1,2} + dy -3
+const HAT_ANCHOR = { x:1, y:2 };
+
+// colorways rev 2: [name, body, shade, spot] — spot === body means "no spots"
 const COLORWAYS = [
- ["PIGLET PINK",[248,176,168],[200,120,120]],["ROSE",[232,136,144],[176,88,104]],
- ["OXFORD SANDY",[224,184,136],[168,128,88]],["TAMWORTH GINGER",[208,136,80],[152,88,48]],
- ["MUD BROWN",[136,96,64],[88,56,40]],["OLD SPOT GREY",[184,184,192],[64,64,72]]];
+ ["PIGLET PINK",     [248,176,168],[200,120,120],[248,176,168]],
+ ["ROSE",            [232,136,144],[176, 88,104],[232,136,144]],
+ ["OXFORD SANDY",    [224,184,136],[168,128, 88],[168,128, 88]],  // subtle sandy mottle
+ ["TAMWORTH GINGER", [208,136, 80],[152, 88, 48],[208,136, 80]],
+ ["BERKSHIRE PLUM",  [136, 96,136],[ 88, 56, 88],[136, 96,136]],  // replaces MUD BROWN (bear)
+ ["OLD SPOT",        [224,216,208],[168,160,152],[ 64, 56, 72]]]; // REAL spots
 const NAMES = ["HAMLET","SPAMELA","BOARIS","HOGARTH","SOWPHIE","HAMISH","PIGBY","SWINSTON",
  "HAM SOLO","PIGGY SUE","BIG HOCK","FARROW MAE","TROTTER","RASHER","GAMMON","CRACKLIN",
  "RIND","SNOUT","BRISTLE","WALLOW","ACORN","CLOVER","TURNIP","MAIZE","LOAM","PETUNIA"];
@@ -118,14 +142,15 @@ const CRAB_TOP = ["..KK........KK..",".KWBK......KBWK.",".KWWK......KWWK.","..KK
 const CRAB_A = CRAB_TOP.concat(["KRRK.KRK..KRK...","KRRK..KR..RK....",".KK...K....K...."]);
 const CRAB_B = CRAB_TOP.concat(["KRRK..KR..RK....","KRRK.KR....RK...",".KK..K......K..."]);
 
-function pal(body, shade) { return { K:[30,20,36], B:[30,20,36], W:[255,255,255],
-  P:body, Q:shade, R:body, T:shade, Y:[255,230,120], A:[255,216,96], L:[250,250,255] }; }
+function pal(body, shade, spot) { return { K:[30,20,36], B:[30,20,36], W:[255,255,255],
+  P:body, Q:shade, O:spot||body, R:body, T:shade, Y:[255,230,120], A:[255,216,96], L:[250,250,255] }; }
+function cwPal(cw) { return pal(cw[1], cw[2], cw[3]); }
 
 function draw(rows, palette, scale, opts) {
   opts = opts || {};
-  const hat = opts.hat ? HAT : null;
-  const padT = hat ? 1 : 0;
-  const w = rows[0].length, h = rows.length + padT;
+  const hat = opts.hat ? HATS[opts.hat] : null;
+  const pad = hat ? 2 : 0;
+  const w = rows[0].length + pad*2, h = rows.length + pad;
   const cv = document.createElement("canvas");
   cv.width = w*scale; cv.height = h*scale;
   const ctx = cv.getContext("2d");
@@ -133,8 +158,8 @@ function draw(rows, palette, scale, opts) {
     const ch = rws[y][x]; if (ch === ".") continue;
     ctx.fillStyle = css(palette[ch] || [255,0,255]);
     ctx.fillRect((x+ox)*scale, (y+oy)*scale, scale, scale); } };
-  put(rows, 0, padT);
-  if (hat) put(HAT, HAT_POS.x, HAT_POS.y + 1 + padT);
+  put(rows, pad, pad);
+  if (hat) put(hat.rows, pad + HAT_ANCHOR.x + hat.dx, pad + HAT_ANCHOR.y + hat.dy);
   return cv;
 }
 function cell(parent, cv, label) {
@@ -144,39 +169,43 @@ function cell(parent, cv, label) {
   document.querySelector(parent).appendChild(d);
 }
 
-const P0 = pal(COLORWAYS[0][1], COLORWAYS[0][2]);
+const P0 = cwPal(COLORWAYS[0]);
+const SPOT = cwPal(COLORWAYS[5]);
 
-// walk cycle on three grounds
-for (const ground of ["sand","plank","night"]) {
+// walk cycle on three grounds (old spot walks the plank so you can judge spots in motion)
+for (const [ground, cw, hat] of [["sand", COLORWAYS[0], null], ["plank", COLORWAYS[5], null], ["night", COLORWAYS[3], null]]) {
   const strip = document.createElement("div"); strip.className = "strip " + ground;
   const d = document.createElement("div"); d.className = "cell";
   const holder = document.createElement("div"); strip.appendChild(holder);
   d.appendChild(strip);
-  const l = document.createElement("div"); l.className = "lbl"; l.textContent = ground.toUpperCase(); d.appendChild(l);
+  const l = document.createElement("div"); l.className = "lbl";
+  l.textContent = ground.toUpperCase() + " — " + cw[0]; d.appendChild(l);
   document.getElementById("walkRow").appendChild(d);
   let flip = false;
   const render = () => { holder.innerHTML = "";
-    holder.appendChild(draw(flip ? PIG_B : PIG_A, P0, 10, {hat: ground === "plank"})); flip = !flip; };
+    holder.appendChild(draw(flip ? PIG_B : PIG_A, cwPal(cw), 10, {hat})); flip = !flip; };
   render(); setInterval(render, 220);
 }
 
-for (const [name, body, shade] of COLORWAYS)
-  cell("#colorRow", draw(PIG_A, pal(body, shade), 6), name);
+for (const cw of COLORWAYS) cell("#colorRow", draw(PIG_A, cwPal(cw), 6), cw[0]);
+
+cell("#hatRow", draw(PIG_A, P0, 8, {hat:"small"}), "SMALL — EARS OUT");
+cell("#hatRow", draw(PIG_A, P0, 8, {hat:"big"}), "BIG — SUN BRIM");
+cell("#hatRow", draw(PIG_A, SPOT, 8, {hat:"small"}), "SMALL ON OLD SPOT");
+cell("#hatRow", draw(PIG_A, SPOT, 8, {hat:"big"}), "BIG ON OLD SPOT");
 
 cell("#poseRow", draw(PIG_A, P0, 6), "A");
 cell("#poseRow", draw(PIG_B, P0, 6), "B");
 cell("#poseRow", draw(PIG_W, P0, 6), "W WORK");
 cell("#poseRow", draw(PIG_S, P0, 6), "S SLEEP");
-cell("#poseRow", draw(PIG_A, P0, 6, {hat:true}), "STRAWHAT");
-cell("#poseRow", draw(PIG_A, pal(COLORWAYS[5][1], COLORWAYS[5][2]), 6, {hat:true}), "OLD SPOT + HAT");
+cell("#poseRow", draw(PIG_S, SPOT, 6), "S (OLD SPOT)");
 
 cell("#scaleRow", draw(CRAB_A, pal([230,72,88],[170,42,62]), 6), "CRAB 16x12");
 cell("#scaleRow", draw(PIG_A, P0, 6), "PIG 12x16");
 cell("#scaleRow", draw(CRAB_B, pal([96,150,255],[60,95,190]), 6), "CRAB (blue)");
-cell("#scaleRow", draw(PIG_A, pal(COLORWAYS[3][1], COLORWAYS[3][2]), 6), "PIG (tamworth)");
+cell("#scaleRow", draw(PIG_A, cwPal(COLORWAYS[3]), 6), "PIG (tamworth)");
 
-cell("#itemRow", draw(BAO, pal(COLORWAYS[0][1], COLORWAYS[0][2]), 10), "BAO");
-cell("#itemRow", draw(HAT, P0, 10), "STRAWHAT");
+cell("#itemRow", draw(BAO, P0, 10), "BAO");
 
 document.getElementById("nameRow").innerHTML = NAMES.map(n => "<span>"+n+"</span>").join("");
 </script>
