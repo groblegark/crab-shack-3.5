@@ -83,6 +83,22 @@ culture's foodways — is an important ongoing dynamic going forward.
    prioritized as one, not worked around with a special case in game.js.
    The suite + matrix baselines captured in this clone are the referee:
    a ported feature must reproduce the behavior its CS3 original ships.
+8. **The performance workstream** (Matt, 2026-08-21: *"optimizing the real
+   engine might be the appropriate move, before it gets further out of
+   control"* — simulation runtime is the recurring blocker and sims will
+   get bigger and run more often). Sanctioned, in this order: (1) shard
+   tools/suite.mjs across workers like headless --jobs already does
+   (~46 min → ~5, the enabler for everything after); (2) a sharded GitHub
+   Actions gate on the 3.5 repo so every push self-verifies off-laptop;
+   (3) profile the real engine (--cpu-prof over headless + the slowest
+   scenarios — measured, never guessed); (4) targeted engine
+   optimizations, EACH proven byte-identical (same seeds, same
+   fingerprints, same matrix floors — perf never changes behavior).
+   Constraint carried from the sim contract: headless executes the real
+   engine, so there are no headless-only fast paths — every optimization
+   is a real-engine optimization. Future constraint worth designing for:
+   keep inter-node coupling ferry-shaped (a manifest per sailing) so a
+   multi-node world parallelizes by node instead of slowing linearly.
 
 ### THIS CLONE'S BASELINE (2026-08-21, measured at commit 6720615)
 
