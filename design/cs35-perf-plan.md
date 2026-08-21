@@ -99,13 +99,23 @@ instances on GPU). The assessment, recorded as a ladder:
    compiles to WASM and runs perfectly reproducibly on every core
    available (80 free on Actions, hundreds rentable) — most of the
    practical parallelism arrives here.
-4. **GPU last, and only if that isn't enough.** At ~14 actors there is
-   nothing to parallelize inside one sim; one-sim-per-thread is the
-   warp-divergence worst case, and GPU floats are not bit-stable across
-   vendors/drivers (free CI runners have no GPU at all). A GPU sim that
-   is not the browser engine is a fork of game logic — the cardinal sin —
-   so the only honest form is the rewritten core AS the game's engine
-   (WebGPU compute + JS presentation). Price it when rung 3 saturates.
+4. **GPU as the BATCH-SCIENCE instrument — legitimized by the rewrite.**
+   (Refined 2026-08-21 after Matt's push.) Two corrections to the naive
+   model: a GPU "core" is a SIMD lane in a 32-wide lockstep warp, so
+   one-sim-per-lane pays a 3-30× divergence discount on branchy agent
+   code (a sim's ~tens-of-KB STATE fits fast memory; its 16k lines of
+   branchy CODE are the hostile part); and our CPU wall is farther than
+   it looks — one town fits a core's L2, so WASM sims are cache-resident
+   and divergence-free per core. BUT: **integer ops are bit-exact on
+   GPUs** — the determinism objection was a float objection, and the
+   fixed-point rewrite dissolves it. Once the core is integer, sim
+   behavior is a SPEC, and a WGSL port can be verified EQUAL to the JS
+   core seed-by-seed by the suite — a second backend proven by equality,
+   not a fork. The prize at 10k-sim batches is distribution-level
+   science: eviction histograms, rare-event hunting, parameter heatmaps,
+   evolutionary search over generated cultureways (CS4 validation at
+   scale). Build it when that instrument earns its divergence discount —
+   after rung 3 saturates.
 
 Cheap parallelism runway before any of this: wave-1 opts 1.5×, sharding
 12×, free Actions ~80 cores — orders of magnitude unexploited.
