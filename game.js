@@ -7015,6 +7015,11 @@ function collide(dt) {
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i], b = bodies[j];
       const dx = b.x - a.x, dy = (b.y - a.y) * 1.8;   // wide sprites: ellipse
+      // far pair: hypot(dx,dy) >= max(|dx|,|dy|), and both consumers below
+      // want d < 12+BERTH_PX = 22, so a pair past 22 on either axis cannot
+      // touch anything - skip before paying for the sqrt. A pure skip: the
+      // survivors compute the identical hypot in the identical order.
+      if (dx > 22 || dx < -22 || dy > 22 || dy < -22) continue;
       const d = Math.hypot(dx, dy);
       if (d < 12 && d > 0.01) {
         const still = (c) => !c._stepped;
