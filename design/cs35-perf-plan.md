@@ -50,11 +50,12 @@ site is exactly the bug class the frozen fingerprints catch.
   46 min): **12 workers → ~4 min local**, within 1% of the theoretical
   floor (the 232s growth giant). Don't split scenarios — measured as
   pointless until the giants shrink via engine opts.
-- **GitHub Actions gate** (public repo = free): 6 suite shards (required
-  checks) + 4 seed blocks. Baseline **0/16 is gated**; growth escape count
-  is **annotated, never gated** (8-seed blocks are coins; the matrix
-  measures the floor — auto-failing on growth noise trains people to
-  ignore red). PR wall ≈ 6–8 min.
+- ~~GitHub Actions gate~~ — **SKIPPED by owner ruling (2026-08-21:
+  "we're gonna skip github actions")**. The gate stays local: the sharded
+  suite (measured 249/249 in 167.7s on the landing tree) + the matrix run
+  on the laptop before every push, per the existing suite discipline. The
+  Actions design (6 shards + 4 seed blocks, baseline-gated,
+  growth-annotated) is preserved in perf-pipeline.md §2 if ever wanted.
 - **Fixture-start scenarios: measured verdict, DON'T.** 75% of suite time
   is trajectory assertions where the simmed days ARE the assertion; the
   fixture-eligible tail is ≤10% and falls off the critical path once
@@ -124,7 +125,7 @@ Cheap parallelism runway before any of this: wave-1 opts 1.5×, sharding
 
 1. **Suite `--jobs` driver** (tools-only; queued behind step 2, which is
    editing suite.mjs) → 46 min becomes ~4–6.
-2. **Actions workflow** → every push to cs35 self-verifies off-laptop.
+2. ~~Actions workflow~~ — SKIPPED (owner ruling; gate stays local, sharded).
 3. **Opt wave 1** (the shortlist, one landing per optimization, each with
    full suite + 16-seed matrix byte-compare, uncontended).
 4. **Opt wave 2** when wave 1 is proven.
