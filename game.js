@@ -6085,6 +6085,16 @@ function cultureProblem(d) {
   }
   for (const k in a.items || {})
     if (!a.items[k] || !rect(a.items[k].rows)) return "ITEM " + k.toUpperCase() + " IS BROKEN";
+  if (a.bather != null) {   // the over-the-curtain silhouette, when declared
+    if (!Array.isArray(a.bather) || !a.bather.length || a.bather.length > 12) return "A BAD BATHER";
+    for (const r of a.bather) {
+      if (!Array.isArray(r) || r.length !== 5
+        || r.some(v => typeof v !== "number" || !isFinite(v))) return "A BAD BATHER";
+      if (!(r[2] >= 1 && r[2] <= 8 && r[3] >= 1 && r[3] <= 8)) return "A BAD BATHER";
+      if (r[0] < -16 || r[0] > 32 || r[1] < -16 || r[1] > 32) return "A BAD BATHER";
+      if (!(Number.isInteger(r[4]) && r[4] >= 0 && r[4] < b.slots.length)) return "A BAD BATHER";
+    }
+  }
   const v = d.voice;
   const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
   if (v != null) {
@@ -6125,7 +6135,8 @@ function buildCulture(def) {
   }
   const items = {};
   for (const k in a.items || {}) items[k] = parseArt(a.items[k].rows, a.palette);
-  return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body };
+  return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
+    bather: Array.isArray(a.bather) ? a.bather : null };
 }
 function loadCultures(raw) {
   for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
@@ -6142,6 +6153,24 @@ function loadCultures(raw) {
     try { CULTURES[id] = buildCulture(raw[id]); }
     catch (e) { toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
   }
+}
+// Resolve a customer/visitor's culture entry for the DRAW path. Crab - and
+// every walk-in, which has no culture field at all - resolves to null, and
+// the legacy draw code runs verbatim: the frozen fingerprints hold because
+// the crab path IS the old path, literals and all. A registered culture
+// returns its built entry, whose body metadata replaces the 16x12 literals.
+function visCulture(k) {
+  const id = k && k.culture;
+  return id && id !== "crab" && CULTURES[id] ? CULTURES[id] : null;
+}
+// A colorway's rgb for a body slot index, falling back to the culture's own
+// palette when the colorway leaves that slot alone (a plain pig's O spot IS
+// her body color - absence means "same as painted").
+function cultureSlotCol(cul, color, slotIdx) {
+  const slots = cul.body.slots;
+  const ch = slots[Math.max(0, Math.min(slots.length - 1, slotIdx | 0))];
+  const cw = cul.def.art.colorways[Math.max(0, Math.min(cul.colorways - 1, color | 0))];
+  return cw[ch] || cul.def.art.palette[ch] || [255, 0, 255];
 }
 
 // The one gate every save passes - stored, migrated or imported. Returns null
@@ -11996,33 +12025,39 @@ function drawCustomer(k) {
   {
     if (!k.isCrab) {
       k.animT += 0.016;
-      const arts = CRAB_ARTS[k.color];
+      const cul = visCulture(k);   // null = crab: every expression below keeps its old value
+      const arts = cul ? cul.arts[k.color] : CRAB_ARTS[k.color];
       if (k.state === "showering") return;   // behind the curtain (stall draws the bather)
       if (k.state === "inRoom") return;      // upstairs with the lamp on (the door draws them)
       // a crab shuffling up the line is WALKING, and legs sell it. Without this
       // the whole line slid up the boardwalk on its belly when the front left.
       const moving = (k.state !== "waiting" && k.state !== "onSand") || (k.state === "waiting" && k.qWalk);
-      const art = moving && ((k.animT * 8) | 0) % 2 ? arts.b : arts.a;
+      // a save-defined culture brings its own sleep pose: a pig on the sand
+      // lies down on her side. The crab keeps standing, exactly as shipped.
+      const sleeping = !!cul && k.state === "onSand";
+      const art = sleeping ? arts.s : moving && ((k.animT * 8) | 0) % 2 ? arts.b : arts.a;
       // a visitor faces the way they are walking; the old anonymous tourist
       // only ever walked one way, which is why this used to be a state test
       const flip = k.visitor ? (k.face == null ? true : k.face < 0) : k.state !== "leaving";
       const base = custY(k);
-      const cy = base - 12 - 26 * (k.climb || 0);
+      const bodyW = cul ? cul.body.w : 16, bodyH = cul ? cul.body.h : 12;
+      const cy = base - bodyH - 26 * (k.climb || 0);
       wblit(art, k.x, cy, flip);
-      const acc = ACCESSORIES[k.acc];
-      if (acc) {
-        const ax = flip ? 16 - acc.dx - acc.art.w : acc.dx;
+      const acc = (cul ? cul.acc : ACCESSORIES)[k.acc];
+      if (acc && !sleeping) {   // a side-sleeper's hat comes off (spec 5.5 rev 3)
+        const ax = flip ? bodyW - acc.dx - acc.art.w : acc.dx;
         wblit(acc.art, k.x + ax, cy + acc.dy, flip);
       }
       if (k.state === "onSand") {   // a night on the beach, and it shows
         const ph = ((time * 0.7 + k.x * 0.01) % 1);
-        smallText(ctx, "Z", k.x + 11 - camX, cy - 4 - ph * 5, [200, 210, 255]);
+        // the Z rises off the culture's mark anchor; the crab's 11 is its own
+        smallText(ctx, "Z", k.x + (cul ? cul.body.anchors.mark.x : 11) - camX, cy - 4 - ph * 5, [200, 210, 255]);
       }
       if (k.state === "waiting" || (k.visitor && k.state === "roam" && k.idleT > 0)) {
         // a NAME on the boardwalk is the whole point of making them real: you
         // are meant to recognise MISTY on her second day in town
         const nm = k.name.split(" ")[0].slice(0, k.state === "waiting" ? 4 : 8);
-        const nx = k.x + 8 - smallTextWidth(nm) / 2 - camX;
+        const nx = k.x + (cul ? cul.body.w >> 1 : 8) - smallTextWidth(nm) / 2 - camX;
         if (nx > -30 && nx < W) smallText(ctx, nm, nx, base + 2, [100, 80, 55]);
       }
     }
@@ -12154,9 +12189,20 @@ function drawCustCard(k) {
   rect(ctx, 2, 2, wcard, 58, [30, 20, 36]);
   rect(ctx, 3, 3, wcard - 2, 56, [255, 250, 235]);
   rect(ctx, 5, 6, 20, 26, [245, 225, 200]);
-  blit(ctx, CRAB_ARTS[k.color].a, 7, 14);
-  const acc = ACCESSORIES[k.acc];
-  if (acc) blit(ctx, acc.art, 7 + acc.dx, 14 + acc.dy);
+  {
+    const cul = visCulture(k);
+    if (cul) {   // a foreign body centers itself in the same frame
+      const a1 = cul.arts[k.color].a;
+      const bx = 5 + ((20 - a1.w) >> 1), by = 6 + ((26 - a1.h) >> 1);
+      blit(ctx, a1, bx, by);
+      const acc = cul.acc[k.acc];
+      if (acc) blit(ctx, acc.art, bx + acc.dx, by + acc.dy);
+    } else {
+      blit(ctx, CRAB_ARTS[k.color].a, 7, 14);
+      const acc = ACCESSORIES[k.acc];
+      if (acc) blit(ctx, acc.art, 7 + acc.dx, 14 + acc.dy);
+    }
+  }
   // ...and the same on the visitor's card, which had the same collision with a
   // slice(0, 9) in place of a measurement: TIDEPOOL is 47px from x29 and
   // DELIGHTED starts at x69.
@@ -13125,9 +13171,24 @@ function drawVisDossier(k) {
   rect(ctx, x, y, w2, h2, [255, 250, 235]);
   rect(ctx, x, y, w2, 32, [58, 42, 38]);
   rect(ctx, x + 4, y + 4, 40, 30, [245, 225, 200]);
-  blit(ctx, art2("c" + k.color, CRAB_ARTS[k.color].a), x + 8, y + 8);
-  const acc = ACCESSORIES[k.acc];
-  if (acc) blit(ctx, art2("a" + k.acc, acc.art), x + 8 + acc.dx * 2, y + 8 + acc.dy * 2);
+  {
+    const cul = visCulture(k);
+    if (cul) {
+      // a 2x portrait only if it fits the shipped frame; the 12x16 pig shows
+      // at 1x, centered - the frame does not grow for a taller guest
+      const a1 = cul.arts[k.color].a;
+      const two = a1.w * 2 <= 40 && a1.h * 2 <= 30, m = two ? 2 : 1;
+      const px0 = x + 4 + ((40 - a1.w * m) >> 1), py0 = y + 4 + ((30 - a1.h * m) >> 1);
+      blit(ctx, two ? art2(k.culture + "c" + k.color, a1) : a1, px0, py0);
+      const acc = cul.acc[k.acc];
+      if (acc) blit(ctx, two ? art2(k.culture + "a" + k.acc, acc.art) : acc.art,
+        px0 + acc.dx * m, py0 + acc.dy * m);
+    } else {
+      blit(ctx, art2("c" + k.color, CRAB_ARTS[k.color].a), x + 8, y + 8);
+      const acc = ACCESSORIES[k.acc];
+      if (acc) blit(ctx, art2("a" + k.acc, acc.art), x + 8 + acc.dx * 2, y + 8 + acc.dy * 2);
+    }
+  }
   text(ctx, k.name, x + 48, y + 5, [255, 240, 210]);
   const cond = visCondition(k);
   smallText(ctx, "VISITOR - " + visStayLabel(k), x + 48, y + 15, [210, 190, 170]);
@@ -15951,22 +16012,31 @@ function frame(now) {
       const bathing = t.occupant && t.occupant.state === "showering";
       wblit(STALL[bathing ? 1 : 0], t.x, t.y - STALL[0].h);
       if (bathing) {   // feet peeking under the curtain
-        const oc = t.occupant, pcol = oc.isCrab ? oc.crab.p.color : (oc.p ? oc.p.color : oc.color);
-        const col = CRAB_COLORS[(pcol || 0) % CRAB_COLORS.length][0];
+        const oc = t.occupant, cul = !oc.isCrab && visCulture(oc);
+        const pcol = oc.isCrab ? oc.crab.p.color : (oc.p ? oc.p.color : oc.color);
+        const col = cul ? cultureSlotCol(cul, pcol, 0) : CRAB_COLORS[(pcol || 0) % CRAB_COLORS.length][0];
         wrect(t.x + 5, t.y - 3, 2, 2, col);
         wrect(t.x + 9, t.y - 3, 2, 2, col);
       }
       if (bathing) {   // the bather's head bobs over the curtain
-        const oc = t.occupant, pcol = oc.isCrab ? oc.crab.p.color : (oc.p ? oc.p.color : oc.color);
-        const pal = CRAB_COLORS[(pcol || 0) % CRAB_COLORS.length];
+        const oc = t.occupant, cul = !oc.isCrab && visCulture(oc);
+        const pcol = oc.isCrab ? oc.crab.p.color : (oc.p ? oc.p.color : oc.color);
         const bob = Math.round(Math.sin(time * 3 + t.x) * 1.5);
         const hy = t.y - STALL[0].h + 4 + bob;
-        wrect(t.x + 5, hy, 6, 3, pal[0]);                    // wet shell dome
-        wrect(t.x + 6, hy - 1, 4, 1, pal[0]);
-        wrect(t.x + 6, hy - 3, 1, 2, pal[1] || pal[0]);      // eyestalks
-        wrect(t.x + 9, hy - 3, 1, 2, pal[1] || pal[0]);
-        px(ctx, t.x + 6 - camX, hy - 3, [255, 255, 255]);    // happy wet eyes
-        px(ctx, t.x + 9 - camX, hy - 3, [255, 255, 255]);
+        if (cul && cul.bather) {
+          // the culture declares its own over-the-curtain silhouette: a rect
+          // list [dx, dy, w, h, slotIdx] relative to (stall x, head line)
+          for (const r of cul.bather)
+            wrect(t.x + r[0], hy + r[1], r[2], r[3], cultureSlotCol(cul, pcol, r[4]));
+        } else {
+          const pal = CRAB_COLORS[(pcol || 0) % CRAB_COLORS.length];
+          wrect(t.x + 5, hy, 6, 3, pal[0]);                    // wet shell dome
+          wrect(t.x + 6, hy - 1, 4, 1, pal[0]);
+          wrect(t.x + 6, hy - 3, 1, 2, pal[1] || pal[0]);      // eyestalks
+          wrect(t.x + 9, hy - 3, 1, 2, pal[1] || pal[0]);
+          px(ctx, t.x + 6 - camX, hy - 3, [255, 255, 255]);    // happy wet eyes
+          px(ctx, t.x + 9 - camX, hy - 3, [255, 255, 255]);
+        }
       }
       if (bathing) {   // suds drift up over the curtain while the water runs
         for (let i = 0; i < 3; i++) {

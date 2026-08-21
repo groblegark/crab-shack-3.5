@@ -10400,6 +10400,80 @@ scenario("cultureways: broken art is refused with a message and the town still l
   return ok === null ? true : "the clean fixture was refused: " + ok;
 });
 
+scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed", () => {
+  // STEP 2 (body geometry as data): three pigs staged straight into a save -
+  // a roamer in the big hat (the negative-dx flip math), a side-sleeper in a
+  // hat that must NOT draw, and a bare roamer - then the draw path runs for
+  // real against the stub ctx and every pig blit is caught and measured.
+  const store = new Map();
+  const a = createSim({ seed: 65, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.cultures = { pig: PIG_FIXTURE };
+  env.visitors = env.visitors || [];
+  const rec = (n, c, acc, x, s) => ({ n, cu: "pig", c, a: acc, x, y: 150, s,
+    w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 2000, b: 0,
+    hu: 0.4, th: 0.4, di: 0.2, bo: 0.3, ti: 0.4, log: [], st: {} });
+  env.visitors.push(rec("TROTTER", 0, "strawhat", 1180, "roam"),
+    rec("PETUNIA", 5, "strawhat", 900, "onSand"),
+    rec("HAMLET", 3, "none", 1400, "roam"));
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 66, storage: store, fresh: false });
+  const probe = JSON.parse(b.G(`JSON.stringify((() => {
+    const pigs = customers.filter(k => k.culture === "pig");
+    if (pigs.length !== 3) return { fail: "only " + pigs.length + " pigs came ashore" };
+    // ...and a faked pig mid-shower drives the bather branch on a real stall
+    const stall = BIZ.showers.stalls[0];
+    const oldOcc = stall.occupant;
+    stall.occupant = { state: "showering", culture: "pig", color: 5 };
+    const sleepArts = new Set(), bodyArts = new Set();
+    for (const cw of CULTURES.pig.arts) { sleepArts.add(cw.s); for (const p of ["a","b","w"]) bodyArts.add(cw[p]); }
+    const hatArt = CULTURES.pig.acc.strawhat.art;
+    const oW = wblit, oR = wrect;
+    const blits = [], rects = [];
+    wblit = (art, wx, y2, flip) => {
+      if (sleepArts.has(art)) blits.push({ kind: "sleep", wx, y2 });
+      else if (bodyArts.has(art)) blits.push({ kind: "body", wx, y2 });
+      else if (art === hatArt) blits.push({ kind: "hat", wx, y2 });
+      return oW(art, wx, y2, flip);
+    };
+    wrect = (wx, y2, w2, h2, col) => { rects.push({ wx, y2, w2, h2, col: col.join() }); return oR(wx, y2, w2, h2, col); };
+    window._headless = false;
+    camX = 860;   // put the sleeper and the stall in frame; the roamers pan in below
+    let err = null;
+    try {
+      for (let i = 0; i < 30; i++) { simNow += 16; camX = 860 + i * 20; rafCb(simNow); }
+    } catch (e) { err = String(e); }
+    window._headless = true;
+    wblit = oW; wrect = oR;
+    stall.occupant = oldOcc;
+    // the pig OLD SPOT colorway, for finding her rects over the curtain
+    const pigP = CULTURES.pig.def.art.colorways[5].P.join();
+    const crabDomes = rects.filter(r => r.w2 === 6 && r.h2 === 3
+      && CRAB_COLORS.some(c => c[0].join() === r.col) && Math.abs(r.wx - stall.x - 5) <= 1);
+    const pigRects = rects.filter(r => r.col === pigP && Math.abs(r.wx - stall.x - 4) <= 1);
+    const near = (wx) => pigs.some(k => Math.abs(wx - k.x) <= 20);
+    return { fail: err, sleeps: blits.filter(b2 => b2.kind === "sleep").length,
+      bodies: blits.filter(b2 => b2.kind === "body").length,
+      hats: blits.filter(b2 => b2.kind === "hat").length,
+      hatStray: blits.some(b2 => b2.kind === "hat" && !near(b2.wx)),
+      hatOnSleeper: blits.some(b2 => b2.kind === "hat" && Math.abs(b2.wx - 900) < 40),
+      bodyStray: blits.some(b2 => (b2.kind === "body" || b2.kind === "sleep") && !near(b2.wx)),
+      pigDome: pigRects.length, crabDome: crabDomes.length };
+  })())`));
+  if (probe.fail) return "the draw pass failed: " + probe.fail;
+  if (!probe.sleeps) return "the side-sleeper never drew her sleep pose";
+  if (!probe.bodies) return "no walking pig body was ever blitted";
+  if (!probe.hats) return "the roamer's big hat never drew (flip math?)";
+  if (probe.hatStray) return "a hat blitted away from every pig (negative-dx flip math broke)";
+  if (probe.hatOnSleeper) return "the side-sleeper drew her hat - the suppression rule failed";
+  if (probe.bodyStray) return "a pig body blitted away from every pig";
+  if (!probe.pigDome) return "the pig bather never drew over the curtain";
+  if (probe.crabDome) return "a crab dome drew for a pig bather";
+  return true;
+});
+
 // ---- runner
 const filters = process.argv.slice(2);
 const list = filters.length ? results.filter(r => filters.some(f => r.name.includes(f))) : results;
