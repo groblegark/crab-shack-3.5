@@ -347,36 +347,104 @@
     ]
   },
   "voice": {
-    "diary": {
-      "ashore": "OFF THE BOAT AND HUNGRY ALREADY",
-      "dues": "PAID MY WAY IN. FAIR'S FAIR.",
-      "leaving": "OFF TO THE BOAT. GOOD MUD AHEAD.",
-      "missedboat": "MISSED THE BOAT. MORE FOR ME.",
-      "checkin": "ROOM {N} AT THE DRIFTWOOD. THAT'LL DO.",
-      "checkout": "UP WITH THE SUN. SLEPT LIKE A HOG.",
-      "rough": "SLEPT ROUGH. DONE WORSE AT HARVEST.",
-      "wokesand": "WOKE IN THE SAND. ITCHY.",
-      "turnin": "FULL DAY. STRAIGHT TO THE HAY.",
-      "gaveup": "GAVE UP ON THE {BIZ}. LIFE'S SHORT.",
-      "bought": "GOT A {ITEM}. MONEY WELL SPENT."
-    },
-    "depart": {
-      "rough": "A BEACH IS NO BED. EVEN OUR MUD IS WARMER.",
-      "bed": "THAT DRIFTWOOD BED BEAT MY OWN HAYLOFT.",
-      "nothing": "ALL THAT WAY FOR SHUT DOORS AND SEA AIR.",
-      "unspent": "TAKING ${LEFT} HOME. NOTHING HERE TO SPEND IT ON.",
-      "spentup": "SPENT THE LOT. THAT'S WHAT MONEY'S FOR.",
-      "wait": "WAITED {MINS} FOR A PLATE. ATE IT ANYWAY.",
-      "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
-      "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE."
-    },
-    "dossier": [
-      "CAME FOR THE FOOD, STAYING FOR THE FOOD",
-      "FIRST TIME OFF THE MAINLAND",
-      "THE PIGTATOR SAYS TRAVEL BROADENS THE MIND"
-    ],
-    "refuseHire": "KIND OFFER. BUT MY FIELDS WON'T PLOW THEMSELVES.",
-    "foreign": "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE."
+    "registers": [
+      {
+        "id": "farmhand",
+        "acc": "strawhat",
+        "purseMul": 0.7,
+        "diary": {
+          "ashore": "OFF THE BOAT AND HUNGRY ALREADY",
+          "dues": "PAID MY WAY IN. FAIR'S FAIR.",
+          "leaving": "OFF TO THE BOAT. GOOD MUD AHEAD.",
+          "missedboat": "MISSED THE BOAT. MORE FOR ME.",
+          "checkin": "ROOM {N} AT THE DRIFTWOOD. THAT'LL DO.",
+          "checkout": "UP WITH THE SUN. SLEPT LIKE A HOG.",
+          "rough": "SLEPT ROUGH. DONE WORSE AT HARVEST.",
+          "wokesand": "WOKE IN THE SAND. ITCHY.",
+          "turnin": "FULL DAY. STRAIGHT TO THE HAY.",
+          "gaveup": "GAVE UP ON THE {BIZ}. LIFE'S SHORT.",
+          "bought": "GOT A {ITEM}. MONEY WELL SPENT."
+        },
+        "depart": {
+          "rough": "A BEACH IS NO BED. EVEN OUR MUD IS WARMER.",
+          "quits": "WALKED OUT OF EVERY LINE. I'D RATHER SHOVEL.",
+          "quit": "STOOD AT THE {BIZ} TIL MY FEET GAVE UP.",
+          "nothing": "ALL THAT WAY FOR SHUT DOORS AND SEA AIR.",
+          "unspent": "TAKING ${LEFT} HOME. NOTHING HERE TO SPEND IT ON.",
+          "idle": "MONEY LEFT OVER AND NOTHING I WANTED. ODD PLACE.",
+          "hungry": "LEAVING HUNGRIER THAN THE HARVEST LEFT ME.",
+          "parched": "DRY AS AUGUST. NOT A DROP ALL DAY.",
+          "grubby": "SAND IN MY BRISTLES AND NO TUB IN TOWN.",
+          "weary": "DEAD ON MY TROTTERS. NO HAY IN THIS TOWN.",
+          "bored": "SEEN THE SEA. THAT WAS THE WHOLE SHOW.",
+          "wait": "WAITED {MINS} FOR A PLATE. ATE IT ANYWAY.",
+          "dues": "PAID AT THE PLANK. STEEP, FOR PLANKS.",
+          "missed": "MISSED THE BOAT. THE HAY WILL WAIT.",
+          "mist": "THE MIST ATE THE VIEW. SMELLED LIKE HOME.",
+          "table": "WAITED ON AT A TABLE. LIKE A PRIZE HOG.",
+          "bed": "THAT DRIFTWOOD BED BEAT MY OWN HAYLOFT.",
+          "spentup": "SPENT THE LOT. THAT'S WHAT MONEY'S FOR.",
+          "top": "PAID PROPER FOR A {ITEM}. WORTH EVERY CENT.",
+          "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
+          "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE."
+        },
+        "dossier": [
+          "CAME FOR THE FOOD, STAYING FOR THE FOOD",
+          "BACK HOME, THE PIGTATOR. HERE, GULLS.",
+          "THE SEA'S BIGGER THAN THEY SAID"
+        ],
+        "foreign": "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE.",
+        "refuseHire": "KIND OFFER. BUT MY FIELDS WON'T PLOW THEMSELVES."
+      },
+      {
+        "id": "clerk",
+        "acc": "none",
+        "purseMul": 1.3,
+        "diary": {
+          "ashore": "DISEMBARKED IN GOOD ORDER",
+          "dues": "HARBOUR DUE PAID AND RECEIPTED",
+          "leaving": "PROCEEDING TO THE FERRY AS SCHEDULED",
+          "missedboat": "THE BOAT LEFT EARLY. I DID NOT.",
+          "checkin": "REGISTERED - ROOM {N} AT THE DRIFTWOOD",
+          "checkout": "CHECKED OUT. THE LEDGER IS SETTLED.",
+          "rough": "PASSED THE NIGHT UNHOUSED. NOTED.",
+          "wokesand": "WOKE UNHOUSED. A SECOND NOTE IS MADE.",
+          "turnin": "RETIRED AT A RESPECTABLE HOUR",
+          "gaveup": "WITHDREW MY CUSTOM FROM THE {BIZ}",
+          "bought": "PAID IN FULL FOR MY {ITEM}"
+        },
+        "depart": {
+          "rough": "THE PIGPUBLIC WILL HEAR OF THE SAND I SLEPT ON.",
+          "quits": "I WITHDREW FROM EVERY QUEUE. SO FILED.",
+          "quit": "ABANDONED THE {BIZ} QUEUE UNDER PROTEST.",
+          "nothing": "EVERY DOOR SHUT. I SHALL SAY SO IN MY REPORT.",
+          "unspent": "${LEFT} OF MY ${PURSE} RETURNS UNSPENT TO THE MAINLAND.",
+          "idle": "FUNDS REMAIN. THE TOWN LACKED AMBITION.",
+          "hungry": "I DEPART UNFED. THE REPORT WILL BE FRANK.",
+          "parched": "NO REFRESHMENT WAS SECURED. DULY NOTED.",
+          "grubby": "I ARRIVE HOME UNBATHED. MOST IRREGULAR.",
+          "weary": "NO BED WAS PROVIDED. I REMAINED UPRIGHT.",
+          "bored": "THE ENTERTAINMENTS WERE NOT LOCATED.",
+          "wait": "SERVED AFTER {MINS}. I STOOD ON PRINCIPLE.",
+          "dues": "TAXED AT THE PLANK. AN INVOICE FOLLOWS.",
+          "missed": "THE SAILING WAS MISSED. INQUIRIES PROCEED.",
+          "mist": "VISIBILITY POOR. THE FAR SHORE UNVERIFIED.",
+          "table": "TABLE SERVICE RENDERED. MOST CORRECT.",
+          "bed": "THE DRIFTWOOD KEEPS A BED FIT FOR A CONSUL.",
+          "spentup": "SPENT EVERY DOLLAR OF MY ${PURSE}. QUITE CORRECT.",
+          "top": "THE {ITEM} WAS ACCEPTABLE. PAID IN FULL.",
+          "regular": "{STOPS} STOPS IN {DAYS} DAYS. THE PIGPUBLIC APPROVES.",
+          "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED."
+        },
+        "dossier": [
+          "MY PAPERS ARE ENTIRELY IN ORDER",
+          "TRAVELING BY LEAVE OF THE PIGTATOR",
+          "HERE IN A STRICTLY PRIVATE CAPACITY"
+        ],
+        "foreign": "NOTHING ON ANY MENU A PIG WOULD RECOGNIZE.",
+        "refuseHire": "AN APRON? I HOLD A CLERKSHIP, MADAM."
+      }
+    ]
   },
   "tastes": {
     "taco": 0.6,
