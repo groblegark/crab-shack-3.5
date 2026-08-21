@@ -292,7 +292,7 @@ scenario("mid-shift job toggle is safe", () => {
   const sim = createSim({ seed: 21 });
   sim.G('coins = 2000; tryBuy("arcade");');
   sim.runUntil('crabs[0].dayState === "working"', {});
-  sim.G('crabs[0].p.job = "arcade";');   // toggle while cooking
+  sim.G('crabs[0].p.job = "arcade"; rosterGen++;');   // toggle while cooking
   sim.runDays(2);
   return sim.G("gameOver") === false || sim.G("day") > 1 ? true : "sim broke after mid-shift toggle";
 });
@@ -832,7 +832,7 @@ scenario("death cleanup: slots freed, orders unclaimed, follow survives", () => 
 
 scenario("crew never staff npc-owned shops", () => {
   const sim = createSim({ seed: 13 });
-  sim.G('crabs[0].p.job = "showers";');   // the old toggle bug could write this into a save
+  sim.G('crabs[0].p.job = "showers"; rosterGen++;');   // the old toggle bug could write this into a save
   sim.runUntil("tmin > 7.2 * 60", { maxSteps: 4000 });
   const job = sim.G("crabs[0].p.job");
   if (job !== "shack") return "crew job stayed " + job;
@@ -845,7 +845,7 @@ scenario("crew never staff npc-owned shops", () => {
 scenario("all crew dead: town survives, rehire recovers", () => {
   const sim = createSim({ seed: 19 });
   sim.runUntil("tmin > 10 * 60", {});
-  sim.G("for (const c of crabs.slice()) { abortChef(c); crabs = crabs.filter(k => k !== c); } UPS.chef.lvl = 1; followIdx = 0; coins = 800;");
+  sim.G("for (const c of crabs.slice()) { abortChef(c); crabs = crabs.filter(k => k !== c); } rosterGen++; UPS.chef.lvl = 1; followIdx = 0; coins = 800;");
   sim.runDays(2, { onTick: (G) => { if (G("coins") < 400) G("coins = 800"); }, tickEvery: 40 });
   if (sim.G("!isFinite(coins)")) return "coins went " + sim.G("coins");
   sim.G('tryBuy("chef")');
@@ -1157,7 +1157,7 @@ scenario("credit: balance, flags and NPC lines roundtrip save/load", () => {
 
 scenario("thirst: drink errand serviced end-to-end at a staffed juice bar", () => {
   const sim = createSim({ seed: 33 });
-  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar";');
+  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar"; rosterGen++;');
   const ok0 = sim.runUntil('crabs[0].duty && crabs[0].workBiz === "juicebar" && !crabs[0].pendingOff', { maxSteps: 200000 });
   if (!ok0) return "the bar never opened (crabs[0] " + sim.G("crabs[0].dayState") + ")";
   sim.runUntil('crabs[1].dayState === "home" && tmin > 9.5 * 60 && tmin < 12.5 * 60', { maxSteps: 200000 });
@@ -1217,7 +1217,7 @@ scenario("thirst: a parched town breeds sickness, attributed to thirst", () => {
 
 scenario("juicebar economics: ledger flows, register income, staff retail", () => {
   const sim = createSim({ seed: 44 });
-  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "juicebar";');
+  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "juicebar"; rosterGen++;');
   sim.runDays(2, { onTick: (G) => { if (G("coins") < 300) G("coins = 600"); }, tickEvery: 40 });
   const st = JSON.parse(sim.G("JSON.stringify(window._stats)"));
   if ((st.drinkServes || 0) < 8) return "only " + (st.drinkServes | 0) + " drinks in 2 staffed days";
@@ -2374,7 +2374,7 @@ scenario("fish market: a glut sags the price to the floor and pay falls with it"
 
 scenario("fish market: at the ceiling a fisher skips the arcade; at the floor he goes", () => {
   const sim = createSim({ seed: 13 });
-  sim.G('coins = 3000; tryBuy("arcade"); tryBuy("chef"); crabs[2].p.job = "arcade";');
+  sim.G('coins = 3000; tryBuy("arcade"); tryBuy("chef"); crabs[2].p.job = "arcade"; rosterGen++;');
   const pin = `{ const c = npcs.find(k => k.p.name === window._f);
     if (c) { c.p.hunger = 0.2; c.p.thirst = 0.2; c.p.dirt = 0.2; c.p.tired = 0.2;
       c.p.sick = null; c.p.wallet = 60; c.p.bored = 0.9;
@@ -3069,7 +3069,7 @@ scenario("failure: an owner who leaves the town leaves a business, not an orphan
   // anything about the owner layer. runSuccession sweeps at every settlement.
   const sim = createSim({ seed: 81 });
   sim.runUntil("day >= 2 && tmin > 8 * 60", keep({ maxSteps: 400000 }));
-  sim.G('npcs = npcs.filter(c => c.p.name !== "SUDSY");');   // exactly what a mortality pass does
+  sim.G('npcs = npcs.filter(c => c.p.name !== "SUDSY"); rosterGen++;');   // exactly what a mortality pass does - INCLUDING the bump killCrab makes
   if (sim.G("BIZ.showers.owner") !== "sudsy") return "fixture wrong: the shop was not hers";
   sim.runUntil("lastRentDay === day", keep({ maxSteps: 400000 }));
   // NOT AN ORPHAN - which now has TWO honest endings, and the second one is a
@@ -3226,7 +3226,7 @@ scenario("sale: the player buys a failed business through the shopfront", () => 
     return "the player is not paying rent on the shop they just bought";
   if (sim.G('bizDark("showers")')) return "the bought shop is still dark";
   // and the player's crew may staff it (an NPC shop's staff never could)
-  sim.G('crabs[0].p.job = "showers"; crabs[0].p.sick = null;');
+  sim.G('crabs[0].p.job = "showers"; crabs[0].p.sick = null; rosterGen++;');
   if (!sim.runUntil('bizStaffed("showers")', keep({ maxSteps: 500000 })))
     return "crew never opened the shop the player bought";
   if (sim.G('crabs[0].p.job') !== "showers") return "the schedule bounced the crew back off a player-owned shop";
@@ -4218,10 +4218,10 @@ scenario("wage: every rate and deal roundtrips save/load, including a change of 
   if (!got.pol || got.pol.cd !== 1 || got.pol.lost !== 2) return "the CPU policy ledger came back " + JSON.stringify(got.pol);
   // A DEAL IS A DEAL WITH A BOSS. Move the crab to somebody else's payroll and
   // it lapses - it must not follow them and it must not vanish silently.
-  b.G(`{ crabs[0].p.job = "showers"; }`);   // (illegally, for the test: crew never staff peer shops)
+  b.G(`{ crabs[0].p.job = "showers"; rosterGen++; }`);   // (illegally, for the test: crew never staff peer shops)
   if (b.G("Math.round(wageRate(crabs[0]))") !== 31)
     return "a private deal survived a change of employer: " + b.G("Math.round(wageRate(crabs[0]))");
-  b.G(`{ crabs[0].p.job = "shack"; }`);
+  b.G(`{ crabs[0].p.job = "shack"; rosterGen++; }`);
   if (b.G("Math.round(wageRate(crabs[0]))") !== 44) return "the deal did not come back with the crab's own boss";
   // APPLY TO ALL tears up every deal at that shop, in one tap
   const n = b.G('applyShopWage("shack")');
@@ -5366,7 +5366,7 @@ function rivalTown(seed, { bar = true } = {}) {
   return sim;
 }
 function rivalOpenBar(sim) {
-  sim.G(`UPS.juicebar.lvl = 1; crabs[1].p.job = "juicebar"; crabs[1].workBiz = "juicebar";`);
+  sim.G(`UPS.juicebar.lvl = 1; crabs[1].p.job = "juicebar"; crabs[1].workBiz = "juicebar"; rosterGen++;`);
 }
 function rivalProp(sim) {   // a rival having a good month, and well enough to have one
   sim.G(`{ const o = OWNERS[rivalOwnerId()] || OWNERS.sudsy;
