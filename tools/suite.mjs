@@ -3,7 +3,7 @@
 //   node tools/suite.mjs            run everything
 //   node tools/suite.mjs stuck ff   run scenarios matching any arg substring
 import { createSim } from "./simlib.mjs";
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 
 const results = [];
 function scenario(name, fn) { results.push({ name, fn }); }
@@ -10272,6 +10272,132 @@ scenario("back pay is paid before tonight's wages, and the bank has a limit", ()
   const stats = JSON.parse(sim.G(`JSON.stringify(window._stats || {})`));
   if (!(stats.paydayMissed > 0)) return "the fixture proved nothing - no payday was ever missed";
   return true;
+});
+
+// ---- CULTUREWAYS (CS3.5 step 1): the registry, the gate, the species field.
+// The pig fixture is the real step-3 content; here it is a test instrument.
+const PIG_FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/cultures-pig.json", import.meta.url), "utf8"));
+
+scenario("cultureways: a save without cultures changes nothing", () => {
+  // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,
+  // 2026-08-21), seed 4242, runDays(2) - the registry code must not move a
+  // pixel or consume one extra Math.random() when no cultures key exists.
+  const store = new Map();
+  const sim = createSim({ seed: 4242, storage: store, fresh: false });
+  sim.runDays(2);
+  const fp = sim.G(`JSON.stringify({
+    day, coins: Math.round(coins * 100), rep: Math.round(rep * 100),
+    fund: Math.round(townFund.bal * 100),
+    crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), Math.round(c.p.wallet * 100)]),
+    vis: customers.filter(k => k.visitor && !k.gone).length,
+    catch: townCatch
+  })`);
+  const want = '{"day":3,"coins":11265,"rep":5429,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,22600],["REEF",646,24596],["SALTY",2072,100],'
+    + '["DRIFT",318,100],["KELP",450,800]],"vis":10,"catch":4}';
+  if (fp !== want) return "the fingerprint moved: " + fp;
+  if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
+  if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
+  // ...and a plain save round-trip writes no cultures key
+  sim.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  if ("cultures" in env) return "a plain save grew a cultures key";
+  if ((env.visitors || []).some(v => "cu" in v)) return "a crab visitor grew a cu field";
+  return true;
+});
+
+scenario("cultureways: a pig visitor record loads, clamps and round-trips", () => {
+  const store = new Map();
+  const a = createSim({ seed: 61, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.cultures = { pig: PIG_FIXTURE };
+  env.visitors = env.visitors || [];
+  // color 9 must clamp to 5 (six pig colorways), strawhat is a PIG accessory
+  env.visitors.push({ n: "TROTTER", cu: "pig", c: 9, a: "strawhat", x: 1200, y: 150, s: "roam",
+    w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 2000, b: 0,
+    hu: 0.5, th: 0.5, di: 0.2, bo: 0.3, ti: 0.4, log: [], st: {} });
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 62, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const k = customers.find(k => k.name === "TROTTER");
+    return k ? { cu: k.culture, c: k.color, a: k.acc,
+      pig: !!CULTURES.pig, cw: CULTURES.pig ? CULTURES.pig.colorways : 0,
+      pigArts: CULTURES.pig ? CULTURES.pig.arts.length : 0 } : null; })())`));
+  if (!got) return "TROTTER did not come ashore from the save";
+  if (!got.pig) return "the pig culture did not register";
+  if (got.cw !== 6 || got.pigArts !== 6) return "the pig art tables built wrong: " + JSON.stringify(got);
+  if (got.cu !== "pig") return "culture came back " + got.cu;
+  if (got.c !== 5) return "color clamped to " + got.c + ", not 5";
+  if (got.a !== "strawhat") return "accessory came back " + got.a;
+  b.G("save()");
+  const env2 = JSON.parse(store.get(SLOT1));
+  if (!env2.cultures || !env2.cultures.pig) return "the cultures key did not round-trip";
+  const rec = (env2.visitors || []).find(v => v.n === "TROTTER");
+  if (!rec || rec.cu !== "pig") return "the cu field did not round-trip: " + JSON.stringify(rec);
+  if (rec.c !== 5) return "the clamped color did not round-trip: " + rec.c;
+  return true;
+});
+
+scenario("cultureways: an unknown culture id degrades to crab, and the town runs", () => {
+  const store = new Map();
+  const a = createSim({ seed: 63, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.visitors = env.visitors || [];
+  env.visitors.push({ n: "WALLY", cu: "walrus", c: 9, a: "strawhat", x: 1200, y: 150, s: "roam",
+    w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 2000, b: 0,
+    hu: 0.5, th: 0.5, di: 0.2, bo: 0.3, ti: 0.4, log: [], st: {} });
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 64, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const k = customers.find(k => k.name === "WALLY");
+    return k ? { cu: k.culture, c: k.color, accOk: ACC_KEYS.includes(k.acc) } : null; })())`));
+  if (!got) return "WALLY did not come ashore";
+  if (got.cu !== "crab") return "an unknown culture came back " + got.cu;
+  if (!(got.c >= 0 && got.c <= 6)) return "color left the crab table: " + got.c;
+  if (!got.accOk) return "a foreign accessory survived on a crab";
+  b.runDays(2);
+  return b.G("gameOver") === false || b.G("day") > 1 ? true : "the town wedged after the degrade";
+});
+
+scenario("cultureways: broken art is refused with a message and the town still loads", () => {
+  const store = new Map();
+  const a = createSim({ seed: 65, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const bad = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  bad.art.body.poses.a[3] = "..KK";   // ragged row
+  env.cultures = { pig: bad };
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 66, storage: store, fresh: false });
+  if (b.G("!!CULTURES.pig")) return "a ragged pig was accepted into the registry";
+  if (!/CULTUREWAY/.test(b.G("toast ? toast.text : ''"))) return "no toast named the dropped culture";
+  if (!(b.G("crabs.length") >= 1)) return "the town failed to load around the bad culture";
+  // the raw key still round-trips: a load never destroys data it could not use
+  b.G("save()");
+  const env2 = JSON.parse(store.get(SLOT1));
+  if (!env2.cultures || !env2.cultures.pig) return "the broken culture was destroyed instead of carried";
+  // and the gate itself names each break
+  const mut = (fn) => { const d = JSON.parse(JSON.stringify(PIG_FIXTURE)); fn(d); return d; };
+  const cases = [
+    ["a ragged row", mut(d => d.art.body.poses.a[3] = "..KK")],
+    ["a missing pose", mut(d => delete d.art.body.poses.s)],
+    ["a loose anchor", mut(d => d.art.body.anchors.hat.x = 99)],
+    ["an undeclared char", mut(d => d.art.body.poses.b[2] = ".KPPPPPZPPK.")],
+    ["a bad taste", mut(d => d.tastes.fish = 99)],
+    ["a bad name", mut(d => d.people.names[0] = "AN EXTREMELY LONG PIG NAME")],
+  ];
+  for (const [what, d] of cases) {
+    const why = b.G("cultureProblem(" + JSON.stringify(d) + ")");
+    if (!why || typeof why !== "string") return what + " was not refused by cultureProblem";
+  }
+  // ...and the clean fixture passes the same gate
+  const ok = b.G("cultureProblem(" + JSON.stringify(PIG_FIXTURE) + ")");
+  return ok === null ? true : "the clean fixture was refused: " + ok;
 });
 
 // ---- runner
