@@ -9301,11 +9301,12 @@ function visitorsInTown() { return customers.filter(k => k.visitor && !k.gone); 
 // names dedupe against everybody currently in town, crabs included, so no two
 // MISTYs are ever on the boardwalk at once - the whole point is a recognisable
 // face ("that's MISTY, she's been here since Tuesday")
-function freeVisitorName() {
+function freeVisitorName(pool) {
+  pool = pool || CUSTOMER_NAMES;   // a culture brings its own pool (CS3.5); dedupe is infra
   const used = new Set(allCrabs().map(c => c.p.name));
   for (const k of customers) if (k.visitor) used.add(k.name);
-  const free = CUSTOMER_NAMES.filter(n => !used.has(n));
-  if (!free.length) return CUSTOMER_NAMES[(Math.random() * CUSTOMER_NAMES.length) | 0];
+  const free = pool.filter(n => !used.has(n));
+  if (!free.length) return pool[(Math.random() * pool.length) | 0];
   return free[(Math.random() * free.length) | 0];
 }
 // STATUS BARS IN VARIOUS CONDITIONS (the directive's own words). Everybody
@@ -9323,7 +9324,11 @@ function visNeeds() {
   }
   return n;
 }
-function newVisitor(overnightOnly) {
+function newVisitor(overnightOnly, cu) {
+  // CS3.5 step 3: a culture on the manifest mints from its own tables. The
+  // crab path below is byte-for-byte the pre-cultures code, and either branch
+  // consumes the SAME number of Math.random() draws in the same order.
+  const cul = cu && cu !== "crab" && CULTURES[cu] ? CULTURES[cu] : null;
   const nights = overnightOnly ? (Math.random() < 0.80 ? 1 : 2)
     : Math.random() < VIS_DAYTRIP ? 0 : Math.random() < 0.78 ? 1 : 2;
   const n = visNeeds();
@@ -9341,10 +9346,11 @@ function newVisitor(overnightOnly) {
   const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + Math.random() * 90
     : nights * 1440 - 60 - Math.random() * 60));
   return {
-    visitor: true, gone: false, culture: "crab",   // species field (CS3.5); the mint stays crab until step 3
-    name: freeVisitorName(),
-    color: (Math.random() * CRAB_COLORS.length) | 0,
-    acc: ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
+    visitor: true, gone: false, culture: cul ? cu : "crab",
+    name: cul ? freeVisitorName(cul.def.people.names) : freeVisitorName(),
+    color: cul ? (Math.random() * cul.colorways) | 0 : (Math.random() * CRAB_COLORS.length) | 0,
+    acc: cul ? cul.accKeys[(Math.random() * cul.accKeys.length) | 0]
+      : ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
     animT: Math.random() * 9,
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
@@ -9394,6 +9400,28 @@ function seedVisitors() {
     visLog(v, "life", "CAME OVER ON AN EARLIER FERRY");
   }
 }
+// THE MANIFEST (CS3.5 step 3): who is on the boat. A save-defined culture
+// starts sending tourists once the town's reputation crosses its arrival
+// gate - word has to reach the mainland before anybody boards. THE
+// FINGERPRINT RULE: with no cultures registered, or every gate shut, this
+// consumes ZERO Math.random() draws - a pre-cultures town sails
+// byte-identical forever, so the roll is short-circuited BEFORE the draw.
+function cultureShare(cul) {
+  const ar = cul.def.arrival || {};
+  const gate = ar.repGate != null ? ar.repGate : 80;
+  const ramp = ar.shareRamp > 0 ? ar.shareRamp : 80;
+  const cap = ar.shareMax != null ? ar.shareMax : 0.25;
+  return rep < gate ? 0 : Math.min(cap, (rep - gate) / ramp);
+}
+function ferryCulture() {
+  for (const id in CULTURES) {
+    const cul = CULTURES[id];
+    if (!cul) continue;   // the crab entry is null: the default, never a roll
+    const share = cultureShare(cul);
+    if (share > 0 && Math.random() < share) return id;
+  }
+  return "crab";
+}
 // SHE IS ALONGSIDE. Land the batch, and call anybody whose visit is up.
 function ferryDock(n, idx) {
   ferryT = FERRY_STAY;
@@ -9406,7 +9434,7 @@ function ferryDock(n, idx) {
     : Math.max(1, Math.round(ferryBatch() * (FERRY_LOAD[i0] != null ? FERRY_LOAD[i0] : 1)));
   const landed = [];
   for (let i = 0; i < count; i++) {
-    const v = newVisitor(last);
+    const v = newVisitor(last, ferryCulture());
     v.x = FERRY.gangway - 4 - i * 7;   // down the plank and along the deck, in a line
     v.thinkT = i * 3 + Math.random() * 8;   // ...and they do not all want lunch at 9:01
     customers.push(v);

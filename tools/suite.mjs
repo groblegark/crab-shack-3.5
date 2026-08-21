@@ -10474,6 +10474,81 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
   return true;
 });
 
+scenario("cultureways: the arrival gate holds shut below rep 80 and opens above", () => {
+  // Twin towns from ONE day-1 save, both pinned to rep 40 - one carries the
+  // pig culture, one doesn't. Below the gate the manifest must consume ZERO
+  // extra RNG, so three further days must land on the SAME fingerprint.
+  const seed = 71;
+  const store = new Map();
+  const a = createSim({ seed, storage: store, fresh: false });
+  a.runDays(1); a.G("save()");
+  const base = JSON.parse(store.get(SLOT1));
+  const FP = `JSON.stringify({
+    day, coins: Math.round(coins * 100), rep: Math.round(rep * 100),
+    crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), Math.round(c.p.wallet * 100)]),
+    vis: customers.filter(k => k.visitor && !k.gone).map(k => k.name).sort() })`;
+  const runTwin = (withPig) => {
+    const env = JSON.parse(JSON.stringify(base));
+    env.rep = 40;
+    if (withPig) env.cultures = { pig: PIG_FIXTURE };
+    const st = new Map([[SLOT1, JSON.stringify(env)]]);
+    const sim = createSim({ seed, storage: st, fresh: false });
+    sim.runDays(4);
+    return { fp: sim.G(FP), pigs: +sim.G(`customers.filter(k => k.culture === "pig").length`) };
+  };
+  const plain = runTwin(false), gated = runTwin(true);
+  if (gated.pigs !== 0) return gated.pigs + " pig(s) slipped a shut gate";
+  if (plain.fp !== gated.fp) return "the shut gate cost RNG - fingerprints diverged:\n" + plain.fp + "\n" + gated.fp;
+  // Now the gate OPEN: rep pinned to 100 => share = min(0.25, 20/80) = 0.25.
+  // Probe DURING the run - day-trippers sail, so a boundary count can read
+  // zero even when the boat carried pigs all day.
+  const env = JSON.parse(JSON.stringify(base));
+  env.rep = 100; env.cultures = { pig: PIG_FIXTURE };
+  const st = new Map([[SLOT1, JSON.stringify(env)]]);
+  const b = createSim({ seed: 72, storage: st, fresh: false });
+  const landed = b.runUntil(`customers.some(k => k.culture === "pig" && k.visitor)`,
+    { maxSteps: 3 * 28800 });   // three sim-days of 50ms steps
+  if (!landed) return "rep 100 landed no pigs in three days";
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const pigs = customers.filter(k => k.culture === "pig" && k.visitor);
+    const pool = ${JSON.stringify(PIG_FIXTURE.people.names)};
+    return { pigs: pigs.length,
+      everyPig: pigs.every(k => pool.includes(k.name) && k.color >= 0 && k.color < 6
+        && (k.acc === "strawhat" || k.acc === "none")) }; })())`));
+  if (got.pigs < 1) return "the pig vanished between the probe and the count";
+  if (!got.everyPig) return "a pig minted off its own tables: " + JSON.stringify(got);
+  return true;
+});
+
+scenario("cultureways: a minted pig round-trips and a minted crab stays byte-shaped", () => {
+  const store = new Map();
+  const a = createSim({ seed: 73, storage: store, fresh: false });
+  a.runDays(1); a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.rep = 100; env.cultures = { pig: PIG_FIXTURE };
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 74, storage: store, fresh: false });
+  b.runDays(3);
+  const before = JSON.parse(b.G(`JSON.stringify((() => {
+    const p = customers.find(k => k.culture === "pig" && k.visitor && !k.gone);
+    return p ? { n: p.name, c: p.color, a: p.acc } : null; })())`));
+  if (!before) return "no pig in town to round-trip (gate should be open at rep 100)";
+  b.G("save()");
+  const env2 = JSON.parse(store.get(SLOT1));
+  const rec = (env2.visitors || []).find(v => v.n === before.n);
+  if (!rec || rec.cu !== "pig") return "the minted pig lost her culture in the save: " + JSON.stringify(rec);
+  if (rec.c !== before.c || rec.a !== before.a) return "the minted pig's identity drifted: " + JSON.stringify([before, rec]);
+  if ((env2.visitors || []).some(v => v.cu === undefined ? false : v.cu === "crab"))
+    return "a crab record carries an explicit cu key";
+  const c = createSim({ seed: 75, storage: store, fresh: false });
+  const after = JSON.parse(c.G(`JSON.stringify((() => {
+    const p = customers.find(k => k.name === ${JSON.stringify(before.n)});
+    return p ? { cu: p.culture, c: p.color, a: p.acc } : null; })())`));
+  if (!after || after.cu !== "pig") return "the pig did not come back a pig: " + JSON.stringify(after);
+  if (after.c !== before.c || after.a !== before.a) return "identity changed across the reload: " + JSON.stringify([before, after]);
+  return true;
+});
+
 // ---- runner
 const filters = process.argv.slice(2);
 const list = filters.length ? results.filter(r => filters.some(f => r.name.includes(f))) : results;
