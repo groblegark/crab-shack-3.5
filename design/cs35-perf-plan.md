@@ -62,6 +62,41 @@ site is exactly the bug class the frozen fingerprints catch.
   worlds) exceed the win. Revisit only if a mature-town scenario class
   appears, with regen-on-balance-change discipline.
 
+## THE PARALLEL-HARDWARE LADDER (Matt's float, 2026-08-21, assessed)
+
+The instinct — sims that run a lot belong on parallel hardware — is
+industry-real (Madrona-class engines batch thousands of game-sim
+instances on GPU). The assessment, recorded as a ladder:
+
+1. **NOW — structural sim/view split with seam tests.** Already
+   runtime-true (`window._headless` skips all draws; draws are ~0% of the
+   headless bill); make it architectural: sim core as pure
+   state-in/state-out, view as a reader, golden state→draw-call tests at
+   the seam. Never wasted: it is the same seam the cultureway runtime
+   needs, it flushes sim semantics hiding in view constants (lanes, queue
+   slots, furniture x's — the world-art work wants those exposed anyway),
+   and it would let the browser game run the sim in a Worker (real
+   fast-forward, honest forecasting).
+2. **TRIGGER-GATED — the deterministic core rewrite.** Any backend that
+   must agree with itself and CI needs fixed-point integer numerics, flat
+   state, event codes instead of strings. This is the one big cost.
+   Trigger: the workload becomes thousands of runs per validation (CS4
+   generate-and-prove cultureway loops, node networks of many towns).
+3. **After the rewrite, CPU already wins.** The deterministic core
+   compiles to WASM and runs perfectly reproducibly on every core
+   available (80 free on Actions, hundreds rentable) — most of the
+   practical parallelism arrives here.
+4. **GPU last, and only if that isn't enough.** At ~14 actors there is
+   nothing to parallelize inside one sim; one-sim-per-thread is the
+   warp-divergence worst case, and GPU floats are not bit-stable across
+   vendors/drivers (free CI runners have no GPU at all). A GPU sim that
+   is not the browser engine is a fork of game logic — the cardinal sin —
+   so the only honest form is the rewritten core AS the game's engine
+   (WebGPU compute + JS presentation). Price it when rung 3 saturates.
+
+Cheap parallelism runway before any of this: wave-1 opts 1.5×, sharding
+12×, free Actions ~80 cores — orders of magnitude unexploited.
+
 ## EXECUTION ORDER
 
 1. **Suite `--jobs` driver** (tools-only; queued behind step 2, which is
