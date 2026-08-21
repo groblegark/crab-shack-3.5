@@ -301,6 +301,18 @@ const BIZ = {
     ],
   },
 };
+// The key set never changes after load (unlocking is separate state), and
+// collide walked Object.keys(BIZ) twice per frame. Snapshot once.
+const BIZ_KEYS = Object.keys(BIZ);
+// Collide's furniture pass rebuilt tables.concat(stalls) per biz per frame.
+// Furniture only changes on a purchase (u.lvl++), a room built or removed
+// (setHotelRooms), or a save restoring levels - each bumps furnGen.
+let furnGen = 1;
+const _furnBy = {}, _furnGenBy = {};
+function bizFurniture(b) {
+  if (_furnGenBy[b] !== furnGen) { _furnBy[b] = (bizTables(b) || []).concat(BIZ[b].stalls || []); _furnGenBy[b] = furnGen; }
+  return _furnBy[b];
+}
 
 // ---------------------------------------------------------------- open hours
 // Every business keeps real OPEN HOURS (default 8:00-20:00 - exactly the old
@@ -3769,6 +3781,7 @@ function setHotelRooms(n) {
   }
   b.rent = HOTEL_RENT_BASE + (b.stalls.length - HOTEL_ROOMS_BASE) * ROOM_CFG.RENT;
   annexe.built = b.stalls.length - HOTEL_ROOMS_BASE;
+  furnGen++;       // collide's furniture memo re-reads the stalls it just changed
   _bandsKey = "";   // the furniture cache keys on the room count; make it re-read anyway
 }
 function annexeFull() { return hotelRooms().length >= HOTEL_ROOMS_BASE + ROOM_CFG.EXTRA; }
@@ -4107,15 +4120,24 @@ function capWindow(start, end, cap, mid) {
   const s = Math.max(start, Math.min(end - cap, mid - Math.round(cap / 2 / 30) * 30));
   return { start: s, end: s + cap };
 }
+// Memoized per (biz, kind) on the hours pair it derives from: the window and
+// its label were rebuilt on every call (several per crab per frame through
+// the schedule chain). Callers never mutate the returned window - the OT
+// path in effShift builds its own object - so sharing the instance is safe.
+const _swinBy = {};
 function bizShiftWindow(b, kind) {
   const h = BIZ[b].hours;
+  const bb = _swinBy[b] || (_swinBy[b] = {});
+  const hit = bb[kind];
+  if (hit && hit.o === h.open && hit.c === h.close) return hit.w;
   const mid = h.open + Math.round((h.close - h.open) / 2 / 30) * 30;
   const raw = kind === "M" ? { start: h.open, end: mid }
     : kind === "E" ? { start: mid, end: h.close }
     : kind === "D" ? { start: h.open + 30, end: h.close - 90 }
     : { start: h.open, end: h.close };   // covering double: the full window
   const w = capWindow(raw.start, raw.end, SHIFT_SPAN[kind] || SHIFT_SPAN.cover, mid);
-  w.label = fmtHr(w.start) + "-" + fmtHr(w.end);
+  w.label = fmtHr(w.start) + "-" + fmtHr(w.end);   // paid once, at fill
+  bb[kind] = { o: h.open, c: h.close, w };
   return w;
 }
 function baseShift(c) { return c.p.job === "fishing" ? SHIFTS[c.p.shift] : bizShiftWindow(c.p.job, c.p.shift); }
@@ -6484,6 +6506,7 @@ function load(slot) {
   if (typeof s.rep === "number") rep = s.rep;
   if (typeof s.townCatch === "number") townCatch = s.townCatch;
   for (const k in UPS) if (s.lv && s.lv[k] != null) UPS[k].lvl = s.lv[k];
+  furnGen++;   // restored levels change bizTables' output
   // laundromat-removal migration: SUDS N BUBBLES closed. Stale lv keys
   // (cleaners/sudsgear) are simply ignored above; an owned laundromat refunds
   // its purchase price ONCE (flag persists so a reload can't re-pay it).
@@ -7066,9 +7089,9 @@ function collide(dt) {
       if (d > 0.01 && d < 12 + BERTH_PX) giveBerth(a, b, d, dt);
     }
   // solid tables: nobody walks through the picnic area
-  for (const bizKey of Object.keys(BIZ)) {
+  for (const bizKey of BIZ_KEYS) {
     if (!bizUnlocked(bizKey)) continue;
-    const furniture = (bizTables(bizKey) || []).concat(BIZ[bizKey].stalls || []);
+    const furniture = bizFurniture(bizKey);
     for (const t of furniture) {
       for (const c of bodies) {
         if (Math.abs((c.tx || 0) - (t.x + 2)) < 8 && Math.abs((c.ty || 0) - (t.y + 12)) < 8) continue;
@@ -7083,7 +7106,7 @@ function collide(dt) {
     }
   }
   // solid stations: walk around, not through (except the crab working that spot)
-  for (const bizKey of Object.keys(BIZ)) {
+  for (const bizKey of BIZ_KEYS) {
     if (!bizUnlocked(bizKey)) continue;
     const sts = BIZ[bizKey].stations;
     for (const kind of Object.keys(sts))
@@ -10457,7 +10480,7 @@ function tryBuy(key) {
     if (typeof sfx !== "undefined" && sfx.angry) sfx.angry();
     return;
   }
-  coins -= upCost(u); u.lvl++;
+  coins -= upCost(u); u.lvl++; furnGen++;
   if (key === "arcade") {
     toast = { text: "THE CLAWCADE IS YOURS! CLICK A CRAB, THEN ITS CARD, TO STAFF IT", t: 8 };
     popText("GRAND OPENING!", BIZ.arcade.x0 + 40, 100, [140, 255, 160]);
