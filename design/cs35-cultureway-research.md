@@ -70,6 +70,19 @@ culture's foodways — is an important ongoing dynamic going forward.
    **3.5 is done when both cultures live in the save and game.js hard-codes
    neither.** The transcribed Crabocracy doubles as CS4's reference
    exemplar.
+7. **The port is the test** (Matt, 2026-08-21: porting CS3 work into 3.5
+   "will be a great validation that we're doing it right"). CS3 development
+   continues in parallel in its own checkout, and its output flows into 3.5
+   continuously under a triage rule: **engine-shaped changes** (fixes,
+   tooling, sim infrastructure) merge straight through git from
+   crab-shack-3 main; **culture-shaped changes** (a new dish, a civic
+   feature, signage, voice lines) are RE-EXPRESSED through the cultureway
+   format, never merged in as fresh hard-code. Each port is a live test of
+   the format's expressiveness against features designed with no knowledge
+   of it — a port that won't express cleanly is a FORMAT bug, filed and
+   prioritized as one, not worked around with a special case in game.js.
+   The suite + matrix baselines captured in this clone are the referee:
+   a ported feature must reproduce the behavior its CS3 original ships.
 
 ### Canon updates (2026-08-21)
 
