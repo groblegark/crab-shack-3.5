@@ -2268,10 +2268,12 @@ function layOff(k) {
   k.dayState = "home"; k.cstate = "";
   k.p.employer = null; k.p.owner = null; k.p.ot = false;
   if (k.p.npc) {
+    rosterGen++;
     k.p.job = "fishing"; k.workBiz = "fishing"; k.p.fisher = true;
     k.fishSpot = k.p.boat != null ? boatSpot(k.p.boat)
       : fishSpotFor(npcs.filter(x => x.p.fisher && x !== k).length);
   } else {
+    rosterGen++;
     k.p.job = "shack"; k.workBiz = "shack";   // your crew come back to your kitchen
   }
 }
@@ -2356,6 +2358,7 @@ function buyBusiness(b, buyer) {
     BIZ[b].autoLabor = true;    // a peer owner runs the same policy table SUDSY does
     if (!buyer.p.owner) {       // their FIRST shop: an owner-operator behind their own counter
       abortChef(buyer); abortErrand(buyer);
+      rosterGen++;
       buyer.p.owner = id; buyer.p.job = b; buyer.p.employer = null; buyer.p.shift = "D";
       buyer.duty = false; buyer.pendingOff = false; buyer.kstate = "idle";
       buyer.carrying = null; buyer.dayState = "home"; buyer.cstate = "";
@@ -2811,6 +2814,7 @@ function handOverBiz(b, oid) {
     abortChef(k); abortErrand(k);
     k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
     k.dayState = "home"; k.cstate = "";
+    rosterGen++;
     k.p.job = "shack"; k.workBiz = "shack";
     crabLog(k, "work", "MOVED TO THE CRAB SHACK - THE " + BIZ[b].short + " WAS SOLD", 0);
     today.moved.push(k.p.name + " BACK TO THE SHACK");
@@ -3140,6 +3144,7 @@ function stepDownOwner(k, oid, exceptBiz) {
   abortChef(k); abortErrand(k);
   k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
   k.dayState = "home"; k.cstate = "";
+  rosterGen++;
   k.p.job = other; k.workBiz = other; k.p.shift = "D"; k.p.employer = null;
   k.fishSpot = null;
   crabLog(k, "work", "BACK BEHIND THE " + BIZ[other].short + " COUNTER", 0);
@@ -3282,11 +3287,11 @@ function hotelierArrive() {
     hunger: 0.15, dirt: 0.2, bored: 0.1, tired: 0.2 };
   const c = newCrab(p);
   c.x = BUS_STOPS[0]; c.y = 158;
-  npcs.push(c);
+  npcs.push(c); rosterGen++;
   // the player's own buy-out path, from the other side of the counter. If it
   // refuses for any reason she was never here at all: a half-bought hotel is
   // worse than no hotelier.
-  if (!buyOutOwner(b, c)) { npcs = npcs.filter(k => k !== c); return false; }
+  if (!buyOutOwner(b, c)) { npcs = npcs.filter(k => k !== c); rosterGen++; return false; }
   hotelier.id = c.p.owner; hotelier.day = day;
   const lot = freeLotFor(BIZ[b].door);
   if (lot >= 0 && c.p.wallet >= MOVE_IN_COST + HOUSE_RENT) {
@@ -4004,7 +4009,14 @@ const OFF_WAKE = 9.5 * 60;   // a day off starts with a lie-in
 // left alone here because fixing it moves the measured juice-bar curves and
 // this pass has enough numbers of its own. Flagged in PLAN.)
 const OFF_BASE = { shack: 2, arcade: 4, showers: 6, fishing: 3, hotel: 5 };
-let _offMap = {}, _needCover = {}, _offStamp = -1, _offN = "";
+let _offMap = {}, _needCover = {}, _offStamp = -1, _offGen = -1;
+// ROSTERGEN: bumped by every site that moves a crab between rosters or
+// changes a p.job/p.name - the same moments the old fingerprint string
+// changed, without rebuilding that string on every call (it was ~50 builds a
+// frame). A missed bump site is exactly the silent-stale-roster bug the
+// comment below documents, which is why the frozen suite fingerprints are
+// the referee for this cache.
+let rosterGen = 1;
 function refreshDaysOff() {
   // THE CACHE KEYS ON WHO WORKS WHERE, not on how many crabs there are. It
   // used to key on (time, headcount), and a business changing hands moves
@@ -4013,10 +4025,10 @@ function refreshDaysOff() {
   // the desk, and the map kept the old hotel roster. `dayOffIdx` then fell
   // through to its 0 default, so THE NEW OWNER NEVER GOT A DAY OFF - silently,
   // because a missing key reads as "Monday" rather than as an error. The
-  // fingerprint is a dozen short strings; the sort it saves costs more.
-  const sig = allCrabs().map(k => k.p.name + "|" + k.p.job).join(",");
-  if (_offStamp === time && _offN === sig) return;
-  _offStamp = time; _offN = sig; _offMap = {}; _needCover = {};
+  // key used to be a rebuilt name|job fingerprint string; rosterGen marks
+  // the same invalidation moments for the cost of an integer compare.
+  if (_offStamp === time && _offGen === rosterGen) return;
+  _offStamp = time; _offGen = rosterGen; _offMap = {}; _needCover = {};
   const byBiz = {};
   for (const k of allCrabs()) (byBiz[k.p.job] = byBiz[k.p.job] || []).push(k);
   const wd = weekdayIdx(day);
@@ -4034,10 +4046,17 @@ function refreshDaysOff() {
     _needCover[b] = off.length > 0 && on.length > 0 &&
       off.some(o => !on.some(w2 => w2.p.shift === o.p.shift || w2.p.shift === "D"));
   }
+  // second pass so the per-crab field equals EXACTLY what the map lookup
+  // answered (shared name|job keys included): dayOffIdx becomes a field read
+  // instead of a per-call key-string build
+  for (const k of allCrabs()) {
+    const v = _offMap[k.p.name + "|" + k.p.job];
+    k._offIdx = v != null ? v : 0;
+  }
 }
 function dayOffIdx(c) {
   refreshDaysOff();
-  const v = _offMap[c.p.name + "|" + c.p.job];
+  const v = c._offIdx;
   return v != null ? v : 0;
 }
 // "not working today" - the rota's weekday off, or a WALKOUT over pay (see
@@ -4532,6 +4551,7 @@ function quitOverPay(c, why) {
     abortErrand(c); abortChef(c);
     c.duty = false; c.pendingOff = false; c.kstate = "idle"; c.carrying = null;
     c.dayState = "home"; c.cstate = "";
+    rosterGen++;
     c.p.job = to; c.p.employer = oid; c.workBiz = to; c.p.fisher = false;
     delete c.p.wage; delete c.p.wageOwner;   // a new boss, a new rate
     toast = { text: c.p.name + " LEFT FOR " + BIZ[to].name + " - $" + bizWage(to) + " BEATS $" + Math.round(wageRate(c)), t: 8 };
@@ -5106,7 +5126,7 @@ function initNpcs() {
     fc.x = f.x0; fc.y = 158;
     return fc;
   });
-  npcs = [c, rc].concat(fishers);
+  npcs = [c, rc].concat(fishers); rosterGen++;
   seatFoundingMayor();   // the shelter was open before you signed the lease; somebody keeps it that way
 }
 // TIRED (replaces SANDY): accrued by shift work and errand legwork - never by
@@ -5725,7 +5745,7 @@ function newCrab(persona) {
     flip: false, hidden: false, animT: Math.random() * 9,
     dayState: "home", cstate: "", target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
-    duty: false, pendingOff: false, pauseT: 0,
+    duty: false, pendingOff: false, pauseT: 0, _offIdx: 0,
     // kitchen fields
     kstate: "idle", cust: null, carrying: null, stepIdx: 0,
     workT: 0, workMax: 0, slot: -1, slotKind: null,
@@ -6452,6 +6472,7 @@ function load(slot) {
     toast = { text: "LAUNDROMAT CLOSED - SHOWERS TOOK OVER. +$" + refund, t: 9 };
     sudsRefunded = true;
   }
+  rosterGen++;
   crabs = s.personas.map((p2, i) => {
     const base = makeCrabPersona(i);
     return newCrab(Object.assign(base, p2));   // missing fields fall back to sane defaults
@@ -6509,7 +6530,7 @@ function load(slot) {
         clampLog(n.p);   // townsfolk skip newCrab on this path: bound their diary here
         if (sp.tired == null) n.p.tired = sp.sandy || 0;   // TIRED replaced SANDY (old townsfolk saves seed from it)
         delete n.p.sandy;
-        if (n.p.job !== "fishing" && !BIZ[n.p.job]) { n.p.job = "fishing"; n.p.employer = null; }   // removed-business jobs: back to the pier
+        if (n.p.job !== "fishing" && !BIZ[n.p.job]) { n.p.job = "fishing"; n.p.employer = null; rosterGen++; }   // removed-business jobs: back to the pier
         delete n.p.homeX;   // pre-housing-market nook field
         if (n.p.boat != null && BOAT_BERTHS[n.p.boat] == null) n.p.boat = null;
         if (!n.p.homeless && n.p.boat == null && (n.p.house == null || HOUSE_XS[n.p.house] == null)) n.p.homeless = true;
@@ -6517,7 +6538,7 @@ function load(slot) {
       } else {
         const c = newCrab(Object.assign({ npc: true }, sp));
         if (c.p.fisher) c.fishSpot = c.p.boat != null ? boatSpot(c.p.boat) : freeFishSpot();
-        c.x = homeX(c); npcs.push(c);
+        c.x = homeX(c); npcs.push(c); rosterGen++;
       }
     }
     // THE DEAD STAY DEAD. initNpcs() has already stood SUDSY and the founding
@@ -6529,6 +6550,7 @@ function load(slot) {
     // deleting him would orphan a hotel that same save has never heard of.
     const preVis = !s._vis;
     if (Array.isArray(s.npc.personas))
+      rosterGen++;
       npcs = npcs.filter(n => (preVis && n.p.owner === "reef")
         || s.npc.personas.some(sp => sp && sp.name === n.p.name));
   }
@@ -7210,6 +7232,7 @@ function runJobBoard() {
     // vacancy it already advertised instead of the ad silently expiring.
     if (hire && capFull(j.biz)) hire = null;
     if (hire) {
+      rosterGen++;
       hire.p.job = j.biz; hire.p.employer = bizOwner(j.biz);
       // clock out of the old life cleanly - updateSchedule will commute them to the new job
       abortErrand(hire);
@@ -7231,7 +7254,7 @@ function spawnDrifter() {
   const c = newCrab(p2);
   c.fishSpot = freeFishSpot();   // a hole on the rail (somebody died, somebody took a job) gets filled first
   c.x = BUS_STOPS[0]; c.y = 158;   // stepped off the morning bus with one bag
-  npcs.push(c);
+  npcs.push(c); rosterGen++;
   crabLog(c, "life", "GOT OFF THE MORNING BUS, NEW IN TOWN", 0);   // DIARY
   today.moved.push(c.p.name + " NEW IN TOWN");
   toast = { text: c.p.name + " GOT OFF THE BUS - NEW IN TOWN", t: 5 };
@@ -7275,7 +7298,7 @@ function convertTourist(k) {
   p2.shift = hireShift(); p2.homeless = true; p2.house = null;
   const c = newCrab(p2);
   c.x = k.x; c.y = 166;
-  crabs.push(c);
+  crabs.push(c); rosterGen++;
   // the person you were watching is still the person you're watching
   if (followCust === k) { followCust = null; followIdx = crabs.length - 1; followNpc = null; }
   if (dossier === k) dossier = c;
@@ -7315,7 +7338,7 @@ function hireCrew() {
     p2.shift = hireShift(); p2.homeless = true; p2.house = null; p2.mode = "walk";
     c = newCrab(p2);
     c.x = BUS_STOPS[0]; c.y = 158;   // one bag, one toque
-    crabs.push(c);
+    crabs.push(c); rosterGen++;
     crabLog(c, "life", "ANSWERED THE AD AND RODE THE BUS IN", 0);   // DIARY
     today.moved.push(c.p.name + " JOINED THE CREW (OFF THE BUS)");
     how = "ANSWERED THE AD - CAME IN ON THE BUS";
@@ -7349,8 +7372,8 @@ function hireCrew() {
 // ---------------------------------------------------------------- day schedule
 function updateSchedule(c, dt) {
   const sh = effShift(c);   // own shift, or the long cover shift on a coworker's day off
-  if (c.p.job !== "fishing" && !bizUnlocked(c.p.job)) c.p.job = "shack";
-  if (!c.p.npc && c.p.job !== "fishing" && bizOwner(c.p.job) !== "player") c.p.job = "shack";   // crew can't staff NPC shops
+  if (c.p.job !== "fishing" && !bizUnlocked(c.p.job)) { c.p.job = "shack"; rosterGen++; }
+  if (!c.p.npc && c.p.job !== "fishing" && bizOwner(c.p.job) !== "player") { c.p.job = "shack"; rosterGen++; }   // crew can't staff NPC shops
   // one weekday in seven: no commute, no duty, no pay - and the same for a
   // crab who has walked out (B3). The rota's day off is scheduled and covered;
   // an unauthorised one is neither, which is exactly what makes it cost.
@@ -8225,6 +8248,7 @@ function killCrab(k) {
   const followed = followIdx >= 0 ? crabs[followIdx] : null;
   crabs = crabs.filter(c2 => c2 !== k);
   npcs = npcs.filter(c2 => c2 !== k);
+  rosterGen++; k._offIdx = 0;   // a removed crab reads the missing-key default, as the map did
   if (!k.p.npc) UPS.chef.lvl = Math.max(1, crabs.length);   // the crew roster shrinks; the town's does not
   followIdx = followed ? crabs.indexOf(followed) : -1;   // keep following the same crab, not the same slot
   if (followNpc === k) followNpc = null;
@@ -8257,6 +8281,7 @@ function townAfterDeath(k) {
     toast = { text: BIZ[b].name + " IS CLOSED. " + k.p.name + " IS GONE.", t: 8 };
     for (const w of allCrabs()) {
       if (w.p.employer !== k.p.owner) continue;
+      rosterGen++;
       w.p.job = "fishing"; w.p.employer = null; w.workBiz = null;
       if (!w.fishSpot) w.fishSpot = freeFishSpot();
       today.moved.push(w.p.name + " LOST THEIR JOB - BACK TO THE PIER");
@@ -10662,7 +10687,7 @@ cv.addEventListener("click", (ev) => {
         if (typeof sfx !== "undefined" && sfx.angry) sfx.angry();
         return;
       }
-      c.p.job = j;
+      c.p.job = j; rosterGen++;
       sfx.buy();
       popText("NEW JOB: " + BIZ[c.p.job].name, c.x - 20, FLOOR_Y - 34, [140, 255, 160]);
       return;
@@ -10936,6 +10961,7 @@ cv.addEventListener("click", (ev) => {
     const c = crabs[followIdx];
     // crew work only the player's businesses - never an NPC-owned shop
     const owned = Object.keys(BIZ).filter(b => bizUnlocked(b) && bizOwner(b) === "player");
+    rosterGen++;
     c.p.job = owned[(owned.indexOf(c.p.job) + 1) % owned.length];
     sfx.buy();
     popText("NEW JOB: " + BIZ[c.p.job].name, c.x - 20, FLOOR_Y - 34, [140, 255, 160]);
@@ -15671,7 +15697,7 @@ function frame(now) {
         // and townAfterDeath() both hand a returning fisher a free rail spot;
         // this third path back to the pier - an owner who cannot make payroll
         // - did not, so the quitter fished from wherever they happened to be.
-        c.p.job = "fishing"; c.p.employer = null;
+        c.p.job = "fishing"; c.p.employer = null; rosterGen++;
         if (!c.fishSpot) c.fishSpot = freeFishSpot();
         today.moved.push(c.p.name + " QUIT - BACK TO THE PIER");
         toast = { text: c.p.name + " QUIT: " + (o ? o.name : "THE BOSS") + " COULDN'T PAY", t: 6 };
@@ -16219,7 +16245,7 @@ if (!FRESH) migrateLegacy();   // the old single-key town becomes slot 1, intact
 activeSlot = readActiveSlot();
 hasSave = load();
 if (!hasSave) {
-  crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))];
+  crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
   coins = 150;   // a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
   dayOpen = coins;   // day one opens on the float, so TODAY starts at +$0
 }
