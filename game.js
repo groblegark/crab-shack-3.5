@@ -6549,10 +6549,11 @@ function load(slot) {
     // save written before the hotel existed cannot possibly list REEF, and
     // deleting him would orphan a hotel that same save has never heard of.
     const preVis = !s._vis;
-    if (Array.isArray(s.npc.personas))
+    if (Array.isArray(s.npc.personas)) {
       rosterGen++;
       npcs = npcs.filter(n => (preVis && n.p.owner === "reef")
         || s.npc.personas.some(sp => sp && sp.name === n.p.name));
+    }
   }
   // ONE WALLET, RECONCILED NOW THE CRABS EXIST. Until here every owner's money
   // sits in `_held` and every crab's in their persona.
