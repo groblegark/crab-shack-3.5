@@ -6017,6 +6017,133 @@ let activeSlot = 1;                      // autosave goes here; persisted in ACT
 const FRESH = location.search.includes("fresh");
 const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 1])[1]) || 1);
 
+// ============================================================= CULTUREWAYS
+// CS3.5 STEP 1 (design/cs35-spec-01): a culture is DATA IN THE SAVE. This
+// step lands the registry, the import gate and the species field - nothing
+// yet renders, mints or speaks from it. "crab" is implicit and stays
+// hard-coded until the capstone transcription. Contract: parse at load,
+// never mid-frame; a bad culture is dropped with a toast, never a brick;
+// and NONE of this consumes RNG - the frozen fingerprints are the referee.
+const CULTURES = { crab: null };   // id -> built entry (null = the hard-coded crab)
+let rawCultures = null;            // the envelope key, round-tripped verbatim
+
+// Returns null when the culture definition is sound, else a short reason.
+// Runs BEFORE any parseArt so a hand-made or generated file fails at import
+// with a message, not at first draw.
+function cultureProblem(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) return "NOT A CULTURE";
+  const rgb = (c) => Array.isArray(c) && c.length === 3
+    && c.every(v => typeof v === "number" && isFinite(v) && v >= 0 && v <= 255);
+  if (!d.people || !Array.isArray(d.people.names) || !d.people.names.length) return "NO NAME POOL";
+  for (const n of d.people.names)
+    if (typeof n !== "string" || !n.length || n.length > 12) return "A BAD NAME";
+  const a = d.art;
+  if (!a || typeof a !== "object" || !a.palette || typeof a.palette !== "object") return "NO ART";
+  for (const ch in a.palette) {
+    if (ch.length !== 1) return "A BAD PALETTE CHAR";
+    if (!rgb(a.palette[ch])) return "A BAD PALETTE COLOR";
+  }
+  const b = a.body;
+  if (!b || typeof b !== "object") return "NO BODY";
+  if (!(b.w >= 4 && b.w <= 32 && b.h >= 4 && b.h <= 32)) return "A BAD BODY SIZE";
+  if (!Array.isArray(b.slots) || !b.slots.length || b.slots.some(s => !a.palette[s])) return "A BAD SLOT";
+  if (!Array.isArray(a.colorways) || !a.colorways.length) return "NO COLORWAYS";
+  for (const cw of a.colorways) {
+    if (!cw || typeof cw !== "object" || Array.isArray(cw)) return "A BAD COLORWAY";
+    for (const s in cw) {
+      if (!b.slots.includes(s)) return "A COLORWAY OFF ITS SLOTS";
+      if (!rgb(cw[s])) return "A BAD COLORWAY COLOR";
+    }
+  }
+  // every pose is a rectangle of declared characters, sized to the body
+  const rect = (rows, w, h) => {
+    if (!Array.isArray(rows) || !rows.length) return false;
+    if (h != null && rows.length !== h) return false;
+    const want = w != null ? w : (typeof rows[0] === "string" ? rows[0].length : -1);
+    for (const r of rows) {
+      if (typeof r !== "string" || r.length !== want) return false;
+      for (let i = 0; i < r.length; i++)
+        if (r[i] !== "." && !a.palette[r[i]]) return false;
+    }
+    return true;
+  };
+  if (!b.poses || typeof b.poses !== "object") return "NO POSES";
+  for (const p of ["a", "b", "w", "s"])
+    if (!rect(b.poses[p], b.w, b.h)) return "POSE " + p.toUpperCase() + " IS BROKEN";
+  // anchors live on the body: hat inside it, carry/mark may float above it
+  const an = b.anchors;
+  const pt = (q, ylo) => q && typeof q === "object"
+    && typeof q.x === "number" && q.x >= 0 && q.x < b.w
+    && typeof q.y === "number" && q.y >= ylo && q.y <= b.h;
+  if (!an || !pt(an.hat, 0) || !pt(an.carry, -2 * b.h) || !pt(an.mark, -2 * b.h)) return "AN ANCHOR IS LOOSE";
+  if (!an.bar || !(an.bar.w >= 1 && an.bar.w <= b.w)) return "A BAD BAR";
+  for (const k in a.accessories || {}) {
+    const ac = a.accessories[k];
+    if (!ac || typeof ac.dx !== "number" || typeof ac.dy !== "number"
+      || Math.abs(ac.dx) > 32 || Math.abs(ac.dy) > 32 || !rect(ac.rows))
+      return "ACCESSORY " + k.toUpperCase() + " IS BROKEN";
+  }
+  for (const k in a.items || {})
+    if (!a.items[k] || !rect(a.items[k].rows)) return "ITEM " + k.toUpperCase() + " IS BROKEN";
+  const v = d.voice;
+  const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
+  if (v != null) {
+    if (typeof v !== "object" || Array.isArray(v)) return "A BAD VOICE";
+    for (const part of ["diary", "depart"]) if (v[part] != null) {
+      if (typeof v[part] !== "object" || Array.isArray(v[part])) return "A BAD VOICE";
+      for (const k in v[part]) if (!line(v[part][k])) return "A BAD VOICE LINE";
+    }
+    if (v.dossier != null && (!Array.isArray(v.dossier) || v.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
+    for (const k of ["refuseHire", "foreign"]) if (v[k] != null && !line(v[k])) return "A BAD VOICE LINE";
+  }
+  if (d.tastes != null) {
+    if (typeof d.tastes !== "object" || Array.isArray(d.tastes)) return "A BAD TASTE";
+    for (const k in d.tastes) {
+      const w = d.tastes[k];
+      if (typeof w !== "number" || !isFinite(w) || w < 0.1 || w > 5) return "A BAD TASTE";
+    }
+  }
+  if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
+    if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
+  return null;
+}
+// The build: pose art per colorway through the same parseArt/swap machinery
+// as sprites.js. Called only from loadCultures, i.e. only at load/import.
+function buildCulture(def) {
+  const a = def.art, body = a.body;
+  const arts = a.colorways.map(cw => {
+    const p = swap(a.palette, cw);
+    return {
+      a: parseArt(body.poses.a, p), b: parseArt(body.poses.b, p),
+      w: parseArt(body.poses.w, p), s: parseArt(body.poses.s, p),
+    };
+  });
+  const acc = { none: null };
+  for (const k in a.accessories || {}) {
+    const c = a.accessories[k];
+    acc[k] = { dx: c.dx | 0, dy: c.dy | 0, art: parseArt(c.rows, a.palette) };
+  }
+  const items = {};
+  for (const k in a.items || {}) items[k] = parseArt(a.items[k].rows, a.palette);
+  return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body };
+}
+function loadCultures(raw) {
+  for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
+  rawCultures = null;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  // the RAW key round-trips even when a culture fails the gate: a load must
+  // never destroy data it merely could not use
+  rawCultures = raw;
+  for (const id in raw) {
+    if (id === "crab") continue;   // the crab is the engine's own, not overridable yet
+    if (!/^[a-z][a-z0-9_]{0,15}$/.test(id)) continue;
+    const why = cultureProblem(raw[id]);
+    if (why) { toast = { text: "A CULTUREWAY DIDN'T LOAD - " + why, t: 8 }; continue; }
+    try { CULTURES[id] = buildCulture(raw[id]); }
+    catch (e) { toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
+  }
+}
+
 // The one gate every save passes - stored, migrated or imported. Returns null
 // when the blob really is a CRAB SHACK 3 town, else a short reason to show on
 // canvas. Nothing in the game may be mutated before this says yes.
@@ -6201,6 +6328,9 @@ function save() {
     // saved is put back on the promenade, which is honest and cannot wedge.
     visitors: customers.filter(k => k.visitor && !k.gone).map(k => ({
       n: k.name, c: k.color, a: k.acc, x: Math.round(k.x), y: Math.round(k.wy),
+      // the species field rides only when it says something: a crab record is
+      // byte-identical to every save written before cultures existed
+      ...(k.culture && k.culture !== "crab" ? { cu: k.culture } : {}),
       // ...and only the states that survive WITHOUT an errand attached: see
       // load(). A guest mid-walk is written down as roaming and re-decides.
       s: VIS_SAVE_STATES[k.state] ? k.state : "roam",
@@ -6241,6 +6371,7 @@ function save() {
     autoLabor: (() => { const m = {}; for (const k in BIZ) m[k] = !!BIZ[k].autoLabor; return m; })(),
     laborPol: laborPolicyState,
   };
+  if (rawCultures) env.cultures = rawCultures;   // cultureways round-trip verbatim (CS3.5)
   env._ver = SAVE_VER;
   env._meta = slotMeta(env);   // written at save time; re-derivable if it ever goes missing
   writeSlotEnv(activeSlot, env);
@@ -6558,6 +6689,9 @@ function load(slot) {
   // ACCOMMODATION UPGRADES, and this has to run BEFORE the visitors below: a
   // guest is re-hung on their room BY INDEX, so the rooms have to be standing
   // first or a guest asleep in cabana 3 wakes up outdoors.
+  // CULTUREWAYS read BEFORE the visitors below, so a record's color/acc
+  // clamps can check the tables it actually indexes (CS3.5 step 1)
+  loadCultures(s.cultures);
   loadDorm(s.dorm);
   loadAnnexe(s.annexe);
   customers = customers.filter(k => !k.visitor);
@@ -6565,8 +6699,18 @@ function load(slot) {
     if (!v || typeof v.n !== "string") continue;
     const k = newVisitor(false);
     k.name = String(v.n).toUpperCase().slice(0, 14);
-    k.color = Math.max(0, Math.min(CRAB_COLORS.length - 1, +v.c || 0));
-    if (ACC_KEYS.includes(v.a)) k.acc = v.a;
+    // species first: an unknown culture id degrades to crab - a save naming
+    // a culture this file no longer carries must load, never crash
+    const cuK = typeof v.cu === "string" && v.cu !== "crab" && CULTURES[v.cu] ? v.cu : "crab";
+    k.culture = cuK;
+    if (cuK === "crab") {
+      k.color = Math.max(0, Math.min(CRAB_COLORS.length - 1, +v.c || 0));
+      if (ACC_KEYS.includes(v.a)) k.acc = v.a;
+    } else {
+      const cul = CULTURES[cuK];
+      k.color = Math.max(0, Math.min(cul.colorways - 1, +v.c || 0));
+      k.acc = cul.accKeys.includes(v.a) ? v.a : "none";
+    }
     k.x = Math.max(0, Math.min(WORLD_W, +v.x || 0));
     k.wy = Math.max(FLOOR_MIN, Math.min(FLOOR_MAX, +v.y || FLOOR_Y));
     k.state = VIS_SAVE_STATES[v.s] ? v.s : "roam";   // never an errand we cannot restore
@@ -9168,7 +9312,7 @@ function newVisitor(overnightOnly) {
   const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + Math.random() * 90
     : nights * 1440 - 60 - Math.random() * 60));
   return {
-    visitor: true, gone: false,
+    visitor: true, gone: false, culture: "crab",   // species field (CS3.5); the mint stays crab until step 3
     name: freeVisitorName(),
     color: (Math.random() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
