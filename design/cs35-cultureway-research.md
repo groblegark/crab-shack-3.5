@@ -84,6 +84,22 @@ culture's foodways — is an important ongoing dynamic going forward.
    The suite + matrix baselines captured in this clone are the referee:
    a ported feature must reproduce the behavior its CS3 original ships.
 
+### THIS CLONE'S BASELINE (2026-08-21, measured at commit 6720615)
+
+Per the house rule — measure against the tree you are landing on — the
+pre-first-pig floor of `~/crab-shack-3.5` @ `cs35`:
+
+- **Suite: 242/242 passed, exit 0** (2758s under agent load).
+- **Baseline matrix** `--days 30 --seeds 16`: **survived 0/16, median
+  eviction day 12** — identical to PLAN.md's documented floor.
+- **Growth matrix** `--days 40 --seeds 8 --buy chef,table`: **survived
+  1/8** (evictions 10,11,12,12,12,12,13 + one 40-day survivor at $3109) —
+  within one coin-flip town of PLAN's 2/16 rate, i.e. unchanged.
+
+Every ported feature and every format change measures against THESE
+numbers, re-run in THIS clone — not against the digits in CS3's PLAN.md.
+The matrix remains a regression detector, never a difficulty dial.
+
 ### Canon updates (2026-08-21)
 
 - **Pigs DO get off the boat now.** This supersedes PLAN.md's "a pig does not
