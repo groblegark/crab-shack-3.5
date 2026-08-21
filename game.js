@@ -5085,7 +5085,17 @@ const BUS2 = scale2(BUS);
 const BUGGIES2 = BUGGIES.map(scale2);
 
 let npcs = [];
-function allCrabs() { return npcs.length ? crabs.concat(npcs) : crabs; }
+// Cached: the concat allocated a fresh array on every call (83 call sites,
+// many per frame). The cache invalidates on the same rosterGen counter the
+// rota uses; invalidation BUILDS A NEW ARRAY so a caller iterating an old
+// snapshot sees exactly what a fresh concat would have given it, and the
+// no-npcs branch still returns the LIVE crabs array, as it always did.
+let _acCache = null, _acGen = -1;
+function allCrabs() {
+  if (!npcs.length) return crabs;
+  if (_acGen !== rosterGen) { _acCache = crabs.concat(npcs); _acGen = rosterGen; }
+  return _acCache;
+}
 function initNpcs() {
   const p = { name: "SUDSY", npc: true, owner: "sudsy", trait: "cheery", mode: "walk",
     acc: "showercap", color: CRAB_COLORS.length - 1, shift: "D", house: 0, homeless: true,
