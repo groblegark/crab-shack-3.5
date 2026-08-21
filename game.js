@@ -5306,7 +5306,18 @@ function illRisk(c) {
 // separately - and one suite scenario needs a control arm with the chatter
 // switched off to prove boredom has no OTHER way down. `window._failOff` is
 // read through one helper at five gates; the game never sets it.
-const patOff = (k) => !!(window._failOff && window._failOff[k]);
+// Hoisted once per frame: reading the contextified global is slow in the vm
+// harness and these hatches never change mid-frame (the harness sets them at
+// boot; a between-frame write is picked up at the next frame TOP, before any
+// gated logic runs). Snapshot also fills at module eval for pre-frame reads.
+let _fOff = null, _fNoDrag = false, _fNoCare = false, _fNoShim = false, _fNoColl = false;
+function refreshHatches() {
+  _fOff = window._failOff || null; _fNoDrag = !!window._noNeedDrag;
+  _fNoCare = !!window._noSelfCareExempt; _fNoShim = !!window._noShimmer;
+  _fNoColl = !!window._nocollide;
+}
+refreshHatches();
+const patOff = (k) => !!(_fOff && _fOff[k]);
 
 // ---- IDLE HANDS (the wander-off) -----------------------------------------
 const WANDER_AT = 0.6;        // restless enough to leave the post
@@ -5819,12 +5830,14 @@ function selfCareNeed(c) {
   if ((c.dayState === "toErrand" || c.dayState === "errand") && c.errand) return c.errand.need;
   return null;
 }
+// The ramp lived as a per-call closure and profiled at 1% by itself; same
+// float ops in the same order, now allocated once.
+const _dragRamp = (v, at, off) => off ? 1 : 1 - DRAG_MAX * Math.min(1, Math.max(0, (v - at) / (1 - at)));
 function needDrag(c) {
-  if (window._noNeedDrag) return 1;   // paired-arm probe (see the anti-spiral suite gate)
-  const fixing = window._noSelfCareExempt ? null : selfCareNeed(c);
-  const ramp = (v, at, off) => off ? 1 : 1 - DRAG_MAX * Math.min(1, Math.max(0, (v - at) / (1 - at)));
-  return Math.max(DRAG_FLOOR, ramp(c.p.hunger || 0, DRAG_HUNGER_AT, fixing === "food")
-    * ramp(c.p.thirst || 0, DRAG_THIRST_AT, fixing === "drink"));
+  if (_fNoDrag) return 1;   // paired-arm probe (see the anti-spiral suite gate)
+  const fixing = _fNoCare ? null : selfCareNeed(c);
+  return Math.max(DRAG_FLOOR, _dragRamp(c.p.hunger || 0, DRAG_HUNGER_AT, fixing === "food")
+    * _dragRamp(c.p.thirst || 0, DRAG_THIRST_AT, fixing === "drink"));
 }
 // HEAT SHIMMER (the doc's T2, shipped as the cheap visual companion it was
 // pitched as): a parched crab does not walk uniformly slow, it LURCHES -
@@ -5834,7 +5847,7 @@ function needDrag(c) {
 // collide() and still clears the no-progress watchdog's 2px in 1.5s.
 const SHIMMER_AT = 0.6, SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;
 function heatShimmer(c) {
-  if (window._noShimmer) return 1;
+  if (_fNoShim) return 1;
   const f = Math.min(1, Math.max(0, ((c.p.thirst || 0) - SHIMMER_AT) / (1 - SHIMMER_AT)));
   return f <= 0 ? 1 : 1 + SHIMMER_AMP * f * Math.sin(time * SHIMMER_HZ + c.animT * 6.3);
 }
@@ -15497,6 +15510,7 @@ function drawHirePointer() {
 // ---------------------------------------------------------------- main loop
 let last = performance.now(), saveT = 0;
 function frame(now) {
+  refreshHatches();   // hatch flags snapshot: one global read set per frame
   // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
   // speed chips, and everything in the world runs on it. `raw` is WALL time,
   // and the HIRE CARD runs on that instead: a card you are meant to read must
@@ -16019,7 +16033,7 @@ function frame(now) {
   saveT += dt; if (saveT > 5) { saveT = 0; save(); }
   }
 
-  if (!gameOver && !window._nocollide) collide(dt);
+  if (!gameOver && !_fNoColl) collide(dt);
   if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: no rendering
   drawBG();
   drawTown();
