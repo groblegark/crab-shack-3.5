@@ -203,8 +203,21 @@ mark {12,-7}, bar 16`. Patch sites:
 plain-word tail — ACORN, CLOVER, LOAM — mirrors MOLT/ROE/BRINY. All ≤10
 chars; no collisions with either crab pool, so the dedupe holds.)
 
-### 5.2 Voice — TWO REGISTER OPTIONS (pick one; samples abridged, full
-tables land with the implementation)
+### 5.2 Voice — RESOLVED: BOTH REGISTERS SHIP (owner, 2026-08-21:
+"obviously do both!")
+
+A culture's voice is a LIST of registers; every visitor is assigned one
+at mint. **Assignment consumes no RNG** — it derives from identity via
+the house idiom the walk-in dossier quips already use
+(`(k.name.length + k.color) % registers.length`), so the fingerprint
+discipline is untouched and a given pig keeps their register across
+save/load for free. Schema: `voice.registers = [ {id, diary{}, depart{},
+dossier[], foreign, refuseHire}, ... ]`; lookup = own register first,
+then register 0, then the crab literal. The fixture carries register 0 =
+FARMHAND (B, complete) and register 1 = CLERK (A — step 4's fork
+completes A's missing diary/depart keys in the same voice). The
+nicknames below are design-doc labels only; nothing in-game is called
+either.
 
 **Option A — THE VISITING ALDERMAN** (civic-proud, courtly-formal; comedy
 = bureaucratic dignity on a beach):
@@ -373,8 +386,9 @@ Plus: full matrix re-run vs the pinned baseline after each landing step.
 
 ## 8. FOR THE OWNER'S REACTION
 
-- **Voice register: Option A (Alderman) or Option B (Farmhand)?** (Or A
-  for a rare "official visitor" flavor later — MVP wants exactly one.)
+- ~~Voice register: A or B?~~ **RESOLVED: BOTH, per-tourist** (owner,
+  2026-08-21: "obviously do both!" / "different pig voices per tourist" —
+  §5.2: registers list, identity-derived assignment, no RNG).
 - ~~Strawhat: SMALL or BIG?~~ **RESOLVED: BIG** (owner, 2026-08-21).
 - ~~Sleep pose~~ **RESOLVED: on her side** (owner, 2026-08-21; §5.5 rev 3).
 - The gate numbers (`repGate 80, shareMax 0.25, shareRamp 80`) are
