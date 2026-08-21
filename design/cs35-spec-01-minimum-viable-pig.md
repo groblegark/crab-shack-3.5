@@ -207,17 +207,30 @@ chars; no collisions with either crab pool, so the dedupe holds.)
 "obviously do both!")
 
 A culture's voice is a LIST of registers; every visitor is assigned one
-at mint. **Assignment consumes no RNG** — it derives from identity via
-the house idiom the walk-in dossier quips already use
-(`(k.name.length + k.color) % registers.length`), so the fingerprint
-discipline is untouched and a given pig keeps their register across
-save/load for free. Schema: `voice.registers = [ {id, diary{}, depart{},
-dossier[], foreign, refuseHire}, ... ]`; lookup = own register first,
-then register 0, then the crab literal. The fixture carries register 0 =
-FARMHAND (B, complete) and register 1 = CLERK (A — step 4's fork
-completes A's missing diary/depart keys in the same voice). The
-nicknames below are design-doc labels only; nothing in-game is called
-either.
+at mint. **THE HAT IS THE CLASS MARKER** (owner, 2026-08-21: "do the
+voice by whether they have a straw hat or not, and give the straw hat
+guys less money"): a register BINDS to an accessory — the existing
+accessory roll picks the register, so assignment consumes zero extra
+RNG, is visible on the sprite, and survives save/load via the acc field.
+Registers also carry a purse multiplier, applied AFTER the standard
+wallet mint (one multiplication — the RNG draw order stays untouched):
+
+```jsonc
+"voice": { "registers": [
+  { "id": "farmhand", "acc": "strawhat", "purseMul": 0.7,
+    "diary": {...}, "depart": {...}, "dossier": [...],
+    "foreign": "...", "refuseHire": "..." },      // B, complete
+  { "id": "clerk", "acc": "none", "purseMul": 1.3,
+    ... }                                          // A — step 4 completes
+] }
+```
+
+Selection: the register whose `acc` matches `k.acc`, else register 0.
+Lookup: own register → register 0 → crab literal. The player learns to
+read a boat's worth from its hats — legible class, the RCT doctrine
+applied to demography. purseMul numbers are proposals; the matrix and
+the departure card's BROUGHT/TOOK HOME band referee the feel. The
+nicknames are design-doc labels only; nothing in-game is called either.
 
 **Option A — THE VISITING ALDERMAN** (civic-proud, courtly-formal; comedy
 = bureaucratic dignity on a beach):

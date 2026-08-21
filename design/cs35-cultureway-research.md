@@ -130,6 +130,15 @@ The matrix remains a regression detector, never a difficulty dial.
   exist, the Pigtator is a HINT (voice lines only — pigs quote them the
   way the hints-not-characters doctrine wants); their office runs on the
   mainland, never on the island.
+- **Pig society is not so egalitarian** (Matt, verbatim, 2026-08-21). The
+  Pigpublic is STRATIFIED, and the class system is legible: the straw hat
+  marks the farmhand class (plain speech, thin purses); bare heads mark
+  the clerk class (formal speech, fat purses). Fits the Pigtator, and
+  gives the two cultures a second contrast axis — the crab town is
+  deliberately egalitarian (one voted wage floor, a communal pot, one
+  ballot queue), while the Pigpublic wears its classes on its head.
+  Class is expressed entirely in cultureway data: accessory-bound voice
+  registers + per-register purse multipliers (spec 01 §5.2).
 - The town-name spoiler embargo is untouched by any of this.
 - CS4 remains "build your own cultureway"; CS3.5 builds the substrate the
   builder will use.
