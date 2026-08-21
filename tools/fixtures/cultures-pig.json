@@ -1,39 +1,218 @@
 {
-  "meta": { "id": "pig", "name": "PORKRESENTATIVE PIGPUBLIC", "ver": 1 },
+  "meta": {
+    "id": "pig",
+    "name": "PORKRESENTATIVE PIGPUBLIC",
+    "ver": 1
+  },
   "people": {
-    "names": ["HAMLET", "SPAMELA", "BOARIS", "HOGARTH", "SOWPHIE", "HAMISH",
-      "PIGBY", "SWINSTON", "HAM SOLO", "PIGGY SUE", "BIG HOCK", "FARROW MAE",
-      "TROTTER", "RASHER", "GAMMON", "CRACKLIN", "RIND", "SNOUT",
-      "BRISTLE", "WALLOW", "ACORN", "CLOVER", "TURNIP", "MAIZE", "LOAM", "PETUNIA"]
+    "names": [
+      "HAMLET",
+      "SPAMELA",
+      "BOARIS",
+      "HOGARTH",
+      "SOWPHIE",
+      "HAMISH",
+      "PIGBY",
+      "SWINSTON",
+      "HAM SOLO",
+      "PIGGY SUE",
+      "BIG HOCK",
+      "FARROW MAE",
+      "TROTTER",
+      "RASHER",
+      "GAMMON",
+      "CRACKLIN",
+      "RIND",
+      "SNOUT",
+      "BRISTLE",
+      "WALLOW",
+      "ACORN",
+      "CLOVER",
+      "TURNIP",
+      "MAIZE",
+      "LOAM",
+      "PETUNIA"
+    ]
   },
   "art": {
     "palette": {
-      "K": [30, 20, 36],
-      "P": [248, 176, 168],
-      "Q": [200, 120, 120],
-      "O": [248, 176, 168],
-      "B": [30, 20, 36],
-      "Y": [255, 230, 120],
-      "A": [255, 216, 96],
-      "L": [250, 250, 255]
+      "K": [
+        30,
+        20,
+        36
+      ],
+      "P": [
+        248,
+        176,
+        168
+      ],
+      "Q": [
+        200,
+        120,
+        120
+      ],
+      "O": [
+        248,
+        176,
+        168
+      ],
+      "B": [
+        30,
+        20,
+        36
+      ],
+      "Y": [
+        255,
+        230,
+        120
+      ],
+      "A": [
+        255,
+        216,
+        96
+      ],
+      "L": [
+        250,
+        250,
+        255
+      ]
     },
-    "colorNames": ["PIGLET PINK", "ROSE", "OXFORD SANDY", "TAMWORTH GINGER", "BERKSHIRE PLUM", "OLD SPOT"],
+    "colorNames": [
+      "PIGLET PINK",
+      "ROSE",
+      "OXFORD SANDY",
+      "TAMWORTH GINGER",
+      "BERKSHIRE PLUM",
+      "OLD SPOT"
+    ],
     "colorways": [
-      { "P": [248, 176, 168], "Q": [200, 120, 120], "O": [248, 176, 168] },
-      { "P": [232, 136, 144], "Q": [176, 88, 104], "O": [232, 136, 144] },
-      { "P": [224, 184, 136], "Q": [168, 128, 88], "O": [168, 128, 88] },
-      { "P": [208, 136, 80], "Q": [152, 88, 48], "O": [208, 136, 80] },
-      { "P": [136, 96, 136], "Q": [88, 56, 88], "O": [136, 96, 136] },
-      { "P": [224, 216, 208], "Q": [168, 160, 152], "O": [64, 56, 72] }
+      {
+        "P": [
+          248,
+          176,
+          168
+        ],
+        "Q": [
+          200,
+          120,
+          120
+        ],
+        "O": [
+          248,
+          176,
+          168
+        ]
+      },
+      {
+        "P": [
+          232,
+          136,
+          144
+        ],
+        "Q": [
+          176,
+          88,
+          104
+        ],
+        "O": [
+          232,
+          136,
+          144
+        ]
+      },
+      {
+        "P": [
+          224,
+          184,
+          136
+        ],
+        "Q": [
+          168,
+          128,
+          88
+        ],
+        "O": [
+          168,
+          128,
+          88
+        ]
+      },
+      {
+        "P": [
+          208,
+          136,
+          80
+        ],
+        "Q": [
+          152,
+          88,
+          48
+        ],
+        "O": [
+          208,
+          136,
+          80
+        ]
+      },
+      {
+        "P": [
+          136,
+          96,
+          136
+        ],
+        "Q": [
+          88,
+          56,
+          88
+        ],
+        "O": [
+          136,
+          96,
+          136
+        ]
+      },
+      {
+        "P": [
+          224,
+          216,
+          208
+        ],
+        "Q": [
+          168,
+          160,
+          152
+        ],
+        "O": [
+          64,
+          56,
+          72
+        ]
+      }
     ],
     "body": {
-      "w": 12, "h": 16,
-      "slots": ["P", "Q", "O"],
+      "w": 12,
+      "h": 16,
+      "slots": [
+        "P",
+        "Q",
+        "O"
+      ],
       "anchors": {
-        "hat": { "x": 1, "y": 2 },
-        "carry": { "x": 2, "y": -7 },
-        "mark": { "x": 9, "y": -6 },
-        "bar": { "w": 12 }
+        "hat": {
+          "x": 1,
+          "y": 2
+        },
+        "carry": {
+          "x": 2,
+          "y": -7
+        },
+        "mark": {
+          "x": 9,
+          "y": -6
+        },
+        "bar": {
+          "w": 12
+        }
       },
       "poses": {
         "a": [
@@ -97,27 +276,29 @@
           "............",
           "............",
           "............",
-          "..KK....KK..",
-          ".KPPKKKKPPK.",
-          ".KPPPPPOPPK.",
-          ".KPKKPKKPPK.",
-          ".KPQQQQQQPK.",
-          ".KPQBQQBQPK.",
-          ".KPPQQQQPPK.",
-          "KPPOPPPPPPPK",
-          "KPQQPPPPQQPK",
+          "............",
+          "............",
+          "............",
+          "..KK..KKKK..",
+          ".KPPKPPPPPK.",
+          "KPPPPPPPOPPK",
+          "KPKKPPPPPPPK",
+          "KQQQPPPPPPPK",
+          "KQBQPQQPQQPK",
           ".KKKKKKKKKK."
         ]
       }
     },
     "accessories": {
       "strawhat": {
-        "dx": 1, "dy": -3,
+        "dx": -2,
+        "dy": -4,
         "rows": [
-          "..KYYK..",
-          ".KAAAAK.",
-          "KYYYYYYK",
-          ".KKKKKK."
+          "....KYYYYK....",
+          "....KAAAAK....",
+          ".KYYYYYYYYYYK.",
+          "KYYYYYYYYYYYYK",
+          ".KKKKKKKKKKKK."
         ]
       }
     },
@@ -168,9 +349,20 @@
     "foreign": "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE."
   },
   "tastes": {
-    "taco": 0.6, "fish": 0.5, "juice": 1.6, "cooler": 1.8,
-    "clawgame": 1.0, "skeerun": 1.0, "gamenight": 1.1,
-    "room": 1.7, "rinse": 1.3, "soak": 2.0
+    "taco": 0.6,
+    "fish": 0.5,
+    "juice": 1.6,
+    "cooler": 1.8,
+    "clawgame": 1.0,
+    "skeerun": 1.0,
+    "gamenight": 1.1,
+    "room": 1.7,
+    "rinse": 1.3,
+    "soak": 2.0
   },
-  "arrival": { "repGate": 80, "shareMax": 0.25, "shareRamp": 80 }
+  "arrival": {
+    "repGate": 80,
+    "shareMax": 0.25,
+    "shareRamp": 80
+  }
 }
