@@ -11081,6 +11081,30 @@ scenario("seam: the view is a reader - two renders move nothing", () => {
   return true;
 });
 
+scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () => {
+  // SLICE 5's standing tripwire. Slices 3 and 4 both had their first-crossing
+  // traces run through a CONDITIONAL DRAW - a need or a step crossing a gate
+  // one tick early advances the shared stream by one slot and every draw after
+  // it lands somewhere else. This pin turns that class of accident into a
+  // loud count at commit time instead of a silent trajectory shift: any
+  // added, removed, or reordered sim draw moves a day's count. The pin counts
+  // from the day-1 boundary (boot-time draws - personas, trackIdx - happen
+  // inside load, before a scenario can wrap srand; the frozen fingerprints
+  // stand guard over those). The numbers are THE SPEC of the stream: a change
+  // that moves them is a re-baseline event and re-points them ON PURPOSE, in
+  // the same commit, or it is a bug.
+  const PIN = { 1: 1861, 2: 2399 };   // sim draws during day 1 and day 2
+  const sim = createSim({ seed: 1337 });
+  sim.G(`{ const real = srand; window._dayDraws = 0; srand = () => (window._dayDraws++, real()); }`);
+  for (const d of [1, 2]) {
+    sim.G("window._dayDraws = 0");
+    sim.runUntil(`day === ${d + 1}`, { maxSteps: 200000 });
+    const n = sim.G("window._dayDraws");
+    if (n !== PIN[d]) return `day ${d} drew ${n} from the sim stream, the pin says ${PIN[d]}`;
+  }
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used

@@ -6254,7 +6254,7 @@ function pickTrack() {
       if (t.role || i === trackIdx) continue;
       if (Math.abs((t.e == null ? 1 : t.e) - want) === d) pool.push(i);
     }
-    if (pool.length) return pool[(srand() * pool.length) | 0];
+    if (pool.length) return pool[(vrand() * pool.length) | 0];   // music is view: the shuffle never advances the sim stream
   }
   return trackIdx;
 }
@@ -6372,8 +6372,33 @@ let activeSlot = 1;                      // autosave goes here; persisted in ACT
 // directly (the harness seeds the context's Math, which this delegates to).
 // It exists so slice 5 can split browser-only draws to a view stream without
 // hunting 93 call sites twice, and so a future backend can inject its own
-// integer generator at exactly one door. Do not add a second tap.
-function srand() { return Math.random(); }
+// integer generator at exactly one door.
+//
+// SLICE 5 lands that split. srand() is still the sim's only door, but the
+// door now has a swappable tap: the title screen re-enters real sim code
+// (updateBus, maybeQuip, the attract wander) as view-side theatre, and for
+// the length of that block the tap points at the VIEW stream below - so the
+// SIM stream's draw order is a closed sequence that browser-only theatre can
+// never advance. Headless never runs the title, so headless is byte-identical
+// by construction; that is the slice's gate, and the draw-count pin scenario
+// is its standing tripwire. One deliberate exception, part of the frozen
+// stream's spec: trackIdx's load-time draw below DOES execute headless and
+// stays on the sim stream - moving it would shift every draw after it.
+function srand() { return _rtap ? _rtap() : Math.random(); }   // var + fallback: module-eval draws (trackIdx) fire before initializers run
+var _rtap = null;   // null = the default sim stream (the context's Math.random, harness-seeded)
+// THE VIEW STREAM - its own mulberry32, fixed seed: cosmetic draws (title
+// wander, music shuffle) land here. Fixed on purpose - attract mode repeating
+// each boot is tradition, and a deterministic view stream stays testable.
+let _vs = 0x5eed3^0;
+function vrand() {
+  _vs = (_vs + 0x6D2B79F5) | 0;
+  let t = _vs;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+// run a view-side block on the view stream, whatever it re-enters
+function onViewStream(fn) { const keep = _rtap; _rtap = vrand; try { fn(); } finally { _rtap = keep || null; } }
 
 const FRESH = location.search.includes("fresh");
 const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 1])[1]) || 1);
@@ -16785,13 +16810,18 @@ function titleFrame(dt) {
     // attract mode: slow ping-pong pan across the town
     const span = WORLD_W - W, s = (viewT * 9) % (2 * span);
     camX = s < span ? s : 2 * span - s;
-    updateBus(dt);
-    for (const c of crabs) {
-      c.animT += dt; maybeQuip(c, dt);
-      if (c._wt == null || Math.abs(c.x - c._wt) < 2)
-        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + Math.floor(srand() * 90 * Q8) / Q8 - 45));   // same draw, on the grain
-      else stepTo(c, c._wt, 11 * Q8, dt, 158);
-    }
+    // view-side sim theatre runs on the VIEW stream (slice 5): the wander's
+    // own draw and every draw inside the re-entered sim code land on vrand,
+    // and the sim stream is untouched while the title runs.
+    onViewStream(() => {
+      updateBus(dt);
+      for (const c of crabs) {
+        c.animT += dt; maybeQuip(c, dt);
+        if (c._wt == null || Math.abs(c.x - c._wt) < 2)
+          c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + Math.floor(srand() * 90 * Q8) / Q8 - 45));   // same draw, on the grain
+        else stepTo(c, c._wt, 11 * Q8, dt, 158);
+      }
+    });
     drawBG(); drawTown(); drawBus();
     for (const c of crabs) drawCrab(c);
     drawNight();
