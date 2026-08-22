@@ -6785,6 +6785,13 @@ scenario("a bowl is bought from the shack at a price, and the shack buys the fis
     // a kitchen cooks for the beds it has (potWant): three ill crabs, so three
     // bowls is a night's pot rather than a number nobody asked for
     for (const c of allCrabs().slice(0, 2)) c.p.sick = { days: 1 };
+    // THE LARDER IS STAGED, and it has to be. ingredientCost("fish_raw") is
+    // trade.price while the town has a catch and FISH_IMPORT once it does not,
+    // so a pot cooked across an empty larder books three DIFFERENT prices and
+    // "three times ing" is measuring a coincidence, not the rule. Pin catch for
+    // the whole pot and the assertion says what it means: the shack books the
+    // ingredient for every bowl it cooks.
+    townCatch = Math.max(townCatch, 8);
     const bk = bizDayBook("shack");
     const k0 = bk.take, c0 = bk.cost, t0 = coins, u0 = trade.useDay;
     const each = bowlCost(), ing = ingredientCost("fish_raw"), b0 = townFund.bal;
