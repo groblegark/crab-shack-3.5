@@ -11376,6 +11376,143 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   return true;
 });
 
+// ------------------------------------------------------------ neuro agents
+scenario("brains: the shipped crab artifact agrees with the scorer it distilled", () => {
+  // THE AGREEMENT GATE. The crab's vis_pick brain ships LIVE (owner ruling);
+  // this pin is what keeps a retrained artifact honest - drift below the
+  // floor fails loudly with the rate. Measured through SHADOW mode on the
+  // artifact's own infrastructure: the script decides, the brain watches,
+  // and the tally is per-think agreement on identical states with zero
+  // stream perturbation. MUTATION: zeroing w2 collapses the brain to a
+  // constant class and this fails at ~30%; the floor is set from the
+  // shipped artifact's measured in-town rate with headroom for seed noise.
+  const FLOOR = 0.90;
+  const sim = createSim({ seed: 4242 });
+  sim.G(`BRAINS.crab["vis_pick.candidate"].mode = "shadow"`);
+  sim.runDays(4);
+  const s = JSON.parse(sim.G(`JSON.stringify((window._shadowStats.crab || {})["vis_pick.candidate"] || null)`));
+  if (!s || s.n < 200) return "shadow saw only " + (s ? s.n : 0) + " thinks - not a measurement";
+  if (s.agree / s.n < FLOOR)
+    return `the crab brain agrees with its teacher on ${(s.agree / s.n * 100).toFixed(1)}% of ${s.n} thinks - the floor is ${FLOOR * 100}%`;
+  return true;
+});
+
+scenario("brains: shadow is inert - the town cannot tell it is being watched", () => {
+  // A shadow brain reads declared observables and writes a harness tally;
+  // it draws nothing and touches nothing the sim reads - so a shadowed town
+  // and a brainless town must be BIT-IDENTICAL. This is the receipt that
+  // shadow mode is safe to ship on any future artifact. MUTATION: one
+  // srand() inside shadowObserve moves the day-3 books and this names them.
+  const fp = (stage) => {
+    const sim = createSim({ seed: 909 });
+    sim.G(stage);
+    sim.runDays(3);
+    return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
+      pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
+  };
+  const shadowed = fp(`BRAINS.crab["vis_pick.candidate"].mode = "shadow"`);
+  const brainless = fp(`BRAINS = {}`);
+  if (shadowed !== brainless) return "the shadow moved the town: " + shadowed.slice(0, 120) + " vs " + brainless.slice(0, 120);
+  return true;
+});
+
+scenario("brains: a live brain spends the script's own draws, no more", () => {
+  // THE DRAW-FREE RULE, asserted on the stream itself. A brain only RANKS
+  // what visCandidates built, so a brain town and a script town think in
+  // LOCKSTEP - same tick, same visitor - right up to the first think where
+  // the pick differs, because until a decision diverges the draws are the
+  // same draws. If the pairing breaks BEFORE any differing pick, something
+  // in the brain path drew or skipped a draw. MUTATION: one srand() in
+  // brainVisPick breaks the pairing at think 1 and this says so.
+  const thinks = (arm) => {
+    const sim = createSim({ seed: 31 });
+    if (!arm) sim.G("BRAINS = {}");
+    sim.G(`window._tl = [];
+      { const wrap = (fn) => function (k) { const e = fn.apply(this, arguments);
+          window._tl.push([T, k.name, e ? e.biz + ":" + e.need : "none"]); return e; };
+        visPick = wrap(visPick); brainVisPick = wrap(brainVisPick); kernelVisPick = wrap(kernelVisPick); }`);
+    sim.runDays(3);
+    return JSON.parse(sim.G("JSON.stringify(window._tl)"));
+  };
+  const brain = thinks(true), script = thinks(false);
+  const n = Math.min(brain.length, script.length);
+  let crossed = false;
+  for (let i = 0; i < n; i++) {
+    const b = brain[i], s = script[i];
+    if (b[0] !== s[0] || b[1] !== s[1])
+      return crossed ? true
+        : `the streams forked at think ${i} (T ${b[0]} ${b[1]} vs T ${s[0]} ${s[1]}) before any pick differed - the brain path drew`;
+    if (b[2] !== s[2]) { crossed = true; break; }   // the first crossing: divergence after this is legitimate
+  }
+  if (!crossed) return "brain and script never disagreed in 3 days - the agreement pin has gone vacuous, investigate";
+  return true;
+});
+
+scenario("brains: the door refuses what the caps forbid, and says which", () => {
+  // The hostile-file numbers, exercised: every refusal must carry the
+  // offending number or name, because an actionable message is the
+  // difference between a clamp and a trap (the culture-id lesson).
+  const sim = createSim({ seed: 1337 });
+  const probe = (patch) => sim.G(`(() => {
+    const base = JSON.parse(JSON.stringify(BUNDLED_POLICIES.crab));
+    const p = base["vis_pick.candidate"]; ${patch};
+    return policyProblem(base) || "ACCEPTED";
+  })()`);
+  const big = probe(`p.arch.hidden = 999`);
+  if (!/1\.\.256/.test(big)) return "an oversize brain got: " + big;
+  const unk = probe(`p.inputs = ["need.hunger.q20", "stop.gossip.rate:shack"]`);
+  if (!/unknown parameterized observable "stop\.gossip\.rate"/.test(unk)) return "an unknown observable got: " + unk;
+  const ver = probe(`p.registryVersion = 2`);
+  if (!/REGISTRY v2 BUT OURS IS v1/.test(ver)) return "a version mismatch got: " + ver;
+  const cls = probe(`p.classes = p.classes.slice().reverse()`);
+  if (!/CLASSES MUST EQUAL/.test(cls)) return "shuffled classes got: " + cls;
+  if (probe("") !== "ACCEPTED") return "the shipped artifact itself was refused: " + probe("");
+  return true;
+});
+
+scenario("brains: a town full of thinking heads round-trips its save", () => {
+  // Gulls ashore, both brains live, and the save must still be a complete
+  // description of the town - the stream-cursor guarantee holding with
+  // neural deciders in the loop. One save, loaded twice, identical futures.
+  const sim = createSim({ seed: 909 });
+  sim.G("rep = 75000");   // past both gates: gulls and pigs may sail
+  sim.runDays(6);
+  if (!sim.G(`customers.some(k => k.visitor && k.culture && k.culture !== "crab")`))
+    return "no cultured guest was even ashore - the staging says nothing";
+  sim.G("save()");
+  const env = sim.G("localStorage.getItem(SAVE_KEY)");
+  const future = () => {
+    const s2 = createSim({ seed: 31 });
+    s2.G(`localStorage.setItem(SAVE_KEY, ${JSON.stringify(env)}); load();`);
+    s2.runDays(8);
+    return s2.G(`JSON.stringify({ coins, rep, pos: allCrabs().map(c => [c.x | 0, c.wy | 0]),
+      vis: customers.filter(k => k.visitor).map(k => [k.name, k.culture || "crab", k.wallet]) })`);
+  };
+  const a = future(), b = future();
+  if (a !== b) return "two loads of one save diverged: " + a.slice(0, 100) + " vs " + b.slice(0, 100);
+  return true;
+});
+
+scenario("gulls: the roost ships, and the gate holds until word spreads", () => {
+  // The Windward Roost is BUNDLED now - the first neuro-people whose brain
+  // is their own (the crab default thinks too, but the gulls' net was
+  // distilled from gull-taste data: soak-shy, fish-fond). Below their
+  // rep-60 gate the roll never fires; above it they sail.
+  const sim = createSim({ seed: 1337 });
+  if (!sim.G("!!CULTURES.gull")) return "the bundled gull is not in a fresh town's registry";
+  if (!sim.G(`BRAINS.gull && BRAINS.gull["vis_pick.candidate"] && BRAINS.gull["vis_pick.candidate"].mode === "live"`))
+    return "the gull brain is not live";
+  sim.G("rep = 55000");
+  let below = 0;
+  for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") === "gull") below++;
+  if (below) return `${below} gulls sailed below their gate`;
+  sim.G("rep = 100000");
+  let above = 0;
+  for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") === "gull") above++;
+  if (above < 10) return `only ${above}/200 sailings carried a gull at full reputation`;
+  return true;
+});
+
 scenario("the kernel and the reference agree, byte for byte", () => {
   // THE WASM SPIKE's referee. The movement kernel (tools/kernel/kernel.c) is
   // a second backend for stepTo, visStep, and the collide pair loop; the JS

@@ -11,9 +11,9 @@ import { readFileSync, writeFileSync } from "fs";
 
 const pig = JSON.parse(readFileSync(new URL("./fixtures/cultures-pig.json", import.meta.url), "utf8"));
 const gull = JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json", import.meta.url), "utf8"));
-const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-vispick.json", import.meta.url), "utf8"));
+const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v2.json", import.meta.url), "utf8"));
 
-// The shipped crab policy: the spike's 96.2%-agreement artifact, LIVE by
+// The shipped crab policy: the price-diverse v2 artifact (95.7% held-out; the spike's v1 was blind to the repricing lever - the suite's own sweep caught it), LIVE by
 // owner ruling ("im ok with just shipping neuro crabs, there's no risk and
 // we always have their tests"). kind/mode wrap the artifact; provenance and
 // heldout ride along as documentation the validator ignores.

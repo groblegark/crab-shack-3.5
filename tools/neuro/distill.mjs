@@ -58,6 +58,25 @@ export function collectRows({ towns = 32, days = 12, culture = "crab", cultureDo
       sim.G(`loadCultures({ ${JSON.stringify(culture)}: ${JSON.stringify(doc)} })`);
     }
     if (i % 2) sim.G(`coins = 500000; tryBuy("arcade"); tryBuy("juicebar"); tryBuy("chef"); tryBuy("table"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "arcade"; rosterGen++;`);
+    // PRICE-DIVERSE STAGING — the lesson the first shipped artifact taught:
+    // every collection town sat at the default board, so stop.appeal never
+    // varied and the trained net was BLIND TO PRICE - it broke the rivalry's
+    // repricing lever (the suite's own sweep caught it). A third of boards
+    // per town now sit off-default across the full 14..26 index range, so
+    // the appeal observable actually moves in the data and the teacher's
+    // lessons cover the lever the economy pulls. Deterministic per town.
+    {
+      const prnd = mulberry32(seed ^ 0x9e3779b9);
+      const pokes = [];
+      for (const b of ["shack", "juicebar", "showers", "arcade", "hotel"])
+        if (prnd() < 0.34) pokes.push(`setBizPriceIdx(${JSON.stringify(b)}, ${14 + Math.floor(prnd() * 13)})`);
+      if (pokes.length) sim.G(pokes.join(";"));
+    }
+    // THE SCRIPT IS THE TEACHER: disarm every brain in a collection sim, or
+    // the live crab artifact decides the thinks and the wrapped reference
+    // never runs - the first retrain collected ZERO rows this way. (This
+    // also runs after loadCultures above, which would have re-armed them.)
+    sim.G("BRAINS = {}");
     // the logger rides the engine's own registry: same readers, same order
     sim.G(`
       window._nnLog = []; window._nnT0 = T;
