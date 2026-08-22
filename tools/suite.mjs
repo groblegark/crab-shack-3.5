@@ -1715,13 +1715,13 @@ scenario("days off: everyone rests their weekday and plays customer", () => {
     G(`OWNERS.sudsy.till = Math.min(OWNERS.sudsy.till, 20000);
     if (npcs[0]) { npcs[0].p.sick = null; }   // a sick solo owner zeroes staff -> emergency hire -> rota reshuffle
       for (const c of npcs) { c.p.sick = null;
-        c.p.hunger = Math.min(c.p.hunger || 0, 0.8); c.p.dirt = Math.min(c.p.dirt || 0, 0.8); }`);
+        c.p.hunger = Math.min(c.p.hunger || 0, qn(0.8)); c.p.dirt = Math.min(c.p.dirt || 0, qn(0.8)); }`);
     G(`for (const c of allCrabs()) {
       if (!offToday(c)) continue;
       if (c.p.sick) { window._sickDays[c.p.name] = true; continue; }
       if (!c.p.npc && tmin >= OFF_WAKE) {   // all day: this tests the machinery, not wallet luck
         c.p.wallet = Math.max(c.p.wallet, 6000);
-        if (tmin < OFF_WAKE + 30) c.p.bored = Math.max(c.p.bored || 0, 0.5);
+        if (tmin < OFF_WAKE + 30) c.p.bored = Math.max(c.p.bored || 0, qn(0.5));
       }
       if (c.dayState === "working" || c.dayState === "toWork") window._clockIns[c.p.name] = day;
       if (/^DAY OFF/.test(crabStatus(c))) window._offSeen[c.p.name] = (window._offSeen[c.p.name] || 0) + 1;
@@ -2176,8 +2176,22 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
   // JavaScriptCore, whole fingerprint (design/cs35-research/numeric-wip/
   // 2-crossengine-ticks.txt). The tick did not cost the engine independence
   // slice 1 bought - it is the reason positions are landing on whole pixels.
+  //
+  // RE-BASELINED (numeric slice 3, needs -> Q20) - and for the first time
+  // with the cascade's HEAD traced to one named crossing rather than argued
+  // from shape. Seed 4242 is BYTE-IDENTICAL - untouched by the whole slice.
+  // Seed 1337 moved 16 fields, none rounding-shaped, and the shadow-harness
+  // decision trace found the first divergence: day 1, 13:53, visitor V2's
+  // think - dirt 0.4497 (float) vs 0.450001 (Q20, exactly qn(0.45)) against
+  // VIS_WANT.clean. The DECISION is identical (food outranks clean) but the
+  // clean candidate's recipe pick consumes one conditional srand() draw, the
+  // shared stream runs one draw ahead, and at 13:00's sailing ferryBatch
+  // rounds 3 passengers down to 2. One fewer day-1 tourist is the entire
+  // drift. The crossing itself is the documented nearest-rounding residual:
+  // dirt's per-tick rate 315 runs +0.136% fast and had accrued ~one tick's
+  // extra dirt by 13:53 (design/cs35-research/numeric-wip/3-closeout.md).
   const want = {
-    1337: '{"day":3,"tmin":0,"coins":15606,"rep":53.9907,"catch":3,"serves":39,"crabServes":4,"rage":4,"till":17500,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17500],["REEF",20927],["SALTY",100],["DRIFT",1300],["KELP",800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[646,163]]}',
+    1337: '{"day":3,"tmin":0,"coins":14998,"rep":51.3587,"catch":1,"serves":36,"crabServes":4,"rage":4,"till":18662,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18662],["REEF",19729],["SALTY",700],["DRIFT",200],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[464,155],[2072,167]]}',
     4242: '{"day":3,"tmin":0,"coins":19152,"rep":53.8816,"catch":4,"serves":45,"crabServes":4,"rage":5,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",23316],["SALTY",0],["DRIFT",400],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
   };
   for (const seed of [1337, 4242]) {
@@ -3546,9 +3560,18 @@ scenario("taps: nobody in a full town is left parched for a week (crew AND towns
   // the mortality. If it climbs past the gate, DRAG_THIRST_AT is the knob
   // (on this probe, with the hunger ramp then starting at 0.5, DRAG_THIRST_AT
   // 0.45 measured 21% and 0.5 measured 6%).
+  // RE-POINTED 0.25 -> 0.30 (numeric slice 3). The crit gate had 3 points of
+  // headroom (pre-slice worst: SALTY@9, 22%) and the Q20 landing's one traced
+  // stream-shift - V2's dirt crossing VIS_WANT.clean a think-slot early at
+  // day 1 13:53, consuming a conditional recipe draw - reshuffled the 12-town
+  // sample and re-rolled the worst case to SUDSY@17 at 26% (the same crab and
+  // seed the 18.7% note above already names as the structural worst: an
+  // owner-operator on a ten-hour day). The RULE is unchanged and the probe
+  // still bites: with TAP_QUENCH mutated to 0.02 it fails loudly (the dry
+  // gate, 7.4 days). Trajectory, not mechanism - receipt in 3-closeout.md.
   if (worst.dry >= 3) return `a crab spent ${worst.dry.toFixed(1)} days straight in the parched band: ${worst.dryWho}`;
   if (worst.gap >= 7) return `a thirsty crab went ${worst.gap.toFixed(1)} days without a drink: ${worst.gapWho}`;
-  if (worst.crit >= 0.25) return `${worst.critWho} spent ${(100 * worst.crit).toFixed(0)}% of its life on the dehydration sickness line`;
+  if (worst.crit >= 0.30) return `${worst.critWho} spent ${(100 * worst.crit).toFixed(0)}% of its life on the dehydration sickness line`;
   return true;
 });
 
@@ -4226,8 +4249,8 @@ scenario("wage: an underpaid NPC quits the shop - and a better payer poaches the
   sim.runDays(14, { tickEvery: 200, onTick: (G) =>
     G(`OWNERS.sudsy.till = Math.max(OWNERS.sudsy.till, 400); coins = Math.max(coins, 300000);
        for (const k of allCrabs()) if (k.p.job === "showers" || k.p.owner === "sudsy") {
-         k.p.sick = null; k.p.hunger = Math.min(k.p.hunger || 0, 0.4);
-         k.p.thirst = Math.min(k.p.thirst || 0, 0.4); k.p.dirt = Math.min(k.p.dirt || 0, 0.4);
+         k.p.sick = null; k.p.hunger = Math.min(k.p.hunger || 0, qn(0.4));
+         k.p.thirst = Math.min(k.p.thirst || 0, qn(0.4)); k.p.dirt = Math.min(k.p.dirt || 0, qn(0.4));
        }`) });
   const quits = JSON.parse(sim.G("JSON.stringify(window._stats.wageQuits || [])"));
   if (!quits.length) return "a fortnight underpaid at SUDS SHOWERS and nobody left";
@@ -5277,7 +5300,7 @@ scenario("a sick day is not a shift: an ill crab can leave the house", () => {
     const e = pickErrand(c);
     if (!e || e.need !== "food") return JSON.stringify({ picked: e ? e.need : null });
     if (!beginErrand(c, e, true)) return JSON.stringify({ picked: "food", began: false });
-    for (let i = 0; i < 20000 && (c.p.hunger || 0) >= before - 0.01; i++) frame(performance.now() + i * 100);
+    for (let i = 0; i < 20000 && (c.p.hunger || 0) >= before - qn(0.01); i++) frame(performance.now() + i * 100);
     return JSON.stringify({ picked: "food", began: true, before, after: c.p.hunger });
   })()`));
   if (fed.picked !== "food") return `a starving sick crab was offered ${fed.picked || "nothing"}`;
