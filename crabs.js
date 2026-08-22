@@ -76,7 +76,7 @@ const FOUNDERS = [
 function makeCrabPersona(i, rng) {
   rng = rng || Math.random;
   if (FOUNDERS[i]) return Object.assign({
-    color: i, shift: i % 2 === 0 ? "M" : "E", house: i, wallet: 10,
+    color: i, shift: i % 2 === 0 ? "M" : "E", house: i, wallet: 1000,   // cents
   }, FOUNDERS[i]);
   return {
     name: CRAB_NAMES[i % CRAB_NAMES.length],
@@ -85,7 +85,7 @@ function makeCrabPersona(i, rng) {
     acc: ACC_KEYS[(rng() * ACC_KEYS.length) | 0],
     color: i % CRAB_COLORS.length,
     shift: i % 2 === 0 ? "M" : "E",   // alternate morning/evening
-    wallet: 10,
+    wallet: 1000,   // cents
     house: i,
   };
 }
