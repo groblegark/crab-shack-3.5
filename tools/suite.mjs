@@ -3512,11 +3512,11 @@ scenario("taps: nobody in a full town is left parched for a week (crew AND towns
       for (const r of JSON.parse(G(`JSON.stringify(allCrabs().map(c => ({ n: c.p.name, th: c.p.thirst || 0, npc: !!c.p.npc })))`))) {
         const s = S[r.n] = S[r.n] || { n: 0, run: 0, maxRun: 0, gap: 0, maxGap: 0, crit: 0, thirsty: false, npc: r.npc };
         s.n++;
-        if (r.th >= 0.95) s.crit++;
-        if (r.th >= 0.8) { s.run++; s.maxRun = Math.max(s.maxRun, s.run); } else s.run = 0;
-        if (r.th >= 0.45) s.thirsty = true;   // did this crab ever WANT a drink?
+        if (r.th >= qn(0.95)) s.crit++;
+        if (r.th >= qn(0.8)) { s.run++; s.maxRun = Math.max(s.maxRun, s.run); } else s.run = 0;
+        if (r.th >= qn(0.45)) s.thirsty = true;   // did this crab ever WANT a drink?
         // a real quench: any drink, bought or from a spout, drops the meter hard
-        if (prev[r.n] != null && r.th < prev[r.n] - 0.2) s.gap = 0; else s.gap++;
+        if (prev[r.n] != null && r.th < prev[r.n] - qn(0.2)) s.gap = 0; else s.gap++;
         if (s.thirsty) s.maxGap = Math.max(s.maxGap, s.gap);
         prev[r.n] = r.th;
       }
