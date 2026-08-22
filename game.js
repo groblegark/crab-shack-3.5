@@ -5139,7 +5139,7 @@ let camX = 1180, followIdx = -1, followNpc = null, followCust = null, tab = "cre
 // away and the camera lets go but the selection - and its card, and the right-
 // click orders that read it - stay with the crab you picked.
 let sel = null;
-let ffSleep = false, ffSleepDay = 0, ffChain = 0;   // the little sun: skip to morning
+let ffSleep = false, ffSleepDay = 0;   // the little sun: skip to morning
 let lastRentDay = 0, gameOver = false, newConfirmT = 0;
 // ---------------------------------------------------------------- the ferry
 // THE ONE THING IN THIS GAME YOU CANNOT AFFORD. The ticket office has stood at
@@ -17662,11 +17662,24 @@ function viewFrame(dt) {
   drawHelp();          // the last word: HOW TO PLAY sits over everything, including game over
   if (window.MergeMode) MergeMode.frame(dt);
   // sun mode: chain extra 0.6s sim steps synchronously (same per-step bound the
-  // suite verifies at 6x) so the night passes in about a second of real time
-  if (ffSleep && screen === "play" && !gameOver && ffChain < 6) {
-    ffChain++; frame(last + 100); return;
+  // suite verifies at 6x) so the night passes in about a second of real time.
+  // A LOOP, not a re-entrant frame() - the re-entrant form scheduled a rAF per
+  // nested call, and every sun-skip left a permanent pack of parallel frame
+  // loops behind it (the play-test's "slow and choppy after the sun"). The
+  // steps are SIM-ONLY: same accumulator arithmetic, same tick math, and the
+  // seam's own theorem is what makes skipping the six invisible draws legal -
+  // a render moves nothing.
+  for (let c = 0; c < 6 && ffSleep && screen === "play" && !gameOver; c++) {
+    msAcc += 100;
+    const ct = (msAcc - msAcc % 50) / 50;
+    msAcc -= ct * 50;
+    dtT = ct * TURBO * 6;
+    const cdt = dtT / TICK_HZ;
+    T += dtT;
+    simClock(cdt, 100);
+    if (screen === "play") simTown(cdt);
+    last = performance.now();   // chained steps ran ahead of the real clock
   }
-  if (ffChain) { ffChain = 0; last = performance.now(); }   // resync: chained steps ran ahead of the real clock
 }
 
 function frame(now) {
