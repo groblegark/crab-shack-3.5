@@ -55,6 +55,9 @@ const DAYS = flag("--days", 12);
 const SEEDS = flag("--seeds", 4);
 const BASE = flag("--seedbase", 0);
 const REPEAT = flag("--repeat", 3);
+// --realm vm|main picks the simlib realm (see the vm escape in simlib.mjs);
+// omitted, simlib's own default (vm, or SIMLIB_REALM) applies.
+const REALM = argv.includes("--realm") ? argv[argv.indexOf("--realm") + 1] : undefined;
 const JSON_OUT = argv.includes("--json");
 
 // mulberry32's own seed spread, so the towns differ the way the matrix's do
@@ -66,7 +69,7 @@ const round = () => {
   const fp = [];
   for (let i = 0; i < SEEDS; i++) {
     const seed = seedOf(i);
-    const sim = createSim({ seed });
+    const sim = createSim({ seed, realm: REALM });
     const before = sim.G("day");
     sim.runDays(DAYS);
     const after = sim.G("day"), over = sim.G("gameOver");
@@ -94,7 +97,7 @@ const stable = rounds.every((r) => r.fp === best.fp);
 const spread = worst.rate ? best.rate / worst.rate : 1;
 if (JSON_OUT) {
   console.log(JSON.stringify({
-    simDays, rounds: REPEAT, cpuSec: +cpuSec.toFixed(2), wallSec: +wallSec.toFixed(2),
+    simDays, realm: REALM || process.env.SIMLIB_REALM || "vm", rounds: REPEAT, cpuSec: +cpuSec.toFixed(2), wallSec: +wallSec.toFixed(2),
     daysPerSec: +perWall.toFixed(2), daysPerCpuSec: +perCpu.toFixed(2),
     spread: +spread.toFixed(2), stable, fingerprint: best.fp,
   }));

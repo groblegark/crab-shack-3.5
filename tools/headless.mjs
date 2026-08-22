@@ -5,12 +5,11 @@
 //   node tools/headless.mjs --days 14
 //   node tools/headless.mjs --days 30 --buy knife,flame,ads   (greedy buys, in priority order)
 //   node tools/headless.mjs --days 30 --set ads=3,chef=4
-import { readFileSync } from "fs";
-import vm from "vm";
 import os from "os";
 import { fork } from "child_process";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
+import { loadGame } from "./simlib.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -66,6 +65,9 @@ const NOCAP = args.includes("--nocap");
 const NOANNEXE = args.includes("--noannexe");
 const NODORM = args.includes("--nodorm");
 const SEEDS = parseInt(opt("seeds", "1"));
+// `--realm main` (or SIMLIB_REALM=main) runs the game files in the main realm
+// instead of a vm context - the vm escape; simlib.loadGame owns the mechanics.
+const REALM = opt("realm", null) || undefined;
 // THE WAGE LEVER. --wage N sets every PLAYER-owned shop's rate (the setting
 // the SCHEDULE tab exposes); --star N puts one named crab on a private deal
 // at N, which is the "pay your best crab more" strategy the sweep tests
@@ -116,13 +118,9 @@ const sandbox = {
 sandbox.window = sandbox;
 sandbox.requestAnimationFrame = (cb) => { sandbox.rafCb = cb; };
 sandbox.performance = { now: () => sandbox.simNow };
-const C = vm.createContext(sandbox);
-
-// ---- load the real game (context shares one global lexical env, like <script> tags)
-for (const f of ["font.js", "ppu.js", "sprites.js", "crabs.js", "game.js"]) {
-  vm.runInContext(readFileSync(join(root, f), "utf8"), C, { filename: f });
-}
-const G = (expr) => vm.runInContext(expr, C);
+// ---- load the real game (vm realm or the main realm - the vm escape;
+// simlib.loadGame owns the mechanics, SIMLIB_REALM=main or --realm main here)
+const { G, mkFn, mkExpr } = loadGame(sandbox, REALM);
 
 // apply --set overrides (e.g. ads=3,chef=4; chef also hires crabs)
 for (const kv of SET) {
@@ -146,8 +144,8 @@ if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
-const stepScript = new vm.Script(`simNow += ${STEP * 1000}; rafCb(simNow);`);
-const buyScript = BUY.length ? new vm.Script(`
+const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
+const buyFn = BUY.length ? mkFn(`
   if (tmin >= 9 * 60 && tmin <= 19 * 60 && Math.abs(tmin - Math.round(tmin / 60) * 60) < ${STEP} * TS / 2) {
     // a sensible player: buy anything on the plan you can afford while keeping
     // tonight's bill covered; unlocks get saved for rather than skipped
@@ -180,7 +178,7 @@ const buyScript = BUY.length ? new vm.Script(`
     }
   }`) : null;
 const dayRows = [];
-const walletScript = new vm.Script(`
+const walletFn = mkFn(`
   if (Math.abs(tmin - 6 * 60) < ${STEP} * TS) {
     window._wal = window._wal || { max12: -1e9, min: 1e9 };
     for (const c of crabs) {
@@ -188,13 +186,14 @@ const walletScript = new vm.Script(`
       if (c.p.wallet < window._wal.min) window._wal.min = c.p.wallet;
     }
   }`);
-let lastDay = G("day");
+const getDay = mkExpr("day"), getOver = mkExpr("gameOver");
+let lastDay = getDay();
 const t0 = Date.now();
-while (G("day") <= DAYS && !G("gameOver")) {
-  stepScript.runInContext(C);
-  if (buyScript) buyScript.runInContext(C);
-  walletScript.runInContext(C);
-  const d = G("day");
+while (getDay() <= DAYS && !getOver()) {
+  stepFn();
+  if (buyFn) buyFn();
+  walletFn();
+  const d = getDay();
   if (d !== lastDay) {
     dayRows.push({ day: lastDay, endBalance: G("$d(coins)"), lifetime: G("$d(lifetime)") });   // dollars on the wire: the report reads like the pre-cents floors
     lastDay = d;
