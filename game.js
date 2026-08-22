@@ -36,6 +36,7 @@ const q8g = (v) => Math.round(v * Q8) / Q8;   // authoring boundary: px -> the n
 // floor toward -inf, exact for any exact-int a (|a| < 2^53) and int b > 0:
 // JS % is exact fmod, so the subtraction and the final divide are exact
 const idiv = (a, b) => { const m = a % b; return (a - (m < 0 ? m + b : m)) / b; };
+const repPts = (r) => idiv((r || 0) + 500, 1000);   // millirep -> whole rep points, for every surface that says REP
 // exact integer sqrt: Math.sqrt is correctly rounded per ECMA-262 (it is NOT
 // on the implementation-approximated list), and the fixup makes the floor
 // exact by construction regardless
@@ -184,7 +185,7 @@ function memorialSpot(i) {
     y: HOME_BOTTOM - MEMORIAL.h + 1 - ((j / MEM_PER_ROW) | 0) * MEM_DY };
 }
 let townCatch = 6;   // the day's landed fish, crate-side
-let rep = 30;        // word of mouth (0-100): happy guests talk, rage-quits talk louder
+let rep = 30000;     // word of mouth, int MILLIREP 0..100,000 (slice 5): happy guests talk, rage-quits talk louder
 const HOME_BOTTOM = 160;   // house/shelter interiors reach the floor
 
 // ---------------------------------------------------------------- businesses
@@ -5156,7 +5157,7 @@ let manage = null;   // key of the player-owned business whose MANAGEMENT card i
 let jobBoard = [], hireDay = 0;   // postings: {biz, wage, day}
 function newDayLog() {
   return { served: 0, revenue: 0, rage: 0, sick: [], died: [], recovered: [],
-    critical: [], walked: [], moved: [], rival: [], byCrab: {}, repStart: 30, catchStart: 0, biz: {},
+    critical: [], walked: [], moved: [], rival: [], byCrab: {}, repStart: 30000, catchStart: 0, biz: {},
     tipsShared: 0, bused: 0, heads: 0,   // heads: visitors the ferry landed today (the dues base)
     // ...and `left`: one frozen row per visitor who BOARDED today, for the
     // departure card. Rows, not a count, because the card quotes people by
@@ -6666,7 +6667,7 @@ function slotMeta(s) {
   const housed = (Array.isArray(s.personas) ? s.personas : [])
     .filter(p => p && !p.homeless).length;
   return { ver: SAVE_VER, day: d, weekday: WEEKDAYS[weekdayIdx(d)], won: !!s.won,
-    coins: Math.round(cx * (s.coins || 0)), rep: Math.round(s.rep != null ? s.rep : 30),
+    coins: Math.round(cx * (s.coins || 0)), rep: (s._num >= 5 ? repPts(s.rep != null ? s.rep : 30000) : Math.round(s.rep != null ? s.rep : 30)),
     pop: crew.length + npcN, crew, t: s.t || 0,
     debt: Math.round(cx * ((s.credit && s.credit.bal) || 0)),
     owned: owned.map(b => BIZ[b].short), nightly: rentDue + crewWages,
@@ -6736,7 +6737,7 @@ function save() {
     // integer cents; an envelope without this flag is float dollars and gets
     // the one-shot migration in load(). Staged counter, per the protocol:
     // 2 is ticks, 3 Q-needs, 4 Q-positions (the grain).
-    _num: 4,
+    _num: 5,
     // THE GRIDS (slice 1b): tipShare rides as int TWENTIETHS and price as the
     // int board INDEX. Both used to be float fractions whose ranges overlap
     // the new integers (a tipShare of 1 is 100% in the old units and 5% in the
@@ -6885,6 +6886,14 @@ function gridEnvelope(s) {
   for (const v of s.visitors || []) { if (v.x != null) v.x = g(v.x); if (v.y != null) v.y = g(v.y); }
   s._num = 4;
 }
+// NUMERIC SLICE 5 (milli-rep). Word of mouth crosses to an int count of
+// millirep, 0..100,000 - milli, not deci, because the nightly relaxation's
+// floor makes a deadband at the grain, and at milli it is 0.017 rep where
+// deci's was 1.6 (formats doc, the rep row). Round-half-up at the boundary.
+function repEnvelope(s) {
+  if (typeof s.rep === "number" && isFinite(s.rep)) s.rep = Math.round(Math.max(0, Math.min(100, s.rep)) * 1000);
+  s._num = 5;
+}
 // a need off the wire: already Q20 in this era, clamped to the bar
 const needIn = (v) => Math.max(0, Math.min(Q20, Math.round(+v || 0)));
 
@@ -6966,6 +6975,7 @@ function load(slot) {
   if (!s._num || s._num < 2) ticksEnvelope(s);
   if (!s._num || s._num < 3) needsEnvelope(s);
   if (!s._num || s._num < 4) gridEnvelope(s);
+  if (!s._num || s._num < 5) repEnvelope(s);
   coins = s.coins || 0; lifetime = s.lifetime || 0;
   day = s.day || 1;
   tday = Math.max(0, Math.min(DAY_TICKS - 1, Math.round((s.tmin != null ? s.tmin : 7 * 60) * TICK_MIN)));
@@ -9811,7 +9821,7 @@ function serve(c) {
     // table delivery: payment + benefits as usual, then straight to dining
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100, rep + 0.8);   // table service impresses
+    if (!cust.isCrab) rep = Math.min(100000, rep + 800);   // table service impresses
     cust.state = "dining"; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
@@ -9832,7 +9842,7 @@ function serve(c) {
   if (cust && cust.state === "waiting") {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100, rep + 0.4);
+    if (!cust.isCrab) rep = Math.min(100000, rep + 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
     const seat = tables ? pickSeat(tables, cust) : null;
     const stall = stalls ? stalls.find(t => !t.occupant && !t.dirty) : null;
@@ -9943,8 +9953,13 @@ function ferryNotify(kind) {
 }
 function gnow() { return day * 1440 + tmin; }
 function ferryBatch() {
-  const n = FERRY_BASE + rep * FERRY_REP + (srand() - 0.5);
-  return Math.max(1, Math.min(FERRY_MAX, Math.round(n)));
+  // MILLI-UNITS, exact (slice 5): base 2.0 -> 2000, rep term 0.013/point ->
+  // 13 milli per millirep-thousand (idiv floors an always-positive product),
+  // the draw floors to whole milli, and the round-half-up happens ONCE at the
+  // passenger boundary. FERRY_BASE/FERRY_REP stay authored; this is their
+  // read boundary, the same shape as the cent's and qn()'s.
+  const nMilli = 1000 * FERRY_BASE + idiv(13 * rep, 1000) + Math.floor(srand() * 1000) - 500;   // 13 IS FERRY_REP (0.013/point) at the milli grain - 1000*0.013 in float is NOT 13
+  return Math.max(1, Math.min(FERRY_MAX, idiv(nMilli + 500, 1000)));
 }
 // ---- THE VISITOR -----------------------------------------------------------
 const VIS_STATES = { ashore: 1, roam: 1, toBiz: 1, toRoom: 1, inRoom: 1, onSand: 1, toPier: 1 };
@@ -10144,19 +10159,25 @@ function seedVisitors() {
 // FINGERPRINT RULE: with no cultures registered, or every gate shut, this
 // consumes ZERO srand() draws - a pre-cultures town sails
 // byte-identical forever, so the roll is short-circuited BEFORE the draw.
-function cultureShare(cul) {
+// The arrival roll, exact (slice 5): authored repGate/shareRamp are rep
+// points, rep is millirep, and the ramp compare cross-multiplies instead of
+// dividing - draw * ramp_m is exact (a u32 image times an int ≤ 1e5 stays
+// under 2^53), so the roll is integer-deterministic. shareMax stays the
+// authored double and compares directly: an authored cap IS its double value.
+function cultureRolls(cul, rand) {
   const ar = cul.def.arrival || {};
-  const gate = ar.repGate != null ? ar.repGate : 80;
-  const ramp = ar.shareRamp > 0 ? ar.shareRamp : 80;
+  const gateM = 1000 * (ar.repGate != null ? ar.repGate : 80);
+  if (rep <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
+  const rampM = 1000 * (ar.shareRamp > 0 ? ar.shareRamp : 80);
   const cap = ar.shareMax != null ? ar.shareMax : 0.25;
-  return rep < gate ? 0 : Math.min(cap, (rep - gate) / ramp);
+  const draw = rand();
+  return draw < cap && draw * rampM < rep - gateM;
 }
 function ferryCulture() {
   for (const id in CULTURES) {
     const cul = CULTURES[id];
     if (!cul) continue;   // the crab entry is null: the default, never a roll
-    const share = cultureShare(cul);
-    if (share > 0 && srand() < share) return id;
+    if (cultureRolls(cul, srand)) return id;
   }
   return "crab";
 }
@@ -10285,7 +10306,7 @@ function visBoard(k) {
   // collapsed to 43 by day 5, which shrank the boat, which shrank the takings.
   // What ships is the one thing a player can actually fix.
   const rough = k.roughNights > 0;
-  rep = Math.max(0, Math.min(100, rep + (rough ? -1.2 : k.buys >= 2 ? 0.5 : 0)));
+  rep = Math.max(0, Math.min(100000, rep + (rough ? -1200 : k.buys >= 2 ? 500 : 0)));
   if (window._stats) {
     const s = window._stats;
     s.visDepart = (s.visDepart || 0) + 1;
@@ -10843,7 +10864,7 @@ function updateCustomers(dt) {
       if (k.patience <= 0) {
         k.state = "leaving"; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }
-        if (!k.isCrab) { rep = Math.max(0, rep - 3); today.rage++; }
+        if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
         if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
         popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
       }
@@ -15268,8 +15289,8 @@ function drawReport() {
   if (report.hallPaid) line(report.hallOwn ? "YOUR OWN " + purseOf(hall.policy).short : "TOWN " + (report.hallPol || "").split(" ")[0],
     "-$" + fmt(report.hallPaid), [150, 70, 60]);
   if (report.hallGot) line("SHELTER BOUGHT BOWLS", "+$" + fmt(report.hallGot), [40, 110, 60]);
-  const dRep = report.repEnd - report.repStart;
-  line("WORD OF MOUTH", report.repEnd + (dRep >= 0 ? "  +" + dRep : "  " + dRep),
+  const dRep = repPts(report.repEnd) - repPts(report.repStart);
+  line("WORD OF MOUTH", repPts(report.repEnd) + (dRep >= 0 ? "  +" + dRep : "  " + dRep),
     dRep >= 0 ? [40, 110, 60] : [180, 60, 60]);
   ly += 2;
   // THE MAYOR'S LINE. Always there, one row: who holds the office, what their
@@ -16326,7 +16347,7 @@ function simClock(dt, rawMs) {
     mistRoll();   // tonight's shore, drawn once and held as an integer
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price
-    townCatch = Math.min(townCatch, 4); rep = rep + (30 - rep) * 0.06;
+    townCatch = Math.min(townCatch, 4); rep = rep + idiv((30000 - rep) * 6, 100);   // nightly relaxation, exact; floor's deadband at milli is 0.017 rep
     for (const c of allCrabs()) { c.workedToday = false; c.otMin = 0; }   // a new day's ledger
     trade.day = { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }; trade.landedDay = 0;
     townFund.dayIn = 0; townFund.dayOut = 0; townFund.youPaid = 0; townFund.youGot = 0;   // the fund's own day book
@@ -16709,7 +16730,7 @@ function simClock(dt, rawMs) {
         bowls: townFund.bowls, potShut: shelterShut(), potWhy: townFund.potWhy, mayor: hall.mayor,
         hallPol: policyLine(hall.policy), hallOwn: playerMayor(),
         off: offNames.slice(0, 4).join(", "),
-        repStart: Math.round(today.repStart), repEnd: Math.round(rep),
+        repStart: repPts(today.repStart), repEnd: repPts(rep),
         best: Object.keys(today.byCrab).sort((a, b) => today.byCrab[b] - today.byCrab[a])[0],
         bestN: 0, coins: Math.round(coins),
         tipsShared: Math.round(today.tipsShared || 0), bused: today.bused || 0,
@@ -17003,10 +17024,10 @@ function viewFrame(dt) {
   // only means a card the player opened OWNS THE SCREEN while it is open, which
   // is the same rule drawToast and drawFollowCard already follow.
   {  // town reputation chip, top-right of the world
-    const rTxt = "REP " + Math.round(rep);
+    const rTxt = "REP " + repPts(rep);
     const rw = smallTextWidth(rTxt) + 8;
     rect(ctx, W - rw - 2, 2, rw, 10, [30, 20, 36]);
-    smallText(ctx, rTxt, W - rw + 2, 4, rep >= 50 ? [140, 220, 140] : rep >= 25 ? [220, 205, 185] : [235, 130, 130]);
+    smallText(ctx, rTxt, W - rw + 2, 4, rep >= 50000 ? [140, 220, 140] : rep >= 25000 ? [220, 205, 185] : [235, 130, 130]);
   }
   {  // the little sun: skip to morning (top-right, under the REP chip)
     const on = ffSleep;
