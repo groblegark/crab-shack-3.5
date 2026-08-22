@@ -59,6 +59,29 @@ static int32_t *const S_X   = (int32_t *)24704;   /* station st.x, px ints */
 static int32_t *const S_Y   = (int32_t *)25344;
 static int32_t *const B_BLK = (int32_t *)25984;   /* out: _blocked this frame */
 
+/* THE SHARED RNG CURSOR (kernel phase 2). One mulberry32 state cell in the
+   shared memory, at 26624 (the word after B_BLK). When the kernel is armed
+   the harness routes every SIM-stream draw through rng_u32, so the cursor
+   and the step live HERE - and any future kernel-side consumer drawing
+   between two JS draws continues the same sequence by construction. The
+   algorithm is game.js's mulberry32 transcribed to u32 ops (wraps, imul and
+   >>> are all exact both sides); the JS caller scales by 2^-32, which is
+   exact. Seeded per sim by rng_seed - same seed, same sequence as the
+   closure it replaces, which is why the fingerprint gate covers it. */
+static uint32_t *const RNG_STATE = (uint32_t *)26624;
+
+__attribute__((export_name("rng_seed")))
+void rng_seed(uint32_t s) { *RNG_STATE = s; }
+
+__attribute__((export_name("rng_u32")))
+uint32_t rng_u32(void) {
+  uint32_t a = *RNG_STATE + 0x6D2B79F5u;
+  *RNG_STATE = a;
+  uint32_t t = (a ^ (a >> 15)) * (1u | a);
+  t = (t + ((t ^ (t >> 7)) * (61u | t))) ^ t;
+  return t ^ (t >> 14);
+}
+
 double __builtin_sqrt(double);
 
 /* exact floor sqrt: correctly-rounded f64 sqrt + the fixup, same as game.js */

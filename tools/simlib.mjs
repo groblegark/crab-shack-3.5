@@ -121,7 +121,18 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
   // Left unset (the default) the sim is the classic 240 it has always been.
   if (screenH) sandbox.SCREEN_H = screenH;
   sandbox.requestAnimationFrame = (cb) => { sandbox.rafCb = cb; };
-  if (kernel === "wasm") sandbox._wasmKernel = armKernel();
+  if (kernel === "wasm") {
+    sandbox._wasmKernel = armKernel();
+    // THE SHARED CURSOR (kernel phase 2): the sim stream's mulberry32 state
+    // moves into kernel memory and every draw steps that one cell - JS draws
+    // today, kernel-side consumers tomorrow, one interleaved sequence by
+    // construction. Same algorithm, same seed, so the sequence is the
+    // closure's own; the fingerprint gate (kernel on == off) covers it, and
+    // the stream-identity scenario proves the interleaving.
+    sandbox._wasmKernel.exports.rng_seed(seed);
+    const ku32 = sandbox._wasmKernel.exports.rng_u32;
+    seededMath.random = () => (ku32() >>> 0) / 4294967296;
+  }
   sandbox.performance = { now: () => sandbox.simNow };
   const { G, mkFn, mkExpr, C } = loadGame(sandbox, realm);
   G(`soundOn = false; musicOn = false; screen = "play"; window._headless = true;

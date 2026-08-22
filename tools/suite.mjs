@@ -11175,6 +11175,31 @@ scenario("the kernel and the reference agree, byte for byte", () => {
   return true;
 });
 
+scenario("the sim stream's cursor is shared: JS and kernel draws are one sequence", () => {
+  // KERNEL PHASE 2's stream-identity proof. With the kernel armed, the sim
+  // stream's mulberry32 state lives in kernel memory and srand() steps it
+  // through rng_u32 - so a kernel-side consumer drawing BETWEEN two JS draws
+  // must continue the very sequence the JS closure would have produced. Two
+  // towns, same seed, one per backend: after load their cursors sit at the
+  // same logical position (the fingerprint gate says so), and from there the
+  // armed town draws JS, JS, KERNEL-RAW, JS while the reference draws four
+  // times through the closure. Element-wise equality, the raw draw compared
+  // as the exact u32 the closure's double scales from. A wrong constant, a
+  // missed write-back, or a double-step fails here with its index.
+  const ref = createSim({ seed: 4321, kernel: "off" });
+  let kern;
+  try { kern = createSim({ seed: 4321, kernel: "wasm" }); }
+  catch (e) { return "kernel failed to arm: " + e.message; }
+  const want = [0, 1, 2, 3].map(() => ref.G("srand()"));
+  const got = [kern.G("srand()"), kern.G("srand()"),
+               (kern.sandbox._wasmKernel.exports.rng_u32() >>> 0) / 4294967296,
+               kern.G("srand()")];
+  for (let i = 0; i < 4; i++)
+    if (got[i] !== want[i])
+      return `stream diverged at draw ${i}${i === 2 ? " (the kernel-side draw)" : ""}: ref ${want[i]} vs shared ${got[i]}`;
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
