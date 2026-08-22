@@ -11216,6 +11216,28 @@ scenario("the kernel and the reference agree, byte for byte", () => {
         if (!a[i] || !b[i] || a[i][f] !== b[i][f])
           return `visitor diverged at ${i} field ${F[f]}: ref ${a[i] && a[i][f]} vs kernel ${b[i] && b[i][f]}`;
   }
+  // PHASE 5: the counter machine's planes - every customer's patience, climb,
+  // timers and holds, and every piece of furniture's flags and dishes. This
+  // is where a wrong kernel rounding BITES: day-end digests wash out (queue
+  // positions converge to exact slots), but the machine's own state cannot.
+  const cnt = (s) => s.G(
+    `JSON.stringify(customers.map(k => [k.si, PXQ[k.si], VSTCP[k.si], C_PAT[k.si], C_CLM[k.si],
+      C_SHW[k.si], C_DIN[k.si], C_WAI[k.si], C_STL[k.si], C_TBL[k.si]])
+      .concat([[].concat(...Object.values(BIZ).map(b => (b.tables || []).concat(b.stalls || [])))
+        .map(t => [t.fid, FT_X[t.fid], FT_FLG[t.fid], FT_DSH[t.fid]])]))`);
+  const cr = cnt(ref), ck = cnt(kern);
+  if (cr !== ck) {
+    const a = JSON.parse(cr), b = JSON.parse(ck);
+    const F = ["si","PXQ","stC","patience","climb","showerT","dineT","waitT","stallFid","tableFid"];
+    for (let i = 0; i < Math.max(a.length, b.length) - 1; i++)
+      for (let f = 0; f < F.length; f++)
+        if (!a[i] || !b[i] || a[i][f] !== b[i][f])
+          return `counter machine diverged at customer ${i} field ${F[f]}: ref ${a[i] && a[i][f]} vs kernel ${b[i] && b[i][f]}`;
+    return "furniture planes diverged: ref " + JSON.stringify(a[a.length - 1]) + " vs kernel " + JSON.stringify(b[b.length - 1]);
+  }
+  const stats = (s) => s.G(
+    "JSON.stringify([window._stats.tourServes, window._stats.tourRage, window._stats.crabRage, window._stats.seated || 0, window._stats.tableTip || 0, window._stats.showersDone || 0])");
+  if (stats(ref) !== stats(kern)) return "counter stats diverged: ref " + stats(ref) + " vs kernel " + stats(kern);
   const dig = (s) => s.G("JSON.stringify([coins, day, tmin, lifetime, rep, window._stats.warps || 0])");
   if (dig(ref) !== dig(kern)) return "digest diverged: ref " + dig(ref) + " vs kernel " + dig(kern);
   return true;
