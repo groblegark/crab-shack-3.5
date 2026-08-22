@@ -1923,11 +1923,11 @@ const HOURS_POLICY = {
   // probe (minSpan 8h) measured the identical growth list, proving the
   // 1-day shift is stream chaos from her first move, not the shrink depth -
   // so the floor stays at 6h where her schedule has room to be interesting.
-  showers: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: 0.75 },
+  showers: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: qn(0.75) },
   // ...and the juice bar, for the day a PEER owner holds its lease (see THE
   // RIVALRY). Inert while the player owns it - the caller only ever runs this
   // for a business somebody else is running.
-  juicebar: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: 0.75 },
+  juicebar: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: qn(0.75) },
 };
 let hoursPolicyState = {};        // biz -> { hist: [{f,l,q}...], cd }  (persisted)
 let hoursObs = {}, _wasOpen = {}; // per-day boundary observations (transient)
