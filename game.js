@@ -914,7 +914,7 @@ const COUNT_MINS = 3;            // GAME minutes to read one paper back out agai
                                  // office settles. A town that has grown finds out later.
 const VOTE_CD = 12 * SEC;        // short on purpose: a civic duty must not crowd out lunch
 const VOTE_URGE_HRS = 3;         // the last three hours: now you make a special trip
-const VOTE_BASE = 0.30;          // ...before that it is a thing you do if you happen to be passing
+const VOTE_BASE = qn(0.30);          // ...before that it is a thing you do if you happen to be passing
 // WHAT THIS ACTUALLY PRODUCES, measured over 24 polls across 6 seeds and 29
 // days, once the second table went in: TURNOUT 82%, and the shape of the
 // missing 18% is the whole point of the feature -
@@ -926,7 +926,7 @@ const VOTE_BASE = 0.30;          // ...before that it is a thing you do if you h
 // nobody can act on: the D shift is derived from the shop's OPEN HOURS, and
 // the hours sign is a lever the player already holds. Shorten your own crew's
 // polling-day shift and they vote. That is the design in one number.
-const VOTE_MAX = 0.85;           // and never DIRE (0.9): nobody abandons a shift to vote
+const VOTE_MAX = qn(0.85);           // and never DIRE (0.9): nobody abandons a shift to vote
 const VOTE_DX = 11;              // voters space out along the table rather than standing in each other
 const VOTE_Y = 157;              // UP THE BEACH, CLEAR OF BOTH TRAVEL LANES - the lesson the beach
                                  // ball paid for. LANES are y146 and y168 and a parked crab blocks a
@@ -998,7 +998,7 @@ function civicUrge(c) {
   if (!pollOpen() || hasVoted(c)) return 0;
   const left = POLL_SHUT - tmin;
   const rush = 1 - Math.max(0, Math.min(1, left / (VOTE_URGE_HRS * 60)));
-  return VOTE_BASE + (VOTE_MAX - VOTE_BASE) * rush;
+  return VOTE_BASE + Math.floor((VOTE_MAX - VOTE_BASE) * rush);   // Q20: the civic urge is a need level
 }
 function mayorCrab() { return hall.mayor ? allCrabs().find(c => c.p.name === hall.mayor) || null : null; }
 function isMayor(c) { return !!hall.mayor && c.p.name === hall.mayor; }
@@ -7977,7 +7977,7 @@ function bizStaffed(b) { return bizUnlocked(b) && !bizDark(b) && allCrabs().some
 const ERRAND_RANK = { food: 4, drink: 3, clean: 2, vote: 2, fun: 1 };
 const DETOUR_SCALE = 400;   // px of added walking that halves a stop's appeal
 const DETOUR_MAX = 900;     // ~half the promenade: not before a shift, it can wait
-const DIRE = 0.9;           // this needy and geography stops mattering
+const DIRE = qn(0.9);           // this needy and geography stops mattering
 const CHAIN_PX = 260;       // a second stop this close beats walking home and back out
 function needLevel(c, need) {
   return need === "food" ? (c.p.hunger || 0) : need === "drink" ? (c.p.thirst || 0)
@@ -8011,12 +8011,14 @@ function errandScore(c, e) {
   // half a bought drink's pull, so the counter wins whenever the crab can
   // reach and afford one. It never zeroes out, so the tap is always THERE.
   const ap = e.appeal != null ? e.appeal : 1;
-  if (lvl >= DIRE) return ap * (99 + ERRAND_RANK[e.need]);   // desperate: walk it, wherever it is
+  if (lvl >= DIRE) return ap * (99 + ERRAND_RANK[e.need]) * Q20;   // desperate: walk it, wherever it is
   const d = errandDetour(c, e);
   // the "don't backtrack the whole promenade before 9 AM" rule: on the way
   // out to a shift, a stop clear across town waits for the trip home
   if (d > DETOUR_MAX && c.dayState === "home" && anchorX(c) !== homeX(c)) return -1;
-  return ap * (ERRAND_RANK[e.need] + lvl) / (1 + d / DETOUR_SCALE);
+  // the rank rides in NEED UNITS so it still outranks a full bar: this is
+  // the pre-slice score x Q20, term for term, so the argmax is unchanged.
+  return ap * (ERRAND_RANK[e.need] * Q20 + lvl) / (1 + d / DETOUR_SCALE);
 }
 function pickErrand(c) {
   const staffed = bizStaffed;
@@ -12901,7 +12903,7 @@ function drawFollowCard() {
   if (eff < 0.995)
     smallText(ctx, "PACE " + Math.round(eff * 100) + "%", 74, 36, eff < 0.8 ? [190, 80, 80] : [200, 110, 40]);
   const bars = [["FED", 1 - (p.hunger || 0), 6], ["SIP", 1 - (p.thirst || 0), 30],
-    ["CLN", 1 - (p.dirt || 0), 54], ["FUN", 1 - (p.bored || 0), 78], ["ZZZ", 1 - (p.tired || 0), 102]];
+    ["CLN", 1 - (p.dirt || 0) / Q20, 54], ["FUN", 1 - (p.bored || 0) / Q20, 78], ["ZZZ", 1 - (p.tired || 0) / Q20, 102]];
   for (const [label, frac, bx] of bars) {
     smallText(ctx, label, bx, 44, [110, 110, 130]);
     rect(ctx, bx + 11, 45, 13, 4, [30, 20, 36]);
@@ -13986,7 +13988,7 @@ function drawDossier() {
   // control bar along the bottom, and a stack of five labelled bars is the
   // 32px that has to give - the numbers are identical, the meters are shorter
   const bars = [["FED", 1 - (p.hunger || 0)], ["SIP", 1 - (p.thirst || 0)],
-    ["CLN", 1 - (p.dirt || 0)], ["FUN", 1 - (p.bored || 0)], ["ZZZ", 1 - (p.tired || 0)]];
+    ["CLN", 1 - (p.dirt || 0) / Q20], ["FUN", 1 - (p.bored || 0) / Q20], ["ZZZ", 1 - (p.tired || 0) / Q20]];
   bars.forEach(([label, frac], i) => {
     const bx = x + 6 + i * 40;
     smallText(ctx, label, bx, ly, [110, 110, 130]);
@@ -14833,7 +14835,8 @@ function drawCensus(R) {
     if (otM) smallText(ctx, "OT", r.x + 66, ry + 8, [255, 150, 40]);
     const eff = crabEff(c) * (p.sick ? 0.5 : 1);
     smallText(ctx, Math.round(eff * 100) + "%", r.x + 78, ry + 8, eff < 0.8 ? [190, 80, 80] : eff < 0.995 ? [200, 110, 40] : [110, 100, 110]);
-    const bars = [1 - (p.hunger || 0), 1 - (p.thirst || 0), 1 - (p.dirt || 0), 1 - (p.bored || 0), 1 - (p.tired || 0)];
+    const bars = [1 - (p.hunger || 0) / Q20, 1 - (p.thirst || 0) / Q20, 1 - (p.dirt || 0) / Q20,
+      1 - (p.bored || 0) / Q20, 1 - (p.tired || 0) / Q20];
     for (let bi = 0; bi < bars.length; bi++) {
       const bx = r.x + 156 + bi * 10, f = Math.max(0, Math.min(1, bars[bi]));
       rect(ctx, bx, ry + 8, 9, 4, [30, 20, 36]);
@@ -16377,7 +16380,7 @@ function frame(now) {
           homeless: !!k.p.homeless, wallet: Math.round(k.p.wallet || 0),
           risk: +risk.toFixed(5),
           now: { hunger: +(k.p.hunger || 0).toFixed(3), thirst: +(k.p.thirst || 0).toFixed(3),
-                 dirt: +(k.p.dirt || 0).toFixed(3), tired: +(k.p.tired || 0).toFixed(3) },
+                 dirt: +((k.p.dirt || 0) / Q20).toFixed(3), tired: +((k.p.tired || 0) / Q20).toFixed(3) },
         });
         if (risk > 0 && srand() < Math.min(0.5, risk)) {
           k.p.sick = { days: 0 }; today.sick.push(k.p.name);
