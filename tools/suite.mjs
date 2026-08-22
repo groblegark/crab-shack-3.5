@@ -3559,11 +3559,11 @@ scenario("taps: free and always reachable, and the juice bar still sells", () =>
   // and plain water only takes the EDGE off - a juice zeroes the meter
   sim.G(`{ const c = crabs[0]; c.p.wallet = 3000; c.p.thirst = Q20;
     abortActivity(c); startTapStop(c, { tap: 0, need: "drink" }); }`);
-  if (!sim.runUntil(`crabs[0].p.thirst < 1`, { maxSteps: 200000 }))
+  if (!sim.runUntil(`crabs[0].p.thirst < Q20`, { maxSteps: 200000 }))
     return "a crab sent to the tap never got a drink";
   if (sim.G("crabs[0].p.wallet") !== 3000) return "the tap charged for a drink of water";
   if (sim.G("crabs[0].p.thirst") <= 0) return "plain water fully quenched - it must be worse than a bought drink";
-  if (!(sim.G("crabs[0].p.thirst") <= 1 - 0.5)) return "the tap barely quenched anything";
+  if (!(sim.G("crabs[0].p.thirst") <= Q20 - qn(0.5))) return "the tap barely quenched anything";
   // ALWAYS REACHABLE: with every counter in town unstaffed and every wallet
   // empty, a properly thirsty crab of EVERY kind is still offered a tap
   sim.G(`{ for (const c of allCrabs()) { c.p.thirst = qn(0.75); c.p.wallet = 0; c.p.dirt = 0;
