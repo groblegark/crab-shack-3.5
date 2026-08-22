@@ -10921,7 +10921,20 @@ function visStep(k, tx, ty, dt) {
 }
 // needs, the clock, and the wallet's own ticking - runs for EVERY visitor,
 // whatever state they are in, so a visitor stood in a queue still gets hungry
+let _ktMist = 0, _ktDrain = 0;   // vis_tick's per-frame args, set by updateCustomers when armed
 function visTick(k, dt) {
+  if (KERN) {   // the compiled body; the JS below stays the reference
+    const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain);
+    // the object side drains IN PLACE, exactly where the reference did it:
+    // the mist ledger, the checkout, the sand-wake flags and diary line
+    if (r & 1) stayOf(k).mistMin += dtT;
+    if (r & 2) checkOut(k);
+    if (r & 4) {
+      k.rough = false; k.roughFlag = false; k.target = null;
+      visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
+    }
+    return;
+  }
   const hrs = dtT / (60 * GMIN);
   // THE ONLY WEATHER THIS TOWN HAS, and it is a fact about the CALENDAR:
   // mistPeak is an integer hash of the day, the same on every machine, so a
@@ -11102,6 +11115,10 @@ function newCustomer(bizKey) {
   return w;
 }
 function updateCustomers(dt) {
+  if (KERN) {   // vis_tick's frame facts, computed once with the reference's own expressions
+    _ktMist = tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536 ? 1 : 0;
+    _ktDrain = (Q20 * 3 * dtT / 10 - (Q20 * 3 * dtT / 10) % TICKS_PER_GH) / TICKS_PER_GH;
+  }
   trackCloseQueues();   // hours-policy signal: who was still in line when a shop shut
   runFerry(dtT);        // the timetable: she docks, lands a batch, and sails
   sweepRooms();         // a room whose guest has left town is an empty room, always
