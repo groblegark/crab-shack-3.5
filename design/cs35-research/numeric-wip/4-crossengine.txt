@@ -1,0 +1,13 @@
+CROSS-ENGINE RECEIPT - numeric slice 4 (space -> Q8 + isqrt)
+protocol par.9: converted fields bit-identical under a second JS engine.
+
+engine A: V8 / node v26.5.1; engine B: JavaScriptCore (macOS system jsc)
+seed 1337: BIT-IDENTICAL (whole fingerprint incl. positions)
+seed 4242: BIT-IDENTICAL (whole fingerprint incl. positions)
+
+With slice 4 the geometry claim graduates: positions are Q8 grains
+produced by exact integer arithmetic (isqrt + one rounding per
+component), so cross-engine identity of every x,y is now a THEOREM
+of the representation - the thing the 1a receipt said it could not
+yet promise ('positions still match because they are float-but-simple
+today'). It promises now.
