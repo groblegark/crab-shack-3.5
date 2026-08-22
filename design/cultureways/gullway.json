@@ -1,0 +1,278 @@
+{
+ "meta": {
+  "id": "gull",
+  "name": "THE WINDWARD ROOST",
+  "ver": 1
+ },
+ "people": {
+  "names": [
+   "PETREL",
+   "SKUA",
+   "TERN",
+   "GANNET",
+   "FULMAR",
+   "KITTIWAKE",
+   "SHEARWAT",
+   "BRINE",
+   "SQUALL",
+   "MEW",
+   "JETSAM",
+   "HALYARD",
+   "WRACK",
+   "SPINDRIFT"
+  ]
+ },
+ "art": {
+  "palette": {
+   "K": [
+    26,
+    24,
+    34
+   ],
+   "W": [
+    242,
+    242,
+    236
+   ],
+   "G": [
+    206,
+    206,
+    198
+   ],
+   "B": [
+    246,
+    176,
+    54
+   ],
+   "E": [
+    20,
+    18,
+    26
+   ],
+   "C": [
+    70,
+    96,
+    140
+   ]
+  },
+  "body": {
+   "w": 10,
+   "h": 14,
+   "slots": [
+    "W",
+    "G",
+    "B"
+   ],
+   "poses": {
+    "a": [
+     "..........",
+     "...KKKK...",
+     "..KWWWWK..",
+     "..KWEWWK..",
+     "..KWWWWKB.",
+     "..KWWWWKBB",
+     ".KWWWWWWK.",
+     ".KWWWWWWK.",
+     ".KWGGGGWK.",
+     ".KWGGGGWK.",
+     "..KWWWWK..",
+     "...KWWK...",
+     "...B..B...",
+     "..BB..BB.."
+    ],
+    "b": [
+     "..........",
+     "...KKKK...",
+     "..KWWWWK..",
+     "..KWEWWK..",
+     "..KWWWWKB.",
+     "..KWWWWKBB",
+     ".KWWWWWWK.",
+     ".KWWWWWWK.",
+     ".KWGGGGWK.",
+     ".KWGGGGWK.",
+     "..KWWWWK..",
+     "...KWWK...",
+     "..B....B..",
+     ".BB....BB."
+    ],
+    "w": [
+     "..........",
+     "...KKKK...",
+     "..KWWWWK..",
+     "..KWEWWK..",
+     "..KWWWWKB.",
+     "..KWWWWKBB",
+     "KWWWWWWWK.",
+     "KWWWWWWWK.",
+     ".KWGGGGWK.",
+     ".KWGGGGWK.",
+     "..KWWWWK..",
+     "...KWWK...",
+     "...B.B....",
+     "..BB..B..."
+    ],
+    "s": [
+     "..........",
+     "..........",
+     "..........",
+     "...KKKK...",
+     "..KWWWWK..",
+     "..KWWWWKB.",
+     ".KWWWWWWKB",
+     ".KWGGGGWK.",
+     ".KWGGGGWK.",
+     "..KWWWWK..",
+     "...KWWK...",
+     "..........",
+     "..........",
+     ".........."
+    ]
+   },
+   "anchors": {
+    "hat": {
+     "x": 2,
+     "y": 1
+    },
+    "carry": {
+     "x": 7,
+     "y": 8
+    },
+    "mark": {
+     "x": 4,
+     "y": -3
+    },
+    "bar": {
+     "w": 8
+    }
+   }
+  },
+  "colorways": [
+   {
+    "W": [
+     242,
+     242,
+     236
+    ],
+    "G": [
+     206,
+     206,
+     198
+    ],
+    "B": [
+     246,
+     176,
+     54
+    ]
+   },
+   {
+    "W": [
+     236,
+     232,
+     222
+    ],
+    "G": [
+     188,
+     184,
+     176
+    ],
+    "B": [
+     230,
+     150,
+     40
+    ]
+   },
+   {
+    "W": [
+     216,
+     220,
+     228
+    ],
+    "G": [
+     166,
+     172,
+     186
+    ],
+    "B": [
+     214,
+     132,
+     46
+    ]
+   },
+   {
+    "W": [
+     246,
+     240,
+     224
+    ],
+    "G": [
+     214,
+     200,
+     168
+    ],
+    "B": [
+     252,
+     196,
+     72
+    ]
+   }
+  ],
+  "accessories": {
+   "pilotcap": {
+    "dx": 1,
+    "dy": -2,
+    "rows": [
+     "..CCCC..",
+     ".CCCCCC.",
+     "CCCCCCCC",
+     "...KK..."
+    ]
+   }
+  }
+ },
+ "voice": {
+  "registers": [
+   {
+    "id": "roost",
+    "acc": "none",
+    "purseMul": 0.8,
+    "diary": {
+     "hungry": "THE FISH HERE IS HONEST.",
+     "tired": "SLEPT ON A ROOF. FINE."
+    },
+    "depart": {
+     "hungry": "I CAME FOR FISH AND I GOT FISH. GOOD.",
+     "happy": "A DECENT ROCK, THIS PLACE."
+    },
+    "refuseHire": "I DON'T PERCH FOR WAGES.",
+    "foreign": "NOT A SCRAP OF SEAWEED IN TOWN."
+   },
+   {
+    "id": "pilot",
+    "acc": "pilotcap",
+    "purseMul": 1.4,
+    "diary": {
+     "hungry": "PROVISIONING IS BEHIND SCHEDULE."
+    },
+    "depart": {
+     "hungry": "I LOG THIS PORT AS UNDERVICTUALLED.",
+     "happy": "A SERVICEABLE PORT. LOGGED."
+    },
+    "refuseHire": "I HOLD A PILOT'S TICKET, THANK YOU.",
+    "foreign": "NO SEAWEED. IN A PORT. REMARKABLE."
+   }
+  ]
+ },
+ "tastes": {
+  "fish": 2.2,
+  "taco": 1.1,
+  "juice": 0.7,
+  "soak": 0.2,
+  "room": 0.9
+ },
+ "arrival": {
+  "repGate": 60,
+  "shareMax": 0.3,
+  "shareRamp": 40
+ }
+}
