@@ -1524,6 +1524,12 @@ scenario("hours: always-open does not out-earn a normal day (anti-exploit gate)"
     if (!(a.wages > 0 && b.wages > 0)) return `seed ${seed} paid no wages at all`;
     ratios.push((b.life / b.wages) / (a.life / a.wages));
   }
+  // MUTATION HONESTY (the 2a rule): no one-line mutation re-arms the exploit
+  // - otPremium=0 and shiftLoad=1 both read inside the band (tried, vacuous),
+  // because the fault was a FIXED mechanism, not a parameter. The gates'
+  // calibration is the measured history instead: the pre-pass build read
+  // 1.58/1.84/1.78 on these seeds, which fails the mean gate by 0.6 and the
+  // ceiling by 0.4 - the magnitudes this scenario exists to catch.
   // THE GATE, re-pointed at the 3a re-baseline with a five-seed band receipt.
   // The old worst-of-3 <= 1.20 was tighter than the measure's own noise: the
   // pre-3a tree read 1.179/1.057/0.908/1.025/0.914 on five seeds (its own
@@ -2229,14 +2235,22 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // RE-BASELINED for NUMERIC SLICE 5 (millirep + patience Q12 + the
     // rational errand score + the mover-target exemption). The traced head,
     // BOTH seeds, stream unshifted at the crossing: a waiting visitor's
-    // patience drain rounds at the Q12 grain (round-half-up, +-1 milli) -
+    // RE-BASELINED for NUMERIC 3a (the float audit): the tired accrual's
+    // remainder form differs from float tired by under one grain, and the
+    // FIRST CROSSING is SUDSY's drink-errand arrival, seed 1337 day 1
+    // tmin 1182 - the walk drag reads tired 740136.47 (float) vs 740136
+    // (exact) and the Q8 step lands one tick apart. Downstream: two
+    // wandering crabs' positions by fractions of a px on 1337; money,
+    // serves, rage, wallets, tills IDENTICAL on both seeds; 4242 byte-
+    // identical whole. Day-2 draws 2394 -> 2399.
+    // (slice 5's receipt, kept:) patience drain rounds at the Q12 grain -
     // KRILL BILL seed 1337 day 1 tick 2719 (seated, -1), EBB seed 4242 day 1
     // tick 2860 (-1). Mixed signs, no compass. Downstream: coins -50c/-6c,
     // two mid-walk positions per town, day-2 sim draws 2399 -> 2394; wallets,
     // tills, serves and rage IDENTICAL on both seeds. rep is now raw
     // MILLIREP in this digest (50.3247 float points -> 50324).
-    1337: '{"day":3,"tmin":0,"coins":12884,"rep":50324,"catch":1,"serves":37,"crabServes":4,"rage":4,"till":19861,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19861],["REEF",18545],["SALTY",300],["DRIFT",200],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[548.6,167.7],[510.5,166.8]]}',
-    4242: '{"day":3,"tmin":0,"coins":19355,"rep":53599,"catch":1,"serves":44,"crabServes":5,"rage":6,"till":23410,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23410],["REEF",20935],["SALTY",0],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[439.9,167.7],[2136,154],[2072,154],[464,155],[450,155]]}',
+    1337: '{"day":3,"tmin":0,"coins":12884,"rep":50324,"catch":1,"serves":37,"crabServes":4,"rage":4,"till":19861,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19861],["REEF",18545],["SALTY",300],["DRIFT",200],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[550.4,167.6],[511.3,166.9]]}',
+    4242: '{"day":3,"tmin":0,"coins":19355,"rep":53599,"catch":1,"serves":44,"crabServes":5,"rage":6,"till":23410,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23410],["REEF",20935],["SALTY",0],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[436.5,167.7],[2136,154],[2072,154],[464,155],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -10657,13 +10671,13 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // Matrix referee: baseline 0/48 over three blocks (median 12 in each),
   // growth 14/48 vs 11/48, bands mixed-sign. Bit-identical under
   // JavaScriptCore on this tree.
-  // RE-BASELINED for NUMERIC SLICE 5: same traced head as the frozen day-2
-  // fingerprint (the patience drain's Q12 rounding residual - EBB, day 1
-  // tick 2860 on this seed - stream unshifted at the crossing). coins
-  // 19361 -> 19355, SUDSY four grains east; every wallet identical. rep is
-  // raw millirep in this digest now.
+  // RE-BASELINED for NUMERIC SLICE 5 (patience Q12 head, EBB tick 2860;
+  // coins 19361 -> 19355) and again for NUMERIC 3a (the tired remainder
+  // form; same traced head as the frozen day-2 fingerprint - SUDSY's
+  // drink-errand arrival, day 1 tmin 1182): SUDSY 440 -> 436, four grains
+  // west; coins and every wallet identical. rep is raw millirep here.
   const want = '{"day":3,"coins":19355,"rep":53599,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",440,23410],["REEF",2136,20935],["SALTY",2072,0],'
+    + '["CLAWDIA",108,1600],["SUDSY",436,23410],["REEF",2136,20935],["SALTY",2072,0],'
     + '["DRIFT",464,400],["KELP",450,1000]],"vis":6,"catch":1}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
@@ -11145,7 +11159,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1861, 2: 2394 };   // sim draws during day 1 and day 2 (day 2 re-pointed with slice 5's re-baseline: five conditional draws moved behind the traced patience-grain head; day 1 held exactly)
+  const PIN = { 1: 1861, 2: 2399 };   // day 2 re-pointed at the 3a re-baseline: +5 conditional draws behind the traced tired-grain head (SUDSY's drink-errand arrival, day 1 tmin 1182); day 1 held exactly, again
   const sim = createSim({ seed: 1337 });
   sim.G(`{ const real = srand; window._dayDraws = 0; srand = () => (window._dayDraws++, real()); }`);
   for (const d of [1, 2]) {
