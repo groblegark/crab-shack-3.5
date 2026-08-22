@@ -11014,8 +11014,24 @@ function updateCustomers(dt) {
   // one pass over every line, so a place is a POSITION IN THE QUEUE rather than
   // a position in the array. Rebuilt each frame, which is what compacts the
   // line when the front is served: everybody behind moves up exactly one place.
-  const qslot = new Map();
-  for (const b of Object.keys(BIZ)) queueOrder(b).forEach((k, i) => qslot.set(k, queueSlotX(b, i)));
+  // One pass over customers instead of one filter PER BIZ - the grouping
+  // preserves array order within each line, tickets are still stamped in BIZ
+  // key order (queueJoin's ++qSeqN must not reorder across businesses), and
+  // the per-line sort is the same total order on the same tickets. Same
+  // slots, byte for byte; B fewer passes and no per-biz filter allocs.
+  const qslot = new Map(), qgroup = new Map();
+  for (const k of customers) {
+    if (!inLine(k)) continue;
+    const g = qgroup.get(k.biz);
+    if (g) g.push(k); else qgroup.set(k.biz, [k]);
+  }
+  for (const b of Object.keys(BIZ)) {
+    const g = qgroup.get(b);
+    if (!g) continue;
+    for (const k of g) if (!k.qSeq) queueJoin(k);
+    g.sort((a, b2) => a.qSeq - b2.qSeq);
+    g.forEach((k, i) => qslot.set(k, queueSlotX(b, i)));
+  }
   for (const k of customers) {
     if (k.visitor) {
       visTick(k, dt);                                        // needs run wherever they are
