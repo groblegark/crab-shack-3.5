@@ -87,9 +87,9 @@
   <script src="sprites.js"></script>
   <script src="crabs.js"></script>
   <script src="merge.js"></script>
-  <!-- the movement kernel (WASM second backend, ?kernel=wasm to arm) must
+  <!-- the movement kernel (WASM second backend, DEFAULT-ON; ?kernel=off for the JS reference) must
        load before game.js so the pool can back onto its memory -->
-  <script src="tools/kernel/kernel-b64.js"></script>
+  <script src="tools/kernel/kernel-b64.js?v=f204c3b3"></script>
   <script src="game.js"></script>
 </body>
 </html>
