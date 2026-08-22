@@ -4902,10 +4902,14 @@ function tradeImport(kind, qty, dollars) {
 function settleFishMarket() {
   trade.landH.push(trade.landedDay); if (trade.landH.length > 3) trade.landH.shift();
   trade.useH.push(trade.useDay); if (trade.useH.length > 3) trade.useH.shift();
-  const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
-  const S = avg(trade.landH), D = avg(trade.useH);
-  if (D > S + 1) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
-  else if (S > D + 2) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
+  // sum-vs-sum, exact (slice 5): "avg demand > avg supply + 1" over the same
+  // window length is sumD > sumS + len in whole fish - the float division is
+  // gone and the boundary case (sums differing by exactly the window) is
+  // decided by arithmetic, not by which numerator rounded luckier.
+  const sum = (a) => a.reduce((s, v) => s + v, 0);
+  const sumS = sum(trade.landH), sumD = sum(trade.useH), len = trade.landH.length;
+  if (sumD > sumS + len) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
+  else if (sumS > sumD + 2 * len) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
   trade.ceilDays = trade.price >= FISH_IMPORT ? (trade.ceilDays || 0) + 1 : 0;
   trade.series.push(trade.price);
   if (trade.series.length > 60) trade.series.shift();
@@ -6184,7 +6188,8 @@ const BERTH_AT = qn(0.6);     // where the bubble starts to open (= crabEff's di
 const BERTH_PX = 10;      // full bubble at dirt 1.00: 12px personal space -> 22px
 const SHUN_AT = qn(0.8);      // a tourist takes the FAR table - binary, and pitched
                           // high on purpose so seating does not churn on a 0.61
-const PATIENCE_FILTH = 0.3;   // up to +30% patience drain from a filthy server
+const PATIENCE_FILTH = 0.3;   // up to +30% patience drain from a filthy server (read as 3/10 by serverFilthQ12)
+const PQ = 4096;              // patience grain (slice 5): int Q12 author-seconds, the countdown's own unit
 function crabBerthQ8(c) {   // -> int Q8 px: the bubble's extra radius
   const over = Math.min(Q20 - BERTH_AT, Math.max(0, (c.p.dirt || 0) - BERTH_AT));
   return idiv(BERTH_PX * Q8 * over, Q20 - BERTH_AT);
@@ -8220,20 +8225,34 @@ function errandDetour(c, e) {
   const stop = errandStopX(e), a = anchorX(c);
   return Math.abs(c.x - stop) + Math.abs(stop - a) - Math.abs(c.x - a);
 }
+// SLICE 5: the score is an EXACT RATIONAL {n, d} and the argmax compares by
+// cross-multiplication - the last float division in the sim's decision path
+// is gone. The value is the same score, term for term: appeal rides as
+// hundredths (1 -> 100, 0.35 -> 35, 0.84 -> 84), the detour as Q8 grains,
+// and 1 + d/SCALE becomes (SCALE_G + d_g)/SCALE_G over a 100x denominator.
+const DETOUR_SCALE_G = DETOUR_SCALE * Q8;
 function errandScore(c, e) {
   const lvl = needLevel(c, e.need || "food");
   // APPEAL is what keeps free water from eating the juice bar: a tap scores at
   // half a bought drink's pull, so the counter wins whenever the crab can
   // reach and afford one. It never zeroes out, so the tap is always THERE.
-  const ap = e.appeal != null ? e.appeal : 1;
-  if (lvl >= DIRE) return ap * (99 + ERRAND_RANK[e.need]) * Q20;   // desperate: walk it, wherever it is
-  const d = errandDetour(c, e);
+  const ap = e.ap100 != null ? e.ap100 : 100;
+  if (lvl >= DIRE) return { n: ap * (99 + ERRAND_RANK[e.need]) * Q20, d: 100 };   // desperate: walk it, wherever it is
+  const dg = Math.round(errandDetour(c, e) * Q8);   // exact: a detour is a sum of Q8 images
   // the "don't backtrack the whole promenade before 9 AM" rule: on the way
   // out to a shift, a stop clear across town waits for the trip home
-  if (d > DETOUR_MAX && c.dayState === "home" && anchorX(c) !== homeX(c)) return -1;
+  if (dg > DETOUR_MAX * Q8 && c.dayState === "home" && anchorX(c) !== homeX(c)) return { n: -1, d: 1 };
   // the rank rides in NEED UNITS so it still outranks a full bar: this is
   // the pre-slice score x Q20, term for term, so the argmax is unchanged.
-  return ap * (ERRAND_RANK[e.need] * Q20 + lvl) / (1 + d / DETOUR_SCALE);
+  return { n: ap * (ERRAND_RANK[e.need] * Q20 + lvl) * DETOUR_SCALE_G, d: 100 * (DETOUR_SCALE_G + dg) };
+}
+// a/b > c/d exact and overflow-safe for positive denominators: floored
+// quotients first, then remainders cross-multiplied (r < d keeps both
+// products under 2^53 where the raw cross-products would not).
+function ratGt(a, b, c, d) {
+  const qa = idiv(a, b), qc = idiv(c, d);
+  if (qa !== qc) return qa > qc;
+  return (a - qa * b) * d > (c - qc * d) * b;
 }
 function pickErrand(c) {
   const staffed = bizStaffed;
@@ -8319,7 +8338,7 @@ function pickErrand(c) {
       // had two crabs in them; somebody already out there throwing is the
       // whole difference between 0.22 of relief and 0.08, so it should be
       // worth crossing the beach for.
-      appeal: TAP_APPEAL * (ballPlayers().length ? 2.4 : 1) });
+      ap100: ballPlayers().length ? 84 : 35 });   // TAP_APPEAL x2.4 while the ball is out: 0.84 in hundredths
   if ((c.p.thirst || 0) >= qn(0.45)) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
@@ -8342,7 +8361,7 @@ function pickErrand(c) {
     // that this stop can never be unavailable. Both posts are offered and the
     // detour score picks the near one.
     if ((c.p.thirst || 0) >= TAP_AT)
-      for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", appeal: TAP_APPEAL });
+      for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", ap100: 35 });
 
   }
   // dirt is serviced at the showers too (the laundromat is gone): a grubby
@@ -8370,7 +8389,7 @@ function pickErrand(c) {
   // crab is pinned on the 0.95 sickness line by an environment that has no
   // route to soap - which is the ground the death roll now stands on.
   if (!canShower && (c.p.dirt || 0) >= (c.p.sick ? TAP_RINSE_SICK : TAP_RINSE_AT))
-    for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "clean", appeal: TAP_APPEAL });
+    for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "clean", ap100: 35 });
   // THE SHELTER POT IS A FLOOR UNDER ILLNESS, and it is deliberately narrow:
   // SICK crabs only, offered LAST, only when the town has nothing to sell them
   // right now, and only when the fund actually bought a bowl last night. Every
@@ -8392,7 +8411,7 @@ function pickErrand(c) {
   {
     const at = c.p.sick ? SOUP_SICK_AT : SOUP_AT;
     if (c.p.sick && potWarm() && (c.p.hunger || 0) >= at && !cand.some(e2 => e2.need === "food"))
-      take({ soup: true, need: "food", appeal: TAP_APPEAL });
+      take({ soup: true, need: "food", ap100: 35 });
   }
   // POLLING DAY IS AN ERRAND (see the POLLING DAY block). The table is at
   // POLL_X and the crab has to walk there, which means turnout is decided by
@@ -8420,7 +8439,7 @@ function pickErrand(c) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
-  let best = null, bestScore = 0;   // the chaining pick: best urgency per unit of detour
+  let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
   // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
   // slice 4): strict > means the FIRST candidate at a score keeps it, and the
   // take() sequence above is fixed, so an exact tie - far likelier now that
@@ -8428,7 +8447,7 @@ function pickErrand(c) {
   // every engine, every run. Do not "fix" this to >= without a new tie rule.
   for (const e of cand) {
     const s = errandScore(c, e);
-    if (s > bestScore) { bestScore = s; best = e; }
+    if (ratGt(s.n, s.d, bestN, bestD)) { bestN = s.n; bestD = s.d; best = e; }
   }
   return best;
 }
@@ -8656,7 +8675,7 @@ function updateErrand(c, dt) {
       }
       const cust = { biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
         need: c.errand.need, x: c.x, spawnX: c.x, state: "waiting",
-        patience: 90, maxPatience: 90, claimed: false, served: false, server: null };   // locals will wait
+        patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null };   // locals will wait
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
       customers.push(cust); noteArrival(c.errandBiz);
       c.errandCust = cust; c.dayState = "errand";
@@ -9273,9 +9292,11 @@ function pickSeat(tables, cust) {
 }
 // ...and a tourist being served BY one runs out of patience quicker, on the
 // same ramp the bubble opens on (up to +30% at a pinned 1.00).
-function serverFilth(k) {
+function serverFilthQ12(k) {
+  // 1 + 0.3 * berthRatio, exact in Q12: 0.3 is 3/10 and the berth is already
+  // an int, so the multiplier is 4096 + idiv(3 * 4096 * berth, 10 * BERTH_PX * Q8)
   const s = k.server;
-  return s && s.p && !k.isCrab ? 1 + PATIENCE_FILTH * (crabBerthQ8(s) / (BERTH_PX * Q8)) : 1;
+  return s && s.p && !k.isCrab ? 4096 + idiv(3 * 4096 * crabBerthQ8(s), 10 * BERTH_PX * Q8) : 4096;
 }
 // ------------------------------------------------- busing (the fancier tier)
 // A vacated table is DIRTY and seats nobody until a staff crab clears it -
@@ -9355,7 +9376,7 @@ function updateKitchen(c, dt) {
       // crabs STAND is a look; who gets served is the economy. See PLAN.
       const pending = customers.filter(k => k.biz === bizKey &&
         (k.state === "waiting" || k.state === "seatedWaiting") && !k.claimed && !k.served);
-      const o = pending.find(k => k.isCrab && k.patience < k.maxPatience * 0.5)
+      const o = pending.find(k => k.isCrab && 2 * k.patience < k.maxPatience)
         || pending.find(k => !k.isCrab) || pending[0];
       // TURNING THE ROOM, when the room is what the queue is waiting for.
       // Busing ONLY in the lull measured as a death spiral for table service:
@@ -9751,7 +9772,8 @@ function payAndBenefit(c, cust) {
     // slice 3, when needs become Q20. Everything after this line is exact
     // integer arithmetic on a price that is already cents, and the worst-case
     // numerator is about 1.2e12 - comfortably inside the exact-integer range.
-    const PR = Math.max(0, Math.min(65536, Math.round(65536 * (cust.patience / cust.maxPatience))));
+    const PR = cust.patience >= cust.maxPatience ? 65536
+      : Math.max(0, idiv(131072 * cust.patience + cust.maxPatience, 2 * cust.maxPatience));   // exact round-half-up of 65536*p/maxP; the >= branch also keeps the suite's 9e9 sentinel out of the 2^53 window
     const TM = Math.max(0, Math.round(65536 * tipMult));
     const F = Math.floor(PR * TM / 65536);   // the two folded into one Q16 factor
     const counterN = (seated || window._fullCounterTip) ? 20 : 3;   // TIP_COUNTER 0.15 = 3/20 exactly
@@ -10098,7 +10120,7 @@ function newVisitor(overnightOnly, cu) {
     x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
     state: "ashore",
     // the shop pipeline's own fields, dormant until they join a line
-    biz: null, recipe: null, patience: VIS_PATIENCE, maxPatience: VIS_PATIENCE,
+    biz: null, recipe: null, patience: VIS_PATIENCE * PQ, maxPatience: VIS_PATIENCE * PQ,
     claimed: false, served: false, happy: false, server: null, table: null, stall: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
@@ -10677,7 +10699,7 @@ function updateVisitor(k, dt) {
     // five different y values reads as a huddle however even the spacing is.
     // Everybody in a line stands ON the boardwalk line.
     k.wy = FLOOR_Y;
-    k.patience = VIS_PATIENCE; k.maxPatience = VIS_PATIENCE;
+    k.patience = VIS_PATIENCE * PQ; k.maxPatience = VIS_PATIENCE * PQ;
     queueJoin(k);   // the ticket is stamped HERE, not when their ferry docked
     stayQueued(k);  // ...and so is the clock the departure card quotes
     noteArrival(k.biz);
@@ -10773,7 +10795,7 @@ function newCustomer(bizKey) {
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animT: srand() * 9,
-    x: spawnX, spawnX, state: "arriving", patience: 50, maxPatience: 50,
+    x: spawnX, spawnX, state: "arriving", patience: 50 * PQ, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null };
 }
@@ -10810,7 +10832,7 @@ function updateCustomers(dt) {
           popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
         }
       } else {
-        k.patience -= dt * (bizStaffed(k.biz) ? 1 : 6) * serverFilth(k);   // nobody home? give up quick
+        k.patience -= idiv(dtT * (bizStaffed(k.biz) ? 1 : 6) * serverFilthQ12(k), 20);   // nobody home? give up quick (dt*mult*filth in Q12: dtT/20 s x filthQ)
         if (k.patience <= 0) {
           k.state = "leaving"; k.happy = false; k.claimed = false;
           if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
@@ -10860,7 +10882,7 @@ function updateCustomers(dt) {
       if (Math.abs(dxs2) > 2) k.x = (k.x * Q8 + Math.sign(dxs2) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs2) * Q8))) / Q8;
       else k.state = "seatedWaiting";
     } else if (k.state === "seatedWaiting") {
-      k.patience -= dt * 0.35 * serverFilth(k);   // seated guests relax
+      k.patience -= idiv(7 * dtT * serverFilthQ12(k), 400);   // seated guests relax (0.35 = 7/20, over 20 ticks/s)
       if (k.patience <= 0) {
         k.state = "leaving"; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }
@@ -13058,7 +13080,7 @@ function drawCustCard(k) {
   // ...and the same on the visitor's card, which had the same collision with a
   // slice(0, 9) in place of a measurement: TIDEPOOL is 47px from x29 and
   // DELIGHTED starts at x69.
-  const mood = !k.served && k.recipe && k.patience < 15 ? ["STEAMED", [190, 80, 80]]
+  const mood = !k.served && k.recipe && k.patience < 15 * PQ ? ["STEAMED", [190, 80, 80]]
     : k.visitor ? visCondition(k)
     : k.happy || k.served ? ["HAPPY", [40, 150, 70]] : ["VISITING", [110, 110, 130]];
   const cMoodX = 104 - smallTextWidth(mood[0]);
@@ -13078,7 +13100,7 @@ function drawCustCard(k) {
   smallText(ctx, "WANTS: " + (ITEM_NAMES[k.recipe.icon] || "?") + " $" + $d(menuPrice(k.biz, k.recipe)), 29, 28, [140, 110, 40]);
   smallText(ctx, "PATIENCE", 6, 44, [110, 110, 130]);
   rect(ctx, 40, 45, 60, 4, [30, 20, 36]);
-  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50)));
+  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50 * PQ)));
   rect(ctx, 41, 46, Math.round(58 * pf), 2, pf > 0.5 ? [96, 200, 120] : pf > 0.25 ? [235, 200, 90] : [235, 90, 90]);
   smallText(ctx, "MORE>", 126 - smallTextWidth("MORE>"), 52, [150, 140, 160]);   // its own row: the need bars own y44-49
 }
@@ -14103,12 +14125,12 @@ function drawCustDossier(k) {
   };
   row("NOW", custStatus(k).slice(0, 32), [70, 90, 130]);
   row("ORDER", (ITEM_NAMES[k.recipe.icon] || "?") + " - $" + $d(menuPrice(k.biz, k.recipe)) + (k.served ? " - PAID" : ""), [140, 110, 40]);
-  row("MOOD", !k.served && k.patience < 15 ? "ABOUT TO WALK OUT" : k.happy || k.served ? "HAVING A GREAT TIME" : "WAITING PATIENTLY",
-    !k.served && k.patience < 15 ? [190, 80, 80] : [40, 150, 70]);
+  row("MOOD", !k.served && k.patience < 15 * PQ ? "ABOUT TO WALK OUT" : k.happy || k.served ? "HAVING A GREAT TIME" : "WAITING PATIENTLY",
+    !k.served && k.patience < 15 * PQ ? [190, 80, 80] : [40, 150, 70]);
   ly += 2;
   smallText(ctx, "PATIENCE", x + 8, ly, [110, 110, 130]);
   rect(ctx, x + 44, ly, 100, 5, [30, 20, 36]);
-  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50)));
+  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50 * PQ)));
   rect(ctx, x + 45, ly + 1, Math.round(98 * pf), 3, pf > 0.5 ? [96, 200, 120] : pf > 0.25 ? [235, 200, 90] : [235, 90, 90]);
   ly += 10;
   smallText(ctx, "WORD OF MOUTH: TOURISTS WHO LEAVE HAPPY", x + 8, ly, [90, 90, 105]); ly += 7;

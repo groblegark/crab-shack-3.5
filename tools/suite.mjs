@@ -3095,8 +3095,8 @@ scenario("routes: the detour term is load-bearing - near beats slightly-better f
     c.p.house = 0; c.p.homeless = false; c.dayState = "home";
     c.p.hunger = qn(0.6); c.p.sick = null;
     c.x = SOUP_X + 8; c.y = 160;                      // stood by the near stop
-    const near = { soup: true, need: "food", appeal: 0.9 };
-    const far  = { biz: "shack", need: "food", appeal: 1.0 };
+    const near = { soup: true, need: "food", ap100: 90 };
+    const far  = { biz: "shack", need: "food", ap100: 100 };
     return { sn: errandScore(c, near), sf: errandScore(c, far),
              dn: errandDetour(c, near), df: errandDetour(c, far),
              lvl: needLevel(c, "food") };
@@ -3106,8 +3106,11 @@ scenario("routes: the detour term is load-bearing - near beats slightly-better f
   // the far stop is genuinely better at zero detour (0.9 < 1.0 on equal need)
   const zeroDetourFarWins = 1.0 * (4 * 1048576 + r.lvl) > 0.9 * (4 * 1048576 + r.lvl);
   if (!zeroDetourFarWins) return "staging broke: far would not win even undetoured";
-  return r.sn > r.sf ? true
-    : "the near stop lost (near " + r.sn.toFixed(0) + " vs far " + r.sf.toFixed(0) + ") - the detour term is not biting";
+  // scores are exact rationals now (slice 5): compare by cross-multiplied
+  // quotient/remainder, the same ratGt the argmax uses
+  const gt = sim.G(`ratGt(${r.sn.n}, ${r.sn.d}, ${r.sf.n}, ${r.sf.d})`);
+  return gt ? true
+    : "the near stop lost (near " + (r.sn.n / r.sn.d).toFixed(0) + " vs far " + (r.sf.n / r.sf.d).toFixed(0) + ") - the detour term is not biting";
 });
 
 scenario("routes: a full town walks less per crab-day (no systematic backtracking)", () => {
@@ -4508,7 +4511,7 @@ scenario("tips: the counter gets a token, the table gets the lot", () => {
     c.p.dirt = 0; c.p.tired = 0;              // no fumble multipliers in play
     BIZ.shack.tipShare = 0;                    // the whole tip to the till
     const r = BIZ.shack.recipes.find(x => x.id === "taco");
-    const mk = (state) => ({ biz: "shack", recipe: r, state, patience: 40, maxPatience: 50,
+    const mk = (state) => ({ biz: "shack", recipe: r, state, patience: 40 * PQ, maxPatience: 50 * PQ,
       x: 1500, isCrab: false, server: c, claimed: true, served: false });
     const t0 = coins; payAndBenefit(c, mk("seatedWaiting")); const table = coins - t0;
     const t1 = coins; payAndBenefit(c, mk("waiting"));       const counter = coins - t1;
@@ -4550,8 +4553,8 @@ scenario("tips: the sharing slider pays the crab's wallet and the till, exactly"
       setTipShare("shack", share);
       c.p.wallet = 0;
       const t0 = coins;
-      payAndBenefit(c, { biz: "shack", recipe: r, state: "seatedWaiting", patience: 50,
-        maxPatience: 50, x: 1500, isCrab: false, server: c, claimed: true, served: false });
+      payAndBenefit(c, { biz: "shack", recipe: r, state: "seatedWaiting", patience: 50 * PQ,
+        maxPatience: 50 * PQ, x: 1500, isCrab: false, server: c, claimed: true, served: false });
       out.push({ share: bizTipShare("shack"), n: bizTipTwentieths("shack"), till: coins - t0, wallet: c.p.wallet,
         tip: r.pay * 0.5 * TRAITS[c.p.trait].tip, pay: r.pay });
     }
