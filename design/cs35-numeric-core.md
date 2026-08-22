@@ -192,6 +192,14 @@ carry a provisional re-point with the drift receipt in the comment: rep,
 serves, rage and every position byte-identical, money moved by accumulated
 per-sale cent rounding only.
 
+**The one real bug 1b found**: baking `upCost` by exponent priced the chef's
+WIPEOUT rungs at Infinity — the chef exponent is `lvl - 2` and goes negative
+when a town's whole crew dies, which is how a wiped-out town climbs back at
+$15 and $30. A scenario caught it, not a receipt. It is 1a's founding-tills
+lesson from the other end: the dangerous value in a unit conversion is the one
+that looks like it has no unit, and this time it was an array index standing in
+for an exponent that can go below zero.
+
 **The one real bug 1a found**: SUDSY and REEF opened on tills of `200`/`140`
 — cents-as-dollars — so a converted town ran its first days a hundredfold
 poor until the fingerprint caught it. A constant that is *already* a bare

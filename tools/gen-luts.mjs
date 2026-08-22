@@ -20,21 +20,26 @@ function priceAppealLut() {
 }
 
 // upCost: ceil(base * mult^e) with e = lvl (chef: lvl-2), per the UPS table.
-// Emitted per key over every exponent the lvl range can produce.
+// Emitted per key indexed by LEVEL, 0..max inclusive - NOT by exponent. The
+// chef's exponent goes NEGATIVE below level 2, and that is load-bearing: a
+// town whose whole crew has died rehires at half and quarter price, which is
+// how it climbs back out. An exponent-indexed table silently priced that
+// rehire at Infinity and the wipeout-recovery scenario caught it.
 const UPS_DEF = {
-  chef: { base: 60, mult: 2.0, max: 6, exps: [0, 1, 2, 3, 4] },      // lvl 2..6 -> e 0..4
-  grill: { base: 120, mult: 1.6, max: 2, exps: [0, 1, 2] },
-  board: { base: 90, mult: 1.6, max: 2, exps: [0, 1, 2] },
-  table: { base: 60, mult: 1.5, max: 4, exps: [0, 1, 2, 3, 4] },
-  juicebar: { base: 400, mult: 1, max: 1, exps: [0, 1] },
-  arcade: { base: 650, mult: 1, max: 1, exps: [0, 1] },
-  cadegear: { base: 180, mult: 1, max: 1, exps: [0, 1] },
+  chef: { base: 60, mult: 2.0, max: 6, off: 2 },      // lvl 0..6 -> e -2..4
+  grill: { base: 120, mult: 1.6, max: 2, off: 0 },
+  board: { base: 90, mult: 1.6, max: 2, off: 0 },
+  table: { base: 60, mult: 1.5, max: 4, off: 0 },
+  juicebar: { base: 400, mult: 1, max: 1, off: 0 },
+  arcade: { base: 650, mult: 1, max: 1, off: 0 },
+  cadegear: { base: 180, mult: 1, max: 1, off: 0 },
 };
 function upCostTables() {
   const out = {};
   for (const k in UPS_DEF) {
     const u = UPS_DEF[k];
-    out[k] = u.exps.map(e => Math.ceil(u.base * Math.pow(u.mult, e)));
+    out[k] = [];
+    for (let lvl = 0; lvl <= u.max; lvl++) out[k].push(Math.ceil(u.base * Math.pow(u.mult, lvl - u.off)));
   }
   return out;
 }
@@ -56,7 +61,7 @@ const PRICE_APPEAL_Q16 = {`);
 
 // UPGRADE COSTS, BAKED: ceil(base * mult^e), e = lvl (chef: lvl - 2).
 // Same receipt as above; the float formula retires with slice 1.
-const UP_COST_C = {   // integer CENTS per exponent step`);
+const UP_COST_C = {   // integer CENTS, indexed by LEVEL 0..max`);
   const tables = upCostTables();
   for (const k in tables) {
     console.log(`  ${k}: [${tables[k].map(d => d * 100).join(", ")}],`);
@@ -74,15 +79,18 @@ function test() {
   }
   // the 20/n vs 1/(n/20) identity holds exactly for these thirteen values
   const tables = upCostTables();
-  for (const k in tables) tables[k].forEach((v, e) => {
+  for (const k in tables) tables[k].forEach((v, lvl) => {
     n++;
-    const want = Math.ceil(UPS_DEF[k].base * Math.pow(UPS_DEF[k].mult, e));
-    if (v !== want) { console.log(`FAIL  upCost ${k}[${e}] = ${v}, float says ${want}`); fail++; }
+    const want = Math.ceil(UPS_DEF[k].base * Math.pow(UPS_DEF[k].mult, lvl - UPS_DEF[k].off));
+    if (v !== want) { console.log(`FAIL  upCost ${k}[lvl ${lvl}] = ${v}, float says ${want}`); fail++; }
   });
   // documented spot values from the BIZ comment: table $60/90/135/203
   n++;
   const t = tables.table;
   if (!(t[0] === 60 && t[1] === 90 && t[2] === 135 && t[3] === 203)) { console.log("FAIL  table costs moved off the documented 60/90/135/203"); fail++; }
+  // ...and the wipeout rungs: a chef at level 0 and 1 costs $15 and $30
+  n++;
+  if (!(tables.chef[0] === 15 && tables.chef[1] === 30)) { console.log(`FAIL  chef wipeout rungs moved: ${tables.chef[0]}/${tables.chef[1]}`); fail++; }
   console.log(`${n - fail}/${n} passed`);
   process.exit(fail ? 1 : 0);
 }

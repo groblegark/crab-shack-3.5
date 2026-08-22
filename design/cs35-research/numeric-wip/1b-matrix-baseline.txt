@@ -64,4 +64,4 @@ BANKRUPT day 14 (rent $230, had $164, debt $27, rep 89) — chef:2 grill:0 board
 BANKRUPT day 12 (rent $230, had $123, debt $26, rep 100) — chef:2 grill:0 board:0 table:0 juicebar:0 arcade:0 cadegear:0
 >> survived 0/16; eviction days: 8,10,10,11,11,11,12,12,12,12,12,13,13,13,14,17 (median 12)
 >> lifetime $54585; housing boat/house/cot 13/66/52; crew housed 0/32; purse $17668; walkouts 70; quits 1; roomLets 1117; unhoused 490; hotelier 14/16; beds 65 (+1); cabanas 32; rough 57; roomShort 229
-(104317ms total)
+(106066ms total)

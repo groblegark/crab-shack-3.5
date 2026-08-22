@@ -24,8 +24,13 @@
       the rival's CUT and the hotelier's steps walk index steps; both end-stop
       epsilon guards (`PRICE_MIN - 1e-9`, `PRICE_MAX + 1e-9`) retire
 - [x] `priceAppeal` -> baked `PRICE_APPEAL_Q16` (tools/gen-luts.mjs, generator
-      committed beside the table). **The sim's last `Math.pow` is gone.**
-      LUT[20] is exactly 65536, so a town at the default board is bit-identical
+      committed beside the table). LUT[20] is exactly 65536, so a town at the
+      default board is bit-identical
+- [x] `upCost` -> baked `UP_COST_C`, indexed by LEVEL. Slice 1's own site table
+      listed this under 1a and it was carried; it is money, so it closes here.
+      **With it, the money orbit contains no `Math.pow` at all** — the one
+      remaining call in the file is `mistPeak`, which is slice 2's item
+      (formats par.4.3: precomputed int at midnight)
 - [x] save migration: `_grid = 1` beside `_num = 1`. The grids need their own
       flag rather than a sniff because the ranges OVERLAP — a stored tipShare
       of 1 is 100% in the old units and 5% in the new
@@ -33,7 +38,8 @@
       identity on integer cents, but a lie about the unit)
 - [x] scenarios re-expressed at the unit boundary + mutation-tested
 
-**1b IS COMPLETE, AND SLICE 1 IS CLOSED.** Suite **253/253, exit 0** (run2).
+**1b IS COMPLETE, AND SLICE 1 IS CLOSED.** Suite **253/253, exit 0** (run4,
+the final tree; run2 was the same on the tree before `upCost` was baked).
 
 Verification, all ten points of numeric-protocol.md par.2:
 - floor pinned on the landing tree first (it was 1a's verified tree, unchanged)
@@ -56,6 +62,15 @@ Verification, all ten points of numeric-protocol.md par.2:
   and nobody works a minute of overtime in a two-day window
 - cross-engine receipt refreshed on the FINAL tree: both seeds bit-identical
   under JavaScriptCore, whole fingerprint (1b-crossengine.txt)
+- **a second real bug, caught by a scenario rather than by a receipt**: baking
+  `upCost` by EXPONENT priced the chef's wipeout rungs at Infinity. The chef
+  exponent is `lvl - 2` and goes NEGATIVE when a town's whole crew dies — $15
+  and $30 are how a wiped-out town climbs back — so "all crew dead: town
+  survives, rehire recovers" went red and the table was re-baked by LEVEL.
+  Same lesson 1a's founding tills taught, from the other end: in a unit
+  conversion the dangerous value is the one that looks like it has no unit,
+  and here it was an ARRAY INDEX standing in for an exponent that can be
+  below zero
 - three assertions re-expressed, three mutations, all biting:
   * split rounds instead of flooring -> "at 35% the crab pocketed 298,
     expected 297". **The first attempt did NOT bite** — the scenario's shares
