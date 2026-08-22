@@ -27,7 +27,7 @@ import vm from "vm";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const noop = () => {};
-const GAME_FILES = ["font.js", "ppu.js", "sprites.js", "crabs.js", "game.js"];
+const GAME_FILES = ["font.js", "ppu.js", "sprites.js", "crabs.js", "cultureways.js", "game.js"];
 const REALM_DEFAULT = process.env.SIMLIB_REALM === "main" ? "main" : "vm";
 
 export function mulberry32(a) {

@@ -47,7 +47,7 @@ win.performance = { now: function () { return win.simNow; } };
 // jsc has no vm module: the game files are evaluated as one function body with
 // the sandbox destructured in, which is the same lexical deal vm.runInContext
 // gives them (globals declared with let/const/function land on the closure).
-var files = ["font.js", "ppu.js", "sprites.js", "crabs.js", "game.js"];
+var files = ["font.js", "ppu.js", "sprites.js", "crabs.js", "cultureways.js", "game.js"];
 var src = "";
 for (var i = 0; i < files.length; i++) src += readFile(ROOT + files[i]) + "\n;\n";
 var keys = Object.keys(win);
