@@ -4563,7 +4563,7 @@ function restingLabel(b) {
 // cooldown after each, and a roster-sized cap on how many crabs can be on OT,
 // the machine settles into a duty cycle instead of thrashing (suite-proved
 // over 21 days).
-const LABOR_CFG = { OT_ON_TIRED: 0.55, OT_OFF_TIRED: 0.75, OT_ON_HUNGER: 0.5 };
+const LABOR_CFG = { OT_ON_TIRED: qn(0.55), OT_OFF_TIRED: qn(0.75), OT_ON_HUNGER: qn(0.5) };
 let laborPolicyState = {};   // biz -> { cd } (persisted)
 // does tomorrow leave a shift with nobody on it? Days off already promote a
 // coworker to a full-open double (revenue-neutral, free), so the honest gap is
@@ -5492,7 +5492,7 @@ const WANDER_SPOTS = [
 // NOT in the list: dirt is passive and always-on (Rule 2), it never competes
 // for the crab's behaviour - and the town sits near 0.7 dirt permanently, so
 // including it would switch the whole pattern off.
-const BORED_YIELD = 0.8;
+const BORED_YIELD = qn(0.8);
 function boredYields(c) {
   return (c.p.hunger || 0) >= BORED_YIELD || (c.p.thirst || 0) >= BORED_YIELD
     || (c.p.tired || 0) >= BORED_YIELD;
@@ -5982,7 +5982,7 @@ function selfCareNeed(c) {
 }
 // The ramp lived as a per-call closure and profiled at 1% by itself; same
 // float ops in the same order, now allocated once.
-const _dragRamp = (v, at, off) => off ? 1 : 1 - DRAG_MAX * Math.min(1, Math.max(0, (v - at) / (1 - at)));
+const _dragRamp = (v, at, off) => off ? 1 : 1 - DRAG_MAX * Math.min(1, Math.max(0, v - at) / (Q20 - at));
 function needDrag(c) {
   if (_fNoDrag) return 1;   // paired-arm probe (see the anti-spiral suite gate)
   const fixing = _fNoCare ? null : selfCareNeed(c);
