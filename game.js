@@ -9,6 +9,19 @@ const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
+// ---------------------------------------------------------------- the units
+// THE SIM COUNTS IN TICKS (numeric slice 2). Twenty a real second, five a game
+// minute; every duration on this page is an integer count of them. They live
+// up here because the durations do - the first one is forty lines down.
+const TICK_HZ = 20;               // sim ticks per real second
+const SEC = TICK_HZ;              // ...so a duration written in seconds reads as one
+const GMIN = 5;                   // ticks per GAME minute (4 game-minutes a second)
+const TICK_MIN = GMIN;            // the clock's name for the same five
+// THE FRAME'S TICK DELTA, and it is a global for the same reason `dt` was a
+// parameter: every updater in the sim needs it and none of them should be
+// deciding for itself how much time has passed.
+let dtT = 0;
+
 // ---------------------------------------------------------------- geometry
 // The town grew east in 2026-08-19's visitor pass: past the last beach cottage
 // there is now the DRIFTWOOD HOTEL and, off the end of the pier, the mainland
@@ -91,9 +104,9 @@ const TAP_AT = 0.72;         // you'd BUY a drink at 0.45; you trudge to the sta
                              // the counters could not - and it picks it up SLOWLY.
 const TAP_QUENCH = 0.5;     // a mouthful, not a drink: a juice zeroes thirst, water takes
                              // the edge off, so the parched crab is back within the hour
-const TAP_SIP = 6;         // a long draw at the spout - minutes of the working day, gone
+const TAP_SIP = 6 * SEC;   // a long draw at the spout - minutes of the working day, gone
 const TAP_APPEAL = 0.35;      // a poor third to anything a counter can hand you
-const TAP_CD = 20;           // errand cooldown after a sip
+const TAP_CD = 20 * SEC;     // errand cooldown after a sip
 const TAP_RINSE = 0.35;      // a cold rinse under the spout: worse than a $5 shower
 const TAP_RINSE_AT = 0.85;   // ...and only when filthy - the showers own 0.66 upward
 const TAP_RINSE_SICK = 0.66; // an ill crab hoses down at the CARED bar, shower or no shower
@@ -123,8 +136,8 @@ const SOUP_X = SHELTER_X + 10;   // the pot is on the shelter's own step
 const SOUP_AT = 0.80;        // you would BUY a plate at 0.50; you queue here only when starving
 const SOUP_SICK_AT = 0.62;   // ...unless you are ill, when the floor has to be reachable
 const SOUP_FILL = 0.45;      // a thin bowl. A real meal zeroes hunger; this takes the edge off
-const SOUP_MINS = 11;        // longer than TAP_SIP: it is a queue, not a spout
-const SOUP_CD = 20;          // and you cannot live in the line
+const SOUP_MINS = 11 * SEC;  // longer than TAP_SIP: it is a queue, not a spout
+const SOUP_CD = 20 * SEC;    // and you cannot live in the line
 // the memorial plot: three markers to a row on the dune between the last
 // promenade lot (ends x440... the shelter and house 6 fill 444-572) and the
 // town tap at 640, rows stacking up the sand
@@ -884,14 +897,14 @@ const POLL_SHUT = 19 * 60;       // ...and shut an hour before the town does. Th
 const BALLOT_PRICE = 25;      // cents       // a sheet of paper, landed by the ferry like every other import
 const BALLOT_SPARE = 2;          // the clerk always prints a couple over
 
-const VOTE_SECS = 5;             // real seconds at the table - ~20 game minutes to queue, mark a
+const VOTE_SECS = 5 * SEC;       // real seconds at the table - ~20 game minutes to queue, mark a
                                  // paper and drop it in the box. The same units as TAP_SIP and
                                  // BALL_SECS, because it is the same kind of stop.
 const COUNT_MINS = 3;            // GAME minutes to read one paper back out again, by hand. Fourteen
                                  // papers is forty-two minutes, so a town of fourteen knows its own
                                  // mind at about twenty to eight - after the polls shut, before the
                                  // office settles. A town that has grown finds out later.
-const VOTE_CD = 12;              // short on purpose: a civic duty must not crowd out lunch
+const VOTE_CD = 12 * SEC;        // short on purpose: a civic duty must not crowd out lunch
 const VOTE_URGE_HRS = 3;         // the last three hours: now you make a special trip
 const VOTE_BASE = 0.30;          // ...before that it is a thing you do if you happen to be passing
 // WHAT THIS ACTUALLY PRODUCES, measured over 24 polls across 6 seeds and 29
@@ -1729,8 +1742,8 @@ function updatePoll(dt) {
     }
   }
   if (!pollCounting()) return;
-  B.countT += dt * TS;   // the count runs on the town clock, not on frames
-  while (B.counted < B.cast.length && B.countT >= COUNT_MINS) {
+  B.countT += dtT;   // the count runs on the town clock, not on frames
+  while (B.counted < B.cast.length && B.countT >= COUNT_MINS * GMIN) {
     B.countT -= COUNT_MINS;
     const k = B.cands.find(x => x.name === B.cast[B.counted].pick);
     if (k) k.votes++;
@@ -2114,7 +2127,7 @@ function forecastBankruptcy() {
   // day-off skips are noise over a 10-settlement horizon
   const g = sum / n, due = totalRent() + crabs.reduce((s2, c2) => s2 + Math.round(contractPay(c2)), 0);
   // income still to come before the next settlement (the town trades 8:00-20:00)
-  const frac = lastRentDay === day ? 1 : Math.max(0, Math.min(1, (20 * 60 - tmin) / (12 * 60)));
+  const frac = lastRentDay === day ? 1 : Math.max(0, Math.min(1, (12000 - tdgm) / 7200));   // a ramp: deci-minutes
   let c = coins, b = credit.bal;
   for (let d = 0; d < 10; d++) {
     c += g * (d === 0 ? frac : 1);
@@ -4039,12 +4052,16 @@ const TS = 4;                     // game minutes per real second
 // residue across midnight forever. Floored from the master it is exact, and it
 // fires on the same tick the float did - a gate at X minutes fires when
 // tday >= 5X either way.
-const TICK_HZ = 20;               // sim ticks per real second
-const TICK_MIN = 5;               // ticks per game minute (TS=4 -> 60/4/... = 5)
 const DAY_TICKS = 1440 * TICK_MIN;   // 7200, and midnight is exact
 let day = 1, T = 0, tday = 7 * 60 * TICK_MIN;   // start day 1, 7:00
-let tmin = 7 * 60, viewT = 0;     // DERIVED from tday/T - never accumulated
-function reclock() { tmin = (tday - tday % TICK_MIN) / TICK_MIN; viewT = T / TICK_HZ; }
+let tmin = 7 * 60, tdgm = 4200, viewT = 0;   // DERIVED from tday/T - never accumulated
+// tmin is WHOLE game minutes and every shop-hours and shift gate is written in
+// it - all of them land on a whole minute, so the floor is exact there. tdgm is
+// DECI-game-minutes, two a tick, and it exists because three readers are RAMPS
+// rather than gates (darkness, the mist, the rent proration): they were smooth
+// in the float era and flooring them to the minute would coarsen the world by
+// four ticks. Same master clock, two grains, each used where it is exact.
+function reclock() { tmin = (tday - tday % TICK_MIN) / TICK_MIN; tdgm = tday * 2; viewT = T / TICK_HZ; }
 function clockStr() {
   const h = (tmin / 60) | 0, m = tmin % 60 | 0;
   return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
@@ -4249,7 +4266,7 @@ function gravelyIll(c) { return !!c.p.sick && (c.p.sick.days || 0) >= deathArmsA
 //                          bed (house or boat)
 // Nobody's odds got worse - rest is a NEW, better lane, reachable only by
 // actually staying home on a granted sick day. That is what makes it real.
-const REST_HOURS = 9;   // daylight game-hours at home, ill and excused, to count as a day's rest
+const REST_HOURS = 9 * 60 * GMIN;   // daylight game-hours at home, ill and excused, to count as a day's rest
 const CARE_LANES = {
   neglect: { cure: 0.12, die: 0.25, label: "NEGLECTED" },
   cared:   { cure: 0.40, die: 0.08, label: "CARED FOR" },
@@ -4388,13 +4405,13 @@ function contractPay(c) { return wageRate(c) * shiftLoad(c, baseShift(c)); }
 // rate stops existing as a number and becomes the shape of the fraction.
 // `mins` is still a float until slice 2 makes it whole deci-game-minutes;
 // that is the one approximate input left, and the floor below contains it.
-function otPremium(c, mins) {
+function otPremium(c, ticks) {   // ticks in; the minute conversion rides in the divisor
   const span = Math.max(1, ownStdSpan(c));
-  return Math.floor(wageRate(c) * 3 * Math.max(0, mins) / (2 * span));
+  return Math.floor(wageRate(c) * 3 * Math.max(0, ticks) / (2 * span * GMIN));
 }
 function otPayToday(c) { return otPremium(c, c.otMin || 0); }        // truthful: minutes actually worked
 // tonight's forecast: scheduled while they're still on OT, else what they worked
-function otPayForecast(c) { return otEligible(c) ? otPremium(c, otMinutes(c)) : otPayToday(c); }
+function otPayForecast(c) { return otEligible(c) ? otPremium(c, otMinutes(c) * GMIN) : otPayToday(c); }
 
 // ---- WHAT THE REST OF TOWN PAYS -------------------------------------------
 // A wage is only a lever if a crab can tell whether it is a good one, so every
@@ -4689,7 +4706,7 @@ function runWageRelations() {
     const g = c.p.gripe;
     // ---- the warnings, in order, each fired once on the way up
     if (was < WAGE_CFG.GRUMBLE && g >= WAGE_CFG.GRUMBLE) {
-      c.quip = { text: "$" + $d(rate) + "? THE PIER PAYS BETTER", t: 6 };
+      c.quip = { text: "$" + $d(rate) + "? THE PIER PAYS BETTER", t: 6 * SEC };
       today.moved.push(c.p.name + " IS GRUMBLING ABOUT $" + $d(rate));   // DIARY HOOK: first grumble
     } else if (was < WAGE_CFG.WARN && g >= WAGE_CFG.WARN) {
       toast = { text: c.p.name + " IS ASKING AROUND - $" + $d(rate) + " ISN'T ENOUGH", t: 8 };
@@ -4786,10 +4803,10 @@ function runWagePolicy(b) {
     .push({ day, biz: b, rate: bizWage(b), line });
 }
 function darkness() { // 0 = day, 1 = full night
-  const t = tmin;
-  if (t >= 5.5 * 60 && t < 7 * 60) return 1 - (t - 5.5 * 60) / 90;
-  if (t >= 7 * 60 && t < 18.5 * 60) return 0;
-  if (t >= 18.5 * 60 && t < 20.5 * 60) return (t - 18.5 * 60) / 120;
+  const t = tdgm;   // deci-minutes: a RAMP, not a gate - it keeps the tick grain
+  if (t >= 3300 && t < 4200) return 1 - (t - 3300) / 900;
+  if (t >= 4200 && t < 11100) return 0;
+  if (t >= 11100 && t < 12300) return (t - 11100) / 1200;
   return 1;
 }
 
@@ -4993,7 +5010,7 @@ function stationCap(bizKey, kind) {
 // $9. The response is chaotic seed to seed (1.0/$9 -> 5/8, 1.2/$10 -> 8/8,
 // 1.5/$12 -> 8/8), so these two were chosen where the curve sits: 4/8 at day
 // 40 with baseline still 0/16. Only the feature's own knobs moved.
-const BUS_SECS = 1.3;   // clearing a table is a swipe of the plates, not a shower-stall scrub
+const BUS_SECS = 1.3 * SEC;   // clearing a table is a swipe of the plates, not a shower-stall scrub
 // The shack opens with TABLE_BASE tables; more are bought. TABLE_BASE stays
 // at TWO through the busing pass, and that was measured rather than assumed:
 // a third starting table was tried as compensation for the labour cost and
@@ -5438,8 +5455,8 @@ const WANDER_AT = 0.6;        // restless enough to leave the post
 const WANDER_PX = 340;        // how far off post a wander may take them
 const WANDER_QUIET = 3;       // real seconds the counter must be DEAD first - a
                               // crab doesn't bolt the instant the queue empties
-const WANDER_DWELL = 14;      // ...then 14-24s stood there watching
-const WANDER_CD = 20;         // real seconds back at the post before the next one
+const WANDER_DWELL = 14 * SEC;  // ...then 14-24s stood there watching
+const WANDER_CD = 20 * SEC;   // real seconds back at the post before the next one
                               // (a six-hour shift is only 90 REAL seconds, so these
                               //  three numbers are what set the share of a dead
                               //  spell a crab spends off post: about half)
@@ -5547,10 +5564,10 @@ const BALL_JOIN = 0.48;       // ...but a game already going is worth joining at
 const BALL_YIELD = 0.55;      // ...and any real need outranks it well before boredYields' 0.8
 const BALL_LEAD = 90;         // game-minutes of clear air needed before a shift: the game is ~48
 const BALL_Y = 157;           // up the sand, clear of BOTH travel lanes (146/168, 9px of blocking each)
-const BALL_SECS = 12;         // real seconds stood throwing - ~48 game-minutes
+const BALL_SECS = 12 * SEC;   // real seconds stood throwing - ~48 game-minutes
 const BALL_PAIR = 0.22;       // a real game of catch
 const BALL_SOLO = 0.08;       // ...and knocking it about on your own
-const BALL_CD = 300;          // game minutes: not a career
+const BALL_CD = 300 * GMIN;   // game minutes: not a career
 const BALL_PX = 30;           // close enough to be in the same game
 const BALL_LINES = ["OVER HERE!", "MY CLAW!", "NICE ONE", "TOO HIGH!", "AGAIN!"];
 function ballPlayers() { return allCrabs().filter(k => k.dayState === "atBall"); }
@@ -5577,14 +5594,14 @@ function startBallStop(c) {
 function updateBall(c, dt) {
   if (c.ballT <= 0) {                       // still walking out to it
     if (routedStep(c, crabMove(c), dt)) {
-      c.ballT = BALL_SECS + srand() * 4;
-      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 };
+      c.ballT = BALL_SECS + ((srand() * 4 * SEC) | 0);
+      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 * SEC };
     }
     return;
   }
-  c.ballT -= dt;
+  c.ballT -= dtT;
   if (((c.ballT * 2) | 0) % 7 === 0 && srand() < 0.02)
-    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 };
+    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 * SEC };
   if (c.ballT > 0) return;
   // WHO ELSE IS OUT HERE decides what it was worth
   const mate = ballPlayers().find(k => k !== c && k.ballT > 0 && Math.abs(k.x - c.x) <= BALL_PX);
@@ -5592,19 +5609,19 @@ function updateBall(c, dt) {
   c.p.bored = Math.max(0, (c.p.bored || 0) - relief);
   crabLog(c, "need", mate ? "PLAYED CATCH WITH " + mate.p.name : "KNOCKED THE BEACH BALL ABOUT", 0);
   popText(mate ? "GAME OF CATCH" : "A FEW THROWS", c.x - 16, FLOOR_Y - 30, [255, 210, 140]);
-  c.quip = { text: mate ? "SAME TIME TOMORROW" : "NEEDED A PARTNER", t: 2.4 };
+  c.quip = { text: mate ? "SAME TIME TOMORROW" : "NEEDED A PARTNER", t: 2.4 * SEC };
   if (window._stats) {
     window._stats.ballGames = (window._stats.ballGames || 0) + 1;
     if (mate) window._stats.ballPairs = (window._stats.ballPairs || 0) + 1;
   }
-  c.ballT = 0; c.errandCd = 4; c.ballCd = BALL_CD;
+  c.ballT = 0; c.errandCd = 4 * SEC; c.ballCd = BALL_CD;
   c.dayState = "home";
   afterErrand(c, true);
 }
 // ---- CHATTER (the time-priced cure) ---------------------------------------
 const CHAT_AT = 0.55;         // both parties have to actually want the company
 const CHAT_PX = 26;           // close enough to fall into step
-const CHAT_SECS = 10;         // 10-16 real seconds = 40-64 GAME-MINUTES of the day
+const CHAT_SECS = 10 * SEC;   // 10-16 real seconds = 40-64 GAME-MINUTES of the day
 const CHAT_RELIEF = 0.06;     // modest, and deliberately under half a shift's +0.2
 const CHAT_CD = 360;          // game minutes: at most twice in a trading day
 const CHAT_LINES = ["YOU'LL NEVER GUESS", "SHE DIDN'T!", "...ANYWAY",
@@ -5629,13 +5646,13 @@ function chatReady(c) {
 function startChat(a, b) {
   for (const [c, o] of [[a, b], [b, a]]) {
     c.chatFrom = c.dayState; c.dayState = "chat";
-    c.chatWith = o; c.chatT = CHAT_SECS + srand() * 6;
+    c.chatWith = o; c.chatT = CHAT_SECS + ((srand() * 6 * SEC) | 0);
     c.chatCd = CHAT_CD; c.chatLine = 0;
     c.wander = null; c.wanderT = 0;   // the conversation IS the wander now
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0;
     setT(c, c.x, c.y);
   }
-  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 };
+  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 * SEC };
   if (window._stats) window._stats.chats = (window._stats.chats || 0) + 1;
 }
 function endChat(c, paid) {
@@ -5655,12 +5672,12 @@ function endChat(c, paid) {
 function updateChat(c, dt) {
   const o = c.chatWith;
   if (!o || o.dayState !== "chat" || o.chatWith !== c) { endChat(c, false); return; }
-  c.chatT -= dt;
+  c.chatT -= dtT;
   // alternate the bubbles so it reads as a conversation, not two monologues
   const beat = Math.floor((CHAT_SECS + 6 - c.chatT) / 3.5);
   if (beat > c.chatLine && !c.quip && !o.quip) {
     c.chatLine = beat;
-    c.quip = { text: CHAT_LINES[(beat + (c.p.name.length % 3)) % CHAT_LINES.length], t: 2.4 };
+    c.quip = { text: CHAT_LINES[(beat + (c.p.name.length % 3)) % CHAT_LINES.length], t: 2.4 * SEC };
   }
   if (c.chatT <= 0) endChat(c, true);
 }
@@ -5669,8 +5686,8 @@ function updateChat(c, dt) {
 function runChatter(dt) {
   const all = allCrabs();
   for (const c of all) {
-    if ((c.chatCd || 0) > 0) c.chatCd -= dt * TS;
-    if ((c.ballCd || 0) > 0) c.ballCd -= dt * TS;
+    if ((c.chatCd || 0) > 0) c.chatCd -= dtT;
+    if ((c.ballCd || 0) > 0) c.ballCd -= dtT;
   }
   for (let i = 0; i < all.length; i++) {
     const a = all[i];
@@ -5711,7 +5728,7 @@ const NOD_AT = 0.96;
 // town-day. The rate has never been what makes nods rare - being past the nod
 // line while actually mid-task is, and the housing rung is what decides that.
 const NOD_RATE = 0.03;
-const NOD_MIN = 2, NOD_SPAN = 3;   // 2-5 seconds, hard-capped: a stall, never a jam
+const NOD_MIN = 2 * SEC, NOD_SPAN = 3 * SEC;   // 2-5 seconds, hard-capped: a stall, never a jam
 // the states where a nod actually COSTS something - mid-task, mid-carry, or
 // holding a station. Never "idle" (a nod on a dead counter costs nobody
 // anything) and never waitSlot/waitCash (they hold nothing).
@@ -5744,7 +5761,7 @@ function sleepRough(c) {
   c.hidden = false; c.cstate = ""; c.busFrom = -1; c.busTo = -1;
   c.dayState = "home"; c.duty = false; c.pendingOff = false;
   c.y = clampY(c.y); setT(c, c.x, c.y);
-  c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 };
+  c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 * SEC };
   popText("TOO TIRED TO GET HOME", c.x - 22, c.y - 26, [190, 160, 230]);
   if (window._stats) window._stats.roughNights = (window._stats.roughNights || 0) + 1;
 }
@@ -5782,20 +5799,20 @@ function updateHome(c, dt) {
   if (c.p.rough) {
     if (darkness() >= 0.5) { setT(c, c.x, c.y); return; }
     c.p.rough = false;   // up with the light, stiff, and none the better for it
-    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(srand() * 3) | 0], t: 3 };
+    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(srand() * 3) | 0], t: 3 * SEC };
   }
   // a day off is for the beach: after the lie-in, amble the sand near home
   // between errands instead of pacing the porch. A WALK-OUT spends the day
   // exactly the same way - that is the whole point of taking one.
   if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
-    if (c._offPause > 0) { c._offPause -= dt; return; }
+    if (c._offPause > 0) { c._offPause -= dtT; return; }
     if (c._offWt == null) {
       c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + srand() * 240 - 120));
       c._offWy = clearSpotY(c._offWt, 150 + srand() * 16);   // amble on the sand, not through the picnic tables
       setT(c, c._offWt, c._offWy);
     }
     if (routedStep(c, crabMove(c) * 0.55, dt)) {
-      c._offWt = null; c._offPause = 2 + srand() * 5;
+      c._offWt = null; c._offPause = 2 * SEC + ((srand() * 5 * SEC) | 0);
     }
     return;
   }
@@ -5817,13 +5834,13 @@ function updateHome(c, dt) {
   // ladder reads (night sleep is everyone's, so it would prove nothing). A
   // crab who commuted in and worked banks a couple of hours either side of
   // their shift and never reaches REST_HOURS; a crab who stayed home does.
-  if (c.p.sick && darkness() < 0.7) c.p.restT = (c.p.restT || 0) + dt * TS / 60;
+  if (c.p.sick && darkness() < 0.7) c.p.restT = (c.p.restT || 0) + dtT;
   const s = homeSpot(c);
   // SLEEP repairs TIRED: bedded down for the night, exhaustion drains away -
   // full rate in your own bed (house/boat), half on a shelter cot
   if (darkness() > 0.7 && (c.p.tired || 0) > 0) {
     const rate = c.p.homeless ? TIRED_DRAIN.cot : TIRED_DRAIN.bed;
-    c.p.tired = Math.max(0, (c.p.tired || 0) * (1 - rate * dt * TS / 60));
+    c.p.tired = Math.max(0, (c.p.tired || 0) * (1 - rate * dtT / (60 * GMIN)));
   } else if ((c.p.tired || 0) > 0 && Math.abs(c.x - s.x) < 20) {
     // ...AND SO DOES A DAYTIME NAP. Rest was gated on the SUN, not on being
     // home: a morning crab's long free afternoon indoors repaired nothing
@@ -5833,7 +5850,7 @@ function updateHome(c, dt) {
     // fraction of the bedtime rate (a nap on the porch is not a night's
     // sleep) and keeps the same housing rung: a cot naps worse than a bed.
     const rate = c.p.homeless ? TIRED_NAP.cot : TIRED_NAP.bed;
-    c.p.tired = Math.max(0, (c.p.tired || 0) * (1 - rate * dt * TS / 60));
+    c.p.tired = Math.max(0, (c.p.tired || 0) * (1 - rate * dtT / (60 * GMIN)));
   }
   routedWalk(c, s.x, s.y, crabMove(c) * 0.7, dt);
 }
@@ -6532,7 +6549,7 @@ function save() {
     // integer cents; an envelope without this flag is float dollars and gets
     // the one-shot migration in load(). Staged counter, per the protocol:
     // 2 will be ticks, 3 Q-needs, 4 Q-positions.
-    _num: 1,
+    _num: 2,
     // THE GRIDS (slice 1b): tipShare rides as int TWENTIETHS and price as the
     // int board INDEX. Both used to be float fractions whose ranges overlap
     // the new integers (a tipShare of 1 is 100% in the old units and 5% in the
@@ -6651,6 +6668,20 @@ function save() {
 }
 let sudsRefunded = false;   // laundromat-removal migration: refund paid out (persisted)
 let firstPour = false;      // the juice bar's first-ever drink (persisted: one headline per town)
+// NUMERIC SLICE 2 (ticks): every persisted clock crosses to the tick grain.
+// tmin is stored in whole game minutes and STAYS there - it is the domain's
+// own unit and the tick of day is rebuilt from it exactly (5 ticks a minute).
+function ticksEnvelope(s) {
+  const M = 5, H = 300;   // ticks per game minute / per game hour
+  if (s.ferry) s.ferry.t = Math.round((+s.ferry.t || 0) * M);
+  for (const p of s.personas || []) {
+    if (p.restT) p.restT = Math.round(p.restT * H);
+    if (p.otMin) p.otMin = Math.round(p.otMin * M);
+  }
+  for (const st of (s.stays || [])) if (st.mi != null && st.mi < 99999) st.mi = Math.round(st.mi * M);
+  s._num = 2;
+}
+
 // NUMERIC SLICE 1 (cents), stage one of two. An envelope without `_num` is a
 // float-dollar town: every money field is scaled to cents HERE, on the parsed
 // envelope, BEFORE hydration - so every clamp downstream reads the unit it
@@ -6712,8 +6743,14 @@ function load(slot) {
   if (!Array.isArray(s.personas) || !s.personas.length) return false;   // reject before touching state
   const preCents = !s._num;
   if (preCents) centsEnvelope(s);
+  // NUMERIC SLICE 2 (ticks). The four persisted clocks were hours, game
+  // minutes and game minutes; they are tick counts now. Staged on the same
+  // `_num` counter slice 1 built, so a float-era save walks both steps.
+  if (!s._num || s._num < 2) ticksEnvelope(s);
   coins = s.coins || 0; lifetime = s.lifetime || 0;
-  day = s.day || 1; tmin = s.tmin != null ? s.tmin : 7 * 60;
+  day = s.day || 1;
+  tday = Math.max(0, Math.min(DAY_TICKS - 1, Math.round((s.tmin != null ? s.tmin : 7 * 60) * TICK_MIN)));
+  reclock(); mistRoll();
   // an old save has no midnight mark: open the day here rather than pretend
   // the town has earned nothing, which would read as a huge false loss
   dayOpen = typeof s.dayOpen === "number" ? s.dayOpen : coins;
@@ -7229,8 +7266,8 @@ function quipContext(c) {
   return "commute";
 }
 function maybeQuip(c, dt) {
-  if (c.quip) { c.quip.t -= dt; if (c.quip.t <= 0) c.quip = null; }
-  c.quipT -= dt;
+  if (c.quip) { c.quip.t -= dtT; if (c.quip.t <= 0) c.quip = null; }
+  c.quipT -= dtT;
   if (c.quipT <= 0 && !c.hidden) {
     const isNight = darkness() > 0.7 && c.dayState === "home";
     let lines = isNight ? ["ZZZ..."] : TRAITS[c.p.trait].quips[quipContext(c)];
@@ -7246,8 +7283,8 @@ function maybeQuip(c, dt) {
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
     if ((c.p.thirst || 0) >= 0.8 && !isNight)
       lines = ["PARCHED...", "SO DRY", "JUICE. PLEASE."];
-    c.quip = { text: lines[(srand() * lines.length) | 0], t: 2.6 };
-    c.quipT = 14 + srand() * 18;
+    c.quip = { text: lines[(srand() * lines.length) | 0], t: 2.6 * SEC };
+    c.quipT = 14 * SEC + ((srand() * 18 * SEC) | 0);
   }
 }
 
@@ -7449,8 +7486,8 @@ function updateCommute(c, dt) {
   const m = c.p.mode, tr = TRAITS[c.p.trait];
   const wspd = crabMove(c), vspd = MODES[m].speed * tr.move;
 
-  if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3;
-  if (c.pauseT > 0) { c.pauseT -= dt; return; }
+  if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3 * SEC;
+  if (c.pauseT > 0) { c.pauseT -= dtT; return; }
 
   if (c.cstate === "travel") {           // walking the whole way
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, toWork);
@@ -7490,14 +7527,14 @@ function arriveCommute(c, atWork) {
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
-    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 + srand() * 6; }
+    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 * SEC + ((srand() * 6 * SEC) | 0); }
   }
   else { c.dayState = "home"; }
 }
 
 function updateBus(dt) {
   if (bus.state === "dwell") {
-    bus.dwellT -= dt;
+    bus.dwellT -= dtT;
     if (bus.dwellT <= 0) { bus.state = "drive"; bus.passed = false; }
     return;
   }
@@ -7507,7 +7544,7 @@ function updateBus(dt) {
   for (const s of BUS_STOPS) {
     const crossed = (prevCx - s) * (cx - s) <= 0;   // stop lies within this frame's travel
     if (crossed && bus.lastStop !== s) {
-      bus.state = "dwell"; bus.dwellT = 2.0; bus.lastStop = s;
+      bus.state = "dwell"; bus.dwellT = 2.0 * SEC; bus.lastStop = s;
       bus.x = s - BUS2.w / 2;
       return;
     }
@@ -7548,7 +7585,7 @@ function runJobBoard() {
         jobBoard.splice(jobBoard.indexOf(j), 1);   // price came back down; so does the posting
       } else if (j.day < day && npcs.length < 8) {
         const hire = spawnDrifter();
-        hire.quip = { text: "HEARD THE FISH ARE PAYING", t: 4 };
+        hire.quip = { text: "HEARD THE FISH ARE PAYING", t: 4 * SEC };
         jobBoard.splice(jobBoard.indexOf(j), 1);
       }
       continue;
@@ -7651,7 +7688,7 @@ function convertTourist(k) {
   // the person you were watching is still the person you're watching
   if (followCust === k) { followCust = null; followIdx = crabs.length - 1; followNpc = null; }
   if (dossier === k) dossier = c;
-  c.quip = { text: "I LIVE HERE NOW!", t: 3 };
+  c.quip = { text: "I LIVE HERE NOW!", t: 3 * SEC };
   crabLog(c, "life", "TRADED A HOLIDAY FOR AN APRON - HIRED", 0);   // DIARY
   return c;
 }
@@ -7757,7 +7794,7 @@ function updateSchedule(c, dt) {
     // knocks off early is paid for what they actually did
     const ds = dutyShift(c);
     const onOT = otEligible(c) && (tmin < ds.start || tmin >= ds.end);
-    if (onOT) c.otMin = (c.otMin || 0) + dt * TS;
+    if (onOT) c.otMin = (c.otMin || 0) + dtT;
     // TIREDNESS ACCRUES WHILE YOU WORK, not in a lump at knock-off. The TOTAL
     // is mathematically identical - TIRED_SHIFT / ownStdSpan per game-minute,
     // integrated across the shift, IS TIRED_SHIFT * workLoad, and the overtime
@@ -7775,7 +7812,7 @@ function updateSchedule(c, dt) {
     // cot you wake around 0.5 and cross the nod line halfway through every
     // shift; out of your own bed you wake near 0.05 and never do.
     c.p.tired = Math.min(1, (c.p.tired || 0)
-      + TIRED_SHIFT / ownStdSpan(c) * (onOT ? OT_FATIGUE : 1) * dt * TS);
+      + TIRED_SHIFT / ownStdSpan(c) * (onOT ? OT_FATIGUE : 1) * dtT / GMIN);
   }
   if (c.dayState === "working" && tmin >= sh.end) c.pendingOff = true;
   if (c.dayState === "working" && c.pendingOff && c.kstate === "idle") {
@@ -7802,7 +7839,7 @@ function updateSchedule(c, dt) {
     // tiredness because the last two hours are the ones that break you.
     // Under default hours with no cover this is byte-for-byte the old numbers.
     logShiftEnd(c);   // DIARY
-    const load = shiftLoad(c), otF = (c.otMin || 0) / ownStdSpan(c);
+    const load = shiftLoad(c), otF = (c.otMin || 0) / GMIN / ownStdSpan(c);
     c.p.hunger = Math.min(1, (c.p.hunger || 0) + 0.25 * (load + otF));  // a shift works up an appetite - a long one, more
     // ...and thirst still reads how tired they were CLOCKING IN, never how
     // tired the shift left them. That is exactly what the old "checked
@@ -7836,25 +7873,25 @@ function updateSchedule(c, dt) {
     // the crew sets up (pre-hours behavior, kept bit-for-bit)
     const e = pickErrand(c);
     if (e && e.need === "food" && townCatch > 2) {
-      c.errandCd = 3;   // lunch is in the crate - updateFishing roasts it at 0.55
+      c.errandCd = 3 * SEC;   // lunch is in the crate - updateFishing roasts it at 0.55
     } else if (e && e.need === "fun" && trade.price >= FISH_IMPORT - 100) {   // within a dollar of the ceiling
       // opportunity cost: skip the fun break while the water's paying
       if (c.priceQuipDay !== day) {
         c.priceQuipDay = day;
-        c.quip = { text: "THE WATER'S MONEY TODAY", t: 3 };
+        c.quip = { text: "THE WATER'S MONEY TODAY", t: 3 * SEC };
       }
-      c.errandCd = 8;
+      c.errandCd = 8 * SEC;
     } else if (e && !e.selfCook) {
-      c.duty = false; c.errandCd = 6;
+      c.duty = false; c.errandCd = 6 * SEC;
       c.dayState = "home";
       beginErrand(c, e, false);   // a fisher's water stop is the pier tap, ten paces off the rail
-    } else c.errandCd = 3;
+    } else c.errandCd = 3 * SEC;
   }
   // (an owner-operator used to top her pocket up from her till here. One
   // wallet: the shop's money is already in her pocket, so this was moving
   // money from an account to itself.)
   // off-duty errands, while town is open and it's not almost shift time
-  if (c.errandCd > 0) c.errandCd -= dt;
+  if (c.errandCd > 0) c.errandCd -= dtT;
   // A SICK DAY IS NOT A SHIFT (Matt, 2026-08-19: "I feel like sick crabs dont
   // get food or clean or anything"). `off` deliberately excludes illness, so
   // that a sick crab does not get a day-off crab's SPENDING thresholds - they
@@ -7870,7 +7907,7 @@ function updateSchedule(c, dt) {
   const townAwake = townOpen() || (tmin >= 20 * 60 && tmin < 23 * 60) || (tmin >= 5.5 * 60 && tmin < 8 * 60);
   if (c.dayState === "home" && townAwake && c.errandCd <= 0 && errandWindow) {
     const e = pickErrand(c);
-    if (!beginErrand(c, e, true)) c.errandCd = 2;
+    if (!beginErrand(c, e, true)) c.errandCd = 2 * SEC;
   }
 }
 
@@ -8155,10 +8192,10 @@ function updateSelfCook(c, dt) {
         window._stats.staffMealCost = (window._stats.staffMealCost || 0) + ingredientCost(r.raw);   // cents, like the paid column
         window._stats.lastStaffMeal = { id: r.id, pay, cost: ingredientCost(r.raw) };
       }
-      c.carrying = r.raw; c.cookStep = 1; c.workT = 0.6;
+      c.carrying = r.raw; c.cookStep = 1; c.workT = 0.6 * SEC;
     }
   } else if (c.cookStep === 1) {               // grab
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       const g = tryAcquire(sb, wk);
       if (g >= 0) {
@@ -8168,9 +8205,9 @@ function updateSelfCook(c, dt) {
       }
     }
   } else if (c.cookStep === 2) {               // to the grill (or the juicer)
-    if (routedStep(c, crabMove(c), dt)) { c.workT = c.cookNeed === "drink" ? 1.5 : 3; c.cookStep = 3; }
+    if (routedStep(c, crabMove(c), dt)) { c.workT = (c.cookNeed === "drink" ? 1.5 : 3) * SEC; c.cookStep = 3; }
   } else if (c.cookStep === 3) {               // cook + eat (or blend + drink)
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       release(c); c.carrying = null;
       if (c.cookNeed === "drink" || DRINKS[c.cookRecipe.id]) c.p.thirst = 0;
@@ -8178,10 +8215,10 @@ function updateSelfCook(c, dt) {
       c.cookStep = 0;
       popText(c.cookNeed === "drink" ? "STAFF POUR!" : "STAFF MEAL!", c.x - 8, FLOOR_Y - 30, [140, 255, 160]);
       if (window._stats) window._stats.staffMeals = (window._stats.staffMeals || 0) + 1;
-      c.quip = { text: c.cookNeed === "drink" ? "BARKEEP'S PRIVILEGE" : "CHEF'S PRIVILEGE", t: 2.4 };
+      c.quip = { text: c.cookNeed === "drink" ? "BARKEEP'S PRIVILEGE" : "CHEF'S PRIVILEGE", t: 2.4 * SEC };
       crabLog(c, "need", c.cookNeed === "drink" ? "POURED THEMSELVES A DRINK AT WORK"   // DIARY
         : "COOKED THEMSELVES A STAFF MEAL", 0);
-      c.errandCd = 25; c.dayState = "home";
+      c.errandCd = 25 * SEC; c.dayState = "home";
       startCommute(c, false);
     }
   }
@@ -8226,7 +8263,7 @@ function updateTap(c, dt) {
         if (pollCalled()) ballotBox.late.push(c.p.name);
         crabLog(c, "peril", "GOT TO THE POLLS AND THEY HAD SHUT", 0);   // DIARY
         popText("TOO LATE TO VOTE", c.x - 18, FLOOR_Y - 30, [190, 80, 80]);
-        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 };
+        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 * SEC };
         c.tapStop = null; c.tapT = 0; c.errandCd = VOTE_CD;
         c.dayState = "home"; afterErrand(c, false);
         return;
@@ -8235,7 +8272,7 @@ function updateTap(c, dt) {
     }
     return;
   }
-  c.tapT -= dt;
+  c.tapT -= dtT;
   if (c.tapT > 0) return;
   if (e.vote) {
     // A PAPER, A PENCIL, AND A BOX. The mark is made here and the tally does
@@ -8246,7 +8283,7 @@ function updateTap(c, dt) {
     if (r === "cast") {
       crabLog(c, "life", "VOTED", 0);   // DIARY
       popText("VOTED", c.x - 6, FLOOR_Y - 30, [255, 216, 96]);
-      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(srand() * 3) | 0], t: 2.4 * SEC };
       if (window._stats) window._stats.votesCast = (window._stats.votesCast || 0) + 1;
     } else if (r === "nopaper") {
       // THE PILE RAN OUT. A crab walked the promenade to exercise the one
@@ -8255,7 +8292,7 @@ function updateTap(c, dt) {
       // happen to somebody by name - the same shape as a cold pot.
       crabLog(c, "peril", "CAME TO VOTE AND THE PAPER HAD RUN OUT", 0);   // DIARY
       popText("NO PAPER LEFT", c.x - 14, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(srand() * 3) | 0], t: 2.8 };
+      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(srand() * 3) | 0], t: 2.8 * SEC };
       if (window._stats) window._stats.votesRefused = (window._stats.votesRefused || 0) + 1;
     }
   } else if (e.soup) {
@@ -8265,24 +8302,24 @@ function updateTap(c, dt) {
     if (!takeBowl(c)) {
       crabLog(c, "peril", "THE SHELTER POT WAS COLD", 0);   // DIARY
       popText("THE POT IS COLD", c.x - 16, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(srand() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(srand() * 3) | 0], t: 2.6 * SEC };
     } else {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - SOUP_FILL);
       crabLog(c, "need", "ATE AT THE SHELTER POT", 0);   // DIARY
       popText("SHELTER POT", c.x - 14, FLOOR_Y - 30, [255, 210, 140]);
-      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(srand() * 3) | 0], t: 2.4 * SEC };
     }
   } else if (e.need === "clean") {
     c.p.dirt = Math.max(0, (c.p.dirt || 0) - TAP_RINSE);
     crabLog(c, "need", "RINSED OFF AT " + WATER_TAPS[e.tap].name, 0);   // DIARY
     popText("RINSED OFF", c.x - 12, FLOOR_Y - 30, [150, 210, 255]);
-    c.quip = { text: "COLD! BUT CLEANER", t: 2.4 };
+    c.quip = { text: "COLD! BUT CLEANER", t: 2.4 * SEC };
     if (window._stats) window._stats.tapRinses = (window._stats.tapRinses || 0) + 1;
   } else {
     c.p.thirst = Math.max(0, (c.p.thirst || 0) - TAP_QUENCH);
     crabLog(c, "need", "DRANK AT " + WATER_TAPS[e.tap].name, 0);   // DIARY
     popText("FREE WATER", c.x - 12, FLOOR_Y - 30, [150, 210, 255]);
-    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(srand() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(srand() * 3) | 0], t: 2.4 * SEC };
     if (window._stats) window._stats.tapDrinks = (window._stats.tapDrinks || 0) + 1;
   }
   c.tapStop = null; c.tapT = 0; c.errandCd = e.vote ? VOTE_CD : e.soup ? SOUP_CD : TAP_CD;
@@ -8352,8 +8389,8 @@ function updateErrand(c, dt) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
       const q = customers.filter(k => k.biz === c.errandBiz && (k.state === "waiting" || k.state === "arriving")).length;
       if (q >= QUEUE_MAX) {
-        c.quip = { text: "LINE'S TOO LONG", t: 2.4 };
-        c.errandCd = 12; c.dayState = "home";
+        c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
+        c.errandCd = 12 * SEC; c.dayState = "home";
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
@@ -8371,7 +8408,7 @@ function updateErrand(c, dt) {
       (!w.pendingOff || tmin < effShift(w).end + 45));
     if (!open && k.state === "waiting" && !k.claimed) {
       k.state = "leaving"; k.happy = false;   // kitchen's dark - go home
-      c.quip = { text: "CLOSED?! HMPH", t: 2.2 };
+      c.quip = { text: "CLOSED?! HMPH", t: 2.2 * SEC };
       return;
     }
     if ((k.state === "dining" || k.state === "seatedWaiting" || k.state === "toSeat") && k.table) { c.x = k.table.x + 2; c.y = k.table.y + 1; }
@@ -8386,9 +8423,9 @@ function finishErrand(k) {
   const c = k.crab;
   if (c.errandCust === k) {
     c.hidden = false;
-    c.errandCust = null; c.errandCd = 25;
+    c.errandCust = null; c.errandCd = 25 * SEC;
     if (!k.served) crabLog(c, "peril", "QUEUED AT THE " + BIZ[k.biz].name + " AND GAVE UP", 0);   // DIARY
-    if (!k.served) c.quip = { text: "LINE WAS TOO LONG", t: 2.4 };
+    if (!k.served) c.quip = { text: "LINE WAS TOO LONG", t: 2.4 * SEC };
     c.dayState = "home";
     afterErrand(c, k.served);   // a served crab may chain on; a rage-quit just leaves
   }
@@ -8679,7 +8716,7 @@ function abortChef(c) {
 // crabs only - the townsfolk have their own lives (design choice: NPC agency
 // stays intact; see PLAN). Desktop right-click only this pass: long-press
 // would collide with merge mode's hold gesture, so touch is deferred.
-const ORDER_IDLE = 2.5;   // seconds a directed crab lingers before the schedule reclaims them
+const ORDER_IDLE = 2.5 * SEC;   // seconds a directed crab lingers before the schedule reclaims them
 // Break from ANY current activity, releasing every held resource: station
 // slot + claimed order + cleaning stall (abortChef), errand stall/table/
 // queue ghost (abortErrand), then bus/commute and selfCook state. A chef
@@ -8715,8 +8752,8 @@ function updateDirected(c, dt) {
   const o = c.order;
   if (!o) { c.dayState = "home"; return; }
   if (o.idleT >= 0) {   // arrived: linger a beat, then the schedule reclaims them
-    o.idleT -= dt;
-    if (o.idleT <= 0) { c.order = null; c.dayState = "home"; c.errandCd = Math.max(c.errandCd, 1); }
+    o.idleT -= dtT;
+    if (o.idleT <= 0) { c.order = null; c.dayState = "home"; c.errandCd = Math.max(c.errandCd, 1 * SEC); }
     return;
   }
   if (routedStep(c, crabMove(c), dt)) o.idleT = ORDER_IDLE;
@@ -8808,11 +8845,11 @@ function orderCrab(c, wx, wy) {
 // via stepTo this frame count (deliberate waits - queues, station work, bus
 // stops, trait pauses - never call stepTo), and only with real distance
 // still to cover.
-const STUCK_WINDOW = 1.5;   // seconds of no net progress before a sidestep
+const STUCK_WINDOW = 1.5 * SEC;   // seconds of no net progress before a sidestep
 const STUCK_DIST = 2;       // "no progress" = net displacement under this many px
 const STUCK_FAR = 8;        // only when genuinely underway (target further than this)
 const STUCK_RETRIES = 4;    // sidesteps before giving up with a quip
-const DETOUR_T = 1.0;       // seconds each sidestep waypoint lives
+const DETOUR_T = 1.0 * SEC;  // seconds each sidestep waypoint lives
 // Matt's last-resort valve, on a different clock from the sidestep watchdog:
 // a trip may spend at most this many GAME-minutes bouncing off furniture in
 // total, then the crab squeezes past ("it's cute for ten minutes; all day is
@@ -8837,7 +8874,7 @@ function updateStuck(c, dt) {
     return;
   }
   if (c.detour) {   // sidestep in progress: steer for the waypoint, then resume
-    c.detour.t -= dt;
+    c.detour.t -= dtT;
     const done = stepTo(c, c.detour.x, crabMove(c) * 1.2, dt, c.detour.y);
     if (done || c.detour.t <= 0) c.detour = null;
     c.stuckT = 0; c.stuckRef = null;
@@ -8847,17 +8884,17 @@ function updateStuck(c, dt) {
     Math.abs((c._mx != null ? c._mx : c.x) - c.x) > STUCK_FAR;
   if (!walking) { c.stuckT = 0; c.stuckRef = null; c.stuckN = 0; c.bounceT = 0; return; }
   // bounce budget: count the game-minutes this trip has spent not getting there
-  if (c._blocked) c.bounceT = (c.bounceT || 0) + dt * TS;
+  if (c._blocked) c.bounceT = (c.bounceT || 0) + dtT;
   if ((c.bounceT || 0) >= BOUNCE_BUDGET) {
     c.bounceT = 0; c.stuckT = 0; c.stuckRef = null; c.stuckN = 0; c.detour = null;
     const dir2 = Math.sign((c._mx != null ? c._mx : c.x) - c.x) || 1;
     c.x += dir2 * WARP_PX;   // squeeze through, a shell's width
-    c.quip = { text: "EXCUSE ME", t: 1.8 };
+    c.quip = { text: "EXCUSE ME", t: 1.8 * SEC };
     if (window._stats) window._stats.warps = (window._stats.warps || 0) + 1;
     return;
   }
   if (!c.stuckRef) { c.stuckRef = { x: c.x, y: c.y }; c.stuckT = 0; return; }
-  c.stuckT += dt;
+  c.stuckT += dtT;
   if (Math.hypot(c.x - c.stuckRef.x, c.y - c.stuckRef.y) >= STUCK_DIST) {
     c.stuckRef = { x: c.x, y: c.y }; c.stuckT = 0; c.stuckN = 0;   // real progress: all clear
     return;
@@ -8867,7 +8904,7 @@ function updateStuck(c, dt) {
   c.stuckT = 0; c.stuckRef = null;
   if (c.stuckN > STUCK_RETRIES) {
     c.stuckN = 0;
-    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 * SEC };
     if (c.order) { c.order = null; c.dayState = "home"; }   // a directed crab abandons the order
     return;
   }
@@ -8883,12 +8920,12 @@ function updateFishing(c, dt) {
   // stand at the spot, cast, wait, land one - the town's oldest job
   if (c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; }
   if (c.roastT > 0) {   // lunch is on the driftwood fire
-    c.roastT -= dt;
+    c.roastT -= dtT;
     if (c.roastT <= 0) {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - 0.65);
       crabLog(c, "need", "ROASTED A FRESH CATCH ON THE BEACH", 0);   // DIARY
       popText("FRESH CATCH LUNCH", c.x - 12, c.y - 24, [140, 255, 160]);
-      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(srand() * 3) | 0], t: 2.4 * SEC };
       if (window._stats) window._stats.roasts = (window._stats.roasts || 0) + 1;
     }
     return;
@@ -8898,18 +8935,18 @@ function updateFishing(c, dt) {
   // penniless fisher in a glut it's the safety valve that makes zero-wage
   // survivable. One fish off the day's landings, no money changes claws.
   if ((c.p.hunger || 0) >= 0.55 && townCatch > 2) {   // never the town's last fish
-    townCatch--; c.roastT = 5;
+    townCatch--; c.roastT = 5 * SEC;
     trade.useDay++;   // a roast eats a fish too - the market feels it
     if (window._stats) window._stats.roastStarts = (window._stats.roastStarts || 0) + 1;
     return;
   }
-  c.castT = (c.castT || 5) - dt;
+  c.castT = (c.castT || 5 * SEC) - dtT;
   if (c.castT <= 0) {
     // a live-aboard works the deeper water off their own deck: quicker bites,
     // and now and then the net comes up double
     const aboard = c.p.boat != null;
     const tier = fishTier(c);   // experience: quicker casts, better hauls
-    c.castT = (aboard ? 9 + srand() * 13 : 14 + srand() * 18) * tier.cast;
+    c.castT = (((aboard ? 9 * SEC + ((srand() * 13 * SEC) | 0) : 14 * SEC + ((srand() * 18 * SEC) | 0))) * tier.cast) | 0;
     let haul = srand() < (aboard ? 0.2 : 0) + tier.dbl ? 2 : 1;
     if (tier.big && srand() < tier.big) haul = 4;   // THE BIG ONE
     townCatch += haul; trade.landed += haul; trade.landedDay += haul;
@@ -8930,7 +8967,7 @@ function updateFishing(c, dt) {
     if (srand() < 0.25) c.quip = {
       text: trade.price >= FISH_IMPORT
         ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(srand() * 3) | 0]
-        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 };
+        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 * SEC };
   }
 }
 // A tourist will not sit at the table beside a visibly filthy crab: they take
@@ -9006,17 +9043,17 @@ function updateKitchen(c, dt) {
   // that genuinely stepped this frame. kstate "nap" is likewise not one of the
   // moving kstates the suite's freeze detector samples.
   if ((c.napT || 0) > 0) {
-    c.napT -= dt;
+    c.napT -= dtT;
     if (c.napT <= 0) {
       c.kstate = c.napFrom || "idle"; c.napFrom = null;
-      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 };
+      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 * SEC };
     }
     return;
   }
   if ((c.p.tired || 0) >= NOD_AT && !patOff("nod") && NOD_STATES.includes(c.kstate)
       && srand() < NOD_RATE * dt) {
     c.napFrom = c.kstate; c.kstate = "nap";
-    c.napT = NOD_MIN + srand() * NOD_SPAN;
+    c.napT = NOD_MIN + ((srand() * NOD_SPAN) | 0);
     if (window._stats) {
       window._stats.nods = (window._stats.nods || 0) + 1;
       window._stats.nodSecs = (window._stats.nodSecs || 0) + c.napT;
@@ -9110,7 +9147,7 @@ function updateKitchen(c, dt) {
     // The cost is ONLY ever the walk back, and it lands hardest exactly when
     // the shop is quiet, which is when it costs the town least.
     if (c.wanderT > 0) {                    // stood there, watching the sea
-      c.wanderT -= dt;
+      c.wanderT -= dtT;
       if (c.wanderT <= 0) { c.wander = null; c.wanderCd = WANDER_CD; }
       return;                               // holds position: no stepTo, so the
                                             // unstick watchdog never considers them
@@ -9118,13 +9155,13 @@ function updateKitchen(c, dt) {
     if (c.wander) {                         // walking out to it (kstate stays
       setT(c, c.wander.x, c.wander.y);      // "idle": the claim scan above runs
       if (routedStep(c, spd, dt)) {         // every frame, wander or no wander)
-        c.wanderT = WANDER_DWELL + srand() * 10;
-        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 };
+        c.wanderT = WANDER_DWELL + ((srand() * 10 * SEC) | 0);
+        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 * SEC };
       }
       return;
     }
-    if (c.wanderCd > 0) c.wanderCd -= dt;
-    c.idleT = (c.idleT || 0) + dt;
+    if (c.wanderCd > 0) c.wanderCd -= dtT;
+    c.idleT = (c.idleT || 0) + dtT;
     if (!c.pendingOff && !c.p.sick && !patOff("wander")
         && (c.p.bored || 0) >= WANDER_AT && !boredYields(c)
         && c.idleT >= WANDER_QUIET && c.wanderCd <= 0) {
@@ -9151,7 +9188,7 @@ function updateKitchen(c, dt) {
         if (ownerFunds(bizKey) < ingredientCost(c.cust.recipe.raw)) { c.kstate = "waitCash"; return; }
         debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
-        c.kstate = "work"; c.workMax = c.workT = 0.6; c.slotKind = null; c.slot = -1;
+        c.kstate = "work"; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
       else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
       else {
@@ -9166,9 +9203,9 @@ function updateKitchen(c, dt) {
       }
     }
   } else if (c.kstate === "toStallClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = 2.5 / (crabWork(c) * crabEff(c)); c.kstate = "cleaningStall"; }
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (2.5 * SEC / (crabWork(c) * crabEff(c))) | 0; c.kstate = "cleaningStall"; }
   } else if (c.kstate === "cleaningStall") {
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.cleanStall) { c.cleanStall.dirty = false; c.cleanStall.cleaning = false; c.cleanStall = null; }
       crabLogEvery(c, "stall", 90, "work", "SCRUBBED OUT A SHOWER STALL");   // DIARY
@@ -9177,9 +9214,9 @@ function updateKitchen(c, dt) {
       popText("SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
   } else if (c.kstate === "toTableClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = BUS_SECS / (crabWork(c) * crabEff(c)); c.kstate = "busingTable"; }
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS / (crabWork(c) * crabEff(c))) | 0; c.kstate = "busingTable"; }
   } else if (c.kstate === "busingTable") {
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.cleanTable) {
         c.cleanTable.dirty = false; c.cleanTable.cleaning = false; c.cleanTable.dishes = 0;
@@ -9199,7 +9236,7 @@ function updateKitchen(c, dt) {
     if (ownerFunds(bizKey) >= ingredientCost(c.cust.recipe.raw)) {
       debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
       consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
-      c.kstate = "work"; c.workMax = c.workT = 0.6; c.slotKind = null; c.slot = -1;
+      c.kstate = "work"; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
     }
   } else if (c.kstate === "waitSlot") {
     const kind = c.cust.recipe.steps[c.stepIdx][0];
@@ -9219,11 +9256,11 @@ function updateKitchen(c, dt) {
     if (routedStep(c, spd, dt)) {
       const [, secs] = c.cust.recipe.steps[c.stepIdx];
       const mult = masteryMult(c, c.cust.recipe.id) / (crabWork(c) * crabEff(c));
-      c.workMax = c.workT = secs * mult;
+      c.workMax = c.workT = (secs * SEC * mult) | 0;
       c.kstate = "work";
     }
   } else if (c.kstate === "work") {
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.stepIdx === -1) {
         c.carrying = c.cust.recipe.raw;   // paid for at grab start
@@ -9278,7 +9315,7 @@ function creditCatch(c, haul) {
       crabLog(c, "life", t.label + " FISHING - " + c.p.made.caught + " LANDED", 0);   // DIARY
       toast = { text: c.p.name + " " + t.label + " FISHING! " + c.p.made.caught + " LANDED", t: 6 };
       popText(t.label + " FISHING", c.x - 26, c.y - 32, [255, 230, 120]);
-      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(srand() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(srand() * 3) | 0], t: 2.6 * SEC };
       sfx.ding();
       break;
     }
@@ -9295,7 +9332,7 @@ function creditAccomplishment(c, cust) {
       crabLog(c, "life", label + " " + dish + " (X" + n + ")", 0);   // DIARY
       toast = { text: c.p.name + " " + label + " " + dish + "! " + n + " SERVED", t: 6 };
       popText(label + " " + dish, c.x - 24, FLOOR_Y - 36, [255, 230, 120]);
-      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(srand() * 3) | 0], t: 2.4 * SEC };
       sfx.ding();
       break;
     }
@@ -9406,7 +9443,7 @@ function payAndBenefit(c, cust) {
     if (!firstPour && c && c.p) {   // the bar's first drink is town news
       firstPour = true;
       toast = { text: c.p.name + " POURED THE JUICE BAR'S FIRST " + ITEM_NAMES[cust.recipe.icon] + "!", t: 6 };
-      c.quip = { text: "FRESH SQUEEZED!", t: 2.6 };
+      c.quip = { text: "FRESH SQUEEZED!", t: 2.6 * SEC };
     }
   }
   if (c && c.p) today.byCrab[c.p.name] = (today.byCrab[c.p.name] || 0) + 1;
@@ -9422,11 +9459,11 @@ function payAndBenefit(c, cust) {
       window._stats.npcSpendAtPlayer = (window._stats.npcSpendAtPlayer || 0) + price;
     if (cust.need === "food") cust.crab.p.hunger = 0;
     if (cust.need === "drink") {
-      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(srand() * 3) | 0], t: 2.4 };
+      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(srand() * 3) | 0], t: 2.4 * SEC };
       if (window._stats) window._stats.crabDrinks = (window._stats.crabDrinks || 0) + 1;
     }
     if (cust.need === "drink" || DRINKS[cust.recipe.id]) cust.crab.p.thirst = 0;   // any juice quenches, even one bought as lunch
-    if (cust.need === "fun") { cust.crab.p.bored = 0; cust.crab.quip = { text: "BEST DAY EVER!", t: 2.4 }; }
+    if (cust.need === "fun") { cust.crab.p.bored = 0; cust.crab.quip = { text: "BEST DAY EVER!", t: 2.4 * SEC }; }
     popText(ITEM_NAMES[cust.recipe.icon], cust.x - 14, 116, [140, 255, 160]);
   } else {
     const tipMult = TRAITS[c.p.trait].tip * (1 - 0.3 * (c.p.dirt || 0))
@@ -9512,7 +9549,7 @@ function serve(c) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) rep = Math.min(100, rep + 0.8);   // table service impresses
-    cust.state = "dining"; cust.dineT = 6 + srand() * 4;
+    cust.state = "dining"; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
@@ -9543,7 +9580,7 @@ function serve(c) {
     if (BIZ[cust.biz].lodging) { cust.state = "leaving"; }
     else if (stalls) {
       if (stall) { stall.occupant = cust; cust.state = "toStall"; cust.stall = stall; }
-      else { cust.state = "waitStall"; cust.waitT = 30; }
+      else { cust.state = "waitStall"; cust.waitT = 30 * SEC; }
     }
     else if (seat) { seat.occupant = cust; cust.state = "toTable"; cust.table = seat; }
     else cust.state = "leaving";
@@ -9618,7 +9655,7 @@ const FERRY = {
 // of a guest's value. Four smaller boats put the same people through the same
 // dining room and the share comes back.
 const FERRY_TIMES = [8 * 60, 10.5 * 60, 13 * 60, 15.5 * 60];
-const FERRY_STAY = 75;                   // game-minutes tied up
+const FERRY_STAY = 75 * GMIN;            // game-minutes tied up, counted in ticks
 const FERRY_CALL = 165;                  // ...and how long before a sailing a leaver sets off
                                          // for the pier (the whole promenade, at a stroll)
 // A GOOD NAME FILLS THE BOAT. This replaces `spawnEvery`, and it makes the same
@@ -9660,7 +9697,7 @@ const VIS_SPEED = 42;            // a stroll: a shade under a walking crab's 40 
 // hit one counter at once - at 50 the burst cost 2 seated guests a day their
 // $9 table tip and put rage 62% above the pre-pass build.
 const VIS_PATIENCE = 100;
-const VIS_THINK = 1.6;           // real seconds between "what do I fancy" checks
+const VIS_THINK = 1.6 * SEC;     // real seconds between "what do I fancy" checks
 // needs per GAME HOUR while awake. Pitched off the crabs' own cycle but a
 // little gentler: a visitor is not working a shift, and a visitor who needed
 // something every hour would simply queue all day.
@@ -9870,7 +9907,7 @@ function ferryDock(n, idx) {
   for (let i = 0; i < count; i++) {
     const v = newVisitor(last, ferryCulture());
     v.x = FERRY.gangway - 4 - i * 7;   // down the plank and along the deck, in a line
-    v.thinkT = i * 3 + srand() * 8;   // ...and they do not all want lunch at 9:01
+    v.thinkT = i * 3 * SEC + ((srand() * 8 * SEC) | 0);   // ...and they do not all want lunch at 9:01
     customers.push(v);
     visLog(v, "life", vline(v, "ashore", "CAME ASHORE OFF THE FERRY"));
     // HARBOUR DUES, if that is the purse the town voted for. Charged at the
@@ -10013,7 +10050,7 @@ function visBoard(k) {
 }
 // One clock, called from updateCustomers. Docks her on the timetable, calls
 // the leavers early enough to walk the promenade, and sails her.
-function runFerry(dtMin) {
+function runFerry(dtTicks) {
   if (ferryDay !== day) { ferryDay = day; ferrySail = -1; }
   for (let i = 0; i < FERRY_TIMES.length; i++) {
     if (i <= ferrySail) continue;
@@ -10023,7 +10060,7 @@ function runFerry(dtMin) {
     if (tmin >= FERRY_TIMES[i]) { ferrySail = i; ferryDock(null, i); ferryDepartCall(abs); }
   }
   if (ferryT > 0) {
-    ferryT -= dtMin;
+    ferryT -= dtTicks;
     // board anybody standing on the plank while she is alongside
     for (const k of visitorsInTown())
       if (k.state === "toPier" && k.leg === 1 && k.x >= FERRY.gangway - 12) visBoard(k);
@@ -10271,14 +10308,14 @@ function visStep(k, tx, ty, dt) {
 // needs, the clock, and the wallet's own ticking - runs for EVERY visitor,
 // whatever state they are in, so a visitor stood in a queue still gets hungry
 function visTick(k, dt) {
-  const hrs = dt * TS / 60;
+  const hrs = dtT / (60 * GMIN);
   // THE ONLY WEATHER THIS TOWN HAS, and it is a fact about the CALENDAR:
   // mistPeak is an integer hash of the day, the same on every machine, so a
   // guest who spent their evening out in a thick one is a guest whose stay the
   // player can go back and check. Indoors does not count - a paid bed is
   // exactly what buys you out of it, which is the whole point of saying so.
   if (k.state !== "inRoom" && tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536)
-    stayOf(k).mistMin += dt * TS;
+    stayOf(k).mistMin += dtT;
   if (k.state === "inRoom") {
     k.tired = Math.max(0, k.tired - VIS_BED_DRAIN * hrs);
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) checkOut(k);
@@ -10354,7 +10391,7 @@ function updateVisitor(k, dt) {
     return;
   }
   // ---- ROAM: the whole rest of a visit lives here ---------------------------
-  k.thinkT -= dt;
+  k.thinkT -= dtT;
   // TURNING IN. A visitor with a key walks to their door; one without takes
   // the beach, because the desk has shut and there is nowhere else to go.
   if (tmin >= BED_HOUR || tmin < WAKE_HOUR) {
@@ -10375,12 +10412,12 @@ function updateVisitor(k, dt) {
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
   // still for eleven hours is not.
   if (k.target == null || Math.abs(k.x - k.target) < 4) {
-    if (k.idleT > 0) { k.idleT -= dt; return; }
+    if (k.idleT > 0) { k.idleT -= dtT; return; }
     k.target = Math.round(Math.max(VIS_ROAM[0], Math.min(VIS_ROAM[1],
       k.x + (srand() - 0.5) * 2 * VIS_STROLL)));
     k.idleT = 0;
   }
-  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 + srand() * 5;
+  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 * SEC + ((srand() * 5 * SEC) | 0);
 }
 // A VISIT DOES NOT END AT THE COUNTER. The shop pipeline's `leaving` state
 // means "walk away from this counter" for a visitor, not "walk out of the
@@ -10449,7 +10486,7 @@ function newCustomer(bizKey) {
 }
 function updateCustomers(dt) {
   trackCloseQueues();   // hours-policy signal: who was still in line when a shop shut
-  runFerry(dt * TS);    // the timetable: she docks, lands a batch, and sails
+  runFerry(dtT);        // the timetable: she docks, lands a batch, and sails
   sweepRooms();         // a room whose guest has left town is an empty room, always
   // one pass over every line, so a place is a POSITION IN THE QUEUE rather than
   // a position in the array. Rebuilt each frame, which is what compacts the
@@ -10492,13 +10529,13 @@ function updateCustomers(dt) {
       if (Math.abs(dxs) > 2) k.x += Math.sign(dxs) * Math.min(45 * dt, Math.abs(dxs));
       else {
         k.climb = Math.min(1, (k.climb || 0) + dt * 1.8);   // step up into the stall
-        if (k.climb >= 1) { k.state = "showering"; k.showerT = k.recipe.showerT || 5; }
+        if (k.climb >= 1) { k.state = "showering"; k.showerT = (k.recipe.showerT || 5) * SEC; }
       }
     } else if (k.state === "outStall") {   // hop back down to the floor, towel-fresh
       k.climb = Math.max(0, (k.climb || 0) - dt * 2.2);
       if (k.climb <= 0) k.state = "leaving";
     } else if (k.state === "showering") {
-      k.showerT -= dt;
+      k.showerT -= dtT;
       if (k.showerT <= 0) {
         const st = k.stall;
         st.occupant = null; st.dirty = true; k.stall = null;
@@ -10507,7 +10544,7 @@ function updateCustomers(dt) {
           k.crab.p.dirt = Math.max(0, (k.crab.p.dirt || 0) - (k.recipe.deep ? 0.7 : 0.5));
           crabLog(k.crab, "need", "TOOK A " + (k.recipe.deep ? "LONG SOAK" : "SHOWER")   // DIARY
             + " AT THE " + BIZ[k.biz].name, 0);
-          k.crab.quip = { text: "SQUEAKY CLEAN!", t: 2.4 };
+          k.crab.quip = { text: "SQUEAKY CLEAN!", t: 2.4 * SEC };
         }
         if (window._stats) {
           window._stats.showersDone = (window._stats.showersDone || 0) + 1;
@@ -10519,7 +10556,7 @@ function updateCustomers(dt) {
         k.state = "outStall";
       }
     } else if (k.state === "waitStall") {
-      k.waitT -= dt;
+      k.waitT -= dtT;
       const st = BIZ[k.biz].stalls.find(t => !t.occupant && !t.dirty);
       if (st) { st.occupant = k; k.stall = st; k.state = "toStall"; }
       else if (k.waitT <= 0) { k.state = "leaving"; k.happy = false; }
@@ -10541,9 +10578,9 @@ function updateCustomers(dt) {
       const t = k.table;
       const dxt = t.x + 10 - k.x;
       if (Math.abs(dxt) > 2) k.x += Math.sign(dxt) * Math.min(45 * dt, Math.abs(dxt));
-      else { k.state = "dining"; k.dineT = 6 + srand() * 4; k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
+      else { k.state = "dining"; k.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0); k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
     } else if (k.state === "dining") {
-      k.dineT -= dt;
+      k.dineT -= dtT;
       if (k.dineT <= 0) {
         // THE FANCIER TIER ARRIVED (owner directive: "add table cleanup").
         // Guests used to bus their own - the outdoor-casual rule. Now they
@@ -10779,8 +10816,8 @@ function logShiftEnd(c) {
   crabLog(c, "work", c.p.job === "fishing" ? "CAME OFF THE WATER FOR THE DAY"
     : coveringToday(c) ? "COVERED A DOUBLE SHIFT AT THE " + BIZ[c.p.job].short
     : "FINISHED THE " + (SHIFT_WORD[c.p.shift] || "") + " SHIFT", 0);
-  if ((c.otMin || 0) >= 15)
-    crabLog(c, "work", "WORKED " + Math.round(c.otMin / 6) / 10 + "H OF OVERTIME", 0);
+  if ((c.otMin || 0) >= 15 * GMIN)
+    crabLog(c, "work", "WORKED " + Math.round(c.otMin / (6 * GMIN)) / 10 + "H OF OVERTIME", 0);
 }
 function logServe(c, cust) {
   if (!c || !c.p || !cust.recipe) return;
@@ -11744,11 +11781,11 @@ function mistRoll() { _mistDay = day; mistTodayQ16 = mistPeakQ16(day); mistYestQ
 // hours belong to YESTERDAY's mist, or it would change thickness at midnight.
 function mistNowQ16() {
   if (_mistDay !== day) mistRoll();   // also covers a fresh town and a load
-  const t = tmin;
-  if (t < 390) return mistYestQ16;
-  if (t < 570) return (mistYestQ16 * (570 - t) - mistYestQ16 * (570 - t) % 180) / 180;
-  if (t < 990) return 0;
-  if (t < 1200) return (mistTodayQ16 * (t - 990) - mistTodayQ16 * (t - 990) % 210) / 210;
+  const t = tdgm;   // deci-minutes: the burn-off and the roll-in are ramps
+  if (t < 3900) return mistYestQ16;
+  if (t < 5700) return (mistYestQ16 * (5700 - t) - mistYestQ16 * (5700 - t) % 1800) / 1800;
+  if (t < 9900) return 0;
+  if (t < 12000) return (mistTodayQ16 * (t - 9900) - mistTodayQ16 * (t - 9900) % 2100) / 2100;
   return mistTodayQ16;
 }
 function mistNow() { return mistNowQ16() / 65536; }   // the DRAW layer's float view
@@ -13880,7 +13917,7 @@ function drawDossier() {
       + (granted ? "RESTING, UNPAID" : "AT WORK, PAID"),
       gravelyIll(c) ? [220, 60, 60] : granted ? [120, 150, 90] : [190, 80, 80], canOT ? "sick" : null);
     if (canOT) smallText(ctx, granted ? "TAP: WORK" : "TAP: REST", x + w2 - 40, ly - 9, [96, 170, 220]);
-    if (granted) smallText(ctx, "RESTED " + (p.restT || 0).toFixed(1) + "H/" + REST_HOURS
+    if (granted) smallText(ctx, "RESTED " + ((p.restT || 0) / (60 * GMIN)).toFixed(1) + "H/" + (REST_HOURS / (60 * GMIN))
       + "H - " + CARE_LANES[careLane(c)].label, x + 56, ly, [110, 100, 110]), ly += 9;
   }
   const eff = crabEff(c) * (p.sick ? 0.5 : 1);
@@ -15341,7 +15378,7 @@ const DEPART_RULES = [
     w: (r) => r.missed > 0 ? 25 : 0,
     line: () => "MISSED THE LAST BOAT. THAT WASN'T THE PLAN AT ALL." },
   { id: "mist", mood: "flat",
-    w: (r) => r.mistMin >= 100 ? 20 + Math.min(12, r.mistMin / 30) : 0,
+    w: (r) => r.mistMin >= 100 * GMIN ? 20 + Math.min(12, r.mistMin / (30 * GMIN)) : 0,
     line: () => "THE MIST CAME IN AND I NEVER DID SEE THE FAR SHORE." },
   { id: "table", mood: "made",
     w: (r) => r.tables >= 1 ? 30 + 8 * r.tables : 0,
@@ -16014,7 +16051,7 @@ function frame(now) {
   msAcc += rawMs;
   const rawTicks = (msAcc - msAcc % 50) / 50;
   msAcc -= rawTicks * 50;
-  const dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
+  dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
   const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
   last = now; T += dtT;
   if (hireCard) { hireCard.t -= raw; if (hireCard.t <= 0) hireCard = null; }
