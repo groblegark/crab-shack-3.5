@@ -5854,7 +5854,14 @@ scenario("rivalry: after a refusal she competes with the PLAYER'S OWN levers, an
         crabs[2].p.shift = "M"; crabs[4].p.shift = "E";
         setBizPrice("showers", 0.7); setBizPrice("juicebar", ${mul});
         window._stats = {}; coins = 900000;`);
-      s2.runDays(9, { tickEvery: 200, onTick: (G) => G(`if (coins < 80000) coins = 80000;`) });
+      // ...and ILLNESS is pinned off with the rest (slice 5): the arm's history
+      // is availability burying the price signal, and a sick juicer is the
+      // availability confounder in its purest form - dear-1337 ran three sick
+      // crabs against cheap-909's zero and the mid arm read below both. The
+      // fish fixture's onTick idiom; the rolls still draw, so the stream is
+      // untouched.
+      s2.runDays(9, { tickEvery: 200, onTick: (G) => G(`if (coins < 80000) coins = 80000;
+        for (const c of allCrabs()) if (c.p.sick) c.p.sick = null;`) });
       bar += +s2.G(`window._stats.drinkServesTour || 0`);
       shwr += +s2.G(`window._stats.showersDoneTour || 0`);
     }
