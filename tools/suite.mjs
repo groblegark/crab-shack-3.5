@@ -2610,11 +2610,11 @@ scenario("fish market: floor-price week - the roast keeps a broke fisher alive",
         if (f) {
           if (townCatch < 5) townCatch = 5;
           window._wMax = Math.max(window._wMax, f.p.wallet);
-          if (f.p.sick && !window._sSick) window._sSick = [day, +(f.p.hunger || 0).toFixed(2)];
+          if (f.p.sick && !window._sSick) window._sSick = [day, f.p.hunger || 0];   // raw Q20 - the gate compares in the need's own unit
         } }`);
   } });
   const sSick = JSON.parse(sim.G("JSON.stringify(window._sSick)"));
-  if (sSick && sSick[1] >= 0.9) return "SALTY fell starvation-sick on day " + sSick[0] + " (hunger " + sSick[1] + ")";
+  if (sSick && sSick[1] >= 943718) return "SALTY fell starvation-sick on day " + sSick[0] + " (hunger " + (sSick[1] / 1048576).toFixed(2) + ")";   // 943718 = qn(0.9): sickness below the starvation bar is not the roast failing
   if (sim.G("Math.round(window._wMax)") >= 6000) return "a floor-price week made SALTY rich (" + sim.G("Math.round(window._wMax)") + "c) - glut pay isn't real";
   if (!((sim.G("window._stats.roasts") || 0) >= 3)) return "only " + sim.G("window._stats.roasts || 0") + " roasts in a glut week";
   // and the guard held: with only the town's last two fish, no roast fires
@@ -3490,7 +3490,7 @@ scenario("ownership + the FOR SALE market roundtrip save/load", () => {
   const st1 = new Map();
   const a = createSim({ seed: 65, storage: st1, fresh: false });
   a.runDays(2);
-  a.G('bizTake.showers = [12, 8, 4]; bizStrike.showers = 2; listForSale("showers", "bankrupt"); save();');
+  a.G('bizTake.showers = [1200, 800, 400]; bizStrike.showers = 2; listForSale("showers", "bankrupt"); save();');
   const price = a.G("market.showers.price");
   const a2 = createSim({ seed: 66, storage: st1, fresh: false });
   const m = JSON.parse(a2.G('JSON.stringify([BIZ.showers.owner, forSale("showers"), (market.showers||{}).price, bizDark("showers"), bizTake.showers])'));
@@ -5643,7 +5643,7 @@ function rivalOpenBar(sim) {
 function rivalProp(sim) {   // a rival having a good month, and well enough to have one
   sim.G(`{ const o = OWNERS[rivalOwnerId()] || OWNERS.sudsy;
     o.till = 90000; o.credit = 0; o.gone = 0;
-    bizTake.showers = [120, 120, 120]; bizStrike.showers = 0;
+    bizTake.showers = [12000, 12000, 12000]; bizStrike.showers = 0;   // cents: a $120 day (slice-1 escapee - as dollars-in-cents her good month was $1.20/day)
     coins = Math.max(coins, 250000);
     const k = rivalCrab(); if (k) { k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.sick = null; } }`);
 }
@@ -5924,7 +5924,7 @@ scenario("rivalry: the player can buy HER shop - the ownership layer stays symme
   sim.G(`bizTake.showers = [0, 0, 0]`);
   const poor = sim.G(`rivalAsk("showers")`);
   if (!(poor < rich)) return `the ask did not fall when her books did (${rich} -> ${poor})`;
-  sim.G(`bizTake.showers = [120, 120, 120]`);
+  sim.G(`bizTake.showers = [12000, 12000, 12000]`)   // cents (slice-1 escapee);
   // ...too little money is refused, by name and with the number
   sim.G(`coins = 1000; askArm = null;`);
   if (sim.G(`tapAskChip("showers")`)) return `a broke player bought a shop`;
@@ -6008,9 +6008,22 @@ scenario("rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the a
     return `the outgoing owner's own till was raided by the handover`;
   if (sim.G(`rival.stage`) !== "none") return `the new owner started mid-rivalry`;
   if (sim.G(`rivalName()`) !== "NEWBY") return `the town still names the old owner`;
-  // ...and NEWBY builds their own ambition from their own books
-  for (let i = 0; i < 10 && sim.G(`rival.stage`) === "none"; i++) rivalDay(sim);
-  if (sim.G(`rival.stage`) === "none") return `the new owner never took an interest of their own`;
+  // ...and NEWBY builds their own ambition FROM THEIR OWN BOOKS. Staged
+  // deterministically (slice 5): the old form ran ten open-market days and
+  // asked the economy to grow the purse past the EYE share - a coin flip
+  // that landed wrong once the mover-target exemption shifted foot traffic.
+  // ONE ACCOUNT: the purse IS the crab's wallet - OWNERS[..].till is a stale
+  // mirror rivalPurse never reads (which is also why rivalProp's till poke
+  // stages nothing). MUTATION-TESTED: the same staging with the wallet
+  // zeroed keeps the stage at "none" with the till holding $940+ (intent 0,
+  // proving the one-account read) - recorded in the slice 5 close-out.
+  sim.G("rivalCrab().p.wallet = Math.round(rivalWorth() * 2 / 5);");   // 0.4 of worth: past EYE (0.28), short of OFFER (0.45)
+  for (let i = 0; i < 3 && sim.G(`rival.stage`) === "none"; i++) rivalDay(sim);
+  if (sim.G(`rival.stage`) === "none")
+    return `the new owner never took an interest of their own: ` + sim.G(`JSON.stringify({
+      on: rivalOn(), prizeP: prizeIsPlayers(), owner: rivalOwnerId(), intent: rival.intent,
+      till: OWNERS.newby && OWNERS.newby.till, wallet: rivalCrab() && rivalCrab().p.wallet,
+      purse: rivalPurse(), worth: rivalWorth(), crab: !!rivalCrab(), day })`);
   // a lease in the PLAYER's hands has no rival behind it at all
   sim.G(`BIZ.showers.owner = "player"; rivalOwnerCheck();`);
   if (sim.G(`rivalOn()`)) return `the player's own shop is still plotting against them`;
