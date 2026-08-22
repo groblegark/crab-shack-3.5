@@ -3060,6 +3060,35 @@ scenario("routes: a meal ON THE WAY to work, not a lap of the promenade", () => 
     : `${fails.length}/5 staged towns doubled back or overwalked - ${fails.join(" | ")}`;
 });
 
+scenario("routes: the detour term is load-bearing - near beats slightly-better far", () => {
+  // THE ASSERTION SLICE 4 OWED (the five-town majority above records that its
+  // own mutations do not bite). This is the chaining RULE tested as a rule:
+  // two candidate stops for the same need, the near one slightly worse on
+  // appeal, the far one better - the detour divisor must decide. The staging
+  // is SELF-VERIFYING: it first asserts the far stop would WIN at zero
+  // detour, so severing errandDetour (the mutation) must flip the pick -
+  // a mutation that bites by construction, not by luck.
+  const sim = createSim({ seed: 1 });
+  const r = JSON.parse(sim.G(`JSON.stringify((() => {
+    const c = crabs[0];
+    c.p.house = 0; c.p.homeless = false; c.dayState = "home";
+    c.p.hunger = qn(0.6); c.p.sick = null;
+    c.x = SOUP_X + 8; c.y = 160;                      // stood by the near stop
+    const near = { soup: true, need: "food", appeal: 0.9 };
+    const far  = { biz: "shack", need: "food", appeal: 1.0 };
+    return { sn: errandScore(c, near), sf: errandScore(c, far),
+             dn: errandDetour(c, near), df: errandDetour(c, far),
+             lvl: needLevel(c, "food") };
+  })())`));
+  if (!(r.df > 100)) return "staging broke: the far stop's detour is only " + r.df + "px";
+  if (!(r.dn < 40)) return "staging broke: the near stop detours " + r.dn + "px";
+  // the far stop is genuinely better at zero detour (0.9 < 1.0 on equal need)
+  const zeroDetourFarWins = 1.0 * (4 * 1048576 + r.lvl) > 0.9 * (4 * 1048576 + r.lvl);
+  if (!zeroDetourFarWins) return "staging broke: far would not win even undetoured";
+  return r.sn > r.sf ? true
+    : "the near stop lost (near " + r.sn.toFixed(0) + " vs far " + r.sf.toFixed(0) + ") - the detour term is not biting";
+});
+
 scenario("routes: a full town walks less per crab-day (no systematic backtracking)", () => {
   // Pinned from the measured build: 5 days of this 4-crab arcade town used
   // to average 4273px of x-travel per crab-day; chaining + the en-route rules
