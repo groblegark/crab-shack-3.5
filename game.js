@@ -116,7 +116,7 @@ const TAP_SIP = 6 * SEC;   // a long draw at the spout - minutes of the working 
 const TAP_APPEAL = 0.35;      // a poor third to anything a counter can hand you
 const TAP_CD = 20 * SEC;     // errand cooldown after a sip
 const TAP_RINSE = qn(0.35);      // a cold rinse under the spout: worse than a $5 shower
-const TAP_RINSE_AT = 0.85;   // ...and only when filthy - the showers own 0.66 upward
+const TAP_RINSE_AT = qn(0.85);   // ...and only when filthy - the showers own 0.66 upward
 const TAP_RINSE_SICK = 0.66; // an ill crab hoses down at the CARED bar, shower or no shower
 // ---------------------------------------------------------- the shelter pot
 // (Matt, 2026-08-19: "I feel like sick crabs dont get food or clean or
@@ -5305,7 +5305,7 @@ function initNpcs() {
 //     their own bed and 0.29 off a cot.
 // THREE TIERS, clearly ordered: own bed > shelter cot > the sand, where the
 // sand banks NOTHING at all (see sleepRough).
-const TIRED_SHIFT = 0.60, TIRED_ERRAND = 0.03, TIRED_NIGHT = 0.05;
+const TIRED_SHIFT = qn(0.60), TIRED_ERRAND = qn(0.03), TIRED_NIGHT = qn(0.05);
 const TIRED_DRAIN = { bed: 0.30, cot: 0.10 };   // fraction drained per game hour, asleep
 // ...and while merely HOME, settled and off the clock in daylight: a nap, not
 // a night. Same housing rung, a fraction of the rate - chosen by measurement
@@ -5464,7 +5464,7 @@ refreshHatches();
 const patOff = (k) => !!(_fOff && _fOff[k]);
 
 // ---- IDLE HANDS (the wander-off) -----------------------------------------
-const WANDER_AT = 0.6;        // restless enough to leave the post
+const WANDER_AT = qn(0.6);        // restless enough to leave the post
 const WANDER_PX = 340;        // how far off post a wander may take them
 const WANDER_QUIET = 3;       // real seconds the counter must be DEAD first - a
                               // crab doesn't bolt the instant the queue empties
@@ -5578,8 +5578,8 @@ const BALL_YIELD = qn(0.55);      // ...and any real need outranks it well befor
 const BALL_LEAD = 90;         // game-minutes of clear air needed before a shift: the game is ~48
 const BALL_Y = 157;           // up the sand, clear of BOTH travel lanes (146/168, 9px of blocking each)
 const BALL_SECS = 12 * SEC;   // real seconds stood throwing - ~48 game-minutes
-const BALL_PAIR = 0.22;       // a real game of catch
-const BALL_SOLO = 0.08;       // ...and knocking it about on your own
+const BALL_PAIR = qn(0.22);       // a real game of catch
+const BALL_SOLO = qn(0.08);       // ...and knocking it about on your own
 const BALL_CD = 300 * GMIN;   // game minutes: not a career
 const BALL_PX = 30;           // close enough to be in the same game
 const BALL_LINES = ["OVER HERE!", "MY CLAW!", "NICE ONE", "TOO HIGH!", "AGAIN!"];
@@ -5632,10 +5632,10 @@ function updateBall(c, dt) {
   afterErrand(c, true);
 }
 // ---- CHATTER (the time-priced cure) ---------------------------------------
-const CHAT_AT = 0.55;         // both parties have to actually want the company
+const CHAT_AT = qn(0.55);         // both parties have to actually want the company
 const CHAT_PX = 26;           // close enough to fall into step
 const CHAT_SECS = 10 * SEC;   // 10-16 real seconds = 40-64 GAME-MINUTES of the day
-const CHAT_RELIEF = 0.06;     // modest, and deliberately under half a shift's +0.2
+const CHAT_RELIEF = qn(0.06);     // modest, and deliberately under half a shift's +0.2
 const CHAT_CD = 360;          // game minutes: at most twice in a trading day
 const CHAT_LINES = ["YOU'LL NEVER GUESS", "SHE DIDN'T!", "...ANYWAY",
   "NO, GO ON", "THAT'S THE THIRD TIME", "BETTER GET BACK"];
@@ -5734,7 +5734,7 @@ function runChatter(dt) {
 // 4/8. The sleep REQUIREMENTS stay exactly as the owner set them; what gives
 // is the nod line, which now sits above the EXHAUSTED mood rather than on it.
 // Nods stay visible at 0.42 a town-day (from 0.63) and growth returns to 4/8.
-const NOD_AT = 0.96;
+const NOD_AT = qn(0.96);
 // per second of timed work past NOD_AT. MEASURED against the design brief's
 // ~5% ceiling on station time lost: a plain 4-crew town loses 1.4% of its
 // station time to nods and an all-overtime one 4.7%, at 0.63 and 4.08 nods per
@@ -5749,7 +5749,7 @@ const NOD_STATES = ["walk", "toSlot", "work", "toStallClean", "cleaningStall"];
 const NOD_WAKE = ["WHAT? I'M UP", "JUST RESTING MY EYES", "WHERE WAS I"];
 
 // ---- THE SHORTCUT HOME ----------------------------------------------------
-const ROUGH_AT = 0.97;        // this far gone and the walk home is too far
+const ROUGH_AT = qn(0.97);        // this far gone and the walk home is too far
 const ROUGH_PX = 250;         // ...if there's still this much of it left
 // ...and then it is a CHANCE per second, not a cliff. A flat rule dropped every
 // exhausted crab the instant they left the shack (home is always further than
@@ -5950,7 +5950,7 @@ const DRAG_HUNGER_AT = qn(0.3);   // = crabEff's own hunger line: past 0.3 hunge
                               // do-nothing town got RICHER than it is meant to
                               // be (2 of 16 surviving 30 days against the
                               // documented 0 of 16), at 0.3 it reads 0/16 again
-const DRAG_THIRST_AT = 0.5;   // pitched so the ramp passes through 0.85 at
+const DRAG_THIRST_AT = qn(0.5);   // pitched so the ramp passes through 0.85 at
                               // thirst 0.8 - the EXACT value of the -15% cliff
                               // it replaces, at the exact threshold it fired
                               // at. Swept against the tap's anti-trap probe,
@@ -5995,7 +5995,7 @@ function needDrag(c) {
 // so it costs nothing mechanically: the ramp above is the whole penalty.
 // It never reaches zero either, so a panting crab still counts as a MOVER to
 // collide() and still clears the no-progress watchdog's 2px in 1.5s.
-const SHIMMER_AT = 0.6, SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;
+const SHIMMER_AT = qn(0.6), SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;   // _AT is a need level; AMP/HZ are the wave
 // The phase is a BAM16 integer now (65,536 = one turn) walked off the master
 // tick, not a float second: 2048 a tick is 1/32 of a turn, so the orbit closes
 // in exactly 32 ticks and an odd-symmetric wave over it sums to exactly zero.
@@ -6007,7 +6007,7 @@ const SHIMMER_STRIDE = 2048;
 const BAM_RAD = Math.PI * 2 / 65536;
 function heatShimmer(c) {
   if (_fNoShim) return 1;
-  const f = Math.min(1, Math.max(0, ((c.p.thirst || 0) - SHIMMER_AT) / (1 - SHIMMER_AT)));
+  const f = Math.min(1, Math.max(0, (c.p.thirst || 0) - SHIMMER_AT) / (Q20 - SHIMMER_AT));
   if (f <= 0) return 1;
   if (c.shimPh == null) c.shimPh = Math.round(c.animT * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
   return 1 + SHIMMER_AMP * f * Math.sin(((T * SHIMMER_STRIDE + c.shimPh) & 0xFFFF) * BAM_RAD);
@@ -6041,11 +6041,11 @@ function crabEff(c) {
 // it back until dirt is reliably serviceable and the owner did not pick it.)
 const BERTH_AT = qn(0.6);     // where the bubble starts to open (= crabEff's dirt line)
 const BERTH_PX = 10;      // full bubble at dirt 1.00: 12px personal space -> 22px
-const SHUN_AT = 0.8;      // a tourist takes the FAR table - binary, and pitched
+const SHUN_AT = qn(0.8);      // a tourist takes the FAR table - binary, and pitched
                           // high on purpose so seating does not churn on a 0.61
 const PATIENCE_FILTH = 0.3;   // up to +30% patience drain from a filthy server
 function crabBerth(c) {
-  return BERTH_PX * Math.min(1, Math.max(0, ((c.p.dirt || 0) - BERTH_AT) / (1 - BERTH_AT)));
+  return BERTH_PX * Math.min(1, Math.max(0, (c.p.dirt || 0) - BERTH_AT) / (Q20 - BERTH_AT));
 }
 
 // ---------------------------------------------------------------- sound (from CS1)
@@ -7849,7 +7849,7 @@ function updateSchedule(c, dt) {
     // crew's MORNING reading to 0.85. Now the housing ladder decides it: off a
     // cot you wake around 0.5 and cross the nod line halfway through every
     // shift; out of your own bed you wake near 0.05 and never do.
-    c.p.tired = Math.min(1, (c.p.tired || 0)
+    c.p.tired = Math.min(Q20, (c.p.tired || 0)
       + TIRED_SHIFT / ownStdSpan(c) * (onOT ? OT_FATIGUE : 1) * dtT / GMIN);
   }
   if (c.dayState === "working" && tmin >= sh.end) c.pendingOff = true;
@@ -8263,7 +8263,7 @@ function updateSelfCook(c, dt) {
 }
 function startErrand(c, e) {
   c.dayState = "toErrand"; c.errandBiz = e.biz; c.errand = e;
-  c.p.tired = Math.min(1, (c.p.tired || 0) + TIRED_ERRAND);   // errand legwork tires, a little
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);   // errand legwork tires, a little
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
   // and only then slid back out to their own place - which is the one thing
@@ -8284,7 +8284,7 @@ function startTapStop(c, e) {
   // enters the state, so they never count themselves.
   const slot = e.vote ? POLL_PLACES[e.poll].x + 4 + VOTE_DX * Math.min(4, pollVoters(e.poll).length) : null;
   c.dayState = "atTap"; c.tapStop = e; c.tapT = 0;
-  c.p.tired = Math.min(1, (c.p.tired || 0) + TIRED_ERRAND);
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);
   if (slot != null) setT(c, slot, VOTE_Y);
   else setT(c, e.soup ? SOUP_X : WATER_TAPS[e.tap].x + 6, 163);
 }
@@ -16200,7 +16200,7 @@ function frame(now) {
     for (const c of allCrabs()) {
       logNightly(c);   // DIARY: the nights tally, the day's catch as one line, and what they took to bed
       c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + Math.floor(qn(0.15) * ((c.p.tired || 0) > qn(0.5) ? 1.5 : 1)));   // a dry night - drier after a hard day
-      if (c.workedToday) { c.p.tired = Math.min(1, (c.p.tired || 0) + TIRED_NIGHT); c.workedToday = false; }   // the day's work catches up at dusk; idlers owe nothing
+      if (c.workedToday) { c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_NIGHT); c.workedToday = false; }   // the day's work catches up at dusk; idlers owe nothing
       if (c.p.homeless) {
         // shelter is free; move into a free house once savings allow
         const used = new Set(allCrabs().filter(k => !k.p.homeless).map(k => k.p.house));
