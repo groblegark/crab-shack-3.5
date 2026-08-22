@@ -5379,14 +5379,14 @@ function wanderSpot(c, post) {
   // A RIVAL EYEING A SHOP GOES AND STANDS OUTSIDE IT. Not a new behaviour -
   // the same idle-hands trip every bored crab takes, aimed on purpose. This is
   // the tell on the boardwalk, days before anything reaches a report.
-  if (rivalEyeing(c) && Math.random() < RIVAL_CFG.STAKEOUT) {
+  if (rivalEyeing(c) && srand() < RIVAL_CFG.STAKEOUT) {
     const z = BIZ[RIVAL_CFG.PRIZE];
     return { x: z.queueX + 10, y: clearSpotY(z.queueX + 10, 156), label: "THE " + z.name, eyeing: true };
   }
   const near = WANDER_SPOTS.filter(s => Math.abs(s.x - post) <= WANDER_PX);
   if (!near.length) return null;
-  const s = near[(Math.random() * near.length) | 0];
-  return { x: s.x, y: clearSpotY(s.x, 150 + ((Math.random() * 3) | 0) * 6), label: s.label };
+  const s = near[(srand() * near.length) | 0];
+  return { x: s.x, y: clearSpotY(s.x, 150 + ((srand() * 3) | 0) * 6), label: s.label };
 }
 const WANDER_QUIPS = ["NOTHING DOING", "JUST STRETCHING MY LEGS",
   "WONDER IF THEY'RE BITING", "BACK IN A TICK"];
@@ -5485,14 +5485,14 @@ function startBallStop(c) {
 function updateBall(c, dt) {
   if (c.ballT <= 0) {                       // still walking out to it
     if (routedStep(c, crabMove(c), dt)) {
-      c.ballT = BALL_SECS + Math.random() * 4;
-      c.quip = { text: BALL_LINES[(Math.random() * BALL_LINES.length) | 0], t: 2.4 };
+      c.ballT = BALL_SECS + srand() * 4;
+      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 };
     }
     return;
   }
   c.ballT -= dt;
-  if (((c.ballT * 2) | 0) % 7 === 0 && Math.random() < 0.02)
-    c.quip = { text: BALL_LINES[(Math.random() * BALL_LINES.length) | 0], t: 2.0 };
+  if (((c.ballT * 2) | 0) % 7 === 0 && srand() < 0.02)
+    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 };
   if (c.ballT > 0) return;
   // WHO ELSE IS OUT HERE decides what it was worth
   const mate = ballPlayers().find(k => k !== c && k.ballT > 0 && Math.abs(k.x - c.x) <= BALL_PX);
@@ -5537,13 +5537,13 @@ function chatReady(c) {
 function startChat(a, b) {
   for (const [c, o] of [[a, b], [b, a]]) {
     c.chatFrom = c.dayState; c.dayState = "chat";
-    c.chatWith = o; c.chatT = CHAT_SECS + Math.random() * 6;
+    c.chatWith = o; c.chatT = CHAT_SECS + srand() * 6;
     c.chatCd = CHAT_CD; c.chatLine = 0;
     c.wander = null; c.wanderT = 0;   // the conversation IS the wander now
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0;
     setT(c, c.x, c.y);
   }
-  a.quip = { text: CHAT_LINES[(Math.random() * CHAT_LINES.length) | 0], t: 2.6 };
+  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 };
   if (window._stats) window._stats.chats = (window._stats.chats || 0) + 1;
 }
 function endChat(c, paid) {
@@ -5690,7 +5690,7 @@ function updateHome(c, dt) {
   if (c.p.rough) {
     if (darkness() >= 0.5) { setT(c, c.x, c.y); return; }
     c.p.rough = false;   // up with the light, stiff, and none the better for it
-    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(Math.random() * 3) | 0], t: 3 };
+    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(srand() * 3) | 0], t: 3 };
   }
   // a day off is for the beach: after the lie-in, amble the sand near home
   // between errands instead of pacing the porch. A WALK-OUT spends the day
@@ -5698,12 +5698,12 @@ function updateHome(c, dt) {
   if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
     if (c._offPause > 0) { c._offPause -= dt; return; }
     if (c._offWt == null) {
-      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + Math.random() * 240 - 120));
-      c._offWy = clearSpotY(c._offWt, 150 + Math.random() * 16);   // amble on the sand, not through the picnic tables
+      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + srand() * 240 - 120));
+      c._offWy = clearSpotY(c._offWt, 150 + srand() * 16);   // amble on the sand, not through the picnic tables
       setT(c, c._offWt, c._offWy);
     }
     if (routedStep(c, crabMove(c) * 0.55, dt)) {
-      c._offWt = null; c._offPause = 2 + Math.random() * 5;
+      c._offWt = null; c._offPause = 2 + srand() * 5;
     }
     return;
   }
@@ -5785,7 +5785,7 @@ function newCrab(persona) {
   return {
     p: persona,
     x: homeX({ p: persona }), y: 160, tx: 0, ty: 160,
-    flip: false, hidden: false, animT: Math.random() * 9,
+    flip: false, hidden: false, animT: srand() * 9,
     dayState: "home", cstate: "", target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
     duty: false, pendingOff: false, pauseT: 0, _offIdx: 0,
@@ -5796,7 +5796,7 @@ function newCrab(persona) {
     idleT: 0, wander: null, wanderT: 0, wanderCd: 0,
     chatT: 0, chatCd: 0, chatWith: null, chatFrom: null, chatLine: 0,
     napT: 0, napFrom: null,
-    quip: null, quipT: 8 + Math.random() * 15,
+    quip: null, quipT: 8 + srand() * 15,
   };
 }
 // ---- THE TRUDGE: hunger and thirst fail as a SPEED PENALTY (Matt's call:
@@ -5972,7 +5972,7 @@ function pickTrack() {
       if (t.role || i === trackIdx) continue;
       if (Math.abs((t.e == null ? 1 : t.e) - want) === d) pool.push(i);
     }
-    if (pool.length) return pool[(Math.random() * pool.length) | 0];
+    if (pool.length) return pool[(srand() * pool.length) | 0];
   }
   return trackIdx;
 }
@@ -5987,7 +5987,7 @@ function toggleMute() {
   if (muted) { if (music) music.pause(); }
   else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
 }
-let trackIdx = (Math.random() * PLAYLIST.length) | 0;
+let trackIdx = (srand() * PLAYLIST.length) | 0;
 function playTrack(i) {
   if (music) { music.pause(); music = null; }
   trackIdx = ((i % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
@@ -6079,6 +6079,15 @@ const ACTIVE_KEY = SAVE_KEY + "_active";
 function slotKey(i) { return SAVE_KEY + "_s" + i; }
 function nowMs() { try { return Date.now(); } catch (e) { return 0; } }   // headless sandboxes may not have a clock
 let activeSlot = 1;                      // autosave goes here; persisted in ACTIVE_KEY
+// ============================================================== THE RNG SEAM
+// CS3.5 numeric-core slice 0: every sim draw goes through this ONE function -
+// the same stream, the same order, byte-identical to calling Math.random()
+// directly (the harness seeds the context's Math, which this delegates to).
+// It exists so slice 5 can split browser-only draws to a view stream without
+// hunting 93 call sites twice, and so a future backend can inject its own
+// integer generator at exactly one door. Do not add a second tap.
+function srand() { return Math.random(); }
+
 const FRESH = location.search.includes("fresh");
 const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 1])[1]) || 1);
 
@@ -7007,8 +7016,8 @@ function maybeQuip(c, dt) {
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
     if ((c.p.thirst || 0) >= 0.8 && !isNight)
       lines = ["PARCHED...", "SO DRY", "JUICE. PLEASE."];
-    c.quip = { text: lines[(Math.random() * lines.length) | 0], t: 2.6 };
-    c.quipT = 14 + Math.random() * 18;
+    c.quip = { text: lines[(srand() * lines.length) | 0], t: 2.6 };
+    c.quipT = 14 + srand() * 18;
   }
 }
 
@@ -7203,14 +7212,14 @@ function updateCommute(c, dt) {
   // after dark: nobody keels over on the morning commute.
   if (!toWork && !c.p.rough && !patOff("rough") && (c.p.tired || 0) >= ROUGH_AT
       && darkness() >= 0.5 && Math.abs(c.x - dest) > ROUGH_PX && !c.hidden
-      && Math.random() < ROUGH_RATE * dt) {
+      && srand() < ROUGH_RATE * dt) {
     sleepRough(c);
     return;
   }
   const m = c.p.mode, tr = TRAITS[c.p.trait];
   const wspd = crabMove(c), vspd = MODES[m].speed * tr.move;
 
-  if (tr.pauses && c.pauseT <= 0 && Math.random() < dt * 0.06) c.pauseT = 1.3;
+  if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3;
   if (c.pauseT > 0) { c.pauseT -= dt; return; }
 
   if (c.cstate === "travel") {           // walking the whole way
@@ -7251,7 +7260,7 @@ function arriveCommute(c, atWork) {
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
-    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 + Math.random() * 6; }
+    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 + srand() * 6; }
   }
   else { c.dayState = "home"; }
 }
@@ -7348,7 +7357,7 @@ function runJobBoard() {
   }
 }
 function spawnDrifter() {
-  const p2 = makeCrabPersona((Math.random() * 12) | 0);
+  const p2 = makeCrabPersona((srand() * 12) | 0);
   p2.name = freeCrewName(p2.name);   // deduped across BOTH name pools (converted tourists live here too)
   Object.assign(p2, { npc: true, fisher: true, homeless: true, wallet: 12, job: "fishing", shift: "D", mode: "walk" });
   const c = newCrab(p2);
@@ -7401,7 +7410,7 @@ function convertTourist(k) {
   for (const w of allCrabs()) if (w.cust === k) abortChef(w);   // unclaim a mid-prep order
   k.done = true; k.state = "leaving"; k.claimed = false;
   customers = customers.filter(q => q !== k);
-  const p2 = makeCrabPersona(2 + ((Math.random() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
+  const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
   p2.name = freeCrewName(k.name);
   p2.color = k.color; p2.acc = k.acc;
   p2.shift = hireShift(); p2.homeless = true; p2.house = null;
@@ -7450,7 +7459,7 @@ function hireCrew() {
     // nobody's visiting: the ad goes out and a new face answers, riding the
     // morning bus in - mechanically the hire completes now, so they walk
     // straight off the bus and into today's shift
-    const p2 = makeCrabPersona(2 + ((Math.random() * 10) | 0));
+    const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));
     p2.name = freeCrewName(null);
     p2.shift = hireShift(); p2.homeless = true; p2.house = null; p2.mode = "walk";
     c = newCrab(p2);
@@ -7722,7 +7731,7 @@ function pickErrand(c) {
     const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 2);
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
-      const r = c.p.wallet > 40 ? affordable[(Math.random() * affordable.length) | 0] : affordable[0];
+      const r = c.p.wallet > 40 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
       take({ selfCook: true, recipe: r, need: "food" });
     }
   }
@@ -7731,7 +7740,7 @@ function pickErrand(c) {
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
       affordable.sort((a, b) => a.pay - b.pay);
-      const r = c.p.wallet > 40 ? affordable[(Math.random() * affordable.length) | 0] : affordable[0];
+      const r = c.p.wallet > 40 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
       take({ biz: "shack", recipe: r, need: "food" });
     }
   }
@@ -7986,7 +7995,7 @@ function updateTap(c, dt) {
         if (pollCalled()) ballotBox.late.push(c.p.name);
         crabLog(c, "peril", "GOT TO THE POLLS AND THEY HAD SHUT", 0);   // DIARY
         popText("TOO LATE TO VOTE", c.x - 18, FLOOR_Y - 30, [190, 80, 80]);
-        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(Math.random() * 3) | 0], t: 2.8 };
+        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 };
         c.tapStop = null; c.tapT = 0; c.errandCd = VOTE_CD;
         c.dayState = "home"; afterErrand(c, false);
         return;
@@ -8006,7 +8015,7 @@ function updateTap(c, dt) {
     if (r === "cast") {
       crabLog(c, "life", "VOTED", 0);   // DIARY
       popText("VOTED", c.x - 6, FLOOR_Y - 30, [255, 216, 96]);
-      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(srand() * 3) | 0], t: 2.4 };
       if (window._stats) window._stats.votesCast = (window._stats.votesCast || 0) + 1;
     } else if (r === "nopaper") {
       // THE PILE RAN OUT. A crab walked the promenade to exercise the one
@@ -8015,7 +8024,7 @@ function updateTap(c, dt) {
       // happen to somebody by name - the same shape as a cold pot.
       crabLog(c, "peril", "CAME TO VOTE AND THE PAPER HAD RUN OUT", 0);   // DIARY
       popText("NO PAPER LEFT", c.x - 14, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(Math.random() * 3) | 0], t: 2.8 };
+      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(srand() * 3) | 0], t: 2.8 };
       if (window._stats) window._stats.votesRefused = (window._stats.votesRefused || 0) + 1;
     }
   } else if (e.soup) {
@@ -8025,12 +8034,12 @@ function updateTap(c, dt) {
     if (!takeBowl(c)) {
       crabLog(c, "peril", "THE SHELTER POT WAS COLD", 0);   // DIARY
       popText("THE POT IS COLD", c.x - 16, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(Math.random() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(srand() * 3) | 0], t: 2.6 };
     } else {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - SOUP_FILL);
       crabLog(c, "need", "ATE AT THE SHELTER POT", 0);   // DIARY
       popText("SHELTER POT", c.x - 14, FLOOR_Y - 30, [255, 210, 140]);
-      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(srand() * 3) | 0], t: 2.4 };
     }
   } else if (e.need === "clean") {
     c.p.dirt = Math.max(0, (c.p.dirt || 0) - TAP_RINSE);
@@ -8042,7 +8051,7 @@ function updateTap(c, dt) {
     c.p.thirst = Math.max(0, (c.p.thirst || 0) - TAP_QUENCH);
     crabLog(c, "need", "DRANK AT " + WATER_TAPS[e.tap].name, 0);   // DIARY
     popText("FREE WATER", c.x - 12, FLOOR_Y - 30, [150, 210, 255]);
-    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(Math.random() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(srand() * 3) | 0], t: 2.4 };
     if (window._stats) window._stats.tapDrinks = (window._stats.tapDrinks || 0) + 1;
   }
   c.tapStop = null; c.tapT = 0; c.errandCd = e.vote ? VOTE_CD : e.soup ? SOUP_CD : TAP_CD;
@@ -8496,7 +8505,7 @@ function forcedErrand(c, b) {
     const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 2);
     if (!aff.length) return null;
     aff.sort((a, b2) => a.pay - b2.pay);
-    return { biz: "shack", recipe: c.p.wallet > 40 ? aff[(Math.random() * aff.length) | 0] : aff[0], need: "food" };
+    return { biz: "shack", recipe: c.p.wallet > 40 ? aff[(srand() * aff.length) | 0] : aff[0], need: "food" };
   }
   if (!bizStaffed(b)) return null;
   if (b === "showers") {
@@ -8622,7 +8631,7 @@ function updateStuck(c, dt) {
   c.stuckT = 0; c.stuckRef = null;
   if (c.stuckN > STUCK_RETRIES) {
     c.stuckN = 0;
-    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(Math.random() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 };
     if (c.order) { c.order = null; c.dayState = "home"; }   // a directed crab abandons the order
     return;
   }
@@ -8643,7 +8652,7 @@ function updateFishing(c, dt) {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - 0.65);
       crabLog(c, "need", "ROASTED A FRESH CATCH ON THE BEACH", 0);   // DIARY
       popText("FRESH CATCH LUNCH", c.x - 12, c.y - 24, [140, 255, 160]);
-      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(srand() * 3) | 0], t: 2.4 };
       if (window._stats) window._stats.roasts = (window._stats.roasts || 0) + 1;
     }
     return;
@@ -8664,9 +8673,9 @@ function updateFishing(c, dt) {
     // and now and then the net comes up double
     const aboard = c.p.boat != null;
     const tier = fishTier(c);   // experience: quicker casts, better hauls
-    c.castT = (aboard ? 9 + Math.random() * 13 : 14 + Math.random() * 18) * tier.cast;
-    let haul = Math.random() < (aboard ? 0.2 : 0) + tier.dbl ? 2 : 1;
-    if (tier.big && Math.random() < tier.big) haul = 4;   // THE BIG ONE
+    c.castT = (aboard ? 9 + srand() * 13 : 14 + srand() * 18) * tier.cast;
+    let haul = srand() < (aboard ? 0.2 : 0) + tier.dbl ? 2 : 1;
+    if (tier.big && srand() < tier.big) haul = 4;   // THE BIG ONE
     townCatch += haul; trade.landed += haul; trade.landedDay += haul;
     creditCatch(c, haul);
     logCatch(c, haul);   // DIARY: tallied all day, filed as ONE line at dusk (the BIG ONE gets its own)
@@ -8682,10 +8691,10 @@ function updateFishing(c, dt) {
       const by = window._stats.catchesBy = window._stats.catchesBy || {};
       by[c.p.name] = (by[c.p.name] || 0) + haul;
     }
-    if (Math.random() < 0.25) c.quip = {
+    if (srand() < 0.25) c.quip = {
       text: trade.price >= FISH_IMPORT
-        ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(Math.random() * 3) | 0]
-        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(Math.random() * 3) | 0], t: 2.2 };
+        ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(srand() * 3) | 0]
+        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 };
   }
 }
 // A tourist will not sit at the table beside a visibly filthy crab: they take
@@ -8764,14 +8773,14 @@ function updateKitchen(c, dt) {
     c.napT -= dt;
     if (c.napT <= 0) {
       c.kstate = c.napFrom || "idle"; c.napFrom = null;
-      c.quip = { text: NOD_WAKE[(Math.random() * NOD_WAKE.length) | 0], t: 2.2 };
+      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 };
     }
     return;
   }
   if ((c.p.tired || 0) >= NOD_AT && !patOff("nod") && NOD_STATES.includes(c.kstate)
-      && Math.random() < NOD_RATE * dt) {
+      && srand() < NOD_RATE * dt) {
     c.napFrom = c.kstate; c.kstate = "nap";
-    c.napT = NOD_MIN + Math.random() * NOD_SPAN;
+    c.napT = NOD_MIN + srand() * NOD_SPAN;
     if (window._stats) {
       window._stats.nods = (window._stats.nods || 0) + 1;
       window._stats.nodSecs = (window._stats.nodSecs || 0) + c.napT;
@@ -8873,8 +8882,8 @@ function updateKitchen(c, dt) {
     if (c.wander) {                         // walking out to it (kstate stays
       setT(c, c.wander.x, c.wander.y);      // "idle": the claim scan above runs
       if (routedStep(c, spd, dt)) {         // every frame, wander or no wander)
-        c.wanderT = WANDER_DWELL + Math.random() * 10;
-        c.quip = { text: WANDER_QUIPS[(Math.random() * WANDER_QUIPS.length) | 0], t: 2.6 };
+        c.wanderT = WANDER_DWELL + srand() * 10;
+        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 };
       }
       return;
     }
@@ -9033,7 +9042,7 @@ function creditCatch(c, haul) {
       crabLog(c, "life", t.label + " FISHING - " + c.p.made.caught + " LANDED", 0);   // DIARY
       toast = { text: c.p.name + " " + t.label + " FISHING! " + c.p.made.caught + " LANDED", t: 6 };
       popText(t.label + " FISHING", c.x - 26, c.y - 32, [255, 230, 120]);
-      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(Math.random() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(srand() * 3) | 0], t: 2.6 };
       sfx.ding();
       break;
     }
@@ -9050,7 +9059,7 @@ function creditAccomplishment(c, cust) {
       crabLog(c, "life", label + " " + dish + " (X" + n + ")", 0);   // DIARY
       toast = { text: c.p.name + " " + label + " " + dish + "! " + n + " SERVED", t: 6 };
       popText(label + " " + dish, c.x - 24, FLOOR_Y - 36, [255, 230, 120]);
-      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(srand() * 3) | 0], t: 2.4 };
       sfx.ding();
       break;
     }
@@ -9161,7 +9170,7 @@ function payAndBenefit(c, cust) {
       window._stats.npcSpendAtPlayer = (window._stats.npcSpendAtPlayer || 0) + price;
     if (cust.need === "food") cust.crab.p.hunger = 0;
     if (cust.need === "drink") {
-      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(Math.random() * 3) | 0], t: 2.4 };
+      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(srand() * 3) | 0], t: 2.4 };
       if (window._stats) window._stats.crabDrinks = (window._stats.crabDrinks || 0) + 1;
     }
     if (cust.need === "drink" || DRINKS[cust.recipe.id]) cust.crab.p.thirst = 0;   // any juice quenches, even one bought as lunch
@@ -9233,7 +9242,7 @@ function serve(c) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) rep = Math.min(100, rep + 0.8);   // table service impresses
-    cust.state = "dining"; cust.dineT = 6 + Math.random() * 4;
+    cust.state = "dining"; cust.dineT = 6 + srand() * 4;
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
@@ -9364,7 +9373,7 @@ function ferryNotify(kind) {
 }
 function gnow() { return day * 1440 + tmin; }
 function ferryBatch() {
-  const n = FERRY_BASE + rep * FERRY_REP + (Math.random() - 0.5);
+  const n = FERRY_BASE + rep * FERRY_REP + (srand() - 0.5);
   return Math.max(1, Math.min(FERRY_MAX, Math.round(n)));
 }
 // ---- THE VISITOR -----------------------------------------------------------
@@ -9450,8 +9459,8 @@ function freeVisitorName(pool) {
   const used = new Set(allCrabs().map(c => c.p.name));
   for (const k of customers) if (k.visitor) used.add(k.name);
   const free = pool.filter(n => !used.has(n));
-  if (!free.length) return pool[(Math.random() * pool.length) | 0];
-  return free[(Math.random() * free.length) | 0];
+  if (!free.length) return pool[(srand() * pool.length) | 0];
+  return free[(srand() * free.length) | 0];
 }
 // STATUS BARS IN VARIOUS CONDITIONS (the directive's own words). Everybody
 // comes off the boat with a low baseline and ONE OR TWO needs genuinely
@@ -9460,21 +9469,21 @@ function freeVisitorName(pool) {
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
-  for (const key of keys) n[key] = 0.08 + Math.random() * 0.32;
-  const loaded = 1 + ((Math.random() * 2) | 0);
+  for (const key of keys) n[key] = 0.08 + srand() * 0.32;
+  const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
-    const key = keys[(Math.random() * keys.length) | 0];
-    n[key] = 0.55 + Math.random() * 0.40;
+    const key = keys[(srand() * keys.length) | 0];
+    n[key] = 0.55 + srand() * 0.40;
   }
   return n;
 }
 function newVisitor(overnightOnly, cu) {
   // CS3.5 step 3: a culture on the manifest mints from its own tables. The
   // crab path below is byte-for-byte the pre-cultures code, and either branch
-  // consumes the SAME number of Math.random() draws in the same order.
+  // consumes the SAME number of srand() draws in the same order.
   const cul = cu && cu !== "crab" && CULTURES[cu] ? CULTURES[cu] : null;
-  const nights = overnightOnly ? (Math.random() < 0.80 ? 1 : 2)
-    : Math.random() < VIS_DAYTRIP ? 0 : Math.random() < 0.78 ? 1 : 2;
+  const nights = overnightOnly ? (srand() < 0.80 ? 1 : 2)
+    : srand() < VIS_DAYTRIP ? 0 : srand() < 0.78 ? 1 : 2;
   const n = visNeeds();
   // THE PURSE. A day-tripper brings lunch money; somebody staying two nights
   // brings two nights' worth plus the room. A third of the boat is FLUSH and a
@@ -9484,18 +9493,18 @@ function newVisitor(overnightOnly, cu) {
   // The floor matters more than the mean, and it is measured: at 20 the broke
   // tail of every boat ran out mid-meal and the $9 TABLE TIP was clipped to
   // whatever was left, so a fifth of the shack's table money quietly vanished.
-  let wallet = 32 + Math.random() * 44 + nights * (ROOM_RATE + 24);
-  if (Math.random() < 0.30) wallet += 24 + Math.random() * 30;    // a flush third of the boat
-  if (Math.random() < 0.12) wallet *= 0.6;                        // ...and a few travelling light
-  const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + Math.random() * 90
-    : nights * 1440 - 60 - Math.random() * 60));
+  let wallet = 32 + srand() * 44 + nights * (ROOM_RATE + 24);
+  if (srand() < 0.30) wallet += 24 + srand() * 30;    // a flush third of the boat
+  if (srand() < 0.12) wallet *= 0.6;                        // ...and a few travelling light
+  const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + srand() * 90
+    : nights * 1440 - 60 - srand() * 60));
   const v = {
     visitor: true, gone: false, culture: cul ? cu : "crab",
     name: cul ? freeVisitorName(cul.def.people.names) : freeVisitorName(),
-    color: cul ? (Math.random() * cul.colorways) | 0 : (Math.random() * CRAB_COLORS.length) | 0,
-    acc: cul ? cul.accKeys[(Math.random() * cul.accKeys.length) | 0]
-      : ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
-    animT: Math.random() * 9,
+    color: cul ? (srand() * cul.colorways) | 0 : (srand() * CRAB_COLORS.length) | 0,
+    acc: cul ? cul.accKeys[(srand() * cul.accKeys.length) | 0]
+      : ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
+    animT: srand() * 9,
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
     state: "ashore",
@@ -9505,7 +9514,7 @@ function newVisitor(overnightOnly, cu) {
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
     nights, nightsHad: 0, rough: false, roughNights: 0, unhoused: 0,
-    arrived: day, leaveT, room: null, buys: 0, thinkT: Math.random() * VIS_THINK,
+    arrived: day, leaveT, room: null, buys: 0, thinkT: srand() * VIS_THINK,
     idleT: 0, target: null, log: [],
     // the visit's own ledger, minted with the purse - see THE DEPARTURE CARD
     stay: newStay(), qJoin: null,
@@ -9545,11 +9554,11 @@ function seedVisitors() {
     // about half of them are mid-stay rather than day-tripping, so the town
     // still has a population on DAY 2 (measured: seeding day-trippers only left
     // day 2 thirty percent down on takings while the first boats rebuilt one)
-    const v = newVisitor(Math.random() < 0.45);
+    const v = newVisitor(srand() < 0.45);
     v.state = "roam"; v.leg = 1;
-    v.x = Math.round(VIS_ROAM[0] + Math.random() * (VIS_ROAM[1] - VIS_ROAM[0]));
+    v.x = Math.round(VIS_ROAM[0] + srand() * (VIS_ROAM[1] - VIS_ROAM[0]));
     v.wy = FLOOR_Y; v.y = FLOOR_Y;
-    v.wallet = Math.round(v.wallet * (0.55 + Math.random() * 0.45));   // part-way through the money
+    v.wallet = Math.round(v.wallet * (0.55 + srand() * 0.45));   // part-way through the money
     v.spent = Math.max(0, v.purse - v.wallet);
     customers.push(v);
     visLog(v, "life", "CAME OVER ON AN EARLIER FERRY");
@@ -9559,7 +9568,7 @@ function seedVisitors() {
 // starts sending tourists once the town's reputation crosses its arrival
 // gate - word has to reach the mainland before anybody boards. THE
 // FINGERPRINT RULE: with no cultures registered, or every gate shut, this
-// consumes ZERO Math.random() draws - a pre-cultures town sails
+// consumes ZERO srand() draws - a pre-cultures town sails
 // byte-identical forever, so the roll is short-circuited BEFORE the draw.
 function cultureShare(cul) {
   const ar = cul.def.arrival || {};
@@ -9573,7 +9582,7 @@ function ferryCulture() {
     const cul = CULTURES[id];
     if (!cul) continue;   // the crab entry is null: the default, never a roll
     const share = cultureShare(cul);
-    if (share > 0 && Math.random() < share) return id;
+    if (share > 0 && srand() < share) return id;
   }
   return "crab";
 }
@@ -9591,7 +9600,7 @@ function ferryDock(n, idx) {
   for (let i = 0; i < count; i++) {
     const v = newVisitor(last, ferryCulture());
     v.x = FERRY.gangway - 4 - i * 7;   // down the plank and along the deck, in a line
-    v.thinkT = i * 3 + Math.random() * 8;   // ...and they do not all want lunch at 9:01
+    v.thinkT = i * 3 + srand() * 8;   // ...and they do not all want lunch at 9:01
     customers.push(v);
     visLog(v, "life", vline(v, "ashore", "CAME ASHORE OFF THE FERRY"));
     // HARBOUR DUES, if that is the purse the town voted for. Charged at the
@@ -9802,7 +9811,7 @@ function checkOut(k) {
 function sleepOnSand(k) {
   let best = SAND_SPOTS[0];
   for (const s of SAND_SPOTS) if (Math.abs(s - k.x) < Math.abs(best - k.x)) best = s;
-  k.state = "onSand"; k.target = best + ((Math.random() * 18) | 0) - 9;
+  k.state = "onSand"; k.target = best + ((srand() * 18) | 0) - 9;
   k.rough = true;
   if (!k.roughFlag) {
     k.roughFlag = true; k.roughNights++;
@@ -9907,15 +9916,15 @@ function visPick(k) {
   // crab fancies (CS3.5 tastes). EQUAL WEIGHTS TAKE THE OLD DRAW VERBATIM:
   // for a crab every weight is 1, the legacy expression runs, and the frozen
   // fingerprints hold because the draw maps to the same recipe. A cultured
-  // guest's weights tilt the same single draw - one Math.random() either way.
+  // guest's weights tilt the same single draw - one srand() either way.
   const treat = (rs) => {
     const ws = rs.map(r => tasteW(k, r));
     let equal = true;
     for (let i = 1; i < ws.length; i++) if (ws[i] !== ws[0]) { equal = false; break; }
-    if (equal) return rs[(Math.random() * rs.length) | 0];
+    if (equal) return rs[(srand() * rs.length) | 0];
     let total = 0;
     for (const w of ws) total += w;
-    let roll = Math.random() * total;
+    let roll = srand() * total;
     for (let i = 0; i < rs.length; i++) { roll -= ws[i]; if (roll < 0) return rs[i]; }
     return rs[rs.length - 1];
   };
@@ -10098,10 +10107,10 @@ function updateVisitor(k, dt) {
   if (k.target == null || Math.abs(k.x - k.target) < 4) {
     if (k.idleT > 0) { k.idleT -= dt; return; }
     k.target = Math.round(Math.max(VIS_ROAM[0], Math.min(VIS_ROAM[1],
-      k.x + (Math.random() - 0.5) * 2 * VIS_STROLL)));
+      k.x + (srand() - 0.5) * 2 * VIS_STROLL)));
     k.idleT = 0;
   }
-  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 + Math.random() * 5;
+  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 + srand() * 5;
 }
 // A VISIT DOES NOT END AT THE COUNTER. The shop pipeline's `leaving` state
 // means "walk away from this counter" for a visitor, not "walk out of the
@@ -10157,13 +10166,13 @@ const QUEUE_STEP = 45;   // px/s of shuffle: the speed the one-way clamp used
 // ---------------------------------------------------------------- customers
 function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
-  const r = biz.recipes[(Math.random() * biz.recipes.length) | 0];
+  const r = biz.recipes[(srand() * biz.recipes.length) | 0];
   const spawnX = biz.queueX + 150;
   return { biz: bizKey, recipe: r,
-    name: CUSTOMER_NAMES[(Math.random() * CUSTOMER_NAMES.length) | 0],
-    color: (Math.random() * CRAB_COLORS.length) | 0,
-    acc: ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
-    animT: Math.random() * 9,
+    name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
+    color: (srand() * CRAB_COLORS.length) | 0,
+    acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
+    animT: srand() * 9,
     x: spawnX, spawnX, state: "arriving", patience: 50, maxPatience: 50,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null };
@@ -10262,7 +10271,7 @@ function updateCustomers(dt) {
       const t = k.table;
       const dxt = t.x + 10 - k.x;
       if (Math.abs(dxt) > 2) k.x += Math.sign(dxt) * Math.min(45 * dt, Math.abs(dxt));
-      else { k.state = "dining"; k.dineT = 6 + Math.random() * 4; k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
+      else { k.state = "dining"; k.dineT = 6 + srand() * 4; k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
     } else if (k.state === "dining") {
       k.dineT -= dt;
       if (k.dineT <= 0) {
@@ -15979,7 +15988,7 @@ function frame(now) {
           now: { hunger: +(k.p.hunger || 0).toFixed(3), thirst: +(k.p.thirst || 0).toFixed(3),
                  dirt: +(k.p.dirt || 0).toFixed(3), tired: +(k.p.tired || 0).toFixed(3) },
         });
-        if (risk > 0 && Math.random() < Math.min(0.5, risk)) {
+        if (risk > 0 && srand() < Math.min(0.5, risk)) {
           k.p.sick = { days: 0 }; today.sick.push(k.p.name);
           logFellIll(k);   // DIARY
           if (window._stats) {
@@ -16004,7 +16013,7 @@ function frame(now) {
         // measurably better - and their own bed beats a shelter cot.
         const lane = careLane(k), care = CARE_LANES[lane];
         const tier = k.p.homeless ? "cot" : k.p.boat != null ? "boat" : "house";
-        if (Math.random() < care.cure) {
+        if (srand() < care.cure) {
           const dur = k.p.sick.days;
           k.p.sick = null; today.recovered.push(k.p.name);
           crabLog(k, "need", "GOT BETTER AFTER " + dur + " DAY" + (dur === 1 ? "" : "S") + " ILL", 0);   // DIARY
@@ -16015,7 +16024,7 @@ function frame(now) {
               .push({ day, name: k.p.name, days: dur, lane, tier, out: "well" });
           }
         } else if (k.p.sick.days >= deathArmsAt(lane) &&
-            Math.random() < Math.min(0.75, care.die + 0.12 * Math.max(0, k.p.sick.days - 4))) {
+            srand() < Math.min(0.75, care.die + 0.12 * Math.max(0, k.p.sick.days - 4))) {
           if (window._stats) (window._stats.illness = window._stats.illness || [])
             .push({ day, name: k.p.name, days: k.p.sick.days, lane, tier, out: "died", npc: !!k.p.npc });
           killCrab(k);   // the tide takes them - crew and townsfolk alike
@@ -16139,7 +16148,7 @@ function frame(now) {
     for (const c of crabs) {
       c.animT += dt; maybeQuip(c, dt);
       if (c._wt == null || Math.abs(c.x - c._wt) < 2)
-        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + Math.random() * 90 - 45));
+        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + srand() * 90 - 45));
       else stepTo(c, c._wt, 11, dt, 158);
     }
     drawBG(); drawTown(); drawBus();
