@@ -6090,6 +6090,13 @@ const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
       KS_X     = KERN ? new Int32Array(_kb, _k0 + 8320, POOL_MAX) : null,
       KS_Y     = KERN ? new Int32Array(_kb, _k0 + 8960, POOL_MAX) : null,
       KB_BLK   = KERN ? new Int32Array(_kb, _k0 + 9600, POOL_MAX) : null;
+// THE SHARED CURSOR, AS A VIEW. kernel.c keeps the sim stream's mulberry32
+// state at 26624 and its draw counter at 26628. Reading them from JS is what
+// lets a save carry its own cursor without a new kernel export - and when the
+// kernel is off the same logical cell is the module's own `_rs` below. One
+// cursor, two homes, one door (`simCursor`/`simCursorSet`).
+const KRNG = KERN ? new Uint32Array(_kb, 26624, 2) : null;
+const _kernRng = !!(KERN && KERN.exports && KERN.exports.rng_seed);
 // KERNEL PHASE 4: visitor residency planes (needs Q20, the VS state code) -
 // resident in BOTH modes, the accessors below are the only readers/writers.
 // Offsets are kernel.c's map; unarmed they are plain arrays like the pool's.
@@ -6692,6 +6699,49 @@ let activeSlot = 1;                      // autosave goes here; persisted in ACT
 // stays on the sim stream - moving it would shift every draw after it.
 function srand() { return _rtap ? _rtap() : Math.random(); }   // var + fallback: module-eval draws (trackIdx) fire before initializers run
 var _rtap = null;   // null = the default sim stream (the context's Math.random, harness-seeded)
+// THE CURSOR A SAVE CARRIES (owner ruling, 2026-08-22: "we gotta definitely
+// keep the same seed"). A save used to describe a town's PRESENT but not its
+// FUTURE: the sim stream was the HOST's, so reloading a town after playing on
+// resumed from wherever the session had left the cursor and minted different
+// guests. The cursor is town state, exactly as `T` and the pool bookkeeping
+// turned out to be in the loader-reset pass - so `load()` now adopts it.
+//
+// Unarmed, mulberry32's whole state is one i32 and it lives at module scope
+// rather than inside a closure for the single reason that the envelope has to
+// read it. Armed, the same cell is KRNG[0] in kernel memory, and BOTH sides
+// must move together or the two backends walk different sequences - which is
+// what the shared-cursor and draw-count pins exist to catch.
+var _rs = 0;
+var _rOwned = false;   // does the TOWN own the stream, or is it still the host's?
+var _foundSeed = null;   // the recipe that founded this town, when it had one
+function _jsTap() {
+  _rs = (_rs + 0x6D2B79F5) | 0;
+  let t = _rs;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+function simCursor() { return (_kernRng ? KRNG[0] : _rs) >>> 0; }
+// Adopt a cursor: install the town's own tap AND place it. Distinct from
+// sciSeedStream, which seeds a run from a recipe - this resumes one mid-flight.
+function simStreamAdopt(cursor) {
+  cursor = cursor >>> 0;
+  if (_kernRng) { KERN.exports.rng_seed(cursor); const u32 = KERN.exports.rng_u32; _rtap = () => (u32() >>> 0) / 4294967296; }
+  else { _rs = cursor | 0; _rtap = _jsTap; }
+  _rOwned = true;
+}
+// A pre-cursor save has no stream to restore, so one is DERIVED from the
+// envelope's own bytes: the same old save always lands on the same cursor and
+// therefore always has the same future, which is the property being bought.
+// "Whatever the host had" is precisely what this replaces, so it is not an
+// option; a fixed constant would work but would give every old town in the
+// world one shared future, and towns differing is the nicer half of the deal.
+function cursorFromEnvelope(s) {
+  let h = 0x811c9dc5;
+  const src = JSON.stringify([s.day, s.tmin, s.coins, s.rep, (s.crabs || []).length, (s.personas || []).map(p => p && p.name)]);
+  for (let i = 0; i < src.length; i++) { h ^= src.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
 // THE VIEW STREAM - its own mulberry32, fixed seed: cosmetic draws (title
 // wander, music shuffle) land here. Fixed on purpose - attract mode repeating
 // each boot is tradition, and a deterministic view stream stays testable.
@@ -7204,6 +7254,13 @@ function save(hold) {
     laborPol: laborPolicyState,
   };
   if (rawCultures) env.cultures = rawCultures;   // cultureways round-trip verbatim (CS3.5)
+  // THE STREAM RIDES ALONG (2026-08-22). Only when the town owns it: a town
+  // still on the host's stream has no cursor to write, and inventing one from
+  // an unreadable generator would be a lie the loader would then act on.
+  // `rs` is the cursor; `sd` is the recipe's founding seed where there is one,
+  // carried for provenance - a lab wants to know which run a town came from.
+  if (_rOwned) env.rs = simCursor();
+  if (_foundSeed != null) env.sd = _foundSeed >>> 0;
   env._ver = SAVE_VER;
   env._meta = slotMeta(env);   // written at save time; re-derivable if it ever goes missing
   if (hold) return env;
@@ -7399,6 +7456,22 @@ function load(slot, envIn) {
   // ...and the moment the envelope IS accepted, the previous town ends. Placed
   // exactly here, after the last `return false` and before the first write, so
   // a rejected save leaves the town on screen untouched.
+  // THE STREAM IS PART OF THE TOWN, so it is restored with the rest of it. A
+  // save written with a cursor resumes on that cursor; an older one derives a
+  // cursor from its own bytes, which is deterministic per save. Either way the
+  // town leaves here owning its stream, and its future no longer depends on
+  // what this session happened to do before the load - which is the whole
+  // ruling. The VIEW stream (`vrand`, title wander, music shuffle) is
+  // SESSION-OWNED and deliberately untouched: attract mode repeating each boot
+  // is tradition, and a save has no business dictating it. Do not "fix" that.
+  // ...and it is adopted BEFORE resetSession, not after: resetSession rebuilds
+  // the townsfolk through initNpcs(), which DRAWS. Adopted afterwards, those
+  // crabs would still be minted from wherever the session left the host's
+  // cursor - the whole bug, surviving inside the fix. The rule the loader
+  // learned in its own pass applies to the stream too: restore it before the
+  // first thing that reads it, not merely before the first thing you notice.
+  simStreamAdopt(s.rs != null ? s.rs : cursorFromEnvelope(s));
+  if (s.sd != null) _foundSeed = s.sd >>> 0;
   resetSession();
   const preCents = !s._num;
   if (preCents) centsEnvelope(s);
@@ -18069,14 +18142,8 @@ function sciMul32(a) {
 // kernel memory and kernel-side consumers draw from it too, so seeding must
 // go through the kernel or the two sides would walk different sequences -
 // the same reason the harness seeds it there.
-function sciSeedStream(seed) {
-  if (KERN && KERN.exports.rng_seed) {
-    KERN.exports.rng_seed(seed >>> 0);
-    const u32 = KERN.exports.rng_u32;
-    _rtap = () => (u32() >>> 0) / 4294967296;
-  } else _rtap = sciMul32(seed);
-}
-function sciFreeStream() { _rtap = null; }   // back to the browser's own Math.random
+function sciSeedStream(seed) { simStreamAdopt(seed >>> 0); }   // a recipe's seed IS its opening cursor
+function sciFreeStream() { _rtap = null; _rOwned = false; }   // back to the browser's own Math.random
 // ONE SIM TICK, no view: the rung-1 seam is what makes this callable at all -
 // simClock and simTown are the whole world, and drawing is a reader that a
 // run at speed simply does not call.
