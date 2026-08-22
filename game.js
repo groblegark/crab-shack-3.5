@@ -7456,7 +7456,6 @@ function load(slot, envIn) {
   // ...and the moment the envelope IS accepted, the previous town ends. Placed
   // exactly here, after the last `return false` and before the first write, so
   // a rejected save leaves the town on screen untouched.
-  resetSession();
   // THE STREAM IS PART OF THE TOWN, so it is restored with the rest of it. A
   // save written with a cursor resumes on that cursor; an older one derives a
   // cursor from its own bytes, which is deterministic per save. Either way the
@@ -7465,8 +7464,15 @@ function load(slot, envIn) {
   // ruling. The VIEW stream (`vrand`, title wander, music shuffle) is
   // SESSION-OWNED and deliberately untouched: attract mode repeating each boot
   // is tradition, and a save has no business dictating it. Do not "fix" that.
+  // ...and it is adopted BEFORE resetSession, not after: resetSession rebuilds
+  // the townsfolk through initNpcs(), which DRAWS. Adopted afterwards, those
+  // crabs would still be minted from wherever the session left the host's
+  // cursor - the whole bug, surviving inside the fix. The rule the loader
+  // learned in its own pass applies to the stream too: restore it before the
+  // first thing that reads it, not merely before the first thing you notice.
   simStreamAdopt(s.rs != null ? s.rs : cursorFromEnvelope(s));
   if (s.sd != null) _foundSeed = s.sd >>> 0;
+  resetSession();
   const preCents = !s._num;
   if (preCents) centsEnvelope(s);
   // NUMERIC SLICE 2 (ticks). The four persisted clocks were hours, game

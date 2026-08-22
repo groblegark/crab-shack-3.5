@@ -74,7 +74,15 @@ const FOUNDERS = [
   { name: "CLAWDIA", trait: "tidy", mode: "bike", acc: "flower" },
 ];
 function makeCrabPersona(i, rng) {
-  rng = rng || Math.random;
+  // THE SIM STREAM, not the host's. This defaulted to Math.random, which was
+  // the same cursor only for as long as the sim stream WAS the host's. Once a
+  // save carries its cursor (2026-08-22), a persona minted after a load would
+  // have kept drawing from wherever the SESSION left Math.random - so a
+  // reloaded town hired different crabs depending on what you did before
+  // loading it, which is the exact bug the ruling closes. `srand` is game.js's
+  // and resolves at call time: crabs.js evaluates first, but nobody mints a
+  // persona until game.js has defined it.
+  rng = rng || (typeof srand === "function" ? srand : Math.random);
   if (FOUNDERS[i]) return Object.assign({
     color: i, shift: i % 2 === 0 ? "M" : "E", house: i, wallet: 1000,   // cents
   }, FOUNDERS[i]);
