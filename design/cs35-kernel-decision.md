@@ -284,7 +284,7 @@ already scheduled, and it is where the confidence is.
 |---|---|---|---|---|
 | escape the `vm` context | **3.3-4.2x** | MEASURED | **yes** | harness only; no game.js change; fingerprint-identical |
 | engine opt waves 1+2 | ~1.5x | MEASURED (1.29x landed) | **yes** | wave 1 in; wave 2 unstarted |
-| slice 6 flat state, L1-resident | 1.5-3x | GUESS | **yes** | already scheduled for correctness; bench it |
+| slice 6 flat state, L1-resident | **0.79x MEASURED in JS** (was GUESS 1.5-3x) | MEASURED | **as spec only** | benched 2026-08-22 on the 6b landing (interleaved best-of-5, main realm): base 10.5 sim-days/s, flat pool 8.3 — the accessor image (get x = PXQ[i]/256) on the long tail of reads costs more than the hot-loop array wins recover at 12-crab scale; V8's in-object Smi fields were already near-optimal. **The row's premise survives only across a compiled boundary**, where a read is a raw i32 load with no getter — so the flat pool stays as the WASM port's state layout and the guess moves to that column |
 | WASM over optimized flat JS | 1.5-2.5x | LITERATURE | optional | a refinement, not a rescue; branchy code sits at the low end |
 | **per-core subtotal** | **~11-31x without WASM, ~25-79x with** | | | call it **~25x**; the honest single-town ceiling |
 | useful cores here (6 P + 12 E) | **~10x effective** | MEASURED | **yes** | not 18x — E-cores run ~1/3 speed (see `bench.mjs`) |
