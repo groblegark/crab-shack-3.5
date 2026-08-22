@@ -1719,7 +1719,7 @@ function castVote(c) {
 // THE POLLS SHUT, AND THEN IT IS ARITHMETIC BY HAND. One paper every
 // COUNT_MINS on the game clock, in the order they went into the box, and the
 // result exists only when the last one has been read out.
-function updatePoll(dt) {
+function updatePoll(dtTicks) {   // ticks, and the count scenario drives it directly
   if (!pollCalled()) return;
   const B = ballotBox;
   // AN ELECTION WITH NO PAPER. The polling day is in the diary and the office
@@ -1742,9 +1742,9 @@ function updatePoll(dt) {
     }
   }
   if (!pollCounting()) return;
-  B.countT += dtT;   // the count runs on the town clock, not on frames
+  B.countT += dtTicks;   // the count runs on the town clock, not on frames
   while (B.counted < B.cast.length && B.countT >= COUNT_MINS * GMIN) {
-    B.countT -= COUNT_MINS;
+    B.countT -= COUNT_MINS * GMIN;
     const k = B.cands.find(x => x.name === B.cast[B.counted].pick);
     if (k) k.votes++;
     B.counted++;
@@ -4061,6 +4061,11 @@ let tmin = 7 * 60, tdgm = 4200, viewT = 0;   // DERIVED from tday/T - never accu
 // rather than gates (darkness, the mist, the rent proration): they were smooth
 // in the float era and flooring them to the minute would coarsen the world by
 // four ticks. Same master clock, two grains, each used where it is exact.
+// THE CLOCK'S ONE SETTER. The master is `tday`; tmin and tdgm are read-only
+// projections of it, so moving the town's clock goes through here - a bare
+// `tmin = 12 * 60` would set a value the next reclock() overwrites.
+function setClock(m) { tday = Math.max(0, Math.min(DAY_TICKS - 1, Math.round(m * TICK_MIN))); reclock(); }
+function mistPeak(d) { return mistPeakQ16(d) / 65536; }   // the DRAW layer's float view
 function reclock() { tmin = (tday - tday % TICK_MIN) / TICK_MIN; tdgm = tday * 2; viewT = T / TICK_HZ; }
 function clockStr() {
   const h = (tmin / 60) | 0, m = tmin % 60 | 0;
@@ -16054,7 +16059,7 @@ function frame(now) {
   dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
   const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
   last = now; T += dtT;
-  if (hireCard) { hireCard.t -= raw; if (hireCard.t <= 0) hireCard = null; }
+  if (hireCard) { hireCard.t -= rawMs / 1000; if (hireCard.t <= 0) hireCard = null; }   // WALL seconds, deliberately
   if (saveConfirmT > 0) { saveConfirmT -= dt; if (saveConfirmT <= 0) saveConfirm = null; }
   if (saleArmT > 0) { saleArmT -= dt; if (saleArmT <= 0) saleArm = null; }
   if (upArmT > 0) { upArmT -= dt; if (upArmT <= 0) upArm = null; }   // the accommodation chips' arm
@@ -16512,7 +16517,7 @@ function frame(now) {
   if (!gameOver) {
   updateBus(dt);
   if (tmin >= 7.5 * 60 && hireDay !== day) { hireDay = day; runJobBoard(); }
-  updatePoll(dt);   // the polls shut on the clock, and then the count runs on it too
+  updatePoll(dtT);  // the polls shut on the clock, and then the count runs on it too
   updateCustomers(dt);
   runChatter(dt);   // its own pass over the crab list - NOT folded into collide()
   for (const c of allCrabs()) {
