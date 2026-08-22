@@ -640,7 +640,7 @@ function creditBiz(b, amt, x, y, quiet) {   // quiet: the caller pops its own la
   bizDayBook(b).take += amt;
   if (o === "player") {
     today.revenue += amt;
-    if (quiet) { coins += amt; lifetime += amt; earnHist.push({ t: time, amt }); sfx.coin(); }
+    if (quiet) { coins += amt; lifetime += amt; earnHist.push({ t: T, amt }); sfx.coin(); }
     else earn(amt, x, y);
   }
   else {
@@ -1012,7 +1012,7 @@ function acctBal(a) {
     : a.k === "vis" ? (a.v.wallet || 0) : 0;
 }
 function acctMove(a, d) {
-  if (a.k === "player") { coins += d; earnHist.push({ t: time, amt: d }); }
+  if (a.k === "player") { coins += d; earnHist.push({ t: T, amt: d }); }
   else if (a.k === "owner") { if (OWNERS[a.id]) OWNERS[a.id].till += d; }
   else if (a.k === "crab") a.c.p.wallet = Math.max(0, (a.c.p.wallet || 0) + d);
   else if (a.k === "vis") { a.v.wallet = Math.max(0, (a.v.wallet || 0) + d); if (d < 0) a.v.spent += -d; }
@@ -3611,7 +3611,7 @@ function cotRoster() {
   // a hire and a move-in all land inside a settlement, which is one frame, and
   // a memo that only watched the clock would hand the old roll back to the
   // crab who has just lost their house.
-  const key = time + ":" + n;
+  const key = T + ":" + n;
   if (_cotRoll && _cotKey === key) return _cotRoll;
   const idx = new Map(all.map((c, i) => [c, i]));
   const roll = all.filter(c => c.p.homeless)
@@ -4015,7 +4015,7 @@ function drawCabana(t, n) {
   const nx = t.x + 7 - camX;
   if (nx > -12 && nx < W) smallText(ctx, "" + n, nx, y - 6, [70, 60, 90]);
   if (guest && guest.state === "inRoom") {
-    const ph = ((time * 0.7 + t.x * 0.01) % 1);
+    const ph = ((viewT * 0.7 + t.x * 0.01) % 1);
     smallText(ctx, "Z", t.x + 12 - camX, y + 2 - ph * 4, [190, 205, 255]);
   }
   if (t.dirty) {
@@ -4028,7 +4028,23 @@ function drawCabana(t, n) {
 
 // ---------------------------------------------------------------- clock
 const TS = 4;                     // game minutes per real second
-let day = 1, tmin = 7 * 60;      // start day 1, 7:00
+// THE MASTER CLOCK IS AN INTEGER TICK, 20 a real second (slice 2). Everything
+// else on this page is a projection of it:
+//   tday  - tick of day, 0..7199 (1440 game minutes at 4 min/s)
+//   tmin  - whole game MINUTES, floor(tday/5); the domain's own grain, and
+//           what every shop-hours and shift gate is written in
+//   viewT - float seconds, for the DRAW layer only (clouds, gulls, waves)
+// tmin is derived rather than accumulated, which is the whole point: a float
+// tmin advanced by 0.2 a tick overshoots 1440 by 1.9e-10 a day and carries the
+// residue across midnight forever. Floored from the master it is exact, and it
+// fires on the same tick the float did - a gate at X minutes fires when
+// tday >= 5X either way.
+const TICK_HZ = 20;               // sim ticks per real second
+const TICK_MIN = 5;               // ticks per game minute (TS=4 -> 60/4/... = 5)
+const DAY_TICKS = 1440 * TICK_MIN;   // 7200, and midnight is exact
+let day = 1, T = 0, tday = 7 * 60 * TICK_MIN;   // start day 1, 7:00
+let tmin = 7 * 60, viewT = 0;     // DERIVED from tday/T - never accumulated
+function reclock() { tmin = (tday - tday % TICK_MIN) / TICK_MIN; viewT = T / TICK_HZ; }
 function clockStr() {
   const h = (tmin / 60) | 0, m = tmin % 60 | 0;
   return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
@@ -4082,8 +4098,8 @@ function refreshDaysOff() {
   // because a missing key reads as "Monday" rather than as an error. The
   // key used to be a rebuilt name|job fingerprint string; rosterGen marks
   // the same invalidation moments for the cost of an integer compare.
-  if (_offStamp === time && _offGen === rosterGen) return;
-  _offStamp = time; _offGen = rosterGen; _offMap = {}; _needCover = {};
+  if (_offStamp === T && _offGen === rosterGen) return;
+  _offStamp = T; _offGen = rosterGen; _offMap = {}; _needCover = {};
   const byBiz = {};
   for (const k of allCrabs()) (byBiz[k.p.job] = byBiz[k.p.job] || []).push(k);
   const wd = weekdayIdx(day);
@@ -4997,7 +5013,7 @@ function bizTables(key) {
 
 
 // ---------------------------------------------------------------- state
-let coins = 0, lifetime = 0, time = 0;
+let coins = 0, lifetime = 0;
 let crabs = [], customers = [], floaters = [];
 let toast = null, soundOn = true, ffMode = 0;   // 0=1x, 1=2x, 2=3x, 3=6x
 // THERE IS NO PAUSE, AND THAT IS A RULING (Matt, 2026-08-20: "Remove the pause
@@ -5944,10 +5960,21 @@ function needDrag(c) {
 // It never reaches zero either, so a panting crab still counts as a MOVER to
 // collide() and still clears the no-progress watchdog's 2px in 1.5s.
 const SHIMMER_AT = 0.6, SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;
+// The phase is a BAM16 integer now (65,536 = one turn) walked off the master
+// tick, not a float second: 2048 a tick is 1/32 of a turn, so the orbit closes
+// in exactly 32 ticks and an odd-symmetric wave over it sums to exactly zero.
+// That is what makes the "mean-preserving by construction" claim above LITERAL
+// - a panting crab loses nothing on average, by arithmetic rather than by
+// hope. The period moves 1.5708s -> 1.6s (+1.9%) to buy that, which is the one
+// deliberate curve change in this slice; the sine itself waits for slice 4.
+const SHIMMER_STRIDE = 2048;
+const BAM_RAD = Math.PI * 2 / 65536;
 function heatShimmer(c) {
   if (_fNoShim) return 1;
   const f = Math.min(1, Math.max(0, ((c.p.thirst || 0) - SHIMMER_AT) / (1 - SHIMMER_AT)));
-  return f <= 0 ? 1 : 1 + SHIMMER_AMP * f * Math.sin(time * SHIMMER_HZ + c.animT * 6.3);
+  if (f <= 0) return 1;
+  if (c.shimPh == null) c.shimPh = Math.round(c.animT * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
+  return 1 + SHIMMER_AMP * f * Math.sin(((T * SHIMMER_STRIDE + c.shimPh) & 0xFFFF) * BAM_RAD);
 }
 function crabMove(c) {
   const t = TRAITS[c.p.trait];
@@ -6126,19 +6153,19 @@ function popText(txt, x, y, color) {
 function $d(c) { return Math.round(c / 100); }
 function earn(amt, x, y) {
   coins += amt; lifetime += amt;
-  earnHist.push({ t: time, amt });
+  earnHist.push({ t: T, amt });
   popText("+$" + $d(amt), x, y, [255, 230, 120]);
   sfx.coin();
 }
 function expense(amt, x, y, label) {
   coins -= amt;
-  earnHist.push({ t: time, amt: -amt });   // income rate is net
+  earnHist.push({ t: T, amt: -amt });   // income rate is net
   popText("-$" + $d(amt) + (label ? " " + label : ""), x, y, [255, 120, 120]);
 }
 function incomeRate() {
-  while (earnHist.length && earnHist[0].t < time - 60) earnHist.shift();
+  while (earnHist.length && earnHist[0].t < T - 60 * TICK_HZ) earnHist.shift();
   if (!earnHist.length) return 0;
-  return earnHist.reduce((s, e) => s + e.amt, 0) / Math.max(10, time - earnHist[0].t);
+  return earnHist.reduce((s, e) => s + e.amt, 0) / Math.max(10, (T - earnHist[0].t) / TICK_HZ);
 }
 
 // ---------------------------------------------------------------- save
@@ -10250,7 +10277,7 @@ function visTick(k, dt) {
   // guest who spent their evening out in a thick one is a guest whose stay the
   // player can go back and check. Indoors does not count - a paid bed is
   // exactly what buys you out of it, which is the whole point of saying so.
-  if (k.state !== "inRoom" && tmin >= 16.5 * 60 && mistNow() > 0.6)
+  if (k.state !== "inRoom" && tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536)
     stayOf(k).mistMin += dt * TS;
   if (k.state === "inRoom") {
     k.tired = Math.max(0, k.tired - VIS_BED_DRAIN * hrs);
@@ -11610,14 +11637,14 @@ function drawHorizon() {
     if (bx < -4 || bx > W) continue;
     const bh = 3 + ((i * 7 + 3) % 4) + (i === 4 || i === 9 ? 3 : 0);
     rect(ctx, bx, HZ_Y - bh, 4, bh, night ? [22, 26, 52] : [128, 152, 186]);
-    if (night && (i * 3 + 1 + ((time * 0.2) | 0)) % 4)
+    if (night && (i * 3 + 1 + ((viewT * 0.2) | 0)) % 4)
       px(ctx, bx + 1, HZ_Y - bh + 1, [255, 214, 128]);
   }
   // harbour lights strung along the rest of the shore, only after dark
   if (night) for (let i = 0; i < 26; i++) {
     const lx = Math.round(((i * 47 + 11) % 300) - 22 - hx);
     if (lx < 0 || lx >= W) continue;
-    if ((i * 5 + ((time * 0.15) | 0)) % 7 === 0) continue;   // one or two are out
+    if ((i * 5 + ((viewT * 0.15) | 0)) % 7 === 0) continue;   // one or two are out
     px(ctx, lx, HZ_Y - 1 - (i % 2), [255, 206, 120]);
   }
   // THE LIGHT ON THE POINT. It turns whether or not anybody in this town is
@@ -11627,7 +11654,7 @@ function drawHorizon() {
     const base = hzRidge(HZ_LIGHT_X);
     rect(ctx, lx, base - 9, 3, 9, night ? [126, 130, 156] : [240, 244, 250]);
     rect(ctx, lx, base - 5, 3, 2, night ? [112, 62, 72] : [212, 84, 84]);
-    const lit = ((time * 0.85) % 4) < 1.2;
+    const lit = ((viewT * 0.85) % 4) < 1.2;
     rect(ctx, lx, base - 11, 3, 2, lit ? [255, 242, 172] : night ? [78, 82, 108] : [150, 160, 180]);
     if (lit) {
       px(ctx, lx - 1, base - 10, [255, 232, 144]);
@@ -11675,25 +11702,56 @@ function drawHorizonTraffic() {
 // thick it comes is an integer hash of the DAY - no RNG, nothing stored, no
 // save field - so the weather is a fact about the calendar, the same on every
 // machine, and a clear night is a small event rather than a coin flip.
-function mistPeak(d) {
+const MIST_POW_Q16 = [
+  0, 588, 1060, 1496, 1911, 2310, 2697, 3075, 3444, 3807, 4164, 4515, 4862, 5204, 5542, 5877,
+  6208, 6537, 6862, 7185, 7505, 7823, 8138, 8452, 8763, 9072, 9380, 9686, 9990, 10292, 10593, 10893,
+  11191, 11487, 11782, 12076, 12369, 12660, 12951, 13240, 13528, 13815, 14101, 14385, 14669, 14952, 15234, 15515,
+  15795, 16075, 16353, 16631, 16907, 17183, 17459, 17733, 18007, 18280, 18552, 18823, 19094, 19365, 19634, 19903,
+  20171, 20439, 20706, 20972, 21238, 21503, 21768, 22032, 22295, 22558, 22820, 23082, 23344, 23604, 23865, 24125,
+  24384, 24643, 24901, 25159, 25416, 25673, 25930, 26186, 26442, 26697, 26951, 27206, 27460, 27713, 27966, 28219,
+  28471, 28723, 28975, 29226, 29477, 29727, 29977, 30226, 30476, 30725, 30973, 31221, 31469, 31717, 31964, 32211,
+  32457, 32703, 32949, 33195, 33440, 33685, 33929, 34174, 34418, 34661, 34905, 35148, 35390, 35633, 35875, 36117,
+  36358, 36600, 36841, 37081, 37322, 37562, 37802, 38042, 38281, 38520, 38759, 38998, 39236, 39474, 39712, 39950,
+  40187, 40424, 40661, 40897, 41134, 41370, 41606, 41841, 42077, 42312, 42547, 42782, 43016, 43250, 43485, 43718,
+  43952, 44185, 44418, 44651, 44884, 45117, 45349, 45581, 45813, 46045, 46276, 46507, 46739, 46969, 47200, 47431,
+  47661, 47891, 48121, 48351, 48580, 48809, 49038, 49267, 49496, 49725, 49953, 50181, 50409, 50637, 50865, 51092,
+  51319, 51547, 51773, 52000, 52227, 52453, 52679, 52906, 53131, 53357, 53583, 53808, 54033, 54258, 54483, 54708,
+  54933, 55157, 55381, 55605, 55829, 56053, 56277, 56500, 56723, 56946, 57169, 57392, 57615, 57837, 58060, 58282,
+  58504, 58726, 58948, 59170, 59391, 59612, 59834, 60055, 60275, 60496, 60717, 60937, 61158, 61378, 61598, 61818,
+  62038, 62257, 62477, 62696, 62915, 63135, 63354, 63572, 63791, 64010, 64228, 64446, 64665, 64883, 65101, 65318,
+  65536,
+];
+// mistPeak in Q16 (65536 = full white-out), and it is an INTEGER now: the
+// day's hash indexes the baked pow table above, one linear step covers the low
+// 16 bits, and 1.25 folds in as an exact 5/4. Rolled ONCE a day at midnight -
+// the sim asks `mistNowQ16() * 5 > 3 * 65536` on the way to a hotel room, and
+// a threshold that decides whether a guest walks home in the fog should not be
+// re-derived from a transcendental sixty times a second.
+function mistPeakQ16(d) {
   let h = Math.imul(d | 0, 2654435761) >>> 0;
   h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
   // biased THICK on purpose: about a third of evenings the shore is simply
   // gone, about a quarter are clear enough to count the windows, and the rest
   // sit in between - so "I can see across tonight" is news
-  return Math.min(1, 0.18 + 1.25 * Math.pow((h >>> 8) / 16777216, 0.85));
+  const H = h >>> 8, hi = H >>> 16, lo = H & 0xFFFF;
+  const pw = MIST_POW_Q16[hi] + (((MIST_POW_Q16[hi + 1] - MIST_POW_Q16[hi]) * lo) >> 16);
+  return Math.min(65536, 11796 + ((pw * 5 - pw * 5 % 4) / 4));   // 0.18 + 1.25*u^0.85
 }
+let _mistDay = -1, mistTodayQ16 = 0, mistYestQ16 = 0;
+function mistRoll() { _mistDay = day; mistTodayQ16 = mistPeakQ16(day); mistYestQ16 = mistPeakQ16(day - 1); }
 // how much of it is out there right now: it comes in off the sea through the
 // late afternoon, sits all night, and burns off through the morning. The small
 // hours belong to YESTERDAY's mist, or it would change thickness at midnight.
-function mistNow() {
+function mistNowQ16() {
+  if (_mistDay !== day) mistRoll();   // also covers a fresh town and a load
   const t = tmin;
-  if (t < 6.5 * 60) return mistPeak(day - 1);
-  if (t < 9.5 * 60) return mistPeak(day - 1) * (1 - (t - 6.5 * 60) / (3 * 60));
-  if (t < 16.5 * 60) return 0;
-  if (t < 20 * 60) return mistPeak(day) * ((t - 16.5 * 60) / (3.5 * 60));
-  return mistPeak(day);
+  if (t < 390) return mistYestQ16;
+  if (t < 570) return (mistYestQ16 * (570 - t) - mistYestQ16 * (570 - t) % 180) / 180;
+  if (t < 990) return 0;
+  if (t < 1200) return (mistTodayQ16 * (t - 990) - mistTodayQ16 * (t - 990) % 210) / 210;
+  return mistTodayQ16;
 }
+function mistNow() { return mistNowQ16() / 65536; }   // the DRAW layer's float view
 function drawMist() {
   if (window._noMist) return;
   const m = mistNow();
@@ -11705,7 +11763,7 @@ function drawMist() {
   // would just read as a broken renderer.
   for (let y = 26; y < SHORE_Y; y++) {
     const v = y < 42 ? (y - 26) / 16 : y < 66 ? 1 : 1 - 0.6 * (y - 66) / (SHORE_Y - 66);
-    const a = Math.min(1, m * (0.10 + 0.95 * v) * (0.86 + 0.14 * Math.sin(y * 0.55 - time * 0.5)));
+    const a = Math.min(1, m * (0.10 + 0.95 * v) * (0.86 + 0.14 * Math.sin(y * 0.55 - viewT * 0.5)));
     if (a <= 0.01) continue;
     ctx.fillStyle = `rgba(${c},${a.toFixed(3)})`;
     ctx.fillRect(0, y, W, 1);
@@ -11713,10 +11771,10 @@ function drawMist() {
   // banks of it rolling through, at their own speeds - the motion is what
   // makes it weather instead of a filter
   for (let i = 0; i < 5; i++) {
-    const wy = 40 + i * 8 + ((Math.sin(time * 0.17 + i * 2.3) * 2) | 0);
+    const wy = 40 + i * 8 + ((Math.sin(viewT * 0.17 + i * 2.3) * 2) | 0);
     if (wy >= SHORE_Y) continue;
     const ww = 70 + i * 26;
-    const wx = ((time * (5 + i * 3) + i * 130) % (W + ww * 2)) - ww;
+    const wx = ((viewT * (5 + i * 3) + i * 130) % (W + ww * 2)) - ww;
     ctx.fillStyle = `rgba(${c},${(0.30 * m).toFixed(3)})`;
     ctx.fillRect(wx | 0, wy, ww, 2 + (i % 2));
   }
@@ -11737,25 +11795,25 @@ function drawBG() {
   // weather - the hills are nearer than the sky and further than everything)
   drawHorizon();
   // clouds (parallax)
-  blit(ctx, CLOUD, ((time * 4 - camX * 0.4) % 320 + 320) % 320 - 30, 12);
-  blit(ctx, CLOUD, ((time * 2.5 - camX * 0.3 + 160) % 320 + 320) % 320 - 30, 30);
-  const gt = time % 24;
-  if (gt < 12 && dark < 0.5) blit(ctx, GULL[((time * 4) | 0) % 2], 256 - gt * 24, 22 + Math.sin(time * 2) * 3);
+  blit(ctx, CLOUD, ((viewT * 4 - camX * 0.4) % 320 + 320) % 320 - 30, 12);
+  blit(ctx, CLOUD, ((viewT * 2.5 - camX * 0.3 + 160) % 320 + 320) % 320 - 30, 30);
+  const gt = viewT % 24;
+  if (gt < 12 && dark < 0.5) blit(ctx, GULL[((viewT * 4) | 0) % 2], 256 - gt * 24, 22 + Math.sin(viewT * 2) * 3);
   // ocean (screen fixed)
   rect(ctx, 0, SKY_H, W, SHORE_Y - SKY_H, [40, 140, 220]);
   for (let y = SKY_H + 2; y < SHORE_Y; y += 5)
     for (let x = -8; x < W; x += 24) {
-      const off = ((Math.sin(time * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
+      const off = ((Math.sin(viewT * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
       rect(ctx, x + off, y, 10, 1, [96, 200, 255]);
     }
   // glints on the water
   for (let i = 0; i < 6; i++) {
-    if (((time * 2 + i * 1.7) | 0) % 3) continue;
-    const gx = (i * 89 + ((time * 0.7) | 0) * 37) % W;
-    const gy = SKY_H + 3 + (i * 11 + ((time * 0.4) | 0) * 5) % (SHORE_Y - SKY_H - 7);
+    if (((viewT * 2 + i * 1.7) | 0) % 3) continue;
+    const gx = (i * 89 + ((viewT * 0.7) | 0) * 37) % W;
+    const gy = SKY_H + 3 + (i * 11 + ((viewT * 0.4) | 0) * 5) % (SHORE_Y - SKY_H - 7);
     px(ctx, gx, gy, [235, 250, 255]);
   }
-  const f = (Math.sin(time * 0.9) * 3) | 0;
+  const f = (Math.sin(viewT * 0.9) * 3) | 0;
   rect(ctx, 0, SHORE_Y - 3 + Math.max(0, f), W, 2, [230, 250, 255]);
   drawHorizonTraffic();   // boats float ON the water, so: after it
   drawMist();             // and the weather takes the water and the shore together
@@ -11777,11 +11835,11 @@ function drawPier() {
   wrect(bx0, SHORE_Y, bx1 - bx0, 124 - SHORE_Y, [40, 140, 220]);
   for (let y = SHORE_Y + 3; y < 120; y += 5)
     for (let x = bx0; x < bx1; x += 24) {
-      const off = ((Math.sin(time * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
+      const off = ((Math.sin(viewT * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
       if (x + off > bx0 && x + off + 10 < bx1) wrect(x + off, y, 10, 1, [96, 200, 255]);
     }
   // foam where the channel laps the sand
-  const f = (Math.sin(time * 0.9 + 2) * 2) | 0;
+  const f = (Math.sin(viewT * 0.9 + 2) * 2) | 0;
   wrect(bx0, 122 + Math.max(0, f), bx1 - bx0, 2, [230, 250, 255]);
   wrect(bx0, SHORE_Y, 1, 124 - SHORE_Y, [170, 220, 250]);
   wrect(bx1 - 1, SHORE_Y, 1, 124 - SHORE_Y, [170, 220, 250]);
@@ -11810,9 +11868,9 @@ function drawPier() {
   // bait bucket between the fishing spots
   wblit(BUCKET, 1928, 97);
   // a gull loiters on the rail, eyeing the bucket (it clears off now and then)
-  if ((time % 47) < 34 && darkness() < 0.8) {
-    const hop = ((time * 2) | 0) % 8 === 0 ? -1 : 0;
-    wblit(GULL_SIT, 2020, 73 + hop, ((time / 9) | 0) % 2 === 0);   // east of the berths
+  if ((viewT % 47) < 34 && darkness() < 0.8) {
+    const hop = ((viewT * 2) | 0) % 8 === 0 ? -1 : 0;
+    wblit(GULL_SIT, 2020, 73 + hop, ((viewT / 9) | 0) % 2 === 0);   // east of the berths
   }
   // lamp post on the east end for the night tide
   wrect(dx1 - 8, 66, 2, 20, [70, 60, 90]);
@@ -11837,9 +11895,9 @@ function drawFerry() {
   if (!ferryHere() && !won) return;
   const x = FERRY.hull, y = FERRY.hullY;
   if (x + 60 - camX < 0 || x - 60 - camX > W) return;
-  const bob = Math.sin(time * 0.9) > 0 ? 1 : 0;
+  const bob = Math.sin(viewT * 0.9) > 0 ? 1 : 0;
   wblit(FERRY_ART[0], x, y + bob);
-  wblit(FERRY_SMOKE[((time * 3) | 0) % 2], x + 11, y - 3 + bob);
+  wblit(FERRY_SMOKE[((viewT * 3) | 0) % 2], x + 11, y - 3 + bob);
   // mooring lines + the gangway down to the planks
   wrect(FERRY.gangway + 2, y + 10 + bob, x - FERRY.gangway - 2, 1, [140, 90, 50]);
   for (let i = 0; i < 5; i++)
@@ -11863,12 +11921,12 @@ function drawBeachBall() {
   let bx = BALL_X, by = BALL_Y + 3;
   if (players.length >= 2) {
     const a = players[0], b = players[1];
-    const t = (time % 1.4) / 1.4;
+    const t = (viewT % 1.4) / 1.4;
     bx = a.x + 8 + (b.x - a.x) * t;
     by = BALL_Y + 1 - Math.sin(t * Math.PI) * 22;   // up and over
   } else if (players.length === 1) {
     const a = players[0];
-    const t = (time % 0.8) / 0.8;
+    const t = (viewT % 0.8) / 0.8;
     bx = a.x + 10;
     by = BALL_Y - 1 - Math.sin(t * Math.PI) * 10;   // bounced off your own claw
   }
@@ -11889,7 +11947,7 @@ function drawBoats() {
     if (c.p.boat == null) continue;
     const b = BOAT_BERTHS[c.p.boat];
     if (b.x - camX < -40 || b.x - camX > W + 40) continue;
-    const bob = Math.sin(time * 0.8 + c.p.boat * 2.1) > 0 ? 1 : 0;
+    const bob = Math.sin(viewT * 0.8 + c.p.boat * 2.1) > 0 ? 1 : 0;
     wblit(BOATS[c.p.color % BOATS.length], b.x, BOAT_Y + bob);
     // mooring line from the stern down to the pier rail
     wrect(b.x + 34, 80 + bob, 3, 1, [140, 90, 50]);
@@ -11996,7 +12054,7 @@ function drawTown() {
       smallText(ctx, "WATER", lx, HOME_BOTTOM - STANDPIPE2.h - 9, [235, 248, 255]);
     }
     if (allCrabs().some(c => c.dayState === "atTap" && c.tapStop && !c.tapStop.soup && c.tapStop.tap === i && c.tapT > 0))
-      wblit(TAP_FLOW[((time * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
+      wblit(TAP_FLOW[((viewT * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
   }
   drawPollingPlaces();
 // THE POLLING PLACE. A trestle, a box with a slot cut in the lid, and a board
@@ -12098,7 +12156,7 @@ function drawPollingPlaces() {
       wrect(px0 + 1, py + 1, 10, 1, [180, 130, 70]);                      // soup, just under the rim
       wrect(px0 + 2, py + 6, 8, 1, [255, 150, 60]);                       // embers under it
       for (let i = 0; i < 3; i++)
-        wrect(px0 + 2 + i * 4, py - 3 - ((time * 4 + i * 2) | 0) % 4, 1, 2, [235, 225, 205]);
+        wrect(px0 + 2 + i * 4, py - 3 - ((viewT * 4 + i * 2) | 0) % 4, 1, 2, [235, 225, 205]);
     }
   }
   // THE TOWN REMEMBERS. Driftwood markers, now on the little dune between the
@@ -12352,17 +12410,17 @@ function drawStation(key, kind, i) {
   const st = BIZ[key].stations[kind][i];
   const isBusy = busy[key] && busy[key][kind] && busy[key][kind][i];
   let art = STATION_ART[kind];
-  if (kind === "claw") art = CLAW_MACHINE[isBusy ? ((time * 4) | 0) % 2 : 0];
-  if (kind === "juicer") art = JUICER[isBusy ? ((time * 6) | 0) % 2 : 0];
+  if (kind === "claw") art = CLAW_MACHINE[isBusy ? ((viewT * 4) | 0) % 2 : 0];
+  if (kind === "juicer") art = JUICER[isBusy ? ((viewT * 6) | 0) % 2 : 0];
   if (kind === "stall") art = STALL[isBusy ? 1 : 0];
   wblit(art, st.x, st.y - art.h);
   if (kind === "grill" && isBusy) {
-    wblit(FLAME[((time * 8) | 0) % 2], st.x + 6, st.y - GRILL.h - 4);
+    wblit(FLAME[((viewT * 8) | 0) % 2], st.x + 6, st.y - GRILL.h - 4);
     // a wisp of smoke curls off the hot grill
     for (let i = 0; i < 3; i++) {
-      const ph = (time * 0.55 + i * 0.37 + st.x * 0.011) % 1;
+      const ph = (viewT * 0.55 + i * 0.37 + st.x * 0.011) % 1;
       if (ph > 0.8) continue;
-      const sx = st.x + 7 + i * 2 + ((Math.sin(time * 1.2 + i * 2.1 + st.x) * 2) | 0);
+      const sx = st.x + 7 + i * 2 + ((Math.sin(viewT * 1.2 + i * 2.1 + st.x) * 2) | 0);
       const sy = st.y - GRILL.h - 8 - ph * 12;
       const s = ph < 0.45 ? 2 : 1;
       wrect(sx, sy, s, s, ph < 0.3 ? [168, 168, 182] : [206, 206, 220]);
@@ -12373,14 +12431,14 @@ function drawStation(key, kind, i) {
 let _swoopT = 99;
 function drawSwoop() {
   // every so often a gull dives at the snack queue
-  const T = time % 41;
+  const T = viewT % 41;
   if (T < _swoopT && darkness() <= 0.5) sfx.gull();   // one cry per dive
   _swoopT = T;
   if (T > 5.5 || darkness() > 0.5) return;
   const t = T / 5.5;
   const wx2 = BIZ.shack.queueX + 180 - t * 220;
   const gy = 34 + Math.sin(t * Math.PI) * 100;
-  wblit(GULL[((time * 6) | 0) % 2], wx2, gy);
+  wblit(GULL[((viewT * 6) | 0) % 2], wx2, gy);
 }
 function drawBus() {
   const by = ROAD_Y1 - BUS2.h - 1;
@@ -12424,7 +12482,7 @@ function drawCrab(c) {
   else if (working) art = ((c.animT * 6) | 0) % 2 ? arts.w : arts.a;
   else if (moving) art = ((c.animT * 8) | 0) % 2 ? arts.a : arts.b;
   else art = arts.a;
-  const bob = sleeping ? (Math.sin(time * 1.6 + c.animT) > 0 ? 1 : 0)   // slow breathing
+  const bob = sleeping ? (Math.sin(viewT * 1.6 + c.animT) > 0 ? 1 : 0)   // slow breathing
     : working ? -(((c.animT * 6) | 0) % 2) : 0;
   let y = c.y - 12 + bob;
   if (riding && c.p.mode === "bike") {
@@ -12445,9 +12503,9 @@ function drawCrab(c) {
   // THE WIDE BERTH's badge: the bubble of empty boardwalk needs a visible
   // cause, so a crab whose personal space has inflated wears stink lines.
   if (crabBerth(c) > 0 && darkness() <= 0.6 && c.dayState !== "home")
-    wblit(STINK_MARK[((time * 3.1) | 0) % 2], c.x + 12, y - 7);
+    wblit(STINK_MARK[((viewT * 3.1) | 0) % 2], c.x + 12, y - 7);
   if (sleeping) {   // a little Z drifts up from the shell
-    const ph = (time * 0.45 + c.animT * 0.37) % 1;
+    const ph = (viewT * 0.45 + c.animT * 0.37) % 1;
     if (ph < 0.75) {
       const zx = c.x + 13 + ((Math.sin(ph * 9 + c.animT) * 2) | 0) - camX;
       if (zx > -4 && zx < W) smallText(ctx, "Z", zx, y - 2 - ph * 13, ph < 0.4 ? [200, 210, 235] : [150, 160, 195]);
@@ -12458,8 +12516,8 @@ function drawCrab(c) {
   // so it appears the minute they clock past their shift and clears itself the
   // minute overtime ends. Bobs so it reads as a marker, not a hat.
   if (onOvertimeNow(c)) {
-    const bobb = Math.sin(time * 3 + c.animT) > 0 ? 0 : 1;
-    wblit(OT_MARK[((time * 2.2) | 0) % 2], c.x + 5, y - 18 - bobb);   // clear of the toque AND the work-progress bar
+    const bobb = Math.sin(viewT * 3 + c.animT) > 0 ? 0 : 1;
+    wblit(OT_MARK[((viewT * 2.2) | 0) % 2], c.x + 5, y - 18 - bobb);   // clear of the toque AND the work-progress bar
   }
   if (c.p.job === "fishing" && c.dayState === "working") wblit(ROD[((c.animT * 2) | 0) % 2], c.x + 12, y - 3, c.flip);
   if (c.carrying) wblit(ITEMS[c.carrying], c.x + 4, y - 7);
@@ -12512,7 +12570,7 @@ function drawCustomer(k) {
         wblit(acc.art, k.x + ax, cy + acc.dy, flip);
       }
       if (k.state === "onSand") {   // a night on the beach, and it shows
-        const ph = ((time * 0.7 + k.x * 0.01) % 1);
+        const ph = ((viewT * 0.7 + k.x * 0.01) % 1);
         // the Z rises off the culture's mark anchor; the crab's 11 is its own
         smallText(ctx, "Z", k.x + (cul ? cul.body.anchors.mark.x : 11) - camX, cy - 4 - ph * 5, [200, 210, 255]);
       }
@@ -12560,9 +12618,9 @@ function drawNight() {
         wrect(BOAT_BERTHS[c.p.boat].x + 7, BOAT_Y + 11, 3, 3, [255, 216, 96]);
     if (dark > 0.65) {
       for (let i = 0; i < 6; i++) {
-        if (((time * 3 + i) | 0) % 4 === 0) continue;
-        const fx = 480 + i * 260 + Math.sin(time * 0.31 + i * 2.1) * 55;
-        const fy = 148 + Math.sin(time * 0.73 + i * 1.3) * 9;
+        if (((viewT * 3 + i) | 0) % 4 === 0) continue;
+        const fx = 480 + i * 260 + Math.sin(viewT * 0.31 + i * 2.1) * 55;
+        const fy = 148 + Math.sin(viewT * 0.73 + i * 1.3) * 9;
         wrect(fx, fy, 1, 1, [190, 255, 140]);
       }
     }
@@ -12814,9 +12872,9 @@ function navTill(key) { const bk = today.biz[key]; return bk ? bk.take || 0 : 0;
 function navFlashing(key) {
   const take = navTill(key);
   const seen = navTake[key];
-  if (seen != null && take > seen) navFlash[key] = time;
+  if (seen != null && take > seen) navFlash[key] = viewT;
   navTake[key] = take;                      // ...and a day rollover resets it to 0 without a flash
-  return navFlash[key] != null && time - navFlash[key] < NAV_FLASH;
+  return navFlash[key] != null && viewT - navFlash[key] < NAV_FLASH;
 }
 const NAV_H = 7;                            // the free rows between FLOOR_MAX and the panel
 const NAV_CHIP_H = 11;                      // ...and a thumb-sized chip row above them
@@ -13021,7 +13079,7 @@ function drawNav() {
   // polls are open and holds steady through the count, then goes when the
   // result is declared and the table comes down.
   if (pollCalled() && ballotBox.printed > 0 && !ballotBox.declared) {
-    const lit = ballotBox.shut || ((time * 2) | 0) % 2 === 0;
+    const lit = ballotBox.shut || ((viewT * 2) | 0) % 2 === 0;
     if (lit) for (const pl of POLL_PLACES)
       rect(ctx, Math.max(m.x, Math.min(m.x + m.w - 1, sx(pl.x + 16))), m.y + 1, 1, 2,
         ballotBox.papers > 0 || ballotBox.shut ? [255, 216, 96] : [200, 110, 40]);
@@ -13067,7 +13125,7 @@ function drawPanel() {
   blit(ctx, muted ? SPEAKER_OFF : SPEAKER_ON, 150, PANEL_Y + 3);
   {
     const invite = !musicOn && !muted && musNudges < 3;
-    const pulse = invite && (time % 2) < 1.2;
+    const pulse = invite && (viewT % 2) < 1.2;
     smallText(ctx, "MUS", 169, PANEL_Y + 3,
       !muted && musicOn ? [140, 220, 140] : pulse ? [255, 216, 96] : [140, 120, 110]);
     if (invite && !musNudged && screen === "play" && tmin > 9.5 * 60 && !toast && reportT <= 0) {
@@ -13126,7 +13184,7 @@ function drawPanel() {
   const due = nightlyDue() + creditDueTonight();
   const rTxt = "BILL $" + fmt(due) + (credit.bal > 0 ? " D$" + fmt(Math.round(credit.bal)) : "");
   const chipW = textWidth(rTxt, 5) + 8;
-  const crunch = coins < due && tmin >= 18 * 60 && tmin < 20 * 60 && ((time * 2) | 0) % 2;
+  const crunch = coins < due && tmin >= 18 * 60 && tmin < 20 * 60 && ((viewT * 2) | 0) % 2;
   rect(ctx, 252 - chipW, TAB_Y - 1, chipW, TAB_H + 1, crunch ? [150, 40, 40] : tab === "menu" ? [190, 140, 80] : [90, 70, 60]);
   text(ctx, rTxt, 252 - chipW + 4, TAB_TX - 1, coins < due ? [255, 140, 140] : tab === "menu" ? [40, 24, 16] : [200, 185, 170], 5);
 
@@ -13411,7 +13469,7 @@ function drawEnding() {
     + R.pop + " CRABS, " + R.housed + " HOUSED", x + 6, ly, [140, 110, 40]); ly += 10;
   const tag = "CRABALINA IS ON THE MAP";
   smallText(ctx, tag, x + ((w2 - smallTextWidth(tag)) >> 1), ly, [40, 130, 70]);
-  if (((time * 2) | 0) % 2)
+  if (((viewT * 2) | 0) % 2)
     smallText(ctx, "CLICK TO START OVER", x + ((w2 - smallTextWidth("CLICK TO START OVER")) >> 1), y + h2 - 9, [120, 110, 120]);
 }
 function drawGameOver() {
@@ -13433,7 +13491,7 @@ function drawGameOver() {
     text(ctx, "NIGHTLY RENT OWED $" + fmt(totalRent()), cx2 - 66, 114, [140, 60, 60], 6);
   }
   smallText(ctx, "SURVIVED " + day + " DAYS  EARNED $" + fmt(lifetime), cx2 - 78, 124, [90, 90, 110]);
-  const bl = ((time * 2) | 0) % 2;
+  const bl = ((viewT * 2) | 0) % 2;
   if (bl) text(ctx, "CLICK TO START OVER", cx2 - 56, 137, [40, 110, 60], 6);
 }
 function homeLabel(p) {
@@ -14956,7 +15014,7 @@ function drawReport() {
         r2.x + r2.w + 4, r2.y + 3, [150, 130, 120]);
     }
   }
-  if (((time * 1.5) | 0) % 2) smallText(ctx, "CLICK TO CARRY ON", x + 52, y + h2 - 9, [150, 130, 120]);
+  if (((viewT * 1.5) | 0) % 2) smallText(ctx, "CLICK TO CARRY ON", x + 52, y + h2 - 9, [150, 130, 120]);
 }
 
 // ===========================================================================
@@ -15444,7 +15502,7 @@ function drawDepart() {
   }
   const more = page < departPages() - 1;
   const foot = more ? "CLICK FOR MORE   " + (page + 1) + "/" + departPages() : "CLICK TO CARRY ON";
-  if (more || ((time * 1.5) | 0) % 2)
+  if (more || ((viewT * 1.5) | 0) % 2)
     smallText(ctx, foot, x + ((w2 - smallTextWidth(foot)) >> 1), y + h2 - 8, [150, 130, 120]);
 }
 // One click: turn the page, and close on the last one. No chips, because the
@@ -15920,14 +15978,14 @@ function drawHirePointer() {
   // 5-row head) and at 26 its stem printed behind the bottom edge of the hire
   // card, which sits at y140. This lands it in the gap between the card and the
   // crab's own head, which is what it is pointing at.
-  const bob = Math.round(Math.sin(time * 6) * 2);
+  const bob = Math.round(Math.sin(viewT * 6) * 2);
   const py = Math.round(c.y) - 20 + bob;
   for (let i = 0; i < 5; i++) rect(ctx, sx - (4 - i), py + i, 2 * (4 - i) + 1, 1, [96, 232, 120]);
   rect(ctx, sx - 1, py - 4, 3, 4, [96, 232, 120]);
 }
 
 // ---------------------------------------------------------------- main loop
-let last = performance.now(), saveT = 0;
+let last = performance.now(), saveT = 0, msAcc = 0;
 function frame(now) {
   refreshHatches();   // hatch flags snapshot: one global read set per frame
   // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
@@ -15947,9 +16005,18 @@ function frame(now) {
   // union of the two sides here would have restored `paused ? 0 :` against a
   // name that no longer exists - a ReferenceError on the first frame, and the
   // whole game dark. Neither side was wrong; they were written a ruling apart.
-  const raw = Math.max(0, Math.min(0.1, (now - last) / 1000));
-  const dt = raw * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);
-  last = now; time += dt;
+  // THE QUANTIZER. Wall milliseconds in, WHOLE TICKS out, with the remainder
+  // carried in an accumulator so a 60Hz browser (16.7ms - a third of a tick)
+  // still advances the world instead of freezing at floor(0.33) = 0. Headless
+  // steps exactly 50ms, so rawTicks is exactly 1 and msAcc never leaves 0 -
+  // the sim's arithmetic is integer whether or not the clock feeding it is.
+  const rawMs = Math.max(0, Math.min(100, now - last));
+  msAcc += rawMs;
+  const rawTicks = (msAcc - msAcc % 50) / 50;
+  msAcc -= rawTicks * 50;
+  const dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
+  const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
+  last = now; T += dtT;
   if (hireCard) { hireCard.t -= raw; if (hireCard.t <= 0) hireCard = null; }
   if (saveConfirmT > 0) { saveConfirmT -= dt; if (saveConfirmT <= 0) saveConfirm = null; }
   if (saleArmT > 0) { saleArmT -= dt; if (saleArmT <= 0) saleArm = null; }
@@ -15958,9 +16025,11 @@ function frame(now) {
   if (won) winT += dt;   // the beat before the ending card: she comes alongside first
   if (askArmT > 0) { askArmT -= dt; if (askArmT <= 0) askArm = null; }
   if (saveMsg && saveMsg.t > 0) { saveMsg.t -= dt; if (saveMsg.t <= 0) saveMsg = null; }
-  if (!gameOver && screen === "play") tmin += dt * TS;
-  if (tmin >= 1440) {
-    tmin -= 1440; day++;
+  if (!gameOver && screen === "play") tday += dtT;
+  reclock();
+  if (tday >= DAY_TICKS) {
+    tday -= DAY_TICKS; reclock(); day++;
+    mistRoll();   // tonight's shore, drawn once and held as an integer
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price
     townCatch = Math.min(townCatch, 4); rep = rep + (30 - rep) * 0.06;
@@ -16046,7 +16115,7 @@ function frame(now) {
         window._stats.wagesOwed = (window._stats.wagesOwed || 0) + missedPay;
       }
     }
-    if (wages > 0) earnHist.push({ t: time, amt: -wages });
+    if (wages > 0) earnHist.push({ t: viewT, amt: -wages });
     // 2. house rent from each crab's own wallet; broke crabs move to the shelter
     let evictedNames = [];
     for (const c of allCrabs()) {
@@ -16331,7 +16400,7 @@ function frame(now) {
     const fin = settleCreditLine(credit.bal, coins, rent);
     if (fin.ok) {
       credit.bal = fin.bal; coins = fin.funds;
-      earnHist.push({ t: time, amt: fin.drew - rent - fin.paid });
+      earnHist.push({ t: viewT, amt: fin.drew - rent - fin.paid });
       const offNames = allCrabs().filter(c => offToday(c)).map(c => c.p.name);
       report = {
         day, served: today.served, revenue: Math.round(today.revenue), rage: today.rage,
@@ -16385,7 +16454,7 @@ function frame(now) {
     playRole("title");
     if (newConfirmT > 0) newConfirmT -= dt;
     // attract mode: slow ping-pong pan across the town
-    const span = WORLD_W - W, s = (time * 9) % (2 * span);
+    const span = WORLD_W - W, s = (viewT * 9) % (2 * span);
     camX = s < span ? s : 2 * span - s;
     updateBus(dt);
     for (const c of crabs) {
@@ -16502,7 +16571,7 @@ function frame(now) {
       const nx = t.x + 7 - camX;
       if (nx > -12 && nx < W) smallText(ctx, "" + n, nx, t.y - HOTEL_DOOR[0].h - 5, [70, 60, 90]);
       if (guest && guest.state === "inRoom") {
-        const ph = ((time * 0.7 + t.x * 0.01) % 1);
+        const ph = ((viewT * 0.7 + t.x * 0.01) % 1);
         smallText(ctx, "Z", t.x + 12 - camX, t.y - HOTEL_DOOR[0].h + 3 - ph * 4, [190, 205, 255]);
       }
       if (t.dirty) {   // the maid hasn't been round
@@ -16524,7 +16593,7 @@ function frame(now) {
       if (bathing) {   // the bather's head bobs over the curtain
         const oc = t.occupant, cul = !oc.isCrab && visCulture(oc);
         const pcol = oc.isCrab ? oc.crab.p.color : (oc.p ? oc.p.color : oc.color);
-        const bob = Math.round(Math.sin(time * 3 + t.x) * 1.5);
+        const bob = Math.round(Math.sin(viewT * 3 + t.x) * 1.5);
         const hy = t.y - STALL[0].h + 4 + bob;
         if (cul && cul.bather) {
           // the culture declares its own over-the-curtain silhouette: a rect
@@ -16543,9 +16612,9 @@ function frame(now) {
       }
       if (bathing) {   // suds drift up over the curtain while the water runs
         for (let i = 0; i < 3; i++) {
-          const ph = (time * 0.6 + i * 0.33 + t.x * 0.013) % 1;
+          const ph = (viewT * 0.6 + i * 0.33 + t.x * 0.013) % 1;
           if (ph > 0.85) continue;
-          const sx = t.x + 3 + i * 4 + ((Math.sin(time * 1.5 + i * 2.1) * 2) | 0);
+          const sx = t.x + 3 + i * 4 + ((Math.sin(viewT * 1.5 + i * 2.1) * 2) | 0);
           const s = ph < 0.5 ? 2 : 1;
           wrect(sx, t.y - STALL[0].h - 2 - ph * 8, s, s, i % 2 ? [96, 200, 255] : [88, 205, 188]);
         }
@@ -16560,7 +16629,7 @@ function frame(now) {
   if (sel && !sel.hidden && sel.state !== "showering" && sel.state !== "inRoom") paint.push({ base: sel.y - 0.1, f: () => {
     // a soft ring under whoever you've picked: it stays put while you pan
     const bx = sel.x + 8 - camX, by = (sel.p ? sel.y : custY(sel) - 4 - 26 * (sel.climb || 0)) + 2;
-    const blink = 0.55 + 0.45 * Math.sin(time * 4);
+    const blink = 0.55 + 0.45 * Math.sin(viewT * 4);
     const col = [Math.round(120 + 135 * blink), Math.round(200 + 30 * blink), 120];
     for (let i = -6; i <= 6; i++) {
       const t2 = i / 6, dy = Math.round(2 * (1 - t2 * t2));
@@ -16591,7 +16660,7 @@ function frame(now) {
     if (fc && fc.order && fc.dayState === "directed" && fc.order.idleT < 0) {
       const mx = fc.order.x + 6 - camX;
       if (mx > -8 && mx < W + 8) {
-        const my = fc.order.y - 16 - Math.abs(Math.sin(time * 5)) * 3;
+        const my = fc.order.y - 16 - Math.abs(Math.sin(viewT * 5)) * 3;
         rect(ctx, mx, my, 1, 9, [255, 255, 255]);        // pole
         rect(ctx, mx + 1, my, 5, 4, [255, 216, 96]);     // pennant
         px(ctx, mx + 6, my + 1, [255, 216, 96]);
@@ -16638,7 +16707,7 @@ function frame(now) {
     if (bankHorizon <= CREDIT_CFG.CHIP_DAYS && !gameOver) {
       const wTxt = bankHorizon <= 0 ? "BANKRUPT TONIGHT!" : "BANKRUPT IN " + bankHorizon + "D";
       const ww = smallTextWidth(wTxt) + 8;
-      const blink = ((time * 2) | 0) % 2;
+      const blink = ((viewT * 2) | 0) % 2;
       rect(ctx, W - ww - 2, cy, ww, 10, blink ? [150, 30, 30] : [60, 16, 20]);
       smallText(ctx, wTxt, W - ww + 2, cy + 2, blink ? [255, 230, 230] : [235, 130, 130]);
       cy -= 12;

@@ -8,6 +8,18 @@
 //   node tools/gen-luts.mjs --test   verify each entry against the float
 //                                    formula (exact round to Q16 / exact ceil)
 
+// mistPeak: pow(u, 0.85) where u is the top 24 bits of the day hash, read as
+// 0..1. A 257-entry Q16 table on the top 8 bits with a linear interp across
+// the low 16 (numeric-formats.md §4.3). The curve is smooth everywhere the sim
+// reads it - the one sim consumer, `mistNow() > 0.6`, sits around u = 0.28 -
+// and the worst lerp error, 36/65536, is at u = 0.0012 in the steep corner
+// where nothing but the drawn haze is looking.
+function mistPowLut() {
+  const lut = [];
+  for (let i = 0; i <= 256; i++) lut.push(Math.round(65536 * Math.pow(i / 256, 0.85)));
+  return lut;
+}
+
 // priceAppeal: pow(1/m, 1.2) clamped 0.6..1.6, where m = priceMul walks the
 // 0.70..1.30 board in 0.05 steps - exactly 13 values, indexed n = 14..26
 // with m = n/20. Q16: 65536 = 1.0.
@@ -91,9 +103,34 @@ function test() {
   // ...and the wipeout rungs: a chef at level 0 and 1 costs $15 and $30
   n++;
   if (!(tables.chef[0] === 15 && tables.chef[1] === 30)) { console.log(`FAIL  chef wipeout rungs moved: ${tables.chef[0]}/${tables.chef[1]}`); fail++; }
+  // mist: every entry exact against the float, and the lerp's worst case is
+  // where the design said it would be - the steep corner, not the sim's read
+  const ml = mistPowLut();
+  ml.forEach((v, i) => {
+    n++;
+    const want = Math.round(65536 * Math.pow(i / 256, 0.85));
+    if (v !== want) { console.log(`FAIL  mist[${i}] = ${v}, float says ${want}`); fail++; }
+  });
+  n++;
+  let worst = 0, worstU = 0;
+  for (let H = 0; H < (1 << 24); H += 997) {
+    const hi = H >>> 16, lo = H & 0xFFFF;
+    const got = ml[hi] + Math.floor((ml[hi + 1] - ml[hi]) * lo / 65536);
+    const want = 65536 * Math.pow(H / 16777216, 0.85);
+    if (Math.abs(got - want) > worst) { worst = Math.abs(got - want); worstU = H / 16777216; }
+  }
+  if (worst > 40) { console.log(`FAIL  mist lerp error ${worst.toFixed(1)} Q16 at u=${worstU.toFixed(4)}`); fail++; }
+  else console.log(`      mist lerp worst ${worst.toFixed(1)}/65536 at u=${worstU.toFixed(4)} (the steep corner, as designed)`);
   console.log(`${n - fail}/${n} passed`);
   process.exit(fail ? 1 : 0);
 }
 
-if (process.argv.includes("--test")) test();
+function emitMist() {
+  const l = mistPowLut();
+  const rows = [];
+  for (let i = 0; i < l.length; i += 16) rows.push("  " + l.slice(i, i + 16).join(", "));
+  console.log("const MIST_POW_Q16 = [\n" + rows.join(",\n") + ",\n];");
+}
+if (process.argv.includes("--mist")) emitMist();
+else if (process.argv.includes("--test")) test();
 else emit();
