@@ -182,7 +182,7 @@ scenario("staff meals: closing crew cooks their own dinner, at retail", () => {
     for (let i = 1; i < crabs.length; i++)
       if (crabs[i].dayState === "selfCook") { abortChef(crabs[i]); crabs[i].dayState = "home"; }
     const c = crabs[0];
-    c.p.hunger = 0.9; c.p.wallet = 3000; c.errandCd = 0;   // <40: cheapest recipe, deterministic
+    c.p.hunger = qn(0.9); c.p.wallet = 3000; c.errandCd = 0;   // <40: cheapest recipe, deterministic
     // he may be mid-commute - or mid-POUR since T2 - when we force this:
     // abortChef is the sanctioned interrupt (it releases a selfCook's grill
     // grip; forcing dayState alone deadlocks him against his own lock), then
@@ -345,7 +345,7 @@ scenario("disease: sustained neglect breeds sickness", () => {
   for (let d = 0; d < 12; d++) {
     sim.runUntil("tmin >= 19.9 * 60 && lastRentDay !== day", { maxSteps: 80000,
       onTick: (G) => { if (G("coins") < 30000) G("coins = 60000"); } });
-    sim.G('for (const c of crabs) { c.p.hunger = 1; c.p.dirt = 1; c.p.tired = 1; }');
+    sim.G('for (const c of crabs) { c.p.hunger = Q20; c.p.dirt = Q20; c.p.tired = Q20; }');
     sim.runUntil("lastRentDay === day", { maxSteps: 20000 });
     if (sim.G("crabs.some(c => c.p.sick) || (window._stats.deaths || 0) > 0")) return true;
     sim.runUntil("tmin < 10", { maxSteps: 40000 });
@@ -370,11 +370,11 @@ scenario("disease: care cures, neglect can kill", () => {
     // neglected sick crab: pin needs high, expect death sometimes
     const sim2 = createSim({ seed: seed + 100 });
     sim2.runUntil("tmin > 10 * 60", {});
-    sim2.G('crabs[1].p.sick = { days: 2 }; crabs[1].p.hunger = 1; crabs[1].p.dirt = 1;');
+    sim2.G('crabs[1].p.sick = { days: 2 }; crabs[1].p.hunger = Q20; crabs[1].p.dirt = Q20;');
     for (let d = 0; d < 9 && !sim2.G("gameOver"); d++) {
       sim2.G('if (coins < 40000) coins = 60000;');   // testing mortality, not solvency
       sim2.runUntil("lastRentDay === day", {});
-      sim2.G('{ const k = crabs.find(c => c.p.sick); if (k) { k.p.hunger = 1; k.p.dirt = 1; } }');
+      sim2.G('{ const k = crabs.find(c => c.p.sick); if (k) { k.p.hunger = Q20; k.p.dirt = Q20; } }');
       sim2.runUntil("tmin < 10", { maxSteps: 40000 });
       if (sim2.G("(window._stats.deaths || 0) > 0")) { died++; break; }
     }
@@ -425,7 +425,7 @@ scenario("npc: crew shower errand (dirt scrubbed, fee to SUDSY)", () => {
   const sim = createSim({ seed: 88 });
   sim.runUntil('crabs[0].dayState === "home" && tmin > 14 * 60', {});
   const till0 = sim.G("OWNERS.sudsy.till");
-  sim.G("crabs[0].p.dirt = 0.9; crabs[0].p.hunger = 0.2; crabs[0].p.thirst = 0.2; crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;");
+  sim.G("crabs[0].p.dirt = qn(0.9); crabs[0].p.hunger = qn(0.2); crabs[0].p.thirst = qn(0.2); crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;");
   const ok = sim.runUntil("(crabs[0].p.dirt || 0) < 0.4", { maxSteps: 40000 });
   if (!ok) return "dirt never scrubbed (errand incomplete, dirt " + sim.G("crabs[0].p.dirt").toFixed(2) + ")";
   const wallet = sim.G("crabs[0].p.wallet");
@@ -476,10 +476,10 @@ scenario("housing: npcs sleep at the shelter, then move up", () => {
 scenario("sick crabs can still wash (mobility + cure path)", () => {
   const sim = createSim({ seed: 88 });
   sim.runUntil('crabs[0].dayState === "home" && tmin > 13 * 60', {});
-  sim.G("crabs[0].p.sick = { days: 0 }; crabs[0].p.dirt = 0.6; crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;");
+  sim.G("crabs[0].p.sick = { days: 0 }; crabs[0].p.dirt = qn(0.6); crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;");
   const ok = sim.runUntil("(crabs[0].p.dirt || 0) < 0.4", { maxSteps: 60000,
     // isolate mobility: no snack detours, no midnight recovery roll ending the illness
-    onTick: (G) => { G("crabs[0].p.hunger = 0.2; if (!crabs[0].p.sick) crabs[0].p.sick = { days: 1 }"); } });
+    onTick: (G) => { G("crabs[0].p.hunger = qn(0.2); if (!crabs[0].p.sick) crabs[0].p.sick = { days: 1 }"); } });
   return ok ? true : "sick crab never reached the showers (dirt " + sim.G("crabs[0].p.dirt").toFixed(2) + ", state " + sim.G("crabs[0].dayState") + ")";
 });
 
@@ -721,7 +721,7 @@ scenario("queue hard cap holds for locals too", () => {
     if (t > 14.5 * 60 && t < 19 * 60 && forced < 40 && Math.round(t) % 30 === 0) {
       forced++;   // pile every off-duty local into the shack line at once
       G(`for (const c of allCrabs()) if (c.dayState === "home") {
-           c.p.hunger = 0.9; c.p.wallet = 6000; c.errandCd = 0; }`);
+           c.p.hunger = qn(0.9); c.p.wallet = 6000; c.errandCd = 0; }`);
     }
     worst = Math.max(worst, G(`Math.max(...Object.keys(BIZ).map(b =>
       customers.filter(k => k.biz === b && (k.state === "waiting" || k.state === "arriving")).length))`));
@@ -849,7 +849,7 @@ scenario("death cleanup: slots freed, orders unclaimed, follow survives", () => 
   const followedName = sim.G("crabs[crabs.length - 1].p.name");
   for (let d = 0; d < 10 && !sim.G("(window._stats.deaths || 0) > 0") && !sim.G("gameOver"); d++) {
     sim.G(`if (coins < 50000) coins = 90000;
-      if (crabs[0]) { if (!crabs[0].p.sick) crabs[0].p.sick = { days: 9 }; crabs[0].p.hunger = 1; crabs[0].p.dirt = 1; }`);
+      if (crabs[0]) { if (!crabs[0].p.sick) crabs[0].p.sick = { days: 9 }; crabs[0].p.hunger = Q20; crabs[0].p.dirt = Q20; }`);
     sim.runUntil("lastRentDay === day", { maxSteps: 60000 });
     sim.runUntil("tmin < 10", { maxSteps: 60000 });
   }
@@ -998,7 +998,7 @@ scenario("boat: flush fisher climbs the ladder; catch rate rises", () => {
     // thirst joined the pin list with the fish market: market income makes the
     // drink trip affordable, and this scenario measures catch rates, not breaks
     G('OWNERS.sudsy.till = 0;' +
-      'for (const c of npcs) if (c.p.fisher) { c.p.hunger = 0.2; c.p.thirst = 0.2; c.p.dirt = 0.2; c.p.tired = 0.2; c.p.bored = 0.2; c.p.sick = null; }');
+      'for (const c of npcs) if (c.p.fisher) { c.p.hunger = qn(0.2); c.p.thirst = qn(0.2); c.p.dirt = qn(0.2); c.p.tired = qn(0.2); c.p.bored = qn(0.2); c.p.sick = null; }');
   };
   // days 1-2: SALTY's pier rate
   sim.runUntil("day >= 3 && tmin > 10", { maxSteps: 900000, onTick: steady, tickEvery: 40 });
@@ -1065,10 +1065,10 @@ scenario("showers are dirt-only: dirt serviced end-to-end", () => {
   sim.runUntil(`crabs[0].dayState === "home" && tmin > 13 * 60 && bizStaffed("showers")
     && allCrabs().some(w => w.duty && !w.pendingOff && w.workBiz === "showers" && tmin < effShift(w).end - 120)
     && BIZ.showers.stalls.some(s => !s.occupant && !s.dirty)`, {});
-  sim.G(`crabs[0].p.dirt = 0.9; crabs[0].p.tired = 0; crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;
+  sim.G(`crabs[0].p.dirt = qn(0.9); crabs[0].p.tired = 0; crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;
          crabs[0].x = BIZ.showers.queueX + 70; crabs[0].y = 166;`);
   const ok = sim.runUntil("(crabs[0].p.dirt || 0) < 0.66", { maxSteps: 60000,
-    onTick: (G) => G("crabs[0].p.hunger = 0.2") });   // no snack detours
+    onTick: (G) => G("crabs[0].p.hunger = qn(0.2)") });   // no snack detours
   if (!ok) return "grubby crab never got clean (dirt " + sim.G("crabs[0].p.dirt").toFixed(2) + ", state " + sim.G("crabs[0].dayState") + ")";
   const dirt = sim.G("crabs[0].p.dirt");
   return dirt <= 0.45 ? true : "shower barely dented the dirt: " + dirt.toFixed(2);
@@ -1205,8 +1205,8 @@ scenario("thirst: drink errand serviced end-to-end at a staffed juice bar", () =
   // LONG") and left the wallet assertion measuring a settlement instead of a
   // drink. Re-pointed with the crab-routing merge; the transaction under test
   // is unchanged.
-  sim.G(`{ const c = crabs[1]; c.p.thirst = 0.9; c.p.hunger = 0.2; c.p.dirt = 0.2;
-    c.p.tired = 0.2; c.p.bored = 0.2; c.p.wallet = 3000; c.errandCd = 0;
+  sim.G(`{ const c = crabs[1]; c.p.thirst = qn(0.9); c.p.hunger = qn(0.2); c.p.dirt = qn(0.2);
+    c.p.tired = qn(0.2); c.p.bored = qn(0.2); c.p.wallet = 3000; c.errandCd = 0;
     c.x = BIZ.juicebar.queueX - 30; c.y = 166;
     // clear the unclaimed tourist line so the local gets a slot (nobody is
     // holding these, so dropping them strands no chef)
@@ -1229,7 +1229,7 @@ scenario("thirst: a parched town breeds sickness, attributed to thirst", () => {
   // (14 nights x 2+ crabs at 0.12: a healthy town is a ~3% anomaly; we break
   // on the first hit). The watered control arm must never get thirst-blamed.
   const sim = createSim({ seed: 71 });
-  const pin = 'for (const c of allCrabs()) { c.p.thirst = 1; c.p.hunger = 0.2; c.p.dirt = 0.2; c.p.tired = 0.2; }';
+  const pin = 'for (const c of allCrabs()) { c.p.thirst = Q20; c.p.hunger = qn(0.2); c.p.dirt = qn(0.2); c.p.tired = qn(0.2); }';
   for (let d = 0; d < 14; d++) {
     sim.runUntil("tmin >= 19.8 * 60 && lastRentDay !== day", { maxSteps: 80000,
       onTick: (G) => { if (G("coins") < 30000) G("coins = 60000"); } });
@@ -1270,7 +1270,7 @@ scenario("juicebar economics: ledger flows, register income, staff retail", () =
   // save/load: thirst, the unlock, the ledger, and the first-pour flag roundtrip
   const store = new Map();
   const a = createSim({ seed: 9, storage: store, fresh: false });
-  a.G('coins = 50000; tryBuy("juicebar"); crabs[0].p.thirst = 0.62; firstPour = true; trade.total.fruit = 31; save()');
+  a.G('coins = 50000; tryBuy("juicebar"); crabs[0].p.thirst = qn(0.62); firstPour = true; trade.total.fruit = 31; save()');
   const b = createSim({ seed: 10, storage: store, fresh: false });
   if (b.G("UPS.juicebar.lvl") !== 1 || !b.G('bizUnlocked("juicebar")')) return "juicebar unlock did not roundtrip";
   if (Math.abs(b.G("crabs[0].p.thirst") - 0.62) > 1e-9) return "thirst did not roundtrip";
@@ -1377,7 +1377,7 @@ scenario("tired: a workday accrues it; sleep drains it, bed beating cot", () => 
   // test - the DRAIN RATE, bed against cot - is untouched.
   sim.G(`{ const s = npcs.find(k => k.p.name === "SALTY");
     s.p.homeless = true; s.p.house = null; s.p.boat = null; s.fishSpot = fishSpotFor(0);
-    crabs[0].p.tired = 0.8; s.p.tired = 0.8; crabs[0].errandCd = 999; s.errandCd = 999;
+    crabs[0].p.tired = qn(0.8); s.p.tired = qn(0.8); crabs[0].errandCd = 999; s.errandCd = 999;
     for (const k of [crabs[0], s]) {
       abortChef(k); abortErrand(k);
       k.p.rough = false; k.p.walkout = 0; k.p.sick = null;
@@ -1413,7 +1413,7 @@ scenario("tired: a workday accrues it; sleep drains it, bed beating cot", () => 
   // followed the SHIFT, not the crab (swap them and it swaps). The assertion
   // is now the honest one: tiredness only ever goes DOWN off the clock.
   sim.runUntil("tmin >= 6.05 * 60", { maxSteps: 40000 });
-  sim.G("for (const c of crabs) { c.p.tired = 0.3; c.errandCd = 999; }");
+  sim.G("for (const c of crabs) { c.p.tired = qn(0.3); c.errandCd = 999; }");
   sim.runUntil("tmin >= 6.4 * 60", { maxSteps: 40000 });
   const moved = JSON.parse(sim.G("JSON.stringify(crabs.filter(c => c.p.tired > 0.3 + 1e-9).map(c => [c.p.name, c.p.tired, c.dayState]))"));
   return moved.length === 0 ? true : "tired ROSE without work: " + JSON.stringify(moved);
@@ -1793,7 +1793,7 @@ scenario("days off: wages skip exactly and the bill dips to match", () => {
   // (no errands, no sickness, pinned wallets) so the settlement is exact.
   sim.runUntil("day === 3 && tmin >= 19.8 * 60", { maxSteps: 900000,
     onTick: (G) => { if (G("coins") < 30000) G("coins = 60000"); } });
-  sim.G(`for (const c of crabs) { c.errandCd = 999; c.p.hunger = 0.2; c.p.sick = null; c.p.wallet = 5000; }
+  sim.G(`for (const c of crabs) { c.errandCd = 999; c.p.hunger = qn(0.2); c.p.sick = null; c.p.wallet = 5000; }
     if (coins < 40000) coins = 60000;`);
   const offNames = JSON.parse(sim.G("JSON.stringify(crabs.filter(c => offToday(c)).map(c => c.p.name))"));
   if (JSON.stringify(offNames) !== '["CLAWDIA"]') return "expected CLAWDIA (only) off on WED, got " + JSON.stringify(offNames);
@@ -1868,7 +1868,7 @@ scenario("fishers feed themselves: breaks + the beach roast", () => {
     onTick: (G) => { if (G("coins") < 40000) G("coins = 200000"); } });
   if (!found) return "no pure fisher ever worked the midday window (day " + sim.G("day") + ")";
   sim.G(`{ const f = npcs.find(c => c.p.job === "fishing" && c.dayState === "working");
-    f.p.wallet = 200; f.p.hunger = 0.9; window._roastee = f.p.name; }`);
+    f.p.wallet = 200; f.p.hunger = qn(0.9); window._roastee = f.p.name; }`);
   sim.G("townCatch = Math.max(townCatch, 6)");
   const ok = sim.runUntil('npcs.find(c => c.p.name === window._roastee).p.hunger < 0.4', { maxSteps: 60000,
     onTick: (G) => { G('{ const f = npcs.find(c => c.p.name === window._roastee); if (f) { f.p.wallet = 200; if (townCatch < 4) townCatch = 6; } if (coins < 40000) coins = 200000; }'); } });
@@ -2308,13 +2308,13 @@ scenario("cpu hours: SUDSY's policy converges and never thrashes", () => {
   sim.G(`setBizHours("showers", 9 * 60, 18 * 60);
     hoursPolicyState.showers = { hist: [{ f: 1, l: 1, q: 3 }], cd: 0 };
     hoursObs.showers = { first: 1, last: 1, closeQ: 3 };
-    for (const k of allCrabs()) if (k.p.job === "showers") k.p.tired = 0.2;
+    for (const k of allCrabs()) if (k.p.job === "showers") k.p.tired = qn(0.2);
     runHoursPolicy("showers")`);
   if (sim.G("BIZ.showers.hours.close") !== 19 * 60)
     return "close-queue pressure did not extend closing: " + sim.G("BIZ.showers.hours.close");
   sim.G(`hoursPolicyState.showers = { hist: [{ f: 1, l: 1, q: 3 }], cd: 0 };
     hoursObs.showers = { first: 1, last: 1, closeQ: 3 };
-    for (const k of allCrabs()) if (k.p.job === "showers") k.p.tired = 0.9;
+    for (const k of allCrabs()) if (k.p.job === "showers") k.p.tired = qn(0.9);
     runHoursPolicy("showers")`);
   if (sim.G("BIZ.showers.hours.close") !== 19 * 60)
     return "an exhausted roster still got its hours extended";
@@ -2361,7 +2361,7 @@ scenario("staff meals: AT COST and FREE charge exactly what they say", () => {
       // policy would complete inside our window and be measured as ours
       for (const k of crabs) if (k.dayState === "selfCook") { abortChef(k); k.dayState = "home"; k.errandCd = 999; }
       const c = crabs[0];
-      c.p.hunger = 0.9; c.p.wallet = 3000; c.errandCd = 0;
+      c.p.hunger = qn(0.9); c.p.wallet = 3000; c.errandCd = 0;
       if (c.dayState !== "working") { abortChef(c); c.dayState = "home"; }
       return JSON.stringify({ paid: window._stats.staffMealPaid || 0, meals: window._stats.staffMeals || 0,
         coins: Math.round(coins * 100) / 100 });
@@ -2474,8 +2474,8 @@ scenario("fish market: at the ceiling a fisher skips the arcade; at the floor he
   const sim = createSim({ seed: 13 });
   sim.G('coins = 300000; tryBuy("arcade"); tryBuy("chef"); crabs[2].p.job = "arcade"; rosterGen++;');
   const pin = `{ const c = npcs.find(k => k.p.name === window._f);
-    if (c) { c.p.hunger = 0.2; c.p.thirst = 0.2; c.p.dirt = 0.2; c.p.tired = 0.2;
-      c.p.sick = null; c.p.wallet = 6000; c.p.bored = 0.9;
+    if (c) { c.p.hunger = qn(0.2); c.p.thirst = qn(0.2); c.p.dirt = qn(0.2); c.p.tired = qn(0.2);
+      c.p.sick = null; c.p.wallet = 6000; c.p.bored = qn(0.9);
       if (c.errandCd > 0.5) c.errandCd = 0.5; } }`;
   const found = sim.runUntil('tmin > 10 * 60 && tmin < 15 * 60 && bizStaffed("arcade") && npcs.some(c => c.p.job === "fishing" && c.dayState === "working" && !c.p.employer)', {
     maxSteps: 900000, onTick: (G) => { if (G("coins") < 40000) G("coins = 80000"); } });
@@ -2578,7 +2578,7 @@ scenario("fish market: floor-price week - the roast keeps a broke fisher alive",
   sim.G("window._rs = window._stats.roastStarts || 0");
   const t1 = sim.G("tmin");
   sim.runUntil(`tmin > ${t1} + 60`, { maxSteps: 20000, tickEvery: 2, onTick: (G) =>
-    G(`{ const f = npcs.find(c => c.p.name === "SALTY"); f.p.hunger = 0.9; f.p.wallet = 300; f.p.sick = null;
+    G(`{ const f = npcs.find(c => c.p.name === "SALTY"); f.p.hunger = qn(0.9); f.p.wallet = 300; f.p.sick = null;
       townCatch = 2; if (coins < 30000) coins = 60000;
       for (const k of npcs) if (k.p.fisher) k.castT = 999; }`) });   // no fresh landings: the crate holds exactly the last two
   return (sim.G("window._stats.roastStarts || 0") === sim.G("window._rs"))
@@ -2605,7 +2605,7 @@ scenario("sick days: bed rest beats a cot, and both beat the old cared bar", () 
       ${housed ? `if (c.p.homeless) { const used = new Set(allCrabs().filter(k => !k.p.homeless).map(k => k.p.house));
           for (let h = 0; h < HOUSE_XS.length; h++) if (!used.has(h)) { c.p.house = h; c.p.homeless = false; break; } }`
         : `c.p.homeless = true; c.p.house = null; c.p.boat = null;`}
-      c.p.sick = { days: 0 }; c.p.restT = 0; c.p.hunger = 0.1; c.p.thirst = 0.1; c.p.dirt = 0.1; }`);
+      c.p.sick = { days: 0 }; c.p.restT = 0; c.p.hunger = qn(0.1); c.p.thirst = qn(0.1); c.p.dirt = qn(0.1); }`);
     const N = JSON.stringify(sim.G("crabs[0].p.name"));
     let lane = "?";
     for (let d = 0; d < 12; d++) {
@@ -2961,7 +2961,7 @@ function mealOnTheWay(seed) {   // one staged town; true, or why it failed
   sim.G(`{ const c = crabs[${idx}];
     c.p.job = "arcade";                      // east of the shack queue
     c.p.homeless = false; c.p.house = 0;     // west end of the promenade
-    c.p.hunger = 0.75; c.p.thirst = 0; c.p.dirt = 0; c.p.bored = 0;
+    c.p.hunger = qn(0.75); c.p.thirst = 0; c.p.dirt = 0; c.p.bored = 0;
     c.p.wallet = 6000; c.errandCd = 0; }`);
   const homeX0 = sim.G(`homeX(crabs[${idx}])`);
   const workX = sim.G(`jobDoor(crabs[${idx}])`);
@@ -3193,7 +3193,7 @@ scenario("failure: three missed leases close a peer's shop and lay off its staff
   if (sim.G("window._stats.showersDone") !== 0) return "a shuttered shop served " + sim.G("window._stats.showersDone") + " showers";
   if (sim.G('Math.round((today.biz.showers || { take: 0 }).take)') !== 0) return "a shuttered shop took money";
   // a grubby crab is not sent to a shop that isn't there (no wedge, no ghost errand)
-  sim.G(`{ const c = crabs[0]; c.p.dirt = 1; c.p.hunger = 0; c.p.thirst = 0; c.p.bored = 0; c.errandCd = 0; }`);
+  sim.G(`{ const c = crabs[0]; c.p.dirt = Q20; c.p.hunger = 0; c.p.thirst = 0; c.p.bored = 0; c.errandCd = 0; }`);
   const e = sim.G('JSON.stringify(pickErrand(crabs[0]) || null)');
   if (e !== "null" && e.includes("showers")) return "pickErrand still routes to the closed showers: " + e;
   return true;
@@ -3550,7 +3550,7 @@ scenario("taps: free and always reachable, and the juice bar still sells", () =>
   tapTown(sim);
   // FREE: a crab who could easily afford a juice pays nothing at the spout,
   // and plain water only takes the EDGE off - a juice zeroes the meter
-  sim.G(`{ const c = crabs[0]; c.p.wallet = 3000; c.p.thirst = 1;
+  sim.G(`{ const c = crabs[0]; c.p.wallet = 3000; c.p.thirst = Q20;
     abortActivity(c); startTapStop(c, { tap: 0, need: "drink" }); }`);
   if (!sim.runUntil(`crabs[0].p.thirst < 1`, { maxSteps: 200000 }))
     return "a crab sent to the tap never got a drink";
@@ -3559,7 +3559,7 @@ scenario("taps: free and always reachable, and the juice bar still sells", () =>
   if (!(sim.G("crabs[0].p.thirst") <= 1 - 0.5)) return "the tap barely quenched anything";
   // ALWAYS REACHABLE: with every counter in town unstaffed and every wallet
   // empty, a properly thirsty crab of EVERY kind is still offered a tap
-  sim.G(`{ for (const c of allCrabs()) { c.p.thirst = 0.75; c.p.wallet = 0; c.p.dirt = 0;
+  sim.G(`{ for (const c of allCrabs()) { c.p.thirst = qn(0.75); c.p.wallet = 0; c.p.dirt = 0;
     c.duty = false; c.pendingOff = true; c.p.hunger = 0; c.p.bored = 0; } }`);
   const cover = JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => { const e = pickErrand(c); return [c.p.name, !!c.p.npc, !!(e && e.tap != null && e.need === "drink")]; }))`));
   const stranded = cover.filter(r => !r[2]).map(r => r[0] + (r[1] ? " (town)" : " (crew)"));
@@ -3608,7 +3608,7 @@ scenario("mortality: sustained neglect kills a crew crab AND a townsfolk crab", 
     const name = sim.G(who === "crew" ? "crabs[0].p.name" : `npcs.find(c => c.p.name === "SALTY").p.name`);
     // total neglect, HELD: starving, parched, filthy, and made to work through it
     const grind = (G) => G(`{ coins = 300000; const k = allCrabs().find(c => c.p.name === ${JSON.stringify(name)});
-      if (k) { k.p.sick = k.p.sick || { days: 1 }; k.p.hunger = 1; k.p.thirst = 1; k.p.dirt = 1; k.p.sickPol = "require"; } }`);
+      if (k) { k.p.sick = k.p.sick || { days: 1 }; k.p.hunger = Q20; k.p.thirst = Q20; k.p.dirt = Q20; k.p.sickPol = "require"; } }`);
     grind(sim.G);
     let warned = false;
     const gone = sim.runUntil(`!allCrabs().some(c => c.p.name === ${JSON.stringify(name)})`, {
@@ -3695,7 +3695,7 @@ scenario("mortality: a dead townsfolk crab leaves the town in a sane state", () 
   // when what happened is that her staff also died. Tend him; neglect only SUDSY.
   const grind = (G) => G(`{ if (coins < 40000) coins = 120000;
     const k = npcs.find(c => c.p.name === "SUDSY");
-    if (k) { k.p.sick = k.p.sick || { days: 1 }; k.p.hunger = 1; k.p.thirst = 1; k.p.dirt = 1; k.p.sickPol = "require"; }
+    if (k) { k.p.sick = k.p.sick || { days: 1 }; k.p.hunger = Q20; k.p.thirst = Q20; k.p.dirt = Q20; k.p.sickPol = "require"; }
     const f = npcs.find(c => c.p.name === "DRIFT");
     if (f) { f.p.hunger = 0; f.p.thirst = 0; f.p.dirt = 0; f.p.tired = 0; f.p.sick = null; f.p.wallet = Math.max(f.p.wallet, 6000);
       // ...and he must still be HERS when she dies, which is the whole point of
@@ -3793,7 +3793,7 @@ scenario("idle hands: a bored crab leaves its post - and an order brings it back
   const post = sim.G(`BIZ.shack.door + 4`);
   const keepBored = (G) => G(`{ customers = customers.filter(k => k.biz !== "shack");
     const c0 = crabs.find(x => x.p.name === window._w);
-    if (c0) { c0.p.bored = 0.9; c0.p.hunger = 0; c0.p.thirst = 0; c0.p.tired = 0; c0.p.dirt = 0; c0.p.sick = null; } }`);
+    if (c0) { c0.p.bored = qn(0.9); c0.p.hunger = 0; c0.p.thirst = 0; c0.p.tired = 0; c0.p.dirt = 0; c0.p.sick = null; } }`);
   if (!sim.runUntil(`crabs.some(c => c.p.name === window._w && c.wander)`,
       { maxSteps: 120000, onTick: keepBored, tickEvery: 4 }))
     return "a bored crab on a dead counter never left its post";
@@ -3830,10 +3830,10 @@ scenario("idle hands: the WALK-OUT costs the wage, and coverage stays honest", (
   // town (see the "no free cure" scenario) - this just gets there in a line
   // instead of five days.
   sim.G(`{ const c = crabs[0]; window._w = c.p.name;
-    c.p.bored = 1; c.p.boredDays = WALKOUT_DAYS - 1; c.p.sick = null; }`);
+    c.p.bored = Q20; c.p.boredDays = WALKOUT_DAYS - 1; c.p.sick = null; }`);
   const startDay = sim.G("day");
   const pin = (G) => G(`{ coins = Math.max(coins, 120000);
-    const c0 = crabs.find(x => x.p.name === window._w); if (c0) { c0.p.bored = 1; c0.p.sick = null; } }`);
+    const c0 = crabs.find(x => x.p.name === window._w); if (c0) { c0.p.bored = Q20; c0.p.sick = null; } }`);
   if (!sim.runUntil(`day > ${startDay}`, { maxSteps: 900000, onTick: pin, tickEvery: 20 }))
     return "the fixture never reached the next day";
   const wDay = sim.G(`crabs.find(c => c.p.name === window._w).p.walkout`);
@@ -3882,7 +3882,7 @@ scenario("microsleep: the nod holds the station slot, then gives it back", () =>
   sim.runDays(4, { tickEvery: 1, onTick: (G) => {
     // a town run into the ground: everybody pinned at exhaustion. Baseline
     // crews peak at ~0.5 and never see any of this - by design (see NOD_AT).
-    G(`coins = Math.max(coins, 150000); for (const c of crabs) c.p.tired = 1;`);
+    G(`coins = Math.max(coins, 150000); for (const c of crabs) c.p.tired = Q20;`);
     for (const r of JSON.parse(G(`JSON.stringify(crabs.map(c => [c.p.name, c.kstate, c.napFrom, c.napT || 0,
         c.slot, c.slotKind, c.workT, !!c.detour,
         (c.slot >= 0 && c.slotKind) ? !!busy[c.workBiz][c.slotKind][c.slot] : false]))`))) {
@@ -3921,7 +3921,7 @@ scenario("microsleep: the nod holds the station slot, then gives it back", () =>
     return "the abort arm never got a crab onto a station";
   b.G(`{ const c = crabs.find(x => x.kstate === "work" && x.slot >= 0 && x.slotKind);
     window._t = { n: c.p.name, k: c.slotKind, s: c.slot, b: c.workBiz };
-    c.p.tired = 1; c.napFrom = c.kstate; c.kstate = "nap"; c.napT = 4; }`);
+    c.p.tired = Q20; c.napFrom = c.kstate; c.kstate = "nap"; c.napT = 4; }`);
   if (!b.G(`busy[window._t.b][window._t.k][window._t.s]`)) return "the slot was let go the moment the crab nodded off";
   b.G(`abortChef(crabs.find(c => c.p.name === window._t.n))`);
   if (b.G(`busy[window._t.b][window._t.k][window._t.s]`)) return "abortChef left the station locked by a sleeping crab";
@@ -3952,7 +3952,7 @@ scenario("shortcut home: sleeping rough banks nothing - and the player can break
     // knocked off at the shack, the whole promenade between them and their
     // bed, and completely spent
     sim.G(`{ const c = crabs[0]; window._w = c.p.name;
-      abortActivity(c); c.p.sick = null; c.p.tired = 1; c.p.mode = "walk";
+      abortActivity(c); c.p.sick = null; c.p.tired = Q20; c.p.mode = "walk";
       c.p.homeless = false; if (c.p.house == null) c.p.house = 0;
       c.p.house = 0;                       // the first promenade lot, x30
       c.x = PIER_X0 - 20; c.y = 167; setT(c, c.x, c.y); startCommute(c, false); }`);
@@ -4745,7 +4745,7 @@ scenario("the beach ball is LIMITED fun", () => {
   const played = JSON.parse(sim.G(`(() => {
     for (const k of allCrabs()) { k.dayState = "home"; k.ballT = 0; }
     const c = crabs[0];
-    c.p.bored = 0.95; c.p.hunger = 0.1; c.p.thirst = 0.1; c.p.tired = 0.1; c.p.dirt = 0.1;
+    c.p.bored = qn(0.95); c.p.hunger = qn(0.1); c.p.thirst = qn(0.1); c.p.tired = qn(0.1); c.p.dirt = qn(0.1);
     c.ballCd = 0; c.errandCd = 0; c.dayState = "home";
     // THE CLOCK IS SET FROM THIS CRAB'S OWN SHIFT, not to 11:00 and a hope.
     // "You do not play ball on the clock" is one of the ball's own rules
@@ -4773,7 +4773,7 @@ scenario("the beach ball is LIMITED fun", () => {
   const arcade = sim.G(`(() => {
     UPS.arcade.lvl = 1; BIZ.arcade.bought = true;
     const c = crabs[1];
-    c.p.bored = 0.95; c.p.wallet = 30000; c.ballCd = 0; c.errandCd = 0;
+    c.p.bored = qn(0.95); c.p.wallet = 30000; c.ballCd = 0; c.errandCd = 0;
     c.dayState = "home"; setClock(13 * 60);
     while (!bizStaffed("arcade") && crabs.length < 8) hireCrew();
     for (const k of allCrabs()) if (k !== c && bizUnlocked("arcade")) { k.p.job = "arcade"; k.duty = true; k.workBiz = "arcade"; }
@@ -5265,7 +5265,7 @@ scenario("a sick day is not a shift: an ill crab can leave the house", () => {
   // the errand has to be picked, begun, and finish with the hunger down.
   const fed = JSON.parse(sim.G(`(() => {
     const c = crabs[0];
-    c.p.hunger = 0.85; c.p.wallet = 20000; c.errandCd = 0; c.dayState = "home";
+    c.p.hunger = qn(0.85); c.p.wallet = 20000; c.errandCd = 0; c.dayState = "home";
     const before = c.p.hunger;
     const e = pickErrand(c);
     if (!e || e.need !== "food") return JSON.stringify({ picked: e ? e.need : null });
@@ -6045,7 +6045,7 @@ scenario("visitors: the wallet is real money, and it runs out", () => {
   // B. AN EMPTY WALLET STOPS THE BUYING. Strip every visitor to a dollar and
   // pin them hungry, thirsty, filthy and bored: nothing may be offered.
   sim.G(`for (const k of visitorsInTown()) { k.wallet = 100;
-    k.hunger = 1; k.thirst = 1; k.dirt = 1; k.bored = 1; k.nights = 0; }`);
+    k.hunger = Q20; k.thirst = Q20; k.dirt = Q20; k.bored = Q20; k.nights = 0; }`);
   const offers = JSON.parse(sim.G(`JSON.stringify(visitorsInTown().map(k => {
     const e = visPick(k); return [k.name, e ? e.biz + ":" + e.recipe.pay : null]; }))`));
   const broke = offers.filter(r => r[1]);
@@ -6055,7 +6055,7 @@ scenario("visitors: the wallet is real money, and it runs out", () => {
   sim.runUntil("false", { maxSteps: 1400, tickEvery: 25,
     onTick: (G) => G(`if (coins < 90000) coins = 180000;
       for (const k of visitorsInTown()) { if (k.wallet > 100) k.wallet = 100;
-        k.hunger = 1; k.thirst = 1; k.dirt = 1; k.bored = 1; }`) });
+        k.hunger = Q20; k.thirst = Q20; k.dirt = Q20; k.bored = Q20; }`) });
   const newPays = JSON.parse(sim.G(`JSON.stringify(window._paid.slice(${paid0}))`));
   // locals still shop (they have wages), so only judge what a VISITOR paid:
   // nobody with a dollar may have handed over a $13 plate's worth
@@ -6679,7 +6679,7 @@ scenario("measurement: a bored walkout and a pay walkout share one counter", () 
   // A REAL BORED WALKOUT, from its own site: pin a crab past WALKOUT_AT and
   // let the settlement count the days for it.
   sim.runDays(7, { tickEvery: 20, onTick: (G) =>
-    G(`if (coins < 90000) coins = 180000; crabs[0].p.bored = 1; crabs[0].p.sick = null;`) });
+    G(`if (coins < 90000) coins = 180000; crabs[0].p.bored = Q20; crabs[0].p.sick = null;`) });
   const kind = sim.G(`Array.isArray(window._stats.walkouts) ? "rows"
     : window._stats.walkouts == null ? "none" : typeof window._stats.walkouts`);
   if (kind === "none") return "no crab ever took a bored day off - the fixture proved nothing";
@@ -6805,7 +6805,7 @@ scenario("an empty fund means a cold pot, and a cold pot feeds nobody", () => {
   const got = JSON.parse(sim.G(`(() => {
     const c = allCrabs()[0];
     townFund.bowls = 0; townFund.shut = 0; townFund.cold = 0;
-    c.p.hunger = 0.9;
+    c.p.hunger = qn(0.9);
     const okEmpty = takeBowl(c), hEmpty = c.p.hunger, coldEmpty = townFund.cold;
     townFund.bowls = 1;
     const okFull = takeBowl(c), left = townFund.bowls, ate = c.p.bowls || 0;
@@ -7380,7 +7380,7 @@ scenario("departures: three ways to be turned away are three different counters"
   const got = JSON.parse(sim.G(`(() => {
     const mk = () => { const k = newVisitor(false);
       k.state = "roam"; k.x = BIZ.shack.queueX; k.wallet = 50000; k.purse = 500;
-      k.hunger = 1; k.thirst = 0; k.dirt = 0; k.bored = 0; k.nights = 0;
+      k.hunger = Q20; k.thirst = 0; k.dirt = 0; k.bored = 0; k.nights = 0;
       return k; };
     const read = (k) => [k.stay.shut, k.stay.full, k.stay.broke];
     const out = {};
@@ -8348,8 +8348,8 @@ scenario("sickness: the 20:00 roll reads an evening crab before their day has fi
     const sim = createSim({ seed });
     sim.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 200000 });
     if (sim.G("crabs[1].p.shift") !== "E") return "fixture drift: crabs[1] is not the evening crab";
-    const easy = `{ const b = crabs[1]; b.p.wallet = 0; b.p.dirt = 0.2;
-                    b.p.hunger = 0.2; b.p.thirst = 0.2; b.p.tired = 0.2; }`;
+    const easy = `{ const b = crabs[1]; b.p.wallet = 0; b.p.dirt = qn(0.2);
+                    b.p.hunger = qn(0.2); b.p.thirst = qn(0.2); b.p.tired = qn(0.2); }`;
     sim.G(easy);
     if (!sim.runUntil("tmin >= 19.9 * 60 && lastRentDay !== day",
       { maxSteps: 200000, tickEvery: 4, onTick: (G) => G(easy) })) return "could not reach the settlement";
@@ -8372,7 +8372,7 @@ scenario("sickness: the 20:00 roll reads an evening crab before their day has fi
     const m = createSim({ seed });
     m.runUntil("day >= 2 && tmin >= 8 * 60", { maxSteps: 200000 });
     if (m.G("crabs[0].p.shift") !== "M") return "fixture drift: crabs[0] is not the morning crab";
-    m.G("crabs[0].p.dirt = 0.2; crabs[0].p.wallet = 0;");
+    m.G("crabs[0].p.dirt = qn(0.2); crabs[0].p.wallet = 0;");
     if (!m.runUntil("tmin >= 16 * 60", { maxSteps: 200000 })) return "could not reach 16:00";
     if (!(+m.G("crabs[0].p.dirt") - 0.2 >= 0.15))
       return "the morning crab had not taken their clock-off bump by 16:00 - the artifact needs BOTH halves";
@@ -10516,7 +10516,7 @@ scenario("cultureways: a pig visitor record loads, clamps and round-trips", () =
   // color 9 must clamp to 5 (six pig colorways), strawhat is a PIG accessory
   env.visitors.push({ n: "TROTTER", cu: "pig", c: 9, a: "strawhat", x: 1200, y: 150, s: "roam",
     w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 2000, b: 0,
-    hu: 0.5, th: 0.5, di: 0.2, bo: 0.3, ti: 0.4, log: [], st: {} });
+    hu: qn(0.5), th: qn(0.5), di: qn(0.2), bo: qn(0.3), ti: qn(0.4), log: [], st: {} });
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 62, storage: store, fresh: false });
   const got = JSON.parse(b.G(`JSON.stringify((() => {
@@ -10548,7 +10548,7 @@ scenario("cultureways: an unknown culture id degrades to crab, and the town runs
   env.visitors = env.visitors || [];
   env.visitors.push({ n: "WALLY", cu: "walrus", c: 9, a: "strawhat", x: 1200, y: 150, s: "roam",
     w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 2000, b: 0,
-    hu: 0.5, th: 0.5, di: 0.2, bo: 0.3, ti: 0.4, log: [], st: {} });
+    hu: qn(0.5), th: qn(0.5), di: qn(0.2), bo: qn(0.3), ti: qn(0.4), log: [], st: {} });
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 64, storage: store, fresh: false });
   const got = JSON.parse(b.G(`JSON.stringify((() => {
@@ -10613,7 +10613,7 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
   env.visitors = env.visitors || [];
   const rec = (n, c, acc, x, s) => ({ n, cu: "pig", c, a: acc, x, y: 150, s,
     w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 2000, b: 0,
-    hu: 0.4, th: 0.4, di: 0.2, bo: 0.3, ti: 0.4, log: [], st: {} });
+    hu: qn(0.4), th: qn(0.4), di: qn(0.2), bo: qn(0.3), ti: qn(0.4), log: [], st: {} });
   env.visitors.push(rec("TROTTER", 0, "strawhat", 1180, "roam"),
     rec("PETUNIA", 5, "strawhat", 900, "onSand"),
     rec("HAMLET", 3, "none", 1400, "roam"));
@@ -10689,10 +10689,10 @@ scenario("cultureways: the hat picks the voice, and the chain falls back", () =>
   env.visitors = (env.visitors || []).concat([
     { n: "TROTTER", cu: "pig", c: 0, a: "strawhat", x: 1100, y: 150, s: "roam",
       w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
-      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} },
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} },
     { n: "HAMLET", cu: "pig", c: 1, a: "none", x: 1140, y: 150, s: "roam",
       w: 90, p: 90, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
-      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }]);
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 72, storage: store, fresh: false });
   const got = JSON.parse(b.G(`JSON.stringify((() => {
@@ -10763,7 +10763,7 @@ scenario("cultureways: a settling pig is counted, and the card speaks her regist
   env.visitors = (env.visitors || []).concat([
     { n: "GAMMON", cu: "pig", c: 2, a: "strawhat", x: 700, y: 150, s: "roam",
       w: 8000, p: 8000, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,   // cents: the envelope is a current-era save
-      hu: 0.95, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
+      hu: qn(0.95), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }]);
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 76, storage: store, fresh: false });
   b.G('coins = 200000;');
@@ -10804,10 +10804,10 @@ scenario("cultureways: the apron is refused - a pig is never converted", () => {
   env.visitors = [
     { n: "RASHER", cu: "pig", c: 3, a: "none", x: 900, y: 150, s: "roam",
       w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
-      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} },
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} },
     { n: "MISTY", c: 1, a: "cap", x: 940, y: 150, s: "roam",
       w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
-      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }];
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 78, storage: store, fresh: false });
   b.G('customers.forEach(k => { if (k.name === "RASHER") k.state = "arriving"; });');
