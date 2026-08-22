@@ -1,5 +1,11 @@
 # CS3.5 NUMERIC CORE — the deterministic fixed-point rewrite (design)
 
+**STANDING MANDATE (Matt, 2026-08-21, departing): "continue the work
+until we have a complete fixed numeric simulation cpu for gpu" — the
+rewrite runs to COMPLETION (all slices through flat-state, the
+WASM/GPU-ready core), autonomously, each slice through the full
+re-baseline protocol, merged and pushed.**
+
 *Synthesis, 2026-08-21, from three research passes (full reports:
 `cs35-research/numeric-census.md`, `numeric-formats.md`,
 `numeric-protocol.md` — read those before implementing a slice; this doc

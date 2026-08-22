@@ -292,7 +292,7 @@ scenario("mid-shift job toggle is safe", () => {
   const sim = createSim({ seed: 21 });
   sim.G('coins = 2000; tryBuy("arcade");');
   sim.runUntil('crabs[0].dayState === "working"', {});
-  sim.G('crabs[0].p.job = "arcade";');   // toggle while cooking
+  sim.G('crabs[0].p.job = "arcade"; rosterGen++;');   // toggle while cooking
   sim.runDays(2);
   return sim.G("gameOver") === false || sim.G("day") > 1 ? true : "sim broke after mid-shift toggle";
 });
@@ -832,7 +832,7 @@ scenario("death cleanup: slots freed, orders unclaimed, follow survives", () => 
 
 scenario("crew never staff npc-owned shops", () => {
   const sim = createSim({ seed: 13 });
-  sim.G('crabs[0].p.job = "showers";');   // the old toggle bug could write this into a save
+  sim.G('crabs[0].p.job = "showers"; rosterGen++;');   // the old toggle bug could write this into a save
   sim.runUntil("tmin > 7.2 * 60", { maxSteps: 4000 });
   const job = sim.G("crabs[0].p.job");
   if (job !== "shack") return "crew job stayed " + job;
@@ -845,7 +845,7 @@ scenario("crew never staff npc-owned shops", () => {
 scenario("all crew dead: town survives, rehire recovers", () => {
   const sim = createSim({ seed: 19 });
   sim.runUntil("tmin > 10 * 60", {});
-  sim.G("for (const c of crabs.slice()) { abortChef(c); crabs = crabs.filter(k => k !== c); } UPS.chef.lvl = 1; followIdx = 0; coins = 800;");
+  sim.G("for (const c of crabs.slice()) { abortChef(c); crabs = crabs.filter(k => k !== c); } rosterGen++; UPS.chef.lvl = 1; followIdx = 0; coins = 800;");
   sim.runDays(2, { onTick: (G) => { if (G("coins") < 400) G("coins = 800"); }, tickEvery: 40 });
   if (sim.G("!isFinite(coins)")) return "coins went " + sim.G("coins");
   sim.G('tryBuy("chef")');
@@ -1157,7 +1157,7 @@ scenario("credit: balance, flags and NPC lines roundtrip save/load", () => {
 
 scenario("thirst: drink errand serviced end-to-end at a staffed juice bar", () => {
   const sim = createSim({ seed: 33 });
-  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar";');
+  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar"; rosterGen++;');
   const ok0 = sim.runUntil('crabs[0].duty && crabs[0].workBiz === "juicebar" && !crabs[0].pendingOff', { maxSteps: 200000 });
   if (!ok0) return "the bar never opened (crabs[0] " + sim.G("crabs[0].dayState") + ")";
   sim.runUntil('crabs[1].dayState === "home" && tmin > 9.5 * 60 && tmin < 12.5 * 60', { maxSteps: 200000 });
@@ -1217,7 +1217,7 @@ scenario("thirst: a parched town breeds sickness, attributed to thirst", () => {
 
 scenario("juicebar economics: ledger flows, register income, staff retail", () => {
   const sim = createSim({ seed: 44 });
-  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "juicebar";');
+  sim.G('coins = 900; tryBuy("juicebar"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "juicebar"; rosterGen++;');
   sim.runDays(2, { onTick: (G) => { if (G("coins") < 300) G("coins = 600"); }, tickEvery: 40 });
   const st = JSON.parse(sim.G("JSON.stringify(window._stats)"));
   if ((st.drinkServes || 0) < 8) return "only " + (st.drinkServes | 0) + " drinks in 2 staffed days";
@@ -2374,7 +2374,7 @@ scenario("fish market: a glut sags the price to the floor and pay falls with it"
 
 scenario("fish market: at the ceiling a fisher skips the arcade; at the floor he goes", () => {
   const sim = createSim({ seed: 13 });
-  sim.G('coins = 3000; tryBuy("arcade"); tryBuy("chef"); crabs[2].p.job = "arcade";');
+  sim.G('coins = 3000; tryBuy("arcade"); tryBuy("chef"); crabs[2].p.job = "arcade"; rosterGen++;');
   const pin = `{ const c = npcs.find(k => k.p.name === window._f);
     if (c) { c.p.hunger = 0.2; c.p.thirst = 0.2; c.p.dirt = 0.2; c.p.tired = 0.2;
       c.p.sick = null; c.p.wallet = 60; c.p.bored = 0.9;
@@ -3069,7 +3069,7 @@ scenario("failure: an owner who leaves the town leaves a business, not an orphan
   // anything about the owner layer. runSuccession sweeps at every settlement.
   const sim = createSim({ seed: 81 });
   sim.runUntil("day >= 2 && tmin > 8 * 60", keep({ maxSteps: 400000 }));
-  sim.G('npcs = npcs.filter(c => c.p.name !== "SUDSY");');   // exactly what a mortality pass does
+  sim.G('npcs = npcs.filter(c => c.p.name !== "SUDSY"); rosterGen++;');   // exactly what a mortality pass does - INCLUDING the bump killCrab makes
   if (sim.G("BIZ.showers.owner") !== "sudsy") return "fixture wrong: the shop was not hers";
   sim.runUntil("lastRentDay === day", keep({ maxSteps: 400000 }));
   // NOT AN ORPHAN - which now has TWO honest endings, and the second one is a
@@ -3226,7 +3226,7 @@ scenario("sale: the player buys a failed business through the shopfront", () => 
     return "the player is not paying rent on the shop they just bought";
   if (sim.G('bizDark("showers")')) return "the bought shop is still dark";
   // and the player's crew may staff it (an NPC shop's staff never could)
-  sim.G('crabs[0].p.job = "showers"; crabs[0].p.sick = null;');
+  sim.G('crabs[0].p.job = "showers"; crabs[0].p.sick = null; rosterGen++;');
   if (!sim.runUntil('bizStaffed("showers")', keep({ maxSteps: 500000 })))
     return "crew never opened the shop the player bought";
   if (sim.G('crabs[0].p.job') !== "showers") return "the schedule bounced the crew back off a player-owned shop";
@@ -4218,10 +4218,10 @@ scenario("wage: every rate and deal roundtrips save/load, including a change of 
   if (!got.pol || got.pol.cd !== 1 || got.pol.lost !== 2) return "the CPU policy ledger came back " + JSON.stringify(got.pol);
   // A DEAL IS A DEAL WITH A BOSS. Move the crab to somebody else's payroll and
   // it lapses - it must not follow them and it must not vanish silently.
-  b.G(`{ crabs[0].p.job = "showers"; }`);   // (illegally, for the test: crew never staff peer shops)
+  b.G(`{ crabs[0].p.job = "showers"; rosterGen++; }`);   // (illegally, for the test: crew never staff peer shops)
   if (b.G("Math.round(wageRate(crabs[0]))") !== 31)
     return "a private deal survived a change of employer: " + b.G("Math.round(wageRate(crabs[0]))");
-  b.G(`{ crabs[0].p.job = "shack"; }`);
+  b.G(`{ crabs[0].p.job = "shack"; rosterGen++; }`);
   if (b.G("Math.round(wageRate(crabs[0]))") !== 44) return "the deal did not come back with the crab's own boss";
   // APPLY TO ALL tears up every deal at that shop, in one tap
   const n = b.G('applyShopWage("shack")');
@@ -5366,7 +5366,7 @@ function rivalTown(seed, { bar = true } = {}) {
   return sim;
 }
 function rivalOpenBar(sim) {
-  sim.G(`UPS.juicebar.lvl = 1; crabs[1].p.job = "juicebar"; crabs[1].workBiz = "juicebar";`);
+  sim.G(`UPS.juicebar.lvl = 1; crabs[1].p.job = "juicebar"; crabs[1].workBiz = "juicebar"; rosterGen++;`);
 }
 function rivalProp(sim) {   // a rival having a good month, and well enough to have one
   sim.G(`{ const o = OWNERS[rivalOwnerId()] || OWNERS.sudsy;
@@ -7069,6 +7069,10 @@ scenario("departures: every quote is DERIVED - one changed fact, one changed lin
     ["quits", `{ quits: 3, quitBiz: "CRAB SHACK", quitMin: 300 }`],
     ["quit", `{ quits: 1, quitBiz: "CRAB SHACK", quitMin: 300 }`],
     ["nothing", `{ buys: 0, serves: 0, meals: 0, left: 100, spent: 0 }`],
+    // the settled counter (CS3.5): a cultured guest who ate what was going,
+    // twice - reachable species-blind through the closure literal; the
+    // register-template rendering is the cultureways card scenario's job
+    ["foreign", `{ foreign: 2 }`],
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`],
     ["idle", `{ left: 70, spent: 30 }`],
     ["hungry", `{ hunger: 1, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
@@ -10481,6 +10485,161 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
   if (probe.bodyStray) return "a pig body blitted away from every pig";
   if (!probe.pigDome) return "the pig bather never drew over the curtain";
   if (probe.crabDome) return "a crab dome drew for a pig bather";
+  return true;
+});
+
+scenario("cultureways: the hat picks the voice, and the chain falls back", () => {
+  // THE HAT IS THE CLASS MARKER: a strawhat pig speaks farmhand, a bare
+  // head speaks clerk - resolved from the acc rolled at mint, no draw. The
+  // fallback chain (own register, first register, crab literal) is probed
+  // with a clerk whose table is missing a key, then missing entirely.
+  const store = new Map();
+  const a = createSim({ seed: 71, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  delete fx.voice.registers[1].diary.turnin;   // clerk gap -> farmhand line
+  env.cultures = { pig: fx };
+  env.visitors = (env.visitors || []).concat([
+    { n: "TROTTER", cu: "pig", c: 0, a: "strawhat", x: 1100, y: 150, s: "roam",
+      w: 40, p: 60, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} },
+    { n: "HAMLET", cu: "pig", c: 1, a: "none", x: 1140, y: 150, s: "roam",
+      w: 90, p: 90, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 72, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const t = customers.find(k => k.name === "TROTTER");
+    const h = customers.find(k => k.name === "HAMLET");
+    if (!t || !h) return null;
+    return {
+      farmAshore: vline(t, "ashore", "X"),
+      clerkAshore: vline(h, "ashore", "X"),
+      clerkGap: vline(h, "turnin", "X"),          // deleted key -> farmhand's
+      bogus: vline(t, "nosuchevent", "THE LITERAL"),
+      slots: vline(h, "checkin", "X", { N: 7 }),
+      regs: [visRegister(t).id, visRegister(h).id],
+    }; })())`));
+  if (!got) return "the pigs did not come ashore";
+  if (got.regs.join() !== "farmhand,clerk") return "registers resolved " + got.regs.join();
+  if (got.farmAshore !== "OFF THE BOAT AND HUNGRY ALREADY") return "farmhand ashore: " + got.farmAshore;
+  if (got.clerkAshore !== "DISEMBARKED IN GOOD ORDER") return "clerk ashore: " + got.clerkAshore;
+  if (got.clerkGap !== "FULL DAY. STRAIGHT TO THE HAY.") return "clerk gap fell to: " + got.clerkGap;
+  if (got.bogus !== "THE LITERAL") return "bogus event returned: " + got.bogus;
+  if (got.slots !== "REGISTERED - ROOM 7 AT THE DRIFTWOOD") return "slot resolution: " + got.slots;
+  return true;
+});
+
+scenario("cultureways: the strawhat purse is the lighter purse", () => {
+  // Class is money: farmhands mint at 0.7x, clerks at 1.3x, applied AFTER
+  // every draw. Sixty mints give both classes a mean; the ratio must sit
+  // around 0.54 (0.7/1.3) with honest slack for the purse's own spread.
+  const store = new Map();
+  const a = createSim({ seed: 73, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.cultures = { pig: PIG_FIXTURE };
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 74, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    const farm = [], clerk = [];
+    for (let i = 0; i < 60; i++) {
+      const v = newVisitor(false, "pig");
+      (v.acc === "strawhat" ? farm : clerk).push(v.wallet);
+      if (v.wallet !== v.purse) return { bad: "wallet != purse at mint" };
+      if (v.wallet < 1 || v.wallet !== Math.round(v.wallet)) return { bad: "bad wallet " + v.wallet };
+    }
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    return { nf: farm.length, nc: clerk.length, mf: mean(farm), mc: mean(clerk) }; })())`));
+  if (got.bad) return got.bad;
+  if (got.nf < 10 || got.nc < 10) return "the accessory roll starved a class: " + JSON.stringify(got);
+  const ratio = got.mf / got.mc;
+  if (!(ratio > 0.35 && ratio < 0.75)) return "class ratio " + ratio.toFixed(2) + " (means " + got.mf.toFixed(0) + "/" + got.mc.toFixed(0) + ")";
+  return true;
+});
+
+scenario("cultureways: a settling pig is counted, and the card speaks her register", () => {
+  // Live half: a pig facing a menu she rates at 0.5-0.6 settles, and the
+  // stay ledger counts it. Pure half: visQuote over hand-built rows speaks
+  // the register's template - farmhand foreign line, clerk quit line with
+  // the {BIZ} slot resolved - while a crab row keeps the closure literal.
+  const store = new Map();
+  const a = createSim({ seed: 75, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  for (const k in fx.tastes) fx.tastes[k] = 0.5;   // everything is settling
+  fx.tastes.juice = 0.6;                            // ...unequal, so the weighted path runs
+  env.cultures = { pig: fx };
+  env.visitors = (env.visitors || []).concat([
+    { n: "GAMMON", cu: "pig", c: 2, a: "strawhat", x: 700, y: 150, s: "roam",
+      w: 80, p: 80, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      hu: 0.95, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 76, storage: store, fresh: false });
+  b.G('coins = 2000;');
+  b.runUntil('(() => { const k = customers.find(q => q.name === "GAMMON"); return !k || k.buys > 0 || stayOf(k).foreign > 0; })()', { maxSteps: 60000 });
+  const fo = b.G('(() => { const k = customers.find(q => q.name === "GAMMON"); return k ? stayOf(k).foreign || 0 : -1; })()');
+  if (fo === 0) return "GAMMON bought without ever counting a settle";
+  if (fo === -1) return "GAMMON left before the probe could read her ledger";
+  const q = JSON.parse(b.G(`JSON.stringify((() => {
+    const base = { name: "X", color: 0, days: 1, nights: 0, nightsBed: 0, rough: 0,
+      purse: 60, left: 30, spent: 30, buys: 1, serves: 1, tables: 0, meals: 1,
+      drinks: 0, washes: 0, games: 0, rooms: 0, topItem: "FISH TACO", topBiz: "CRAB SHACK",
+      topPaid: 17, tips: 0, dues: 0, waitMin: 0, worstMin: 0, worstBiz: "COUNTER",
+      quits: 0, quitMin: 0, quitBiz: "COUNTER", shut: 0, full: 0, broke: 0, blocked: null,
+      mistMin: 0, missed: 0, sandWhy: null, hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
+    const pigRow = Object.assign({}, base, { cu: "pig", acc: "strawhat", foreign: 3 });
+    const clerkRow = Object.assign({}, base, { cu: "pig", acc: "none", quits: 1, quitMin: 30, quitBiz: "JUICE BAR" });
+    const crabRow = Object.assign({}, base, { acc: "cap", quits: 1, quitMin: 30, quitBiz: "JUICE BAR" });
+    return { pig: visQuote(pigRow), clerk: visQuote(clerkRow), crab: visQuote(crabRow) }; })())`));
+  if (q.pig.id !== "foreign") return "the settled pig row spoke " + q.pig.id;
+  if (q.pig.line !== "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE.") return "farmhand foreign line: " + q.pig.line;
+  if (q.clerk.id !== "quit") return "the clerk row spoke " + q.clerk.id;
+  if (q.clerk.line !== "ABANDONED THE JUICE BAR QUEUE UNDER PROTEST.") return "clerk quit template: " + q.clerk.line;
+  if (q.crab.id !== "quit" || q.crab.line.indexOf("JUICE BAR") < 0 || q.crab.line.indexOf("PROTEST") >= 0)
+    return "the crab row lost its own literal: " + q.crab.line;
+  return true;
+});
+
+scenario("cultureways: the apron is refused - a pig is never converted", () => {
+  // The preferred recruit is a pig: she declines in her register, stays a
+  // visitor, and the hire falls through - to the crab tourist if one is
+  // about, and the pig is still ashore afterwards with her diary line.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  env.cultures = { pig: PIG_FIXTURE };
+  env.visitors = [
+    { n: "RASHER", cu: "pig", c: 3, a: "none", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} },
+    { n: "MISTY", c: 1, a: "cap", x: 940, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: 0.2, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  b.G('customers.forEach(k => { if (k.name === "RASHER") k.state = "arriving"; });');
+  const before = b.G("crabs.length");
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = customers.find(k => k.name === "RASHER");
+    const hired = crabs[crabs.length - 1];
+    return { n: crabs.length, pigStays: !!pig, pigCu: pig ? pig.culture : null,
+      hiredName: hired ? hired.p.name : null,
+      refusal: pig && pig.log.some(e => e[3] === "AN APRON? I HOLD A CLERKSHIP, MADAM."),
+      pigHired: crabs.some(c => c.p.name === "RASHER") }; })())`));
+  if (got.n !== before + 1) return "the hire did not complete: " + got.n + " vs " + before;
+  if (got.pigHired) return "RASHER took the apron - the guard failed";
+  if (!got.pigStays || got.pigCu !== "pig") return "the pig left the world on refusal";
+  if (got.hiredName !== "MISTY") return "the fallback hired " + got.hiredName + ", not the crab tourist";
+  if (!got.refusal) return "the refusal never reached her diary";
   return true;
 });
 
