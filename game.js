@@ -5985,6 +5985,22 @@ class VisS {
   set wy(v) { PWYQ[this.si] = Math.round(v * Q8); }
   get state() { return VS_NAMES[this.stC]; }
   set state(s) { const c = VS[s]; if (c === undefined) throw new Error("state? " + s); this.stC = c; }
+  // KERNEL PHASE 4 residency: the state code and the five needs live in
+  // planes the kernel shares. Same contract as x/y: the plane is the stored
+  // truth, these are its only doors. Foreign literals must vivify (an own
+  // data property SHADOWS an accessor - slice 6's lesson #1).
+  get stC() { return VSTCP[this.si]; }
+  set stC(v) { VSTCP[this.si] = v; }
+  get hunger() { return VHUN[this.si]; }
+  set hunger(v) { VHUN[this.si] = v; }
+  get thirst() { return VTHI[this.si]; }
+  set thirst(v) { VTHI[this.si] = v; }
+  get dirt() { return VDIRP[this.si]; }
+  set dirt(v) { VDIRP[this.si] = v; }
+  get bored() { return VBOR[this.si]; }
+  set bored(v) { VBOR[this.si] = v; }
+  get tired() { return VTIR[this.si]; }
+  set tired(v) { VTIR[this.si] = v; }
 }
 const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // the boundary for FOREIGN literals: the suite stages customer stubs as plain
@@ -5995,7 +6011,8 @@ const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 const animTOf = (c) => c.animQ * 9 / 4294967296;   // exactly the old srand()*9 double
 function vivifyCust(o) {
   const lift = {};
-  for (const f of ["state", "x", "y", "wy", "tx", "ty", "_mx", "_my"])
+  for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
+                   "hunger", "thirst", "dirt", "bored", "tired"])
     if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
@@ -6039,6 +6056,35 @@ const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
       KS_X     = KERN ? new Int32Array(_kb, _k0 + 8320, POOL_MAX) : null,
       KS_Y     = KERN ? new Int32Array(_kb, _k0 + 8960, POOL_MAX) : null,
       KB_BLK   = KERN ? new Int32Array(_kb, _k0 + 9600, POOL_MAX) : null;
+// KERNEL PHASE 4: visitor residency planes (needs Q20, the VS state code) -
+// resident in BOTH modes, the accessors below are the only readers/writers.
+// Offsets are kernel.c's map; unarmed they are plain arrays like the pool's.
+const VHUN = KERN ? new Int32Array(_kb, 26688, POOL_MAX) : new Int32Array(POOL_MAX),
+      VTHI = KERN ? new Int32Array(_kb, 27328, POOL_MAX) : new Int32Array(POOL_MAX),
+      VDIRP = KERN ? new Int32Array(_kb, 27968, POOL_MAX) : new Int32Array(POOL_MAX),
+      VBOR = KERN ? new Int32Array(_kb, 28608, POOL_MAX) : new Int32Array(POOL_MAX),
+      VTIR = KERN ? new Int32Array(_kb, 29248, POOL_MAX) : new Int32Array(POOL_MAX),
+      VSTCP = KERN ? new Int32Array(_kb, 29888, POOL_MAX) : new Int32Array(POOL_MAX);
+// ...and vis_pick's per-think marshal planes (armed only). MB slot order is
+// the candidate order visPick evaluates: shack, juicebar, showers, arcade,
+// hotel. KM_TASTE is the Layer-0 cultureway hook table's kernel face - f64
+// weights straight from the culture document, filled per think for the
+// thinker's own culture; the kernel reads data and never a culture's name.
+const KVP_BIZ = ["shack", "juicebar", "showers", "arcade", "hotel"], KVP_RMAX = 8;
+const KM_OPEN  = KERN ? new Int32Array(_kb, 31168, 8) : null,
+      KM_UNLK  = KERN ? new Int32Array(_kb, 31200, 8) : null,
+      KM_TOURQ = KERN ? new Int32Array(_kb, 31232, 8) : null,
+      KM_ALLQ  = KERN ? new Int32Array(_kb, 31264, 8) : null,
+      KM_QX    = KERN ? new Int32Array(_kb, 31296, 8) : null,
+      KM_APQ   = KERN ? new Int32Array(_kb, 31328, 8) : null,
+      KM_RN    = KERN ? new Int32Array(_kb, 31360, 8) : null,
+      KM_PRICE = KERN ? new Int32Array(_kb, 31424, 64) : null,
+      KM_PAY   = KERN ? new Int32Array(_kb, 31680, 64) : null,
+      KM_DRINK = KERN ? new Int32Array(_kb, 31936, 64) : null,
+      KM_TASTE = KERN ? new Float64Array(_kb, 32192, 64) : null,
+      KM_VPOUT = KERN ? new Int32Array(_kb, 32704, 8) : null;
+if (KERN && !(KERN.exports.abi_check && KERN.exports.abi_check(VS.toBiz, VS.inRoom, VS.onSand, VS.roam)))
+  throw new Error("kernel ABI mismatch: the VS codes moved under the compiled unit");
 const MNULL = -0x80000000;   // the _mx/_my "no motion target this frame" sentinel
 const POOL_LIVE = new Uint8Array(POOL_MAX), POOL_MARK = new Uint8Array(POOL_MAX);
 let poolTop = 0; const poolFree = [];
@@ -6047,6 +6093,7 @@ function poolAlloc() {
   if (i >= POOL_MAX) throw new Error("agent pool overflow at " + POOL_MAX);
   PXQ[i] = 0; PYQ[i] = 0; PTXQ[i] = 0; PTYQ[i] = 0; PWYQ[i] = 0;
   PMXQ[i] = MNULL; PMYQ[i] = MNULL; POOL_LIVE[i] = 1;
+  VHUN[i] = 0; VTHI[i] = 0; VDIRP[i] = 0; VBOR[i] = 0; VTIR[i] = 0; VSTCP[i] = 0;
   return i;
 }
 // the reap: slots owned by objects no pool can reach any more go back on the
@@ -8912,8 +8959,9 @@ function updateErrand(c, dt) {
       }
       const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
         si: poolAlloc(),
-        need: c.errand.need, spawnXQ: Math.round(c.x * Q8), stC: VS.waiting,
+        need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
+      cust.stC = VS.waiting;   // through the accessor - an own stC would shadow the plane
       cust.x = c.x;
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
       customers.push(cust); noteArrival(c.errandBiz);
@@ -10357,7 +10405,6 @@ function newVisitor(overnightOnly, cu) {
     animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     si: poolAlloc(), leg: 0,
-    stC: VS.ashore,
     // the shop pipeline's own fields, dormant until they join a line
     biz: null, recipe: null, patience: VIS_PATIENCE * PQ, maxPatience: VIS_PATIENCE * PQ,
     claimed: false, served: false, happy: false, server: null, table: null, stall: null,
@@ -10368,9 +10415,12 @@ function newVisitor(overnightOnly, cu) {
     idleT: 0, target: null, log: [],
     // the visit's own ledger, minted with the purse - see THE DEPARTURE CARD
     stay: newStay(), qJoin: null,
-    hunger: n.hunger, thirst: n.thirst, dirt: n.dirt, bored: n.bored, tired: n.tired,
   };
   Object.setPrototypeOf(v, VisProto);
+  // through the accessors: state and needs are plane grains now, and an own
+  // property in the literal above would shadow the doors (lesson #1)
+  v.stC = VS.ashore;
+  v.hunger = n.hunger; v.thirst = n.thirst; v.dirt = n.dirt; v.bored = n.bored; v.tired = n.tired;
   v.x = FERRY.gangway; v.y = FERRY.deckY; v.wy = FERRY.deckY;
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
@@ -11044,9 +11094,10 @@ function newCustomer(bizKey) {
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
-    si: poolAlloc(), spawnXQ: spawnX * Q8, stC: VS.arriving, patience: 50 * PQ, maxPatience: 50 * PQ,
+    si: poolAlloc(), spawnXQ: spawnX * Q8, patience: 50 * PQ, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null }, VisProto);
+  w.stC = VS.arriving;   // through the accessor - an own stC would shadow the plane
   w.x = spawnX;
   return w;
 }
