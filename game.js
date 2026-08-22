@@ -6892,7 +6892,178 @@ function cultureProblem(d) {
   }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
+  if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
   return null;
+}
+// ------------------------------------------------------------- neuro agents
+// THE OBSERVABLE REGISTRY — the feature vector is DATA (owner ruling: "weird
+// feature vectors ... should be customizable per brain and per culture"). A
+// brain DECLARES an ordered pick list from this registry; the engine
+// assembles the vector at think time by reading integer state in declared
+// order. The registry is the TRUST BOUNDARY: a document names observables,
+// it never ships code, and an unknown name is a loud validation error —
+// never a silent zero (the culture-id lesson). Every encoded value lands in
+// [0, 32767], the inference recipe's input domain. Version bumps when any
+// entry's semantics or encoding changes; an artifact carries the version it
+// was trained against and a mismatch fails loudly at load with both numbers.
+const NEURO_REGISTRY_VERSION = 1;
+const NEURO_MAX_INPUTS = 64;      // hostile-file cap: a vector is at most this long
+const NEURO_STOPS = ["shack", "juicebar", "showers", "arcade", "hotel"];
+const nclamp = (v) => v < 0 ? 0 : v > 32767 ? 32767 : v;
+// k = the thinking visitor, res = roomReserve(k), computed once per assembly.
+const NEURO_OBSERVABLES = {
+  "need.hunger.q20":    { units: "Q20>>6",   read: (k) => nclamp(Math.floor((k.hunger || 0) / 64)) },
+  "need.thirst.q20":    { units: "Q20>>6",   read: (k) => nclamp(Math.floor((k.thirst || 0) / 64)) },
+  "need.dirt.q20":      { units: "Q20>>6",   read: (k) => nclamp(Math.floor((k.dirt || 0) / 64)) },
+  "need.bored.q20":     { units: "Q20>>6",   read: (k) => nclamp(Math.floor((k.bored || 0) / 64)) },
+  "wallet.cents":       { units: "cents",    read: (k) => nclamp(k.wallet | 0) },
+  "room.reserve.cents": { units: "cents",    read: (k, res) => nclamp(res | 0) },
+  "clock.tmin":         { units: "min<<4",   read: () => nclamp((tmin | 0) * 16) },
+  "self.cultured":      { units: "flag*4096", read: (k) => nclamp((k.culture && k.culture !== "crab" ? 1 : 0) * 4096) },
+  "self.x.px":          { units: "px<<3",    read: (k) => nclamp(Math.floor(k.x * 8)) },
+  "room.wants":         { units: "flag*4096", read: (k) => nclamp((wantsRoom(k) ? 1 : 0) * 4096) },
+  "room.free":          { units: "flag*4096", read: () => nclamp((freeRoom() ? 1 : 0) * 4096) },
+  "room.price.cents":   { units: "cents<<3", read: () => nclamp((roomPrice() | 0) * 8) },
+};
+// Parameterized (derived) observables, name:stop — the derivation is the
+// registry's own code (trusted, versioned), the document only picks the stop.
+const NEURO_PARAM_OBS = {
+  "stop.open":    { units: "flag*4096", read: (b) => () => nclamp((visOpen(b) ? 1 : 0) * 4096) },
+  "stop.roomfor": { units: "flag*4096", read: (b) => (k) => nclamp((visRoomFor(k, b) ? 1 : 0) * 4096) },
+  "stop.afford.count": { units: "n<<10",
+    read: (b) => (k, res) => nclamp(BIZ[b].recipes.filter(r => k.wallet >= menuPrice(b, r) + res).length * 1024) },
+  "stop.dist.px": { units: "px<<3", read: (b) => (k) => nclamp(Math.floor(Math.abs(k.x - BIZ[b].queueX) * 8)) },
+  "stop.appeal.q16": { units: "Q16>>3", read: (b) => () => nclamp(priceAppealQ16(b) >> 3) },
+  "stop.taste.best": { units: "tasteW*2048 over affordable",
+    read: (b) => (k, res) => nclamp(Math.floor(BIZ[b].recipes.reduce((m, r) =>
+      k.wallet >= menuPrice(b, r) + res ? Math.max(m, tasteW(k, r)) : m, 0) * 2048)) },
+};
+// THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
+// with its declared output space. An artifact's classes must EQUAL the
+// surface's list — order included — or its output indices mean nothing.
+const NEURO_SURFACES = {
+  "vis_pick.candidate": {
+    classes: ["none", "shack:food", "juicebar:drink", "shack:drink",
+      "showers:clean", "arcade:fun", "hotel:room"],
+  },
+};
+// Resolve a declared pick list into reader functions, or throw the loud error.
+function neuroResolve(picks) {
+  if (!Array.isArray(picks) || !picks.length) throw new Error("input declaration must be a non-empty array of observable names");
+  if (picks.length > NEURO_MAX_INPUTS) throw new Error("input declaration has " + picks.length + " observables, max is " + NEURO_MAX_INPUTS);
+  const readers = [];
+  for (const p of picks) {
+    if (typeof p !== "string") throw new Error("observable pick must be a string, got " + typeof p);
+    const colon = p.indexOf(":");
+    if (colon === -1) {
+      const o = NEURO_OBSERVABLES[p];
+      if (!o) throw new Error('unknown observable "' + p + '" (registry v' + NEURO_REGISTRY_VERSION + ")");
+      readers.push(o.read);
+    } else {
+      const base = p.slice(0, colon), arg = p.slice(colon + 1);
+      const o = NEURO_PARAM_OBS[base];
+      if (!o) throw new Error('unknown parameterized observable "' + base + '" in "' + p + '" (registry v' + NEURO_REGISTRY_VERSION + ")");
+      if (!NEURO_STOPS.includes(arg)) throw new Error('unknown stop "' + arg + '" in "' + p + '"; stops are ' + NEURO_STOPS.join(", "));
+      readers.push(o.read(arg));
+    }
+  }
+  return readers;
+}
+function neuroVector(k, readers, out) {
+  const res = roomReserve(k);
+  for (let i = 0; i < readers.length; i++) out[i] = readers[i](k, res);
+  return out;
+}
+// THE HOSTILE-FILE NUMBERS, enforced at the door with the offending number
+// in every message. Nothing executes; weights are data, range-checked int8.
+function policyProblem(ps) {
+  if (typeof ps !== "object" || ps === null || Array.isArray(ps)) return "POLICIES IS NOT A MAP";
+  for (const sid in ps) {
+    const surf = NEURO_SURFACES[sid];
+    if (!surf) return 'POLICY FOR UNKNOWN SURFACE "' + sid + '"';
+    const p = ps[sid];
+    if (!p || typeof p !== "object" || Array.isArray(p)) return "POLICY " + sid + ": NOT AN OBJECT";
+    if (!["table", "script", "brain"].includes(p.kind)) return "POLICY " + sid + ': KIND MUST BE table|script|brain, GOT "' + p.kind + '"';
+    if (p.mode != null && !["off", "shadow", "live"].includes(p.mode)) return "POLICY " + sid + ': MODE MUST BE off|shadow|live, GOT "' + p.mode + '"';
+    if (p.kind !== "brain") continue;   // table/script carry no artifact
+    if (p.registryVersion !== NEURO_REGISTRY_VERSION)
+      return "POLICY " + sid + ": REGISTRY v" + p.registryVersion + " BUT OURS IS v" + NEURO_REGISTRY_VERSION;
+    try { neuroResolve(p.inputs); } catch (e) { return "POLICY " + sid + ": " + e.message; }
+    const want = surf.classes;
+    if (!Array.isArray(p.classes) || p.classes.length !== want.length
+      || p.classes.some((c, i) => c !== want[i]))
+      return "POLICY " + sid + ": CLASSES MUST EQUAL THE SURFACE'S " + want.length + " IN ORDER";
+    const a = p.arch;
+    if (!a || a.in !== p.inputs.length) return "POLICY " + sid + ": arch.in MUST EQUAL THE " + p.inputs.length + " DECLARED INPUTS";
+    if (!(Number.isInteger(a.hidden) && a.hidden >= 1 && a.hidden <= 256)) return "POLICY " + sid + ": arch.hidden " + (a && a.hidden) + " IS OUTSIDE 1..256";
+    if (a.out !== want.length) return "POLICY " + sid + ": arch.out MUST BE " + want.length;
+    const params = a.in * a.hidden + a.hidden * a.out;
+    if (params > 32768) return "POLICY " + sid + ": " + params + " PARAMS IS OVER THE 32768 CAP";
+    if (params > 65536) return "POLICY " + sid + ": " + params + " MACS IS OVER THE 65536 FUEL CAP";
+    if (!p.shifts || !Number.isInteger(p.shifts.R1) || p.shifts.R1 < 0 || p.shifts.R1 > 15)
+      return "POLICY " + sid + ": shifts.R1 MUST BE AN INTEGER 0..15";
+    const i8 = (v) => Number.isInteger(v) && v >= -128 && v <= 127;
+    const i32 = (v) => Number.isInteger(v) && v >= -2147483648 && v <= 2147483647;
+    const mat = (m, rows, cols) => Array.isArray(m) && m.length === rows
+      && m.every(r => Array.isArray(r) && r.length === cols && r.every(i8));
+    if (!mat(p.w1, a.hidden, a.in)) return "POLICY " + sid + ": w1 MUST BE " + a.hidden + "x" + a.in + " int8";
+    if (!Array.isArray(p.b1) || p.b1.length !== a.hidden || !p.b1.every(i32)) return "POLICY " + sid + ": b1 MUST BE " + a.hidden + " int32";
+    if (!mat(p.w2, a.out, a.hidden)) return "POLICY " + sid + ": w2 MUST BE " + a.out + "x" + a.hidden + " int8";
+    if (!Array.isArray(p.b2) || p.b2.length !== a.out || !p.b2.every(i32)) return "POLICY " + sid + ": b2 MUST BE " + a.out + " int32";
+  }
+  return null;
+}
+// THE INTEGER INFERENCE RECIPE (design/cs35-neuro-agents.md §1): int8
+// weights, int16 activations, exact int32 accumulation, ONE floor per layer
+// at the named shift, saturating ReLU, argmax with LOWEST INDEX WINS on
+// ties. All intermediates < 2^28 by the validated caps — int32-exact, which
+// is why the same arithmetic is bit-identical in every engine. No draws.
+function buildBrain(sid, p) {
+  const readers = neuroResolve(p.inputs);
+  const a = p.arch, R1 = p.shifts.R1;
+  const hi = new Array(a.hidden), f = new Array(a.in), logits = new Array(a.out);
+  const classIdx = {};
+  for (let i = 0; i < p.classes.length; i++) classIdx[p.classes[i]] = i;
+  const classify = function (fv) {
+    for (let i = 0; i < a.hidden; i++) {
+      let acc = p.b1[i];
+      const wi = p.w1[i];
+      for (let j = 0; j < a.in; j++) acc += wi[j] * fv[j];
+      acc = acc >> R1;
+      hi[i] = acc < 0 ? 0 : acc > 32767 ? 32767 : acc;
+    }
+    let best = 0, bestV = -2147483648;
+    for (let o = 0; o < a.out; o++) {
+      let acc = p.b2[o];
+      const wo = p.w2[o];
+      for (let i = 0; i < a.hidden; i++) acc += wo[i] * hi[i];
+      logits[o] = acc;
+      if (acc > bestV) { bestV = acc; best = o; }
+    }
+    return best;
+  };
+  return { mode: p.mode || "live", readers, classify, logits, f, classes: p.classes, classIdx };
+}
+// cultureId -> { surfaceId: builtBrain }. Rebuilt by loadCultures alongside
+// CULTURES (same lifecycle, same door), so a load never inherits a session's
+// brains — the loader-reset contract, honored by construction.
+let BRAINS = {};
+function rebuildBrains() {
+  BRAINS = {};
+  const add = (id, ps) => {
+    const why = policyProblem(ps);
+    if (why) { toast = { text: "A BRAIN DIDN'T LOAD - " + why, t: 8 }; return; }
+    for (const sid in ps) if (ps[sid].kind === "brain" && (ps[sid].mode || "live") !== "off")
+      (BRAINS[id] = BRAINS[id] || {})[sid] = buildBrain(sid, ps[sid]);
+  };
+  for (const id in CULTURES) {
+    const c = CULTURES[id];
+    if (c && c.def && c.def.policies) add(id, c.def.policies);
+  }
+  // policies for cultures WITHOUT documents (the crab default rides here) —
+  // bundled beside the cultureways, same validator, same clamps.
+  if (typeof BUNDLED_POLICIES !== "undefined" && BUNDLED_POLICIES)
+    for (const id in BUNDLED_POLICIES) if (!BRAINS[id]) add(id, BUNDLED_POLICIES[id]);
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -6946,11 +7117,12 @@ function loadCultures(raw) {
   for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
   rawCultures = null;
   installCultures(typeof BUNDLED_CULTUREWAYS !== "undefined" ? BUNDLED_CULTUREWAYS : null, true);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) { rebuildBrains(); return; }
   // the RAW key round-trips even when a culture fails the gate: a load must
   // never destroy data it merely could not use
   rawCultures = raw;
   installCultures(raw, false);
+  rebuildBrains();
 }
 // Resolve a customer/visitor's culture entry for the DRAW path. Crab - and
 // every walk-in, which has no culture field at all - resolves to null, and
@@ -11174,7 +11346,12 @@ function visRoomFor(k, b) {   // is there a slot left in that line for a tourist
   const [tourQ, allQ] = lineCounts(k, b);
   return tourQ < TOURIST_QUEUE_MAX && allQ < QUEUE_MAX;
 }
-function visPick(k) {
+// CANDIDATE CONSTRUCTION, shared verbatim by the reference scorer and the
+// brain path (neuro agents): the guards, the blocked counters, and the
+// recipe rolls all live HERE, so whoever decides — script, kernel, or brain —
+// the same draws leave the stream in the same order, and a brain stays
+// draw-free by construction (it only ever RANKS what this built).
+function visCandidates(k) {
   const cand = [], res = roomReserve(k);
   // the BOARD price, not the recipe table's. Every till in this game charges
   // menuPrice; a shop that has repriced itself upward would otherwise pull in
@@ -11242,6 +11419,10 @@ function visPick(k) {
   // the bed outranks geography outright - the same escape hatch a DIRE need has.
   if (wantsRoom(k) && k.wallet >= roomPrice() && visOpen("hotel") && visRoomFor(k, "hotel") && freeRoom())
     cand.push({ biz: "hotel", need: "room", recipe: BIZ.hotel.recipes[0] });
+  return cand;
+}
+function visPick(k) {
+  const cand = visCandidates(k);
   let best = null, bestScore = 0;
   for (const e of cand) {
     const d = Math.abs(k.x - BIZ[e.biz].queueX);
@@ -11275,12 +11456,56 @@ function visPick(k) {
     }
     if (s > bestScore) { bestScore = s; best = e; }
   }
-  // SETTLING IS COUNTED (CS3.5): a cultured guest whose winning pick carried
-  // a taste at or under 0.6 is eating what was going, not what they wanted.
-  // The count feeds the FOREIGN departure rule - the card teaches the demand.
+  return visSettle(k, best);
+}
+// SETTLING IS COUNTED (CS3.5): a cultured guest whose winning pick carried
+// a taste at or under 0.6 is eating what was going, not what they wanted.
+// The count feeds the FOREIGN departure rule - the card teaches the demand.
+// Shared by every decider - script, kernel drain, and brain - because the
+// departure card must read the same whoever chose the plate.
+function visSettle(k, best) {
   if (best && best.recipe && k.culture && k.culture !== "crab" && tasteW(k, best.recipe) <= 0.6)
     stayBlocked(k, "foreign");
   return best;
+}
+// THE BRAIN PATH (neuro agents, live mode): the same candidates, the same
+// draws, and then the artifact RANKS them - class logits over the surface's
+// declared output space, lowest index winning ties, "none" competing too (a
+// brain may wait where the scorer would act; that is its personality, and
+// the agreement-floor scenario is what keeps personality from drifting into
+// malfunction). The brain itself never draws and never writes - it reads the
+// declared observables and returns an index.
+function brainVisPick(k, bp) {
+  const cand = visCandidates(k);
+  neuroVector(k, bp.readers, bp.f);
+  bp.classify(bp.f);
+  let best = null, bestL = bp.logits[0];   // class 0 = none, the sitting champion
+  for (let ci = 1; ci < bp.classes.length; ci++) {
+    if (bp.logits[ci] <= bestL) continue;   // ties: the earlier class keeps it
+    let e = null;
+    for (const c of cand) if (bp.classIdx[c.biz + ":" + c.need] === ci) { e = c; break; }
+    if (!e) continue;                       // the brain wants what the town can't sell: not a candidate
+    bestL = bp.logits[ci]; best = e;
+  }
+  return visSettle(k, best);
+}
+// SHADOW MODE: the brain runs beside the decider on every think - same
+// declared inputs, same artifact path - and only a tally moves. _shadowStats
+// is the harness's observation channel, like _stats: NOT town state, so it
+// is exempt from resetSession by the same argument, and because a brain is
+// draw-free and this writes nothing the sim reads, shadow is inert by
+// construction - the frozen fingerprints not moving under shadow IS the
+// receipt, and a scenario asserts it.
+function shadowObserve(k, bp, e) {
+  neuroVector(k, bp.readers, bp.f);
+  const cls = bp.classify(bp.f);
+  const actual = e ? (bp.classIdx[e.biz + ":" + e.need] != null ? bp.classIdx[e.biz + ":" + e.need] : 0) : 0;
+  const all = window._shadowStats = window._shadowStats || {};
+  const cul = all[k.culture || "crab"] = all[k.culture || "crab"] || {};
+  const s = cul["vis_pick.candidate"] = cul["vis_pick.candidate"] || { n: 0, agree: 0, ring: [] };
+  s.n++;
+  if (cls === actual) s.agree++;
+  else if (s.ring.length < 16) s.ring.push({ t: T, want: bp.classes[cls], got: bp.classes[actual] });
 }
 // THE COMPILED SCORER's marshal + drain (kernel phase 4). Fills the per-think
 // planes with the same facts the reference reads - the taste row is the
@@ -11458,7 +11683,18 @@ function updateVisitor(k, dt) {
   }
   if (k.thinkT <= 0) {
     k.thinkT = VIS_THINK;
-    const e = KERN ? kernelVisPick(k) : visPick(k);   // the compiled scorer; visPick stays the reference
+    // WHO DECIDES: a live brain outranks both backends (and bypasses the
+    // kernel identically in both modes, so kernel-vs-JS agreement holds by
+    // construction); otherwise the compiled scorer with visPick as the
+    // reference, and a shadow brain - if one ships - watches and tallies.
+    const bpol = BRAINS[k.culture || "crab"];
+    const bp = bpol && bpol["vis_pick.candidate"];
+    let e;
+    if (bp && bp.mode === "live") e = brainVisPick(k, bp);
+    else {
+      e = KERN ? kernelVisPick(k) : visPick(k);
+      if (bp && bp.mode === "shadow") shadowObserve(k, bp, e);
+    }
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
