@@ -11247,6 +11247,90 @@ scenario("the sim's numbers are integers - the tripwire the no-float receipt lac
   return true;
 });
 
+scenario("queues: tickets are unique and total - the C port never consults sort stability", () => {
+  // PRE-PORT PIN (kernel phase 4, blocker 1). The p3 close-out named "JS sort
+  // stability" as a port blocker; against the code it is VACUOUS - queueJoin
+  // stamps ++qSeqN, so every ticket is unique and the queue sort's key is a
+  // total order with no ties for stability to break. A C port can therefore
+  // pick by strict comparison and match JS's stable sort exactly. This pin
+  // makes that load-bearing fact FAIL LOUDLY if anyone ever hands out
+  // duplicate tickets (a reset counter, a save merge, a fixture): from a
+  // lived town with ferry visitors, crab errands and walk-ins, every stamped
+  // ticket must be a unique positive integer and every line strictly
+  // increasing. Mutation bites: stamping two customers the same ticket fails
+  // naming both.
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil("day === 1 && tmin > 13 * 60", {});
+  sim.G(`for (let i = 0; i < 3; i++) customers.push(newCustomer("shack"));`);
+  sim.runUntil("false", { maxSteps: 100 });
+  const bad = sim.G(`(() => {
+    const seen = new Map();
+    for (const k of customers) {
+      if (k.qSeq == null) continue;
+      if (!Number.isInteger(k.qSeq) || k.qSeq < 1) return "ticket " + k.qSeq + " is not a positive integer";
+      if (seen.has(k.qSeq)) return "duplicate ticket " + k.qSeq + " (" + seen.get(k.qSeq) + " and " + (k.name || "crab") + ")";
+      seen.set(k.qSeq, k.name || "crab");
+      if (k.qSeq > qSeqN) return "ticket " + k.qSeq + " outruns the counter " + qSeqN;
+    }
+    for (const b of Object.keys(BIZ)) {
+      const q = queueOrder(b);
+      for (let i = 1; i < q.length; i++)
+        if (q[i].qSeq <= q[i - 1].qSeq) return b + " line not strictly increasing at place " + i;
+    }
+    return "";
+  })()`);
+  if (bad) return bad;
+  return true;
+});
+
+scenario("queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order", () => {
+  // PRE-PORT PIN (kernel phase 4, blocker 2). The one-pass Map grouping
+  // iterates insertion order, but the seat a member gets depends only on the
+  // RANK OF THEIR TICKET within their own line - the group is re-sorted on
+  // the unique tickets, so a C port carrying lines in any container lands
+  // the same seats. Staged the hostile way (array order the REVERSE of join
+  // order, two lines at once), settled, then every waiter must stand exactly
+  // at queueSlotX(biz, rank-by-ticket). Mutation bites: reversing the sort
+  // seats the line back to front and this names the seat.
+  const sim = createSim({ seed: 4242 });
+  sim.G("coins = 500000;");
+  sim.runUntil("tmin > 11 * 60", {});
+  const lull = "!customers.some(k => (k.biz === 'shack' || k.biz === 'showers') && (k.state === 'waiting' || k.state === 'arriving'))";
+  if (!sim.runUntil(lull, { maxSteps: 60000 })) return "control failed: no lull to stage in";
+  sim.G(`(() => {
+    window._q2 = [];
+    const stage = (biz, n) => {
+      const built = [];
+      for (let i = 0; i < n; i++) {
+        const k = newCustomer(biz);
+        k.state = "waiting"; k.x = BIZ[biz].queueX + 46;
+        k.patience = 9e9; k.maxPatience = 9e9; k.claimed = true;
+        built.push(k);
+      }
+      for (let i = built.length - 1; i >= 0; i--) customers.push(built[i]);   // array REVERSES join order
+      window._q2.push(...built);
+    };
+    stage("shack", 4); stage("showers", 3);
+  })()`);
+  sim.runUntil("false", { maxSteps: 160 });   // 8s: the 45px/s shuffle settles a 4-deep line
+  const bad = sim.G(`(() => {
+    for (const b of ["shack", "showers"]) {
+      const q = queueOrder(b).filter(k => window._q2.includes(k));
+      const whole = queueOrder(b);
+      for (const k of window._q2) {
+        if (k.biz !== b) continue;
+        const rank = whole.indexOf(k);
+        const want = queueSlotX(b, rank);
+        if (Math.abs(k.x - want) > 0.51) return b + " seat " + rank + " stands at " + k.x.toFixed(2) + ", not " + want;
+      }
+      if (q.length < 3) return b + " staged line went missing";
+    }
+    return "";
+  })()`);
+  if (bad) return bad;
+  return true;
+});
+
 scenario("the sim stream's cursor is shared: JS and kernel draws are one sequence", () => {
   // KERNEL PHASE 2's stream-identity proof. With the kernel armed, the sim
   // stream's mulberry32 state lives in kernel memory and srand() steps it
