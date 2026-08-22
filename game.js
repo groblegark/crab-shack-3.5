@@ -6698,7 +6698,12 @@ let firstPour = false;      // the juice bar's first-ever drink (persisted: one 
 function needsEnvelope(s) {
   const q = (v) => (typeof v === "number" && isFinite(v) ? Math.round(Math.max(0, Math.min(1, v)) * Q20) : v);
   for (const p of s.personas || []) {
-    for (const k of ["hunger", "thirst", "dirt", "bored", "tired"]) if (p[k] != null) p[k] = q(p[k]);
+    // `sandy` is the pre-thirst name for tired and hydrates into it, so it
+    // crosses on this stage too - or a legacy town wakes up at 1e-6 tired.
+    for (const k of ["hunger", "thirst", "dirt", "bored", "tired", "sandy"]) if (p[k] != null) p[k] = q(p[k]);
+  }
+  for (const p of ((s.npc || {}).personas || [])) {
+    for (const k of ["hunger", "thirst", "dirt", "bored", "tired", "sandy"]) if (p[k] != null) p[k] = q(p[k]);
   }
   for (const v of s.visitors || []) {
     for (const k of ["hu", "th", "di", "bo", "ti"]) if (v[k] != null) v[k] = q(v[k]);

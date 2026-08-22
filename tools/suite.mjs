@@ -1279,7 +1279,7 @@ scenario("juicebar economics: ledger flows, register income, staff retail", () =
   a.G('coins = 50000; tryBuy("juicebar"); crabs[0].p.thirst = qn(0.62); firstPour = true; trade.total.fruit = 31; save()');
   const b = createSim({ seed: 10, storage: store, fresh: false });
   if (b.G("UPS.juicebar.lvl") !== 1 || !b.G('bizUnlocked("juicebar")')) return "juicebar unlock did not roundtrip";
-  if (Math.abs(b.G("crabs[0].p.thirst") - 0.62) > 1e-9) return "thirst did not roundtrip";
+  if (b.G("crabs[0].p.thirst") !== qn(0.62)) return "thirst did not roundtrip";
   if (!b.G("firstPour")) return "firstPour flag did not roundtrip";
   return b.G("trade.total.fruit") === 31 ? true : "fruit ledger did not roundtrip";
 });
@@ -1432,7 +1432,7 @@ scenario("tired: save migration seeds it from old sandy, strands nothing", () =>
     lv: { chef: 2 }, memorials: [], rep: 40, townCatch: 2, rate: 0, t: Date.now(),
     personas: [
       { name: "PINCHY", trait: "speedy", mode: "walk", acc: "none", color: 0, shift: "M", wallet: 30, house: 0, homeless: false, job: "shack", sandy: 0.7 },
-      { name: "CLAWDIA", trait: "tidy", mode: "bike", acc: "flower", color: 1, shift: "E", wallet: 25, house: 1, homeless: false, job: "shack", sandy: 0.2, tired: qn(0.55) },
+      { name: "CLAWDIA", trait: "tidy", mode: "bike", acc: "flower", color: 1, shift: "E", wallet: 25, house: 1, homeless: false, job: "shack", sandy: 0.2, tired: 0.55 },
     ],
     npc: { tills: { sudsy: 100 }, personas: [{ name: "SUDSY", npc: true, wallet: 12, job: "showers", sandy: 0.4 }] },
   }));
@@ -1441,9 +1441,9 @@ scenario("tired: save migration seeds it from old sandy, strands nothing", () =>
     crabs[0].p.tired, "sandy" in crabs[0].p,
     crabs[1].p.tired, "sandy" in crabs[1].p,
     npcs[0].p.tired, "sandy" in npcs[0].p])`));
-  if (st[0] !== 0.7 || st[1]) return "old sandy did not seed tired: " + JSON.stringify(st);
-  if (st[2] !== 0.55 || st[3]) return "an existing tired value must win: " + JSON.stringify(st);
-  if (st[4] !== 0.4 || st[5]) return "npc sandy did not migrate: " + JSON.stringify(st);
+  if (st[0] !== qn(0.7) || st[1]) return "old sandy did not seed tired: " + JSON.stringify(st);
+  if (st[2] !== qn(0.55) || st[3]) return "an existing tired value must win: " + JSON.stringify(st);
+  if (st[4] !== qn(0.4) || st[5]) return "npc sandy did not migrate: " + JSON.stringify(st);
   sim.G("save()");
   const raw = JSON.parse(store.get(SLOT1));
   const stranded = raw.personas.concat(raw.npc.personas).filter(p => p && "sandy" in p);
