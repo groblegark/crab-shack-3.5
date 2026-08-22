@@ -1443,7 +1443,7 @@ scenario("hours: a working day has a length - long hours buy no free labour", ()
   // it: labour is bought by the hour in both directions
   const sh = read(9, 17);
   if (sh.M[1] - sh.M[0] !== 240) return "shortened hours did not shorten the shift: " + JSON.stringify(sh.M);
-  if (sh.pay.some(p => p !== 15) || sh.load.some(l2 => Math.abs(l2 - 2 / 3) > 1e-5))
+  if (sh.pay.some(p => p !== 1533) || sh.load.some(l2 => Math.abs(l2 - 2 / 3) > 1e-5))   // round(2300 * 2/3): the 2/3 day, in cents
     return "a four-hour shift is not paid four hours: " + JSON.stringify(sh);
   return true;
 });
@@ -1664,7 +1664,7 @@ scenario("days off: everyone rests their weekday and plays customer", () => {
     // (legal - wages then follow workedToday), but THIS test wants a stable
     // week where scheduled == actual. No flush hires (till < 260) and no
     // dark-shop hires (a sick SUDSY zeroes the staff count, by design).
-    G(`OWNERS.sudsy.till = Math.min(OWNERS.sudsy.till, 200);
+    G(`OWNERS.sudsy.till = Math.min(OWNERS.sudsy.till, 20000);
     if (npcs[0]) { npcs[0].p.sick = null; }   // a sick solo owner zeroes staff -> emergency hire -> rota reshuffle
       for (const c of npcs) { c.p.sick = null;
         c.p.hunger = Math.min(c.p.hunger || 0, 0.8); c.p.dirt = Math.min(c.p.dirt || 0, 0.8); }`);
@@ -4106,7 +4106,7 @@ scenario("wage: an underpaid NPC quits the shop - and a better payer poaches the
   // for ten days is a fixture about SOLVENCY, not about poaching.
   const p = createSim({ seed: 5 });
   p.G(`UPS.arcade.lvl = 1; BIZ.arcade.owner = "sudsy2";
-       OWNERS.sudsy2 = { id: "sudsy2", name: "PEARL", till: 900, credit: 0, darkT: 0 };
+       OWNERS.sudsy2 = { id: "sudsy2", name: "PEARL", till: 90000, credit: 0, darkT: 0 };
        setBizWage("arcade", 3400); setBizWage("showers", 1400); OWNERS.sudsy.till = 90000;`);
   p.G(`{ const k = npcs.find(c => c.p.fisher);
          k.p.job = "showers"; k.p.employer = "sudsy"; k.p.fisher = false; k.workBiz = "showers";
@@ -4124,7 +4124,7 @@ scenario("wage: an underpaid NPC quits the shop - and a better payer poaches the
   // thing that turns a head, and the best-paid crab in the room never has any.
   const q = createSim({ seed: 5 });
   q.G(`UPS.arcade.lvl = 1; BIZ.arcade.owner = "sudsy2";
-       OWNERS.sudsy2 = { id: "sudsy2", name: "PEARL", till: 900, credit: 0, darkT: 0 };
+       OWNERS.sudsy2 = { id: "sudsy2", name: "PEARL", till: 90000, credit: 0, darkT: 0 };
        setBizWage("arcade", 3400); setBizWage("showers", 1400); OWNERS.sudsy.till = 90000;`);
   q.G(`{ const k = npcs.find(c => c.p.fisher);
          k.p.job = "showers"; k.p.employer = "sudsy"; k.p.fisher = false; k.workBiz = "showers";
@@ -4199,8 +4199,8 @@ scenario("cpu wage: a peer owner's wage policy converges and never thrashes", ()
   const late = moves.filter(m => m.day > 22);
   if (late.length > 1) return "still moving in the last week: " + JSON.stringify(late.map(m => m.line));
   const rate = sim.G('bizWage("showers")');
-  if (rate <= 20) return "she never actually raised (" + rate + ")";
-  if (rate > 30) return "her wage ran away to $" + rate;
+  if (rate <= 2000) return "she never actually raised (" + rate + ")";
+  if (rate > 3000) return "her wage ran away to " + rate + "c";
   // the toast is named, exactly as the hours policy names its own
   if (!/RAISES THE WAGE TO \$/.test(moves[0].line)) return "the move is not announced by name: " + moves[0].line;
   return true;
@@ -4221,22 +4221,22 @@ scenario("wage: every rate and deal roundtrips save/load, including a change of 
     c0: [Math.round(wageRate(crabs[0])), onShopRate(crabs[0]), crabs[0].p.walkout === day + 1],
     c1: [Math.round(wageRate(crabs[1])), +(crabs[1].p.gripe || 0).toFixed(2)],
     pol: wagePolicyState.showers })`));
-  if (got.biz.join() !== "27,31,19,23") return "shop rates came back " + got.biz.join();
-  if (got.c0[0] !== 44 || got.c0[1] !== false) return "the private deal came back " + JSON.stringify(got.c0);
+  if (got.biz.join() !== "2700,3100,1900,2300") return "shop rates came back " + got.biz.join();
+  if (got.c0[0] !== 4400 || got.c0[1] !== false) return "the private deal came back " + JSON.stringify(got.c0);
   if (!got.c0[2]) return "a scheduled walkout did not survive the save";
-  if (got.c1[0] !== 27 || Math.abs(got.c1[1] - 0.55) > 1e-9) return "grievance/shop rate came back " + JSON.stringify(got.c1);
+  if (got.c1[0] !== 2700 || Math.abs(got.c1[1] - 0.55) > 1e-9) return "grievance/shop rate came back " + JSON.stringify(got.c1);
   if (!got.pol || got.pol.cd !== 1 || got.pol.lost !== 2) return "the CPU policy ledger came back " + JSON.stringify(got.pol);
   // A DEAL IS A DEAL WITH A BOSS. Move the crab to somebody else's payroll and
   // it lapses - it must not follow them and it must not vanish silently.
   b.G(`{ crabs[0].p.job = "showers"; rosterGen++; }`);   // (illegally, for the test: crew never staff peer shops)
-  if (b.G("Math.round(wageRate(crabs[0]))") !== 31)
+  if (b.G("Math.round(wageRate(crabs[0]))") !== 3100)
     return "a private deal survived a change of employer: " + b.G("Math.round(wageRate(crabs[0]))");
   b.G(`{ crabs[0].p.job = "shack"; rosterGen++; }`);
-  if (b.G("Math.round(wageRate(crabs[0]))") !== 44) return "the deal did not come back with the crab's own boss";
+  if (b.G("Math.round(wageRate(crabs[0]))") !== 4400) return "the deal did not come back with the crab's own boss";
   // APPLY TO ALL tears up every deal at that shop, in one tap
   const n = b.G('applyShopWage("shack")');
   if (n !== 1) return "APPLY TO ALL reported " + n + " deals torn up, want 1";
-  if (b.G("Math.round(wageRate(crabs[0]))") !== 27 || b.G("crabs.every(c => onShopRate(c))") !== true)
+  if (b.G("Math.round(wageRate(crabs[0]))") !== 2700 || b.G("crabs.every(c => onShopRate(c))") !== true)
     return "APPLY TO ALL left somebody on a private deal";
   // a tampered save clamps into the stepper's band rather than wedging
   const s = JSON.parse(store.get(SLOT1));
@@ -4244,7 +4244,7 @@ scenario("wage: every rate and deal roundtrips save/load, including a change of 
   store.set(SLOT1, JSON.stringify(s));
   const c = createSim({ seed: 43, storage: store, fresh: false });
   const cl = JSON.parse(c.G(`JSON.stringify([bizWage("shack"), Math.round(wageRate(crabs[0]))])`));
-  if (cl[0] !== 60 || cl[1] !== 8) return "a degenerate save did not clamp: " + JSON.stringify(cl);
+  if (cl[0] !== 6000 || cl[1] !== 800) return "a degenerate save did not clamp: " + JSON.stringify(cl);
   return true;
 });
 
@@ -8350,7 +8350,7 @@ scenario("shelter: a bed is RENT, not a purchase - the bill goes up for good, an
   sim.runUntil("day >= 2 && tmin > 12 * 60", { maxSteps: 400000 });
   const rent0 = sim.G("shelterRent()");
   if (rent0 !== sim.G("SHELTER_RENT")) return "a shelter with no bought beds should cost the base rent";
-  sim.G("townFund.bal = 40; dorm.take = 999; townFund.arrears = 0; townFund.strikes = 0;");
+  sim.G("townFund.bal = 4000; dorm.take = 99900; townFund.arrears = 0; townFund.strikes = 0;");
   const why = sim.G("JSON.stringify(bunkWhy())");
   if (why !== "null") return "a solvent fund on a big purse still refused: " + why;
   const before = sim.G("Math.round(worldMoney() * 100) / 100");
@@ -8374,7 +8374,7 @@ scenario("shelter: a bed is RENT, not a purchase - the bill goes up for good, an
   if (!sums.remit || sums.remit <= 0) return "no remit ever reached the landlord";
   // THE RECURRING HALF: tonight's rent is the bigger one, at the landlord
   const paid0 = sim.G("townFund.ledger.filter(r => r.kind === 'remit' && /SHELTER RENT/.test(r.why || '')).length");
-  sim.G("townFund.bal = 200;");
+  sim.G("townFund.bal = 20000;");
   sim.runUntil("day >= 3 && tmin > 21 * 60", { maxSteps: 400000 });
   const rents = JSON.parse(sim.G(`JSON.stringify(townFund.ledger
     .filter(r => r.kind === 'remit' && /SHELTER RENT/.test(r.why || '')).map(r => r.amt))`));
@@ -8390,15 +8390,15 @@ scenario("shelter: the PURSE decides whether the town can grow it, and it says w
   // carries it. Two arms, one town, nothing else moved.
   const sim = createSim({ seed: 1337 });
   sim.runUntil("day >= 2 && tmin > 19 * 60", { maxSteps: 400000 });
-  sim.G("townFund.bal = 60; townFund.arrears = 0; townFund.strikes = 0; townFund.shut = 0;");
+  sim.G("townFund.bal = 6000; townFund.arrears = 0; townFund.strikes = 0; townFund.shut = 0;");
   sim.G("hall.policy = { mech: 'tin', rate: 0, bowls: 0 }; dorm.take = purseYield(hall.policy);");
   const poor = sim.G("JSON.stringify(bunkWhy())");
   if (poor === "null") return "a purse raising nothing was allowed to sign for a bed";
   if (!/TIN/.test(poor)) return "the refusal does not name the purse the town voted for: " + poor;
   if (sim.G("canBunk()")) return "canBunk disagrees with bunkWhy";
   const beds0 = sim.G("shelterBeds()");
-  sim.G("hall.policy = { mech: 'levy', rate: 4, bowls: 0 }; dorm.take = 500;");
-  if (!sim.G("canBunk()")) return "a purse raising $500 a night still could not carry $13: " + sim.G("JSON.stringify(bunkWhy())");
+  sim.G("hall.policy = { mech: 'levy', rate: 4, bowls: 0 }; dorm.take = 50000;");
+  if (!sim.G("canBunk()")) return "a purse raising $500 a night still could not carry the bill: " + sim.G("JSON.stringify(bunkWhy())");
   if (!sim.G("buildBunk('TEST')")) return "the build refused with the gate open";
   if (sim.G("shelterBeds()") !== beds0 + 1) return "the bed was not added";
   // ...and the ceiling is a ceiling
@@ -8428,7 +8428,7 @@ scenario("shelter: the BED+ chip is the mayor's, and it sits on the notice witho
   if (g.y < 40) return "the notice climbed off the top of the world: " + JSON.stringify(g);
   if (g.r.x < 444 || g.r.x + g.r.w > 444 + 78) return "the chip hangs off the shelter";
   // TWO TAPS, and the first one is the price of the recurring half
-  sim.G("townFund.bal = 60; townFund.arrears = 0; townFund.strikes = 0; dorm.take = 500;");
+  sim.G("townFund.bal = 6000; townFund.arrears = 0; townFund.strikes = 0; dorm.take = 50000;");
   const beds0 = sim.G("shelterBeds()");
   if (sim.G("tapBunkChip()")) return "one tap signed a permanent bill";
   if (sim.G("shelterBeds()") !== beds0) return "the arming tap built a bed";
@@ -8646,7 +8646,7 @@ scenario("accommodation: the shelter's bill is what the town votes on", () => {
   // platBowls reads 6/6, which proves nothing about competition at all.
   const gen = JSON.stringify({ mech: "levy", rate: 4, bowls: sim.G("POT_MAX") });
   const maxBeds = sim.G("DORM_CFG.MAX - DORM_CFG.BASE");
-  const afford = (beds) => sim.G(`(dorm.beds = ${beds}, bizDayBook("shack").take = 900,
+  const afford = (beds) => sim.G(`(dorm.beds = ${beds}, bizDayBook("shack").take = 90000,
     Math.floor((purseYield(${gen}) - shelterRent()) / Math.max(1, bowlCost())))`);
   const bowlsA = afford(0), bowlsB = afford(maxBeds);
   if (!(bowlsA > 0)) return "the generous platform could not fund a single bowl even at base beds";
@@ -10595,7 +10595,7 @@ scenario("cultureways: a settling pig is counted, and the card speaks her regist
   env.cultures = { pig: fx };
   env.visitors = (env.visitors || []).concat([
     { n: "GAMMON", cu: "pig", c: 2, a: "strawhat", x: 700, y: 150, s: "roam",
-      w: 80, p: 80, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,
+      w: 8000, p: 8000, sp: 0, ni: 1, nh: 0, rn: 0, un: 0, ar: 1, lt: 4000, b: 0,   // cents: the envelope is a current-era save
       hu: 0.95, th: 0.2, di: 0.2, bo: 0.2, ti: 0.2, log: [], st: {} }]);
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 76, storage: store, fresh: false });
