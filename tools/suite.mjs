@@ -11147,6 +11147,34 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   return true;
 });
 
+scenario("the kernel and the reference agree, byte for byte", () => {
+  // THE WASM SPIKE's referee. The movement kernel (tools/kernel/kernel.c) is
+  // a second backend for stepTo, visStep, and the collide pair loop; the JS
+  // bodies in game.js remain the reference implementation. Two towns, same
+  // seed, one on each backend, run a fixed two-day window; then every pool
+  // grain and the town digest must be IDENTICAL. On disagreement this names
+  // the first divergent field rather than shrugging - the kernel is wrong by
+  // definition (the reference defines the sim), and the fix is in the C.
+  const ref = createSim({ seed: 1337, kernel: "off" });
+  let kern;
+  try { kern = createSim({ seed: 1337, kernel: "wasm" }); }
+  catch (e) { return "kernel failed to arm: " + e.message; }
+  ref.runDays(2); kern.runDays(2);
+  const pool = (s) => s.G(
+    "JSON.stringify(allCrabs().concat(visitorsInTown()).map(c => [c.si, PXQ[c.si], PYQ[c.si], PMXQ[c.si], PMYQ[c.si], PWYQ[c.si]]))");
+  const pr = pool(ref), pk = pool(kern);
+  if (pr !== pk) {
+    const a = JSON.parse(pr), b = JSON.parse(pk);
+    for (let i = 0; i < Math.max(a.length, b.length); i++)
+      for (let f = 0; f < 6; f++)
+        if (!a[i] || !b[i] || a[i][f] !== b[i][f])
+          return `pool diverged at agent ${i} field ${["si","PXQ","PYQ","PMXQ","PMYQ","PWYQ"][f]}: ref ${a[i] && a[i][f]} vs kernel ${b[i] && b[i][f]}`;
+  }
+  const dig = (s) => s.G("JSON.stringify([coins, day, tmin, lifetime, rep, window._stats.warps || 0])");
+  if (dig(ref) !== dig(kern)) return "digest diverged: ref " + dig(ref) + " vs kernel " + dig(kern);
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
