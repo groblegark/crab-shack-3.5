@@ -9760,7 +9760,7 @@ const VIS_THINK = 1.6 * SEC;     // real seconds between "what do I fancy" check
 // point: flooring all five runs the town's needs 1.19% slow, every one in the
 // same direction, which is a quietly easier game bought by arithmetic.
 const VIS_RATE = { hunger: 402, thirst: 192, dirt: 315, bored: 157, tired: 168 };   // per TICK, Q20
-const VIS_WANT = { food: 0.45, drink: 0.40, clean: 0.45, fun: 0.45 };
+const VIS_WANT = { food: qn(0.45), drink: qn(0.40), clean: qn(0.45), fun: qn(0.45) };
 // A VISITOR'S PRIORITIES ARE NOT A LOCAL'S. ERRAND_RANK puts washing third
 // because a crab washes when the day allows; a holidaymaker who has spent the
 // afternoon on a beach goes and has a shower, and SUDSY's whole business used
@@ -10320,7 +10320,7 @@ function visPick(k) {
       // land, this decides WHOSE door they walk through. priceAppeal is
       // exactly 1 at the default price, so a town nobody has repriced behaves
       // bit-identically.
-      s = (VIS_RANK[e.need] + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
+      s = (VIS_RANK[e.need] * Q20 + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
     }
     // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
     // its picked recipe, so the weight is a straight lookup. Guarded so a
