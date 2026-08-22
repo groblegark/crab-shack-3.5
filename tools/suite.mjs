@@ -2216,8 +2216,17 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     //     the quantization has no compass.
     // The matrix refereed the slice: baseline 0/48 over three blocks, median
     // 12 in each; growth 14/48 vs 11/48 (+1/+2/0 per block, mixed bands).
-    1337: '{"day":3,"tmin":0,"coins":12934,"rep":50.3247,"catch":1,"serves":37,"crabServes":4,"rage":4,"till":19861,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19861],["REEF",18545],["SALTY",300],["DRIFT",200],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[558.4,167.1],[646,163]]}',
-    4242: '{"day":3,"tmin":0,"coins":19361,"rep":53.5996,"catch":1,"serves":44,"crabServes":5,"rage":6,"till":23410,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23410],["REEF",20935],["SALTY",0],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[436.5,167.7],[2136,154],[2072,154],[464,155],[450,155]]}',
+    // RE-BASELINED for NUMERIC SLICE 5 (millirep + patience Q12 + the
+    // rational errand score + the mover-target exemption). The traced head,
+    // BOTH seeds, stream unshifted at the crossing: a waiting visitor's
+    // patience drain rounds at the Q12 grain (round-half-up, +-1 milli) -
+    // KRILL BILL seed 1337 day 1 tick 2719 (seated, -1), EBB seed 4242 day 1
+    // tick 2860 (-1). Mixed signs, no compass. Downstream: coins -50c/-6c,
+    // two mid-walk positions per town, day-2 sim draws 2399 -> 2394; wallets,
+    // tills, serves and rage IDENTICAL on both seeds. rep is now raw
+    // MILLIREP in this digest (50.3247 float points -> 50324).
+    1337: '{"day":3,"tmin":0,"coins":12884,"rep":50324,"catch":1,"serves":37,"crabServes":4,"rage":4,"till":19861,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19861],["REEF",18545],["SALTY",300],["DRIFT",200],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[548.6,167.7],[510.5,166.8]]}',
+    4242: '{"day":3,"tmin":0,"coins":19355,"rep":53599,"catch":1,"serves":44,"crabServes":5,"rage":6,"till":23410,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23410],["REEF",20935],["SALTY",0],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[439.9,167.7],[2136,154],[2072,154],[464,155],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -10623,7 +10632,7 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   const sim = createSim({ seed: 4242, storage: store, fresh: false });
   sim.runDays(2);
   const fp = sim.G(`JSON.stringify({
-    day, coins, rep: Math.round(rep * 100),   // money fields ARE integer cents now
+    day, coins, rep,   // money in integer cents, rep in raw integer MILLIREP (slice 5)
     fund: townFund.bal,
     crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), c.p.wallet]),
     vis: customers.filter(k => k.visitor && !k.gone).length,
@@ -10638,8 +10647,13 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // Matrix referee: baseline 0/48 over three blocks (median 12 in each),
   // growth 14/48 vs 11/48, bands mixed-sign. Bit-identical under
   // JavaScriptCore on this tree.
-  const want = '{"day":3,"coins":19361,"rep":5360,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",436,23410],["REEF",2136,20935],["SALTY",2072,0],'
+  // RE-BASELINED for NUMERIC SLICE 5: same traced head as the frozen day-2
+  // fingerprint (the patience drain's Q12 rounding residual - EBB, day 1
+  // tick 2860 on this seed - stream unshifted at the crossing). coins
+  // 19361 -> 19355, SUDSY four grains east; every wallet identical. rep is
+  // raw millirep in this digest now.
+  const want = '{"day":3,"coins":19355,"rep":53599,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",440,23410],["REEF",2136,20935],["SALTY",2072,0],'
     + '["DRIFT",464,400],["KELP",450,1000]],"vis":6,"catch":1}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
@@ -11121,7 +11135,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1861, 2: 2399 };   // sim draws during day 1 and day 2
+  const PIN = { 1: 1861, 2: 2394 };   // sim draws during day 1 and day 2 (day 2 re-pointed with slice 5's re-baseline: five conditional draws moved behind the traced patience-grain head; day 1 held exactly)
   const sim = createSim({ seed: 1337 });
   sim.G(`{ const real = srand; window._dayDraws = 0; srand = () => (window._dayDraws++, real()); }`);
   for (const d of [1, 2]) {
