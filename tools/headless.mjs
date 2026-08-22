@@ -228,7 +228,7 @@ const labour = G(`JSON.stringify({
   roomShort: window._stats.roomShort || 0,
 })`);
 return { dayRows, wall, labour, lifetime: G("$d(lifetime)"), stats: G("JSON.stringify(window._stats)"),
-  over: G("gameOver"), bankrupt: G("bankrupt"), debt: G("$d(credit.bal)"), day: G("day"), rent: G("$d(rentAmount())"), rep: G("Math.round(rep)"), wal: G("JSON.stringify(window._wal)"),
+  over: G("gameOver"), bankrupt: G("bankrupt"), debt: G("$d(credit.bal)"), day: G("day"), rent: G("$d(rentAmount())"), rep: G("repPts(rep)"), wal: G("JSON.stringify(window._wal)"),
   coins: G("$d(coins)"), ups: G(`Object.keys(UPS).map(k => k + ":" + UPS[k].lvl).join(" ")`) };
 }
 

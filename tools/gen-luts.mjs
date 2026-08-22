@@ -8,6 +8,18 @@
 //   node tools/gen-luts.mjs --test   verify each entry against the float
 //                                    formula (exact round to Q16 / exact ceil)
 
+// mistPeak: pow(u, 0.85) where u is the top 24 bits of the day hash, read as
+// 0..1. A 257-entry Q16 table on the top 8 bits with a linear interp across
+// the low 16 (numeric-formats.md §4.3). The curve is smooth everywhere the sim
+// reads it - the one sim consumer, `mistNow() > 0.6`, sits around u = 0.28 -
+// and the worst lerp error, 36/65536, is at u = 0.0012 in the steep corner
+// where nothing but the drawn haze is looking.
+function mistPowLut() {
+  const lut = [];
+  for (let i = 0; i <= 256; i++) lut.push(Math.round(65536 * Math.pow(i / 256, 0.85)));
+  return lut;
+}
+
 // priceAppeal: pow(1/m, 1.2) clamped 0.6..1.6, where m = priceMul walks the
 // 0.70..1.30 board in 0.05 steps - exactly 13 values, indexed n = 14..26
 // with m = n/20. Q16: 65536 = 1.0.
@@ -91,9 +103,82 @@ function test() {
   // ...and the wipeout rungs: a chef at level 0 and 1 costs $15 and $30
   n++;
   if (!(tables.chef[0] === 15 && tables.chef[1] === 30)) { console.log(`FAIL  chef wipeout rungs moved: ${tables.chef[0]}/${tables.chef[1]}`); fail++; }
+  // mist: every entry exact against the float, and the lerp's worst case is
+  // where the design said it would be - the steep corner, not the sim's read
+  const ml = mistPowLut();
+  ml.forEach((v, i) => {
+    n++;
+    const want = Math.round(65536 * Math.pow(i / 256, 0.85));
+    if (v !== want) { console.log(`FAIL  mist[${i}] = ${v}, float says ${want}`); fail++; }
+  });
+  n++;
+  let worst = 0, worstU = 0;
+  for (let H = 0; H < (1 << 24); H += 997) {
+    const hi = H >>> 16, lo = H & 0xFFFF;
+    const got = ml[hi] + Math.floor((ml[hi + 1] - ml[hi]) * lo / 65536);
+    const want = 65536 * Math.pow(H / 16777216, 0.85);
+    if (Math.abs(got - want) > worst) { worst = Math.abs(got - want); worstU = H / 16777216; }
+  }
+  if (worst > 40) { console.log(`FAIL  mist lerp error ${worst.toFixed(1)} Q16 at u=${worstU.toFixed(4)}`); fail++; }
+  else console.log(`      mist lerp worst ${worst.toFixed(1)}/65536 at u=${worstU.toFixed(4)} (the steep corner, as designed)`);
   console.log(`${n - fail}/${n} passed`);
   process.exit(fail ? 1 : 0);
 }
 
-if (process.argv.includes("--test")) test();
+function emitMist() {
+  const l = mistPowLut();
+  const rows = [];
+  for (let i = 0; i < l.length; i += 16) rows.push("  " + l.slice(i, i + 16).join(", "));
+  console.log("const MIST_POW_Q16 = [\n" + rows.join(",\n") + ",\n];");
+}
+
+// slice 4: the shimmer sine. A 1025-entry Q15 quarter wave; game.js
+// reconstructs the full 4096-entry cycle by mirror and sign (sinQ15), which
+// makes the odd symmetry sin(i + half turn) === -sin(i) true BY CONSTRUCTION
+// rather than by rounding luck. That symmetry is the mean-preservation
+// receipt: the shimmer walks phase in strides of 2048 BAM (1/32 turn), so its
+// 32-tick orbit pairs every sample with its exact negation, the factor term
+// TRUNCATES (trunc is odd where floor is not), and the orbit's sum is exactly
+// zero - "mean-preserving by construction", literally, in integers.
+function sinQuarterLut() {
+  const lut = [];
+  for (let i = 0; i <= 1024; i++) lut.push(Math.round(32767 * Math.sin(Math.PI / 2 * i / 1024)));
+  return lut;
+}
+function sinQ15Ref(i) {   // the reconstruction game.js uses, for the receipts
+  const l = sinQuarterLut(), q = i & 1023, quad = (i >> 10) & 3;
+  return quad === 0 ? l[q] : quad === 1 ? l[1024 - q] : quad === 2 ? -l[q] : -l[1024 - q];
+}
+function emitSin() {
+  const l = sinQuarterLut();
+  const rows = [];
+  for (let i = 0; i < l.length; i += 16) rows.push("  " + l.slice(i, i + 16).join(", "));
+  console.log("const SIN_QW_Q15 = [\n" + rows.join(",\n") + ",\n];");
+}
+function testSin() {
+  let fail = 0;
+  for (let i = 0; i < 4096; i++) {
+    if (sinQ15Ref((i + 2048) & 4095) !== -sinQ15Ref(i)) { console.log(`FAIL odd symmetry at ${i}`); fail++; }
+    const want = Math.round(32767 * Math.sin(2 * Math.PI * i / 4096));
+    if (Math.abs(sinQ15Ref(i) - want) > 1) { console.log(`FAIL sin[${i}] = ${sinQ15Ref(i)}, float says ${want}`); fail++; }
+  }
+  // the orbit receipt: for every phase offset and every Q12 f, the 32-tick
+  // orbit of trunc(f * sin / 2^16) sums to exactly zero
+  for (const ph of [0, 7, 1023, 2047, 40000]) for (const f of [1, 977, 2048, 4096]) {
+    let sum = 0;
+    for (let k = 0; k < 32; k++) {
+      const s = sinQ15Ref(((ph + 2048 * k) & 0xFFFF) >> 4);
+      const num = f * s;
+      sum += (num < 0 ? -1 : 1) * Math.floor(Math.abs(num) / 65536);
+    }
+    if (sum !== 0) { console.log(`FAIL orbit sum ${sum} at ph=${ph} f=${f}`); fail++; }
+  }
+  console.log(fail ? `${fail} FAILURES` : "sin quarter-wave: symmetry, accuracy, and the 32-tick orbit receipt all hold");
+  process.exit(fail ? 1 : 0);
+}
+
+if (process.argv.includes("--mist")) emitMist();
+else if (process.argv.includes("--sin")) emitSin();
+else if (process.argv.includes("--test-sin")) testSin();
+else if (process.argv.includes("--test")) test();
 else emit();

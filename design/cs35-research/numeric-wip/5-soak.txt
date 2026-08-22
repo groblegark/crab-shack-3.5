@@ -1,0 +1,4 @@
+audited 198 fund movements over three 30-day seeds
+doors exercised: {"take":144,"remit":41,"pay":13}
+EXACT: every movement delta === want
+EXIT:0

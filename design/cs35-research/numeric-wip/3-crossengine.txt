@@ -1,0 +1,15 @@
+CROSS-ENGINE RECEIPT - numeric slice 3 (needs -> Q20)
+protocol numeric-protocol.md par.9, re-run on the slice-3 landing tree.
+
+engine A: V8 / node v26.5.1 (tools/simlib.mjs, the suite's own pins)
+engine B: JavaScriptCore (macOS system framework), same two days, same seeds
+invocation: jsc -e "var SEED = <seed>;" xengine.js
+
+seed 1337: BIT-IDENTICAL to the V8 pin (the slice's re-pointed fingerprint)
+seed 4242: BIT-IDENTICAL to the V8 pin (unmoved by the whole slice)
+
+Every need is an integer in Q20 and every threshold compare is int-vs-int, so
+the converted subsystem adds no implementation-approximated function to the
+fingerprint path. The two float factors that used to cross into the tip
+product from this subsystem (patience ratio unchanged this slice; the charm
+multiplier now reads Q20 dirt/tired) still cross at the same one named line.

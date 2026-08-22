@@ -1,0 +1,6 @@
+>> lifetime $53892; housing boat/house/cot 17/68/51; crew housed 6/32; purse $18475; walkouts 53; quits 2; roomLets 1043; unhoused 521; hotelier 15/16; beds 65 (+1); cabanas 33; rough 64; roomShort 213
+(203030ms total)
+>> lifetime $59283; housing boat/house/cot 15/59/56; crew housed 3/32; purse $17339; walkouts 71; quits 0; roomLets 1208; unhoused 517; hotelier 14/16; beds 65 (+1); cabanas 37; rough 48; roomShort 260
+(30975ms total)
+>> lifetime $55033; housing boat/house/cot 17/59/58; crew housed 4/32; purse $20103; walkouts 64; quits 2; roomLets 1121; unhoused 517; hotelier 16/16; beds 65 (+1); cabanas 36; rough 51; roomShort 246
+(29924ms total)

@@ -284,8 +284,8 @@ already scheduled, and it is where the confidence is.
 |---|---|---|---|---|
 | escape the `vm` context | **3.3-4.2x** | MEASURED | **yes** | harness only; no game.js change; fingerprint-identical |
 | engine opt waves 1+2 | ~1.5x | MEASURED (1.29x landed) | **yes** | wave 1 in; wave 2 unstarted |
-| slice 6 flat state, L1-resident | 1.5-3x | GUESS | **yes** | already scheduled for correctness; bench it |
-| WASM over optimized flat JS | 1.5-2.5x | LITERATURE | optional | a refinement, not a rescue; branchy code sits at the low end |
+| slice 6 flat state, L1-resident | **0.79x MEASURED in JS** (was GUESS 1.5-3x) | MEASURED | **as spec only** | benched 2026-08-22 on the 6b landing (interleaved best-of-5, main realm): base 10.5 sim-days/s, flat pool 8.3 — the accessor image (get x = PXQ[i]/256) on the long tail of reads costs more than the hot-loop array wins recover at 12-crab scale; V8's in-object Smi fields were already near-optimal. **The row's premise survives only across a compiled boundary**, where a read is a raw i32 load with no getter — so the flat pool stays as the WASM port's state layout and the guess moves to that column |
+| WASM over optimized flat JS | **5.8x on the ported cluster, MEASURED** (was LITERATURE 1.5-2.5x) | MEASURED | **yes — upgraded** | the movement-kernel spike (2026-08-22, `tools/kernel/`): stepTo + visStep + the WHOLE collide (pair loop, berth, furniture/station solids) hand-ported to C via zig cc on the shared SoA pool memory, proven equal (agreement scenario byte-for-byte over 2 days, suite 260/260 armed, 16-seed matrix byte-identical, fingerprints identical in every interleaved bench pass). collide: 179ms → 31ms over 4 sim-days INCLUDING per-frame marshalling and boundary calls; end-to-end 8.15 → 11.1 sim-days/s = **1.36x from one cluster**. First cut (pair loop only) measured ~1.0x — the pair loop was the cheap tenth of collide; the O(furniture×bodies) solids were the weight. Implied full-port per-core multiple at the cluster's rate: **~3-5x over main-realm JS** — the literature row's ceiling was too low for THIS code because the JS it replaces still pays getters and floats at the seams. **Phase 1 addendum (2026-08-22, `kernel-p1-closeout.md`): the post-spike bill is FLAT** — the old 25%/16% clusters were the vm tax and two per-tick memo defects wearing profiler costumes; fixing `refreshDaysOff`'s per-tick key (~12% of the bill, byte-identical) took kernel-armed throughput 11.1 → **13.2 sim-days/s**, and no remaining cluster over ~8% ports bit-for-bit without its state in planes. **Phase 2 is the boundary hoist**: do 6c's flat layout AS the kernel's layout, one `tick()` per frame, events out for side effects — the ~35% of dispatch + state-machine self-time is the prize. **Phase 2 addendum (2026-08-22, `kernel-p2-closeout.md`): the hoist's true unit is the WHOLE SUBSYSTEM, and a float audit blocks it.** Landed byte-identical: the sim stream's mulberry32 cursor into kernel memory (`rng_seed`/`rng_u32` — a kernel-side consumer now draws in-sequence by construction, proven element-wise by the stream-identity scenario, mutation biting at draw 0) and a one-pass queue build; measured 13.2 → **13.7 sim-days/s** single-core (on/off ratio 1.31x) and the first all-cores receipt: 16 towns × 30 days in **4.05s wall at `--jobs 10` = 49.1 actually-lived sim-days/s machine-wide**. NOT landed, with the analysis on record: piecemeal residency/ports — mid-frame resource coupling (a freed stall is consumed later the SAME pass) and inline draws make partial batching a trajectory change by construction, and slice 6 already measured residency-without-port at 0.79x. Port unit going forward: `updateCustomers`+visitors as one C unit, then schedule+kitchen, then the dispatch loop = the hoist. Blocking prerequisite, found by the pre-port sweep: slice 5's no-float receipt has holes — `p.tired` accrues FLOAT STATE (empirically 242698.61…), four `1e-9` epsilon comparators live in scoring/elections, plus an exact-safe ratio family — each converts (re-baselined where trajectories move) before its function ports |
 | **per-core subtotal** | **~11-31x without WASM, ~25-79x with** | | | call it **~25x**; the honest single-town ceiling |
 | useful cores here (6 P + 12 E) | **~10x effective** | MEASURED | **yes** | not 18x — E-cores run ~1/3 speed (see `bench.mjs`) |
 | **CPU SATURATION, this laptop** | **~150-250x** | | **end of CPU path** | linear in P-cores on bigger boxes |
@@ -356,6 +356,145 @@ CPU.
 would land a compiled kernel on top of a harness that is still giving away
 4x, and every speedup number taken along the way would be measured against
 the wrong baseline.
+
+## PHASE 3 ADDENDUM (2026-08-22) — the float audit lands; the port unit is mapped
+
+Landing 3a closed the float audit (kernel-p3-closeout.md): tired
+accrues by remainder accumulator, the election surface is integer end
+to end with the four 1e-9 comparators gone, and the integer-ness
+tripwire scenario now ENFORCES the amended no-float claim (float STATE
+included — the class slice 5's grep missed). Measured after 3a: kernel
+on/off **1.49x** (up from 1.31x with no kernel change — the audit
+replaced float dances on the JS side, growing the kernel's share of
+the remaining bill), single-core **14.7 sim-days/s** kernel-armed main
+realm, all-cores **50.7 sim-days/s** machine-wide (3.69s for a 16-town
+30-day baseline at --jobs 10). Session chain 2.5 → 14.7 ≈ 5.9x.
+
+Landing 3b did NOT land: the customers+visitors closure measures
+~620 sim lines before the serve/pay half (est. 900-1,400 lines of C)
+with three named port-blocking semantics — JS sort stability, Map
+iteration order, and **visPick as the cultureway surface** (the first
+binding of the Layer-0 hook tables to the kernel; a design decision
+for the owner/orchestrator, not a port detail). The full map, with
+the recommended landing order and the paired-order scenarios to write
+BEFORE porting, is in kernel-p3-closeout.md §3b. The inline-draw
+blocker is cleared (the shared cursor); the float blocker is cleared
+(3a); what remains is size and the three semantics, all enumerated.
+
+## PHASE 4 ADDENDUM (2026-08-22) — the first subsystem half compiles; the hook table binds
+
+The customers+visitors unit's first half runs in the kernel, byte-identical
+at every gate: visitor residency (state code + needs as plane grains),
+`vis_tick` (integer-pure; the one float dance arrives as a per-frame
+finished argument), and `vis_pick` — the scorer transcribed with f64 (wasm
+f64 is IEEE, bit-for-bit JS's), drawing through the shared cursor.
+
+**§4's Layer-0 hook table is no longer a design — it is bound.** The taste
+row crosses the boundary as pure f64 data (`MR_TASTE`); the kernel never
+learns a culture's name, authoring stays in the cultureway document, and a
+future culture swaps values without touching kernel.c. The shape correction
+against §4's sketch: the table is per-THINK (the row depends on the
+thinker), not arm-time — semantics chose, the cost is noise.
+
+**Two of the port map's three blockers dissolved under measurement** (the
+branchless study's pattern repeating at small scale): queue tickets are
+unique so sort stability is never consulted, and menus carry no pay ties so
+the cheap pick's stable-[0] is the first strict minimum — both now PINNED
+loudly rather than trusted silently. The third (visPick-as-cultureway-
+surface) became the hook table above.
+
+**Measured**: kernel on/off **1.67–1.71×** interleaved best-of-5 (phase 3:
+1.49×). Absolutes were machine-degraded this session (neighbour load; the
+kernel-off number fell the same fraction), so the ratio is the phase's
+figure and absolutes want a quiet-box remeasure. The draw-count pin now
+counts CURSOR ADVANCES in the kernel (`RNG_COUNT`) — the only definition
+of a draw that survives draws moving into the module; it reads the same
+1861/2399, the receipt the stream never forked.
+
+**Remaining**: the unit's second half (the line/seat/stall machine + the
+serve/pay half) is object-referential — tables/stalls/rooms/servers need
+ID-izing into planes as their own layout landing, with the event ring
+landing WITH that machine (VP_OUT + the vis_tick mask demonstrate the
+out-plane pattern). Phase 5, one fork, nothing else in the directive.
+
+## PHASE 5 ADDENDUM (2026-08-22) — the counter machine compiles whole
+
+The customers+visitors unit's second half is kernel-side: furniture
+ID-ized into fid planes (identity on the object, truth in the plane bit),
+the counter scalars resident, and `cust_step` running the whole
+line/seat/stall/serve-pay chain one call per customer at the reference's
+own pass position — mid-frame resource exchanges preserved by
+construction, the dine draw through the shared cursor, and the EVENT RING
+real: the kernel emits codes, JS renders strings and pays the tip at
+`payTip`'s own door (the kernel computes only the wallet clamp, so
+conservation's referee never moved).
+
+Kernel on/off: **1.71–1.75× interleaved best-of-5** (phase 4: 1.67–1.71),
+kernel-side share of the unarmed bill ~42%. Absolutes this session are
+neighbour-degraded (load 14–32) — ratios only; the quiet-box remeasure is
+owed before any absolute-reading decision. The mutation discipline paid
+twice: day-end digests provably cannot see queue-walk mutations (positions
+converge to exact slots), so the agreement scenario grew the counter
+planes and all five mutations bite there by name — including the wallet
+clamp severing, which manufactures the negative wallet the clamp exists to
+prevent. One vacuous-by-modular-arithmetic mutation recorded and escalated
+rather than claimed.
+
+Remaining JS: the kitchen machine (serve's seat/stall assignment writes
+the same furniture planes this phase landed), the schedule chain, the
+ferry/rooms/queue-build glue, and the dispatch self. Next: schedule+kitchen
+as one unit, then the single-`tick()` hoist.
+
+## QUIET-BOX LEDGER (2026-08-22, the remeasure the phases owed)
+
+Taken at load average ≤3.3, standard bench workload (4 towns × 12 days),
+interleaved best-of-5, spreads ≤1.03, one fingerprint across all modes
+(`1337:9299:11! 4242:3203:13 909:12400:11! 31:1900:13`):
+
+| configuration | lived sim-days/s | vs vm 1× |
+|---|---|---|
+| vm realm, single core (session-start tooling) | 1.5 | 1× |
+| main realm, kernel off | 5.3 | 3.5× |
+| main realm, **kernel armed** | **9.0** | **6.0×** |
+| machine-wide, kernel armed (16×30 matrix, `--jobs 10`, 4.27s wall) | **~45** | **~30×** |
+
+Kernel on/off 1.69× quiet — consistent with every ratio taken under load,
+which retroactively validates the ratios-only discipline. The earlier
+9.4s matrix walls were neighbour load, not regression. CONVENTION NOTE,
+after a 2.5× ambiguity: throughput numbers here count LIVED sim-days
+(a town evicted day 9 did nine days of work); any figure counting
+asked-for days must say so.
+
+**The remaining rungs to 1000× leave this machine.** CPU saturation
+(~150–250×) and the batch-science 1000× need the cluster: the
+`deploy/crab-science` chart is landed and its pod flow proven from a
+bare public clone; the first sweep (4,096-town baseline histogram,
+8 pods × 512 towns) is specced in its README and blocked only on
+operator SSO to gasboat-prod.
+
+## THE CLUSTER LEDGER (2026-08-22 — gasboat-prod, ephemeral pool, operator-granted)
+
+First off-laptop rungs, run via `deploy/crab-science` pinned to 01883c4,
+16-pod n=4096 baseline + a 27-receipt slice of the 128-pod ceiling run
+(wound down early for spend — ~$9-10 total on-demand m5):
+
+- **0.89 lived sim-days/s per m5 vCPU, and it is LINEAR**: 48-vCPU and
+  ~112-vCPU concurrency read the same per-vCPU rate to two digits. The
+  pool's 384-vCPU limit therefore implies **~342 d/s, measured-linear**.
+- With the laptop's 45, hardware currently granted reaches **~390 d/s
+  ≈ 260×** the 1× baseline. The 1000× gap is now purely hardware shape:
+  ~4× more CPU (bigger pool / second cluster — embarrassingly parallel,
+  proven linear) or the GPU rung (divergence measured ~1.5-2×).
+- **Science the laptop could not do**: the n=4096 eviction histogram
+  (median 12, tail to day 29) and the no-buy floor's first crack —
+  **seed 723 survives 30 days**, 1 in 4,096, found on amd64 Xeons and
+  reproduced bit-exactly on this arm64 laptop: cross-architecture
+  determinism demonstrated on a rare-event needle.
+- **Ops lesson, paid for twice-shaped**: karpenter reaps an ephemeral
+  node the moment its pod completes, and kubelet logs die with it — a
+  4,096-town run's receipts existed only on deleted nodes. Pods now bank
+  receipts as ConfigMaps through the API before exiting. On an ephemeral
+  pool, stdout is a progress feed, not a result store.
 
 ## Sources
 

@@ -71,7 +71,24 @@ export function loadGame(sandbox, realm = REALM_DEFAULT) {
   return { G, mkFn, mkExpr, C: null, realm: "main" };
 }
 
-export function createSim({ seed = 1337, storage = null, fresh = true, screenH = 0, realm = REALM_DEFAULT } = {}) {
+// THE MOVEMENT KERNEL (the WASM spike): a compiled second backend for the
+// three hot movement loops, proven equal to the JS reference by the suite's
+// agreement scenario. Arm with createSim({ kernel: "wasm" }) or
+// SIMLIB_KERNEL=wasm for whole tools. Each sim gets its OWN instance and
+// memory (isolation is the same per-sim rule the realms follow); game.js
+// backs the SoA pool with views over that memory when armed, so JS writes
+// and kernel reads are the same bytes. Off by default; the JS path is
+// byte-for-byte untouched when unarmed.
+const KERNEL_DEFAULT = process.env.SIMLIB_KERNEL === "wasm" ? "wasm" : "off";
+let kernelModule = null;
+function armKernel() {
+  if (!kernelModule)
+    kernelModule = new WebAssembly.Module(readFileSync(join(root, "tools", "kernel", "kernel.wasm")));
+  const inst = new WebAssembly.Instance(kernelModule, {});
+  return { exports: inst.exports, memory: inst.exports.memory };
+}
+
+export function createSim({ seed = 1337, storage = null, fresh = true, screenH = 0, realm = REALM_DEFAULT, kernel = KERNEL_DEFAULT } = {}) {
   const ctxStub = new Proxy({}, {
     get: (t, k) => {
       if (k === "createImageData") return (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h });
@@ -104,6 +121,18 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
   // Left unset (the default) the sim is the classic 240 it has always been.
   if (screenH) sandbox.SCREEN_H = screenH;
   sandbox.requestAnimationFrame = (cb) => { sandbox.rafCb = cb; };
+  if (kernel === "wasm") {
+    sandbox._wasmKernel = armKernel();
+    // THE SHARED CURSOR (kernel phase 2): the sim stream's mulberry32 state
+    // moves into kernel memory and every draw steps that one cell - JS draws
+    // today, kernel-side consumers tomorrow, one interleaved sequence by
+    // construction. Same algorithm, same seed, so the sequence is the
+    // closure's own; the fingerprint gate (kernel on == off) covers it, and
+    // the stream-identity scenario proves the interleaving.
+    sandbox._wasmKernel.exports.rng_seed(seed);
+    const ku32 = sandbox._wasmKernel.exports.rng_u32;
+    seededMath.random = () => (ku32() >>> 0) / 4294967296;
+  }
   sandbox.performance = { now: () => sandbox.simNow };
   const { G, mkFn, mkExpr, C } = loadGame(sandbox, realm);
   G(`soundOn = false; musicOn = false; screen = "play"; window._headless = true;

@@ -9,6 +9,56 @@ const cv = document.getElementById("screen");
 const ctx = cv.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
+// ---------------------------------------------------------------- the units
+// THE SIM COUNTS IN TICKS (numeric slice 2). Twenty a real second, five a game
+// minute; every duration on this page is an integer count of them. They live
+// up here because the durations do - the first one is forty lines down.
+const TICK_HZ = 20;               // sim ticks per real second
+const SEC = TICK_HZ;              // ...so a duration written in seconds reads as one
+const GMIN = 5;                   // ticks per GAME minute (4 game-minutes a second)
+// ---- NEEDS IN Q20 (numeric slice 3) --------------------------------------
+// A need is an int 0..Q20, never a float. Authored 0..1 fractions cross the
+// boundary through qn() at their READ site - const definitions and cold
+// checks - exactly as slice 1's author-dollar tables cross x100. What the
+// sim STORES and what it does arithmetic on are integers, all the way down.
+const Q20 = 1048576;                  // 2^20: a full bar
+const qn = (f) => Math.round(f * Q20);   // authored 0..1 -> Q20, at the boundary
+// ---- SPACE IN Q8 (numeric slice 4) ----------------------------------------
+// A position is a Q8 GRAIN: the integer numerator q is the stored truth, and
+// the resident px Number is its exact double image q/256 (every q < 2^21, so
+// the image is exact and unique - multiplying by 256 recovers q losslessly).
+// The whole px-unit read surface (geometry constants, lane tables, the view)
+// keeps its unit; the movement kernels do their arithmetic on the numerators
+// and every write lands back on the grain. Slice 6 flips residency to the
+// Int32Array numerators with zero semantic change.
+const Q8 = 256;                          // 2^8: one pixel, in the movement grain
+const q8g = (v) => Math.round(v * Q8) / Q8;   // authoring boundary: px -> the nearest grain
+// floor toward -inf, exact for any exact-int a (|a| < 2^53) and int b > 0:
+// JS % is exact fmod, so the subtraction and the final divide are exact
+const idiv = (a, b) => { const m = a % b; return (a - (m < 0 ? m + b : m)) / b; };
+const repPts = (r) => idiv((r || 0) + 500, 1000);   // millirep -> whole rep points, for every surface that says REP
+// exact integer sqrt: Math.sqrt is correctly rounded per ECMA-262 (it is NOT
+// on the implementation-approximated list), and the fixup makes the floor
+// exact by construction regardless
+// ...and its signed sibling for VECTOR COMPONENTS: truncate toward zero, so
+// a step west and a step east of the same length round the same way. Floor's
+// -inf asymmetry on signed components is a compass bias - measured on the
+// growth matrix as +40% warps/unsticks (crabs grinding along solids they
+// used to clear) before this was made symmetric.
+const tdiv = (a, b) => (a < 0 ? -1 : 1) * ((x, y) => (x - x % y) / y)(Math.abs(a), b);
+function isqrt(n) {
+  let s = Math.floor(Math.sqrt(n));
+  while (s * s > n) s--;
+  while ((s + 1) * (s + 1) <= n) s++;
+  return s;
+}
+const TICKS_PER_GH = 60 * GMIN;       // 300 ticks a game hour
+const TICK_MIN = GMIN;            // the clock's name for the same five
+// THE FRAME'S TICK DELTA, and it is a global for the same reason `dt` was a
+// parameter: every updater in the sim needs it and none of them should be
+// deciding for itself how much time has passed.
+let dtT = 0;
+
 // ---------------------------------------------------------------- geometry
 // The town grew east in 2026-08-19's visitor pass: past the last beach cottage
 // there is now the DRIFTWOOD HOTEL and, off the end of the pier, the mainland
@@ -85,17 +135,17 @@ const WATER_TAPS = [
 // that costs TIME, never money: it stops a death spiral, it never pays the
 // rent. A crab who lives at the tap is a crab who isn't working - which is a
 // cost the player feels without a single coin changing hands.
-const TAP_AT = 0.72;         // you'd BUY a drink at 0.45; you trudge to the standpipe only
+const TAP_AT = qn(0.72);         // you'd BUY a drink at 0.45; you trudge to the standpipe only
                              // when you're genuinely parched. The gap is the whole design:
                              // the juice bar gets first refusal, free water picks up what
                              // the counters could not - and it picks it up SLOWLY.
-const TAP_QUENCH = 0.5;     // a mouthful, not a drink: a juice zeroes thirst, water takes
+const TAP_QUENCH = qn(0.5);     // a mouthful, not a drink: a juice zeroes thirst, water takes
                              // the edge off, so the parched crab is back within the hour
-const TAP_SIP = 6;         // a long draw at the spout - minutes of the working day, gone
+const TAP_SIP = 6 * SEC;   // a long draw at the spout - minutes of the working day, gone
 const TAP_APPEAL = 0.35;      // a poor third to anything a counter can hand you
-const TAP_CD = 20;           // errand cooldown after a sip
-const TAP_RINSE = 0.35;      // a cold rinse under the spout: worse than a $5 shower
-const TAP_RINSE_AT = 0.85;   // ...and only when filthy - the showers own 0.66 upward
+const TAP_CD = 20 * SEC;     // errand cooldown after a sip
+const TAP_RINSE = qn(0.35);      // a cold rinse under the spout: worse than a $5 shower
+const TAP_RINSE_AT = qn(0.85);   // ...and only when filthy - the showers own 0.66 upward
 const TAP_RINSE_SICK = 0.66; // an ill crab hoses down at the CARED bar, shower or no shower
 // ---------------------------------------------------------- the shelter pot
 // (Matt, 2026-08-19: "I feel like sick crabs dont get food or clean or
@@ -120,11 +170,11 @@ const TAP_RINSE_SICK = 0.66; // an ill crab hoses down at the CARED bar, shower 
 // nothing in the pot (see stockPot / potWarm). A cold pot is the failure mode,
 // not an edge case.
 const SOUP_X = SHELTER_X + 10;   // the pot is on the shelter's own step
-const SOUP_AT = 0.80;        // you would BUY a plate at 0.50; you queue here only when starving
-const SOUP_SICK_AT = 0.62;   // ...unless you are ill, when the floor has to be reachable
-const SOUP_FILL = 0.45;      // a thin bowl. A real meal zeroes hunger; this takes the edge off
-const SOUP_MINS = 11;        // longer than TAP_SIP: it is a queue, not a spout
-const SOUP_CD = 20;          // and you cannot live in the line
+const SOUP_AT = qn(0.8);        // you would BUY a plate at 0.50; you queue here only when starving
+const SOUP_SICK_AT = qn(0.62);   // ...unless you are ill, when the floor has to be reachable
+const SOUP_FILL = qn(0.45);      // a thin bowl. A real meal zeroes hunger; this takes the edge off
+const SOUP_MINS = 11 * SEC;  // longer than TAP_SIP: it is a queue, not a spout
+const SOUP_CD = 20 * SEC;    // and you cannot live in the line
 // the memorial plot: three markers to a row on the dune between the last
 // promenade lot (ends x440... the shelter and house 6 fill 444-572) and the
 // town tap at 640, rows stacking up the sand
@@ -135,7 +185,7 @@ function memorialSpot(i) {
     y: HOME_BOTTOM - MEMORIAL.h + 1 - ((j / MEM_PER_ROW) | 0) * MEM_DY };
 }
 let townCatch = 6;   // the day's landed fish, crate-side
-let rep = 30;        // word of mouth (0-100): happy guests talk, rage-quits talk louder
+let rep = 30000;     // word of mouth, int MILLIREP 0..100,000 (slice 5): happy guests talk, rage-quits talk louder
 const HOME_BOTTOM = 160;   // house/shelter interiors reach the floor
 
 // ---------------------------------------------------------------- businesses
@@ -640,7 +690,7 @@ function creditBiz(b, amt, x, y, quiet) {   // quiet: the caller pops its own la
   bizDayBook(b).take += amt;
   if (o === "player") {
     today.revenue += amt;
-    if (quiet) { coins += amt; lifetime += amt; earnHist.push({ t: time, amt }); sfx.coin(); }
+    if (quiet) { coins += amt; lifetime += amt; earnHist.push({ t: T, amt }); sfx.coin(); }
     else earn(amt, x, y);
   }
   else {
@@ -884,16 +934,16 @@ const POLL_SHUT = 19 * 60;       // ...and shut an hour before the town does. Th
 const BALLOT_PRICE = 25;      // cents       // a sheet of paper, landed by the ferry like every other import
 const BALLOT_SPARE = 2;          // the clerk always prints a couple over
 
-const VOTE_SECS = 5;             // real seconds at the table - ~20 game minutes to queue, mark a
+const VOTE_SECS = 5 * SEC;       // real seconds at the table - ~20 game minutes to queue, mark a
                                  // paper and drop it in the box. The same units as TAP_SIP and
                                  // BALL_SECS, because it is the same kind of stop.
 const COUNT_MINS = 3;            // GAME minutes to read one paper back out again, by hand. Fourteen
                                  // papers is forty-two minutes, so a town of fourteen knows its own
                                  // mind at about twenty to eight - after the polls shut, before the
                                  // office settles. A town that has grown finds out later.
-const VOTE_CD = 12;              // short on purpose: a civic duty must not crowd out lunch
+const VOTE_CD = 12 * SEC;        // short on purpose: a civic duty must not crowd out lunch
 const VOTE_URGE_HRS = 3;         // the last three hours: now you make a special trip
-const VOTE_BASE = 0.30;          // ...before that it is a thing you do if you happen to be passing
+const VOTE_BASE = qn(0.30);          // ...before that it is a thing you do if you happen to be passing
 // WHAT THIS ACTUALLY PRODUCES, measured over 24 polls across 6 seeds and 29
 // days, once the second table went in: TURNOUT 82%, and the shape of the
 // missing 18% is the whole point of the feature -
@@ -905,7 +955,7 @@ const VOTE_BASE = 0.30;          // ...before that it is a thing you do if you h
 // nobody can act on: the D shift is derived from the shop's OPEN HOURS, and
 // the hours sign is a lever the player already holds. Shorten your own crew's
 // polling-day shift and they vote. That is the design in one number.
-const VOTE_MAX = 0.85;           // and never DIRE (0.9): nobody abandons a shift to vote
+const VOTE_MAX = qn(0.85);           // and never DIRE (0.9): nobody abandons a shift to vote
 const VOTE_DX = 11;              // voters space out along the table rather than standing in each other
 const VOTE_Y = 157;              // UP THE BEACH, CLEAR OF BOTH TRAVEL LANES - the lesson the beach
                                  // ball paid for. LANES are y146 and y168 and a parked crab blocks a
@@ -956,7 +1006,7 @@ function pollPapers() { return pollCalled() ? ballotBox.papers : 0; }
 // WHO IS STANDING AT THE TABLE right now - used to space voters out along it
 // so they queue rather than stand inside one another, and to draw the scene.
 function pollVoters(i) {
-  return allCrabs().filter(k => k.dayState === "atTap" && k.tapStop && k.tapStop.vote
+  return allCrabs().filter(k => k.dsC === DS.atTap && k.tapStop && k.tapStop.vote
     && (i == null || k.tapStop.poll === i));
 }
 // HOW BADLY THIS CRAB WANTS TO GO AND VOTE, on the same 0-1 scale as hunger and
@@ -977,7 +1027,7 @@ function civicUrge(c) {
   if (!pollOpen() || hasVoted(c)) return 0;
   const left = POLL_SHUT - tmin;
   const rush = 1 - Math.max(0, Math.min(1, left / (VOTE_URGE_HRS * 60)));
-  return VOTE_BASE + (VOTE_MAX - VOTE_BASE) * rush;
+  return VOTE_BASE + Math.floor((VOTE_MAX - VOTE_BASE) * rush);   // Q20: the civic urge is a need level
 }
 function mayorCrab() { return hall.mayor ? allCrabs().find(c => c.p.name === hall.mayor) || null : null; }
 function isMayor(c) { return !!hall.mayor && c.p.name === hall.mayor; }
@@ -1012,7 +1062,7 @@ function acctBal(a) {
     : a.k === "vis" ? (a.v.wallet || 0) : 0;
 }
 function acctMove(a, d) {
-  if (a.k === "player") { coins += d; earnHist.push({ t: time, amt: d }); }
+  if (a.k === "player") { coins += d; earnHist.push({ t: T, amt: d }); }
   else if (a.k === "owner") { if (OWNERS[a.id]) OWNERS[a.id].till += d; }
   else if (a.k === "crab") a.c.p.wallet = Math.max(0, (a.c.p.wallet || 0) + d);
   else if (a.k === "vis") { a.v.wallet = Math.max(0, (a.v.wallet || 0) + d); if (d < 0) a.v.spent += -d; }
@@ -1277,7 +1327,10 @@ function stockPot() {
     : (hall.policy.bowls | 0) <= 0 ? "policy" : want <= 0 ? "nocall" : "ok";
   if (want <= 0 || !a || shelterShut()) return 0;
   const each = bowlCost();
-  const n = Math.min(want, Math.floor(townFund.bal / Math.max(1, each)));
+  // the exact-division idiom (provably identical here: for int a,b under
+  // 2^53, IEEE a/b is correctly rounded, so floor(a/b) can only err when
+  // a*floor is within a half-ulp of an integer - impossible below 2^53)
+  const eachD = Math.max(1, each), n = Math.min(want, (townFund.bal - townFund.bal % eachD) / eachD);
   if (n <= 0) { townFund.potWhy = "funds"; return 0; }
   fundPay(SOUP_BIZ, n * each, n + " BOWLS FROM " + BIZ[SOUP_BIZ].short);
   for (let i = 0; i < n; i++) {                    // ...and the shack buys the fish for them
@@ -1323,23 +1376,25 @@ function takeBowl(c) {
 // stand to LOSE from each way of paying for it. Both are small readable
 // numbers and both are printed beside the vote on the HALL tab, so a result
 // can be argued with rather than just watched.
-function potStake(c) {
-  let s = 0.05;                            // everybody would rather the shelter stayed open
-  if (c.p.homeless) s += 0.55;             // ...but if you sleep there it is your address
-  if (c.p.sick) s += 0.20;                 // and a sick day pays nothing at all
-  if ((c.p.bowls || 0) > 0) s += 0.25;     // you have actually stood in that queue
-  if (c.p.fisher) s -= 0.30;               // a fisher roasts their own catch (measured - PLAN)
-  if (!c.p.npc) s -= 0.15;                 // of 1800 ticks where a sick crab could not buy food,
+// ...in INT TWENTIETHS (the 0.05 grid was always exact twentieths wearing
+// float clothing; the election comparators want exact equality, not 1e-9)
+function potStake20(c) {
+  let s = 1;                               // everybody would rather the shelter stayed open
+  if (c.p.homeless) s += 11;               // ...but if you sleep there it is your address
+  if (c.p.sick) s += 4;                    // and a sick day pays nothing at all
+  if ((c.p.bowls || 0) > 0) s += 5;        // you have actually stood in that queue
+  if (c.p.fisher) s -= 6;                  // a fisher roasts their own catch (measured - PLAN)
+  if (!c.p.npc) s -= 3;                    // of 1800 ticks where a sick crab could not buy food,
                                            // ZERO were the player's crew: they draw a wage
-  return Math.max(0, Math.min(1, s));
+  return Math.max(0, Math.min(20, s));
 }
-function purseCost(c, mech) {
+function purseCost100(c, mech) {   // int hundredths
   const owns = !!(c.p.owner && OWNERS[c.p.owner]);
   const paid = !c.p.npc || !!c.p.employer;   // somebody's wage comes out of somebody's till
-  if (mech === "levy") return owns ? 1.0 : paid ? 0.28 : 0.04;
-  if (mech === "dues") return owns ? 0.50 : paid ? 0.12 : 0.02;
-  if (mech === "tin") return (c.p.wallet || 0) >= TIN_KEEP ? 0.34 : 0.03;
-  return 0.04;   // RENTS: Mr. Pincherton pays, and Mr. Pincherton does not vote
+  if (mech === "levy") return owns ? 100 : paid ? 28 : 4;
+  if (mech === "dues") return owns ? 50 : paid ? 12 : 2;
+  if (mech === "tin") return (c.p.wallet || 0) >= TIN_KEEP ? 34 : 3;
+  return 4;   // RENTS: Mr. Pincherton pays, and Mr. Pincherton does not vote
 }
 // WHAT A PLATFORM WOULD ACTUALLY RAISE, off what the town did today. This is
 // the number that makes the election worth holding: a homeless crab does not
@@ -1368,7 +1423,8 @@ function purseYield(p) {
 // it, so it is not part of what a policy costs you week after week.
 function platTake(p) { return Math.min(purseYield(p), shelterRent() + (p.bowls | 0) * bowlCost()); }
 function platBowls(p) {   // bowls the purse can actually pay for, after the roof
-  return Math.max(0, Math.min(p.bowls | 0, Math.floor((purseYield(p) - shelterRent()) / Math.max(1, bowlCost()))));
+  const room = purseYield(p) - shelterRent(), bc = Math.max(1, bowlCost());
+  return Math.max(0, Math.min(p.bowls | 0, room >= 0 ? (room - room % bc) / bc : 0));   // exact idiom; the old floor of a negative was clamped by the max(0,) anyway
 }
 // THE ROOF IS WORTH MORE THAN THE POT, and the town knows it. A platform whose
 // purse cannot even cover the shelter's rent is a platform that closes the
@@ -1383,9 +1439,9 @@ function platBowls(p) {   // bowls the purse can actually pay for, after the roo
 // six solvent towns over 24 days shut the shelter FIVE times and paid 75 rough
 // nights against 35 with no town hall at all. The office was making crab
 // welfare worse and buying nothing with it.
-function roofWeight(c) {
+function roofWeight20(c) {   // int twentieths, same grid as potStake20
   const seen = townFund.strikes > 0 || shelterShut() ? 2 : 1;
-  return (c.p.homeless ? 0.60 : 0.20) * seen;
+  return (c.p.homeless ? 12 : 4) * seen;
 }
 // WHAT THE FLOOR IS WORTH TO THIS CRAB, and it is the one line on the ballot
 // where the town splits along a seam the shelter never touches: a wage packet
@@ -1419,7 +1475,7 @@ function floorRaise(c, floor) {   // what it puts in THIS crab's day, as wages
 // pays the shops that are not. The seam is therefore between BIG and SMALL
 // employers rather than between labour and capital - which is why it is worth
 // having on the ballot next to the floor rather than folded into it.
-function capStake(c, p) {
+function capStake100(c, p) {   // int hundredths (every weight here is a 0.01 multiple)
   const cap = capOf(p);
   if (cap <= 0) return 0;
   let v = 0;
@@ -1427,23 +1483,18 @@ function capStake(c, p) {
     for (const b of Object.keys(BIZ)) {
       if (!bizUnlocked(b) || !bizOwner(b)) continue;
       const over = bizHeads(b) + 1 - cap;          // >0 means this shop cannot hire again
-      if (bizOwner(b) === c.p.owner) v -= Math.max(0, over) * 0.22;   // your own hands, tied
-      else v += Math.min(0.5, Math.max(0, over) * 0.18);              // ...and so are theirs
+      if (bizOwner(b) === c.p.owner) v -= Math.max(0, over) * 22;   // your own hands, tied
+      else v += Math.min(50, Math.max(0, over) * 18);               // ...and so are theirs
     }
   }
   // A CRAB WITHOUT A WAGE JOB IS THE ONE IT COSTS, and they are not an
   // abstraction here: a limit is a posting that never goes up on the board.
-  if (!BIZ[c.p.job] && !c.p.owner) v -= 0.18;
+  if (!BIZ[c.p.job] && !c.p.owner) v -= 18;
   return v;
 }
-function wageStake(c, p) {
-  const floor = floorOf(p);
-  if (floor <= 0) return 0;
-  // a day's raise, as a fraction of a standard day - so "the floor is worth a
-  // third of my wage to me" is literally what the number says
-  return floorRaise(c, floor) / WAGE_STD
-    - floorBill(c, floor) / 4500;   // 4500c = a heavy morning's lift on one till
-}
+// wageStake folded into platValue: its two terms keep their meanings (a
+// day's raise as a fraction of a standard day; the bill against a heavy
+// morning's lift) but ride as int cents against their own denominators.
 // The purse half of a platform does not depend on the floor, so allPlatforms()
 // prices it once per (mech, rate, bowls) and hands the same three numbers to
 // all five wage steps. Without it the fifth dial multiplied a grid that walks
@@ -1452,12 +1503,23 @@ function wageStake(c, p) {
 function pYield(p) { return p._y != null ? p._y : purseYield(p); }
 function pTake(p) { return p._take != null ? p._take : platTake(p); }
 function pBowls(p) { return p._bowls != null ? p._bowls : platBowls(p); }
+// ...as an EXACT INTEGER, in units of 1/41,400,000 of the old scale. Every
+// term was always a rational on a fixed grid (twentieths, hundredths, cents
+// over WAGE_STD / 4500 / 6000); D = lcm(20*POT_MAX, 20, WAGE_STD, 4500,
+// 100, 100*6000) = 41,400,000 clears every denominator, the largest product
+// (pc100 * take * 69) stays far under 2^53, and the election comparators
+// compare exactly instead of through a 1e-9 blur. Only ever compared or
+// sorted - nothing reads the absolute scale.
 function platValue(c, p) {
   const roof = pYield(p) >= shelterRent() ? 1 : 0;
-  return potStake(c) * (pBowls(p) / POT_MAX)
-    + roofWeight(c) * roof
-    + wageStake(c, p) + capStake(c, p)
-    - purseCost(c, p.mech) * (pTake(p) / 6000);   // 6000c = a big night for this fund
+  const floor = floorOf(p);
+  const fr = floor > 0 ? floorRaise(c, floor) : 0, fb = floor > 0 ? floorBill(c, floor) : 0;
+  return 345000 * potStake20(c) * pBowls(p)      // D / (20 * POT_MAX)
+    + 2070000 * roofWeight20(c) * roof           // D / 20
+    + 18000 * fr                                 // D / WAGE_STD (2300c: a standard day)
+    - 9200 * fb                                  // D / 4500 (a heavy morning's lift on one till)
+    + 414000 * capStake100(c, p)                 // D / 100
+    - 69 * purseCost100(c, p.mech) * pTake(p);   // D / (100 * 6000c: a big night for this fund)
 }
 // every platform on the grid, scored once an election and shared by every
 // voter (the yields depend on the town, never on who is reading them)
@@ -1488,9 +1550,9 @@ function capAsk(p) { const v = (p && p.cap) | 0; return v === 0 ? -1 : CAP_STEPS
 function idealPlatform(c, grid) {
   let best = null, bv = -Infinity;
   for (const p of grid || allPlatforms()) {
-    const v = platValue(c, p);
-    if (v > bv + 1e-9
-        || (Math.abs(v - bv) <= 1e-9 && best && (p.rate < best.rate
+    const v = platValue(c, p);   // exact int - strict better is strict, a tie is exact
+    if (v > bv
+        || (v === bv && best && (p.rate < best.rate
             || (p.rate === best.rate && p.bowls < best.bowls)
             || (p.rate === best.rate && p.bowls === best.bowls
                 && (p.wage | 0) < (best.wage | 0))
@@ -1523,7 +1585,7 @@ function voteReason(c, p) {
     if (mine) bits.push("AND CANNOT HIRE AGAIN");
     else if (!BIZ[c.p.job] && !c.p.owner) bits.push("AND IS LOOKING FOR WORK");
   }
-  bits.push(purseCost(c, p.mech) * pTake(p) >= 12 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");
+  bits.push(purseCost100(c, p.mech) * pTake(p) >= 1200 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");   // same line, x100 both sides
   return bits.join(", ");
 }
 // THE BALLOT. Everybody has an ideal; the crabs who STAND are the ones who
@@ -1593,7 +1655,7 @@ function pickCandidate(c, cands) {
     const v = platValue(c, k.plat);
     // a dead heat in a voter's head goes to the crab already doing the job,
     // then alphabetically - so the same town votes the same way every run
-    if (v > pv + 1e-9 || (Math.abs(v - pv) <= 1e-9 && pick
+    if (v > pv || (v === pv && pick
         && !pick.inc && (k.inc || k.name < pick.name))) { pv = v; pick = k; }
   }
   return pick;
@@ -1665,8 +1727,11 @@ function printBallots() {
       today.moved.push("THE TOWN PASSED THE HAT FOR BALLOT PAPER - $" + (raised / 100));   // pennies: 2dp is exact
     }
   }
-  const n = Math.max(0, Math.min(want, Math.floor(spare / BALLOT_PRICE + 1e-9)));
-  const cost = Math.round(n * BALLOT_PRICE * 100) / 100;
+  // exact int division - the 1e-9 was the dollar era guarding a float
+  // quotient; for int cents over int cents the exact form needs no guard
+  // (and n * BALLOT_PRICE was already exactly the old round(x*100)/100)
+  const n = Math.max(0, Math.min(want, (spare - spare % BALLOT_PRICE) / BALLOT_PRICE));
+  const cost = n * BALLOT_PRICE;
   // ...and it comes off the ferry like every other import, on the trade
   // ledger, out of a named purse. Nothing in this town is conjured.
   if (n > 0) { fundRemit(cost, "THE FERRY", "BALLOT PAPER"); tradeImport("paper", n, cost); }
@@ -1706,7 +1771,7 @@ function castVote(c) {
 // THE POLLS SHUT, AND THEN IT IS ARITHMETIC BY HAND. One paper every
 // COUNT_MINS on the game clock, in the order they went into the box, and the
 // result exists only when the last one has been read out.
-function updatePoll(dt) {
+function updatePoll(dtTicks) {   // ticks, and the count scenario drives it directly
   if (!pollCalled()) return;
   const B = ballotBox;
   // AN ELECTION WITH NO PAPER. The polling day is in the diary and the office
@@ -1729,9 +1794,9 @@ function updatePoll(dt) {
     }
   }
   if (!pollCounting()) return;
-  B.countT += dt * TS;   // the count runs on the town clock, not on frames
-  while (B.counted < B.cast.length && B.countT >= COUNT_MINS) {
-    B.countT -= COUNT_MINS;
+  B.countT += dtTicks;   // the count runs on the town clock, not on frames
+  while (B.counted < B.cast.length && B.countT >= COUNT_MINS * GMIN) {
+    B.countT -= COUNT_MINS * GMIN;
     const k = B.cands.find(x => x.name === B.cast[B.counted].pick);
     if (k) k.votes++;
     B.counted++;
@@ -1873,8 +1938,8 @@ function seatFoundingMayor() {
   if (!town.length) return;
   let best = town[0], bs = -Infinity;
   for (const c of town) {
-    const s = potStake(c);
-    if (s > bs + 1e-9 || (Math.abs(s - bs) <= 1e-9 && c.p.name < best.p.name)) { bs = s; best = c; }
+    const s = potStake20(c);   // exact int - a tie is a TIE, not a 1e-9 blur
+    if (s > bs || (s === bs && c.p.name < best.p.name)) { bs = s; best = c; }
   }
   hall.mayor = best.p.name; hall.termDay = 1;
 }
@@ -1902,11 +1967,11 @@ const HOURS_POLICY = {
   // probe (minSpan 8h) measured the identical growth list, proving the
   // 1-day shift is stream chaos from her first move, not the shrink depth -
   // so the floor stays at 6h where her schedule has room to be interesting.
-  showers: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: 0.75 },
+  showers: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: qn(0.75) },
   // ...and the juice bar, for the day a PEER owner holds its lease (see THE
   // RIVALRY). Inert while the player owns it - the caller only ever runs this
   // for a business somebody else is running.
-  juicebar: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: 0.75 },
+  juicebar: { quietDays: 3, pressureDays: 2, extendQ: 2, minSpan: 6 * 60, tiredCap: qn(0.75) },
 };
 let hoursPolicyState = {};        // biz -> { hist: [{f,l,q}...], cd }  (persisted)
 let hoursObs = {}, _wasOpen = {}; // per-day boundary observations (transient)
@@ -1920,7 +1985,7 @@ function trackCloseQueues() {     // the moment a shop's hours end, count who wa
   for (const b of Object.keys(BIZ)) {
     const open = bizUnlocked(b) && bizOpenNow(b);
     if (_wasOpen[b] && !open) {
-      const q = customers.filter(k => k.biz === b && (k.state === "waiting" || k.state === "arriving")).length;
+      const q = customers.filter(k => k.biz === b && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
       if (q) (hoursObs[b] = hoursObs[b] || { first: 0, last: 0, closeQ: 0 }).closeQ += q;
     }
     _wasOpen[b] = open;
@@ -2114,7 +2179,7 @@ function forecastBankruptcy() {
   // day-off skips are noise over a 10-settlement horizon
   const g = sum / n, due = totalRent() + crabs.reduce((s2, c2) => s2 + Math.round(contractPay(c2)), 0);
   // income still to come before the next settlement (the town trades 8:00-20:00)
-  const frac = lastRentDay === day ? 1 : Math.max(0, Math.min(1, (20 * 60 - tmin) / (12 * 60)));
+  const frac = lastRentDay === day ? 1 : Math.max(0, Math.min(1, (12000 - tdgm) / 7200));   // a ramp: deci-minutes
   let c = coins, b = credit.bal;
   for (let d = 0; d < 10; d++) {
     c += g * (d === 0 ? frac : 1);
@@ -2318,8 +2383,8 @@ function salePrice(b) { return market[b] ? market[b].price : askingPrice(b); }
 function layOff(k) {
   logLaidOff(k);   // DIARY: read the old job BEFORE it is cleared below
   abortChef(k); abortErrand(k);
-  k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
-  k.dayState = "home"; k.cstate = "";
+  k.duty = false; k.pendingOff = false; k.ksC = KS.idle; k.carrying = null;
+  k.dsC = DS.home; k.csC = 0;
   k.p.employer = null; k.p.owner = null; k.p.ot = false;
   if (k.p.npc) {
     rosterGen++;
@@ -2414,8 +2479,8 @@ function buyBusiness(b, buyer) {
       abortChef(buyer); abortErrand(buyer);
       rosterGen++;
       buyer.p.owner = id; buyer.p.job = b; buyer.p.employer = null; buyer.p.shift = "D";
-      buyer.duty = false; buyer.pendingOff = false; buyer.kstate = "idle";
-      buyer.carrying = null; buyer.dayState = "home"; buyer.cstate = "";
+      buyer.duty = false; buyer.pendingOff = false; buyer.ksC = KS.idle;
+      buyer.carrying = null; buyer.dsC = DS.home; buyer.csC = 0;
       buyer.workBiz = b; buyer.fishSpot = null;
     }
     // THE FLOAT COMES BACK AFTER THE BUYER IS THE OWNER, and the order is the
@@ -2866,8 +2931,8 @@ function handOverBiz(b, oid) {
     if (k.p.job !== b) continue;
     if (k.p.npc) { layOff(k); continue; }
     abortChef(k); abortErrand(k);
-    k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
-    k.dayState = "home"; k.cstate = "";
+    k.duty = false; k.pendingOff = false; k.ksC = KS.idle; k.carrying = null;
+    k.dsC = DS.home; k.csC = 0;
     rosterGen++;
     k.p.job = "shack"; k.workBiz = "shack";
     crabLog(k, "work", "MOVED TO THE CRAB SHACK - THE " + BIZ[b].short + " WAS SOLD", 0);
@@ -3196,8 +3261,8 @@ function stepDownOwner(k, oid, exceptBiz) {
   const other = Object.keys(BIZ).find(b2 => b2 !== exceptBiz && bizOwner(b2) === oid);
   if (!other) { layOff(k); return; }
   abortChef(k); abortErrand(k);
-  k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
-  k.dayState = "home"; k.cstate = "";
+  k.duty = false; k.pendingOff = false; k.ksC = KS.idle; k.carrying = null;
+  k.dsC = DS.home; k.csC = 0;
   rosterGen++;
   k.p.job = other; k.workBiz = other; k.p.shift = "D"; k.p.employer = null;
   k.fishSpot = null;
@@ -3338,7 +3403,7 @@ function hotelierArrive() {
   const p = { name: freeCrewName(HOTELIER_CFG.NAME), npc: true, fisher: false,
     trait: "tidy", mode: "buggy", acc: "shades", color: 0, shift: "D",
     homeless: true, house: null, wallet: HOTELIER_CFG.BANKROLL, job: "fishing",
-    hunger: 0.15, dirt: 0.2, bored: 0.1, tired: 0.2 };
+    hunger: qn(0.15), dirt: qn(0.2), bored: qn(0.1), tired: qn(0.2) };
   const c = newCrab(p);
   c.x = BUS_STOPS[0]; c.y = 158;
   npcs.push(c); rosterGen++;
@@ -3611,7 +3676,7 @@ function cotRoster() {
   // a hire and a move-in all land inside a settlement, which is one frame, and
   // a memo that only watched the clock would hand the old roll back to the
   // crab who has just lost their house.
-  const key = time + ":" + n;
+  const key = T + ":" + n;
   if (_cotRoll && _cotKey === key) return _cotRoll;
   const idx = new Map(all.map((c, i) => [c, i]));
   const roll = all.filter(c => c.p.homeless)
@@ -3816,10 +3881,11 @@ function setHotelRooms(n) {
   while (b.stalls.length > want) {
     const st = b.stalls.pop();
     if (st && st.occupant) { if (st.occupant.room === st) st.occupant.room = null; st.occupant = null; }
+    if (st) freeFurn(st);   // its fid goes back to the registry with its flags cleared
   }
   while (b.stalls.length < want) {
     const s = cabanaSpot(b.stalls.length - HOTEL_ROOMS_BASE);
-    b.stalls.push({ x: s.x, y: s.y, cabana: true, occupant: null, dirty: false, cleaning: false });
+    b.stalls.push(mkFurn({ x: s.x, y: s.y, cabana: true, occupant: null, dirty: false, cleaning: false }));
   }
   b.rent = HOTEL_RENT_BASE + (b.stalls.length - HOTEL_ROOMS_BASE) * ROOM_CFG.RENT;
   annexe.built = b.stalls.length - HOTEL_ROOMS_BASE;
@@ -3940,7 +4006,7 @@ function drawDormLoft() {
       wrect(wx, y + 3, 8, 5, [40, 30, 40]);
       // a lamp in the loft window when the crab in that bed is home in it
       const who = roll[DORM_CFG.BASE + r * 4 + i];
-      const occ = who && who.dayState === "home";
+      const occ = who && who.dsC === DS.home;
       wrect(wx + 1, y + 4, 6, 3, occ && darkness() > 0.4 ? [255, 216, 130] : [58, 70, 92]);
     }
   }
@@ -4002,7 +4068,7 @@ function drawRoomChip() {
 // tell the difference and neither should the player.
 function drawCabana(t, n) {
   const guest = t.occupant && t.occupant.visitor ? t.occupant : null;
-  const lit = guest && (guest.state === "inRoom" || darkness() > 0.4);
+  const lit = guest && (guest.stC === VS.inRoom || darkness() > 0.4);
   const y = t.y - 15;
   wrect(t.x, y + 3, 16, 12, [214, 198, 170]);               // the hut
   wrect(t.x, y + 3, 16, 1, [180, 164, 140]);
@@ -4014,8 +4080,8 @@ function drawCabana(t, n) {
   wrect(t.x + 1, y + 5, 3, 3, lit ? [255, 216, 130] : [58, 70, 92]);   // the little window
   const nx = t.x + 7 - camX;
   if (nx > -12 && nx < W) smallText(ctx, "" + n, nx, y - 6, [70, 60, 90]);
-  if (guest && guest.state === "inRoom") {
-    const ph = ((time * 0.7 + t.x * 0.01) % 1);
+  if (guest && guest.stC === VS.inRoom) {
+    const ph = ((viewT * 0.7 + t.x * 0.01) % 1);
     smallText(ctx, "Z", t.x + 12 - camX, y + 2 - ph * 4, [190, 205, 255]);
   }
   if (t.dirty) {
@@ -4028,7 +4094,32 @@ function drawCabana(t, n) {
 
 // ---------------------------------------------------------------- clock
 const TS = 4;                     // game minutes per real second
-let day = 1, tmin = 7 * 60;      // start day 1, 7:00
+// THE MASTER CLOCK IS AN INTEGER TICK, 20 a real second (slice 2). Everything
+// else on this page is a projection of it:
+//   tday  - tick of day, 0..7199 (1440 game minutes at 4 min/s)
+//   tmin  - whole game MINUTES, floor(tday/5); the domain's own grain, and
+//           what every shop-hours and shift gate is written in
+//   viewT - float seconds, for the DRAW layer only (clouds, gulls, waves)
+// tmin is derived rather than accumulated, which is the whole point: a float
+// tmin advanced by 0.2 a tick overshoots 1440 by 1.9e-10 a day and carries the
+// residue across midnight forever. Floored from the master it is exact, and it
+// fires on the same tick the float did - a gate at X minutes fires when
+// tday >= 5X either way.
+const DAY_TICKS = 1440 * TICK_MIN;   // 7200, and midnight is exact
+let day = 1, T = 0, tday = 7 * 60 * TICK_MIN;   // start day 1, 7:00
+let tmin = 7 * 60, tdgm = 4200, viewT = 0;   // DERIVED from tday/T - never accumulated
+// tmin is WHOLE game minutes and every shop-hours and shift gate is written in
+// it - all of them land on a whole minute, so the floor is exact there. tdgm is
+// DECI-game-minutes, two a tick, and it exists because three readers are RAMPS
+// rather than gates (darkness, the mist, the rent proration): they were smooth
+// in the float era and flooring them to the minute would coarsen the world by
+// four ticks. Same master clock, two grains, each used where it is exact.
+// THE CLOCK'S ONE SETTER. The master is `tday`; tmin and tdgm are read-only
+// projections of it, so moving the town's clock goes through here - a bare
+// `tmin = 12 * 60` would set a value the next reclock() overwrites.
+function setClock(m) { tday = Math.max(0, Math.min(DAY_TICKS - 1, Math.round(m * TICK_MIN))); reclock(); }
+function mistPeak(d) { return mistPeakQ16(d) / 65536; }   // the DRAW layer's float view
+function reclock() { tmin = (tday - tday % TICK_MIN) / TICK_MIN; tdgm = tday * 2; viewT = T / TICK_HZ; }
 function clockStr() {
   const h = (tmin / 60) | 0, m = tmin % 60 | 0;
   return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
@@ -4082,8 +4173,15 @@ function refreshDaysOff() {
   // because a missing key reads as "Monday" rather than as an error. The
   // key used to be a rebuilt name|job fingerprint string; rosterGen marks
   // the same invalidation moments for the cost of an integer compare.
-  if (_offStamp === time && _offGen === rosterGen) return;
-  _offStamp = time; _offGen = rosterGen; _offMap = {}; _needCover = {};
+  // KEYED ON THE INVALIDATION MOMENTS, NOT THE CLOCK. This used to read
+  // `_offStamp === T`, and T advances every tick - so the memo was a
+  // per-tick memo, and the full roster gather + sort + key build ran 7,200
+  // times a sim-day for a map that only changes when the DAY turns (wd) or
+  // the ROSTER does (rosterGen - which the shift stepper now bumps, because
+  // _needCover reads p.shift). Measured at ~12% of the whole sim bill,
+  // kernel-armed, before the fix; the derivation itself is unchanged.
+  if (_offStamp === day && _offGen === rosterGen) return;
+  _offStamp = day; _offGen = rosterGen; _offMap = {}; _needCover = {};
   const byBiz = {};
   for (const k of allCrabs()) (byBiz[k.p.job] = byBiz[k.p.job] || []).push(k);
   const wd = weekdayIdx(day);
@@ -4233,7 +4331,7 @@ function gravelyIll(c) { return !!c.p.sick && (c.p.sick.days || 0) >= deathArmsA
 //                          bed (house or boat)
 // Nobody's odds got worse - rest is a NEW, better lane, reachable only by
 // actually staying home on a granted sick day. That is what makes it real.
-const REST_HOURS = 9;   // daylight game-hours at home, ill and excused, to count as a day's rest
+const REST_HOURS = 9 * 60 * GMIN;   // daylight game-hours at home, ill and excused, to count as a day's rest
 const CARE_LANES = {
   neglect: { cure: 0.12, die: 0.25, label: "NEGLECTED" },
   cared:   { cure: 0.40, die: 0.08, label: "CARED FOR" },
@@ -4241,8 +4339,8 @@ const CARE_LANES = {
   bed:     { cure: 0.55, die: 0.04, label: "BED REST" },
 };
 function careLane(k) {
-  if ((k.p.hunger || 0) >= 0.5 || (k.p.dirt || 0) >= 0.66) return "neglect";
-  if ((k.p.restT || 0) < REST_HOURS || (k.p.thirst || 0) >= 0.5 || !onSickDay(k)) return "cared";
+  if ((k.p.hunger || 0) >= qn(0.5) || (k.p.dirt || 0) >= qn(0.66)) return "neglect";
+  if ((k.p.restT || 0) < REST_HOURS || (k.p.thirst || 0) >= qn(0.5) || !onSickDay(k)) return "cared";
   return k.p.homeless ? "cot" : "bed";
 }
 
@@ -4285,7 +4383,7 @@ function effShift(c) {
 // on the clock, right now, in overtime? (the powerup marker + the OT tags read
 // this, so they clear the instant OT ends - nothing to reset)
 function onOvertimeNow(c) {
-  if (!c.duty || c.dayState !== "working") return false;
+  if (!c.duty || c.dsC !== DS.working) return false;
   const w = otWindow(c);
   if (!w) return false;
   const sh = dutyShift(c);
@@ -4372,13 +4470,13 @@ function contractPay(c) { return wageRate(c) * shiftLoad(c, baseShift(c)); }
 // rate stops existing as a number and becomes the shape of the fraction.
 // `mins` is still a float until slice 2 makes it whole deci-game-minutes;
 // that is the one approximate input left, and the floor below contains it.
-function otPremium(c, mins) {
+function otPremium(c, ticks) {   // ticks in; the minute conversion rides in the divisor
   const span = Math.max(1, ownStdSpan(c));
-  return Math.floor(wageRate(c) * 3 * Math.max(0, mins) / (2 * span));
+  return Math.floor(wageRate(c) * 3 * Math.max(0, ticks) / (2 * span * GMIN));
 }
 function otPayToday(c) { return otPremium(c, c.otMin || 0); }        // truthful: minutes actually worked
 // tonight's forecast: scheduled while they're still on OT, else what they worked
-function otPayForecast(c) { return otEligible(c) ? otPremium(c, otMinutes(c)) : otPayToday(c); }
+function otPayForecast(c) { return otEligible(c) ? otPremium(c, otMinutes(c) * GMIN) : otPayToday(c); }
 
 // ---- WHAT THE REST OF TOWN PAYS -------------------------------------------
 // A wage is only a lever if a crab can tell whether it is a good one, so every
@@ -4517,7 +4615,7 @@ function restingLabel(b) {
 // cooldown after each, and a roster-sized cap on how many crabs can be on OT,
 // the machine settles into a duty cycle instead of thrashing (suite-proved
 // over 21 days).
-const LABOR_CFG = { OT_ON_TIRED: 0.55, OT_OFF_TIRED: 0.75, OT_ON_HUNGER: 0.5 };
+const LABOR_CFG = { OT_ON_TIRED: qn(0.55), OT_OFF_TIRED: qn(0.75), OT_ON_HUNGER: qn(0.5) };
 let laborPolicyState = {};   // biz -> { cd } (persisted)
 // does tomorrow leave a shift with nobody on it? Days off already promote a
 // coworker to a full-open double (revenue-neutral, free), so the honest gap is
@@ -4622,8 +4720,8 @@ function quitOverPay(c, why) {
   if (to) {
     const oid = bizOwner(to);
     abortErrand(c); abortChef(c);
-    c.duty = false; c.pendingOff = false; c.kstate = "idle"; c.carrying = null;
-    c.dayState = "home"; c.cstate = "";
+    c.duty = false; c.pendingOff = false; c.ksC = KS.idle; c.carrying = null;
+    c.dsC = DS.home; c.csC = 0;
     rosterGen++;
     c.p.job = to; c.p.employer = oid; c.workBiz = to; c.p.fisher = false;
     delete c.p.wage; delete c.p.wageOwner;   // a new boss, a new rate
@@ -4673,7 +4771,7 @@ function runWageRelations() {
     const g = c.p.gripe;
     // ---- the warnings, in order, each fired once on the way up
     if (was < WAGE_CFG.GRUMBLE && g >= WAGE_CFG.GRUMBLE) {
-      c.quip = { text: "$" + $d(rate) + "? THE PIER PAYS BETTER", t: 6 };
+      c.quip = { text: "$" + $d(rate) + "? THE PIER PAYS BETTER", t: 6 * SEC };
       today.moved.push(c.p.name + " IS GRUMBLING ABOUT $" + $d(rate));   // DIARY HOOK: first grumble
     } else if (was < WAGE_CFG.WARN && g >= WAGE_CFG.WARN) {
       toast = { text: c.p.name + " IS ASKING AROUND - $" + $d(rate) + " ISN'T ENOUGH", t: 8 };
@@ -4770,10 +4868,10 @@ function runWagePolicy(b) {
     .push({ day, biz: b, rate: bizWage(b), line });
 }
 function darkness() { // 0 = day, 1 = full night
-  const t = tmin;
-  if (t >= 5.5 * 60 && t < 7 * 60) return 1 - (t - 5.5 * 60) / 90;
-  if (t >= 7 * 60 && t < 18.5 * 60) return 0;
-  if (t >= 18.5 * 60 && t < 20.5 * 60) return (t - 18.5 * 60) / 120;
+  const t = tdgm;   // deci-minutes: a RAMP, not a gate - it keeps the tick grain
+  if (t >= 3300 && t < 4200) return 1 - (t - 3300) / 900;
+  if (t >= 4200 && t < 11100) return 0;
+  if (t >= 11100 && t < 12300) return (t - 11100) / 1200;
   return 1;
 }
 
@@ -4827,10 +4925,14 @@ function tradeImport(kind, qty, dollars) {
 function settleFishMarket() {
   trade.landH.push(trade.landedDay); if (trade.landH.length > 3) trade.landH.shift();
   trade.useH.push(trade.useDay); if (trade.useH.length > 3) trade.useH.shift();
-  const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
-  const S = avg(trade.landH), D = avg(trade.useH);
-  if (D > S + 1) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
-  else if (S > D + 2) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
+  // sum-vs-sum, exact (slice 5): "avg demand > avg supply + 1" over the same
+  // window length is sumD > sumS + len in whole fish - the float division is
+  // gone and the boundary case (sums differing by exactly the window) is
+  // decided by arithmetic, not by which numerator rounded luckier.
+  const sum = (a) => a.reduce((s, v) => s + v, 0);
+  const sumS = sum(trade.landH), sumD = sum(trade.useH), len = trade.landH.length;
+  if (sumD > sumS + len) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
+  else if (sumS > sumD + 2 * len) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
   trade.ceilDays = trade.price >= FISH_IMPORT ? (trade.ceilDays || 0) + 1 : 0;
   trade.series.push(trade.price);
   if (trade.series.length > 60) trade.series.shift();
@@ -4977,7 +5079,7 @@ function stationCap(bizKey, kind) {
 // $9. The response is chaotic seed to seed (1.0/$9 -> 5/8, 1.2/$10 -> 8/8,
 // 1.5/$12 -> 8/8), so these two were chosen where the curve sits: 4/8 at day
 // 40 with baseline still 0/16. Only the feature's own knobs moved.
-const BUS_SECS = 1.3;   // clearing a table is a swipe of the plates, not a shower-stall scrub
+const BUS_SECS = 1.3 * SEC;   // clearing a table is a swipe of the plates, not a shower-stall scrub
 // The shack opens with TABLE_BASE tables; more are bought. TABLE_BASE stays
 // at TWO through the busing pass, and that was measured rather than assumed:
 // a third starting table was tried as compensation for the labour cost and
@@ -4997,7 +5099,7 @@ function bizTables(key) {
 
 
 // ---------------------------------------------------------------- state
-let coins = 0, lifetime = 0, time = 0;
+let coins = 0, lifetime = 0;
 let crabs = [], customers = [], floaters = [];
 let toast = null, soundOn = true, ffMode = 0;   // 0=1x, 1=2x, 2=3x, 3=6x
 // THERE IS NO PAUSE, AND THAT IS A RULING (Matt, 2026-08-20: "Remove the pause
@@ -5037,7 +5139,7 @@ let camX = 1180, followIdx = -1, followNpc = null, followCust = null, tab = "cre
 // away and the camera lets go but the selection - and its card, and the right-
 // click orders that read it - stay with the crab you picked.
 let sel = null;
-let ffSleep = false, ffSleepDay = 0, ffChain = 0;   // the little sun: skip to morning
+let ffSleep = false, ffSleepDay = 0;   // the little sun: skip to morning
 let lastRentDay = 0, gameOver = false, newConfirmT = 0;
 // ---------------------------------------------------------------- the ferry
 // THE ONE THING IN THIS GAME YOU CANNOT AFFORD. The ticket office has stood at
@@ -5082,7 +5184,7 @@ let manage = null;   // key of the player-owned business whose MANAGEMENT card i
 let jobBoard = [], hireDay = 0;   // postings: {biz, wage, day}
 function newDayLog() {
   return { served: 0, revenue: 0, rage: 0, sick: [], died: [], recovered: [],
-    critical: [], walked: [], moved: [], rival: [], byCrab: {}, repStart: 30, catchStart: 0, biz: {},
+    critical: [], walked: [], moved: [], rival: [], byCrab: {}, repStart: 30000, catchStart: 0, biz: {},
     tipsShared: 0, bused: 0, heads: 0,   // heads: visitors the ferry landed today (the dues base)
     // ...and `left`: one frozen row per visitor who BOARDED today, for the
     // departure card. Rows, not a count, because the card quotes people by
@@ -5208,7 +5310,7 @@ function initNpcs() {
   // front door is a fact about his starting assets, not a rule about him.
   const rp = { name: "REEF", npc: true, owner: "reef", trait: "tidy", mode: "walk",
     acc: "cap", color: 3, shift: "D", house: 8, homeless: false,
-    wallet: 3000, job: "hotel", hunger: 0.1, dirt: 0.1, bored: 0, tired: 0.2 };
+    wallet: 3000, job: "hotel", hunger: qn(0.1), dirt: qn(0.1), bored: 0, tired: qn(0.2) };
   const rc = newCrab(rp);
   rc.workBiz = "hotel"; rc.x = 2210; rc.y = 158;
   // THE RAIL HOLDS THREE NOW, and that is the hotel's doing rather than a
@@ -5228,7 +5330,7 @@ function initNpcs() {
   ].map((f, i) => {
     const fp = { name: f.name, npc: true, fisher: true, trait: f.trait, mode: "walk",
       acc: f.acc, color: f.color, shift: "D", house: 0, homeless: true,
-      wallet: 1800, job: "fishing", hunger: 0.3, dirt: 0.2, bored: 0, tired: 0.3 };
+      wallet: 1800, job: "fishing", hunger: qn(0.3), dirt: qn(0.2), bored: 0, tired: qn(0.3) };
     const fc = newCrab(fp);
     fc.fishSpot = fishSpotFor(f.spot);
     fc.x = f.x0; fc.y = 158;
@@ -5259,7 +5361,7 @@ function initNpcs() {
 //     their own bed and 0.29 off a cot.
 // THREE TIERS, clearly ordered: own bed > shelter cot > the sand, where the
 // sand banks NOTHING at all (see sleepRough).
-const TIRED_SHIFT = 0.60, TIRED_ERRAND = 0.03, TIRED_NIGHT = 0.05;
+const TIRED_SHIFT = qn(0.60), TIRED_ERRAND = qn(0.03), TIRED_NIGHT = qn(0.05);
 const TIRED_DRAIN = { bed: 0.30, cot: 0.10 };   // fraction drained per game hour, asleep
 // ...and while merely HOME, settled and off the clock in daylight: a nap, not
 // a night. Same housing rung, a fraction of the rate - chosen by measurement
@@ -5344,10 +5446,10 @@ const TIRED_NAP = { bed: 0.24, cot: 0.08 };   // the same 0.8x of the bedtime ra
 // "better than nothing".
 function illRisk(c) {
   let risk = 0;
-  if ((c.p.hunger || 0) >= 0.95) risk += 0.10;
-  if ((c.p.thirst || 0) >= 0.95) risk += 0.12;   // dehydration: the scariest neglect
-  if ((c.p.dirt || 0) >= 0.95) risk += 0.06;
-  if ((c.p.tired || 0) >= 0.95) risk += 0.05;   // run ragged - exhaustion is worse than sand ever was
+  if ((c.p.hunger || 0) >= qn(0.95)) risk += 0.10;
+  if ((c.p.thirst || 0) >= qn(0.95)) risk += 0.12;   // dehydration: the scariest neglect
+  if ((c.p.dirt || 0) >= qn(0.95)) risk += 0.06;
+  if ((c.p.tired || 0) >= qn(0.95)) risk += 0.05;   // run ragged - exhaustion is worse than sand ever was
   return risk;
 }
 
@@ -5418,12 +5520,12 @@ refreshHatches();
 const patOff = (k) => !!(_fOff && _fOff[k]);
 
 // ---- IDLE HANDS (the wander-off) -----------------------------------------
-const WANDER_AT = 0.6;        // restless enough to leave the post
+const WANDER_AT = qn(0.6);        // restless enough to leave the post
 const WANDER_PX = 340;        // how far off post a wander may take them
 const WANDER_QUIET = 3;       // real seconds the counter must be DEAD first - a
                               // crab doesn't bolt the instant the queue empties
-const WANDER_DWELL = 14;      // ...then 14-24s stood there watching
-const WANDER_CD = 20;         // real seconds back at the post before the next one
+const WANDER_DWELL = 14 * SEC;  // ...then 14-24s stood there watching
+const WANDER_CD = 20 * SEC;   // real seconds back at the post before the next one
                               // (a six-hour shift is only 90 REAL seconds, so these
                               //  three numbers are what set the share of a dead
                               //  spell a crab spends off post: about half)
@@ -5446,7 +5548,7 @@ const WANDER_SPOTS = [
 // NOT in the list: dirt is passive and always-on (Rule 2), it never competes
 // for the crab's behaviour - and the town sits near 0.7 dirt permanently, so
 // including it would switch the whole pattern off.
-const BORED_YIELD = 0.8;
+const BORED_YIELD = qn(0.8);
 function boredYields(c) {
   return (c.p.hunger || 0) >= BORED_YIELD || (c.p.thirst || 0) >= BORED_YIELD
     || (c.p.tired || 0) >= BORED_YIELD;
@@ -5468,7 +5570,7 @@ const WANDER_QUIPS = ["NOTHING DOING", "JUST STRETCHING MY LEGS",
   "WONDER IF THEY'RE BITING", "BACK IN A TICK"];
 
 // ---- IDLE HANDS, late stage: THE WALK-OUT ---------------------------------
-const WALKOUT_AT = 0.95;      // pinned this bored...
+const WALKOUT_AT = qn(0.95);      // pinned this bored...
 // ...at this many settlements running, and they've had enough. The design doc
 // wrote 2, but it wrote it assuming a FREE FUN venue would exist to bring the
 // bar down. It doesn't: in an arcade-less town boredom PINS at 1.00 by about
@@ -5526,21 +5628,21 @@ function awayToday(c) { return offToday(c) || walkoutToday(c); }
 // nearest sand to the tuned geometry: the bus stop ends at 1192, the shack
 // starts at 1220, and a game here is in front of nothing.
 const BALL_X = 1206;
-const BALL_AT = 0.66;         // you'd BUY fun at 0.45; you walk out here when properly bored
-const BALL_JOIN = 0.48;       // ...but a game already going is worth joining at much less
-const BALL_YIELD = 0.55;      // ...and any real need outranks it well before boredYields' 0.8
+const BALL_AT = qn(0.66);         // you'd BUY fun at 0.45; you walk out here when properly bored
+const BALL_JOIN = qn(0.48);       // ...but a game already going is worth joining at much less
+const BALL_YIELD = qn(0.55);      // ...and any real need outranks it well before boredYields' 0.8
 const BALL_LEAD = 90;         // game-minutes of clear air needed before a shift: the game is ~48
 const BALL_Y = 157;           // up the sand, clear of BOTH travel lanes (146/168, 9px of blocking each)
-const BALL_SECS = 12;         // real seconds stood throwing - ~48 game-minutes
-const BALL_PAIR = 0.22;       // a real game of catch
-const BALL_SOLO = 0.08;       // ...and knocking it about on your own
-const BALL_CD = 300;          // game minutes: not a career
+const BALL_SECS = 12 * SEC;   // real seconds stood throwing - ~48 game-minutes
+const BALL_PAIR = qn(0.22);       // a real game of catch
+const BALL_SOLO = qn(0.08);       // ...and knocking it about on your own
+const BALL_CD = 300 * GMIN;   // game minutes: not a career
 const BALL_PX = 30;           // close enough to be in the same game
 const BALL_LINES = ["OVER HERE!", "MY CLAW!", "NICE ONE", "TOO HIGH!", "AGAIN!"];
-function ballPlayers() { return allCrabs().filter(k => k.dayState === "atBall"); }
+function ballPlayers() { return allCrabs().filter(k => k.dsC === DS.atBall); }
 function ballHasRoom(c) { return ballPlayers().filter(k => k !== c).length < 2; }
 function startBallStop(c) {
-  c.dayState = "atBall"; c.ballT = 0;
+  c.dsC = DS.atBall; c.ballT = 0;
   // NO TIRED_ERRAND HERE, and that is measured rather than sentimental. That
   // charge models a chore - the trudge out and back with the shopping - and
   // adding it to a game of catch pushed the MORNING/EVENING fatigue gap from
@@ -5560,15 +5662,15 @@ function startBallStop(c) {
 }
 function updateBall(c, dt) {
   if (c.ballT <= 0) {                       // still walking out to it
-    if (routedStep(c, crabMove(c), dt)) {
-      c.ballT = BALL_SECS + srand() * 4;
-      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 };
+    if (routedStep(c, crabMoveQ8(c), dt)) {
+      c.ballT = BALL_SECS + ((srand() * 4 * SEC) | 0);
+      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 * SEC };
     }
     return;
   }
-  c.ballT -= dt;
+  c.ballT -= dtT;
   if (((c.ballT * 2) | 0) % 7 === 0 && srand() < 0.02)
-    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 };
+    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 * SEC };
   if (c.ballT > 0) return;
   // WHO ELSE IS OUT HERE decides what it was worth
   const mate = ballPlayers().find(k => k !== c && k.ballT > 0 && Math.abs(k.x - c.x) <= BALL_PX);
@@ -5576,20 +5678,20 @@ function updateBall(c, dt) {
   c.p.bored = Math.max(0, (c.p.bored || 0) - relief);
   crabLog(c, "need", mate ? "PLAYED CATCH WITH " + mate.p.name : "KNOCKED THE BEACH BALL ABOUT", 0);
   popText(mate ? "GAME OF CATCH" : "A FEW THROWS", c.x - 16, FLOOR_Y - 30, [255, 210, 140]);
-  c.quip = { text: mate ? "SAME TIME TOMORROW" : "NEEDED A PARTNER", t: 2.4 };
+  c.quip = { text: mate ? "SAME TIME TOMORROW" : "NEEDED A PARTNER", t: 2.4 * SEC };
   if (window._stats) {
     window._stats.ballGames = (window._stats.ballGames || 0) + 1;
     if (mate) window._stats.ballPairs = (window._stats.ballPairs || 0) + 1;
   }
-  c.ballT = 0; c.errandCd = 4; c.ballCd = BALL_CD;
-  c.dayState = "home";
+  c.ballT = 0; c.errandCd = 4 * SEC; c.ballCd = BALL_CD;
+  c.dsC = DS.home;
   afterErrand(c, true);
 }
 // ---- CHATTER (the time-priced cure) ---------------------------------------
-const CHAT_AT = 0.55;         // both parties have to actually want the company
+const CHAT_AT = qn(0.55);         // both parties have to actually want the company
 const CHAT_PX = 26;           // close enough to fall into step
-const CHAT_SECS = 10;         // 10-16 real seconds = 40-64 GAME-MINUTES of the day
-const CHAT_RELIEF = 0.06;     // modest, and deliberately under half a shift's +0.2
+const CHAT_SECS = 10 * SEC;   // 10-16 real seconds = 40-64 GAME-MINUTES of the day
+const CHAT_RELIEF = qn(0.06);     // modest, and deliberately under half a shift's +0.2
 const CHAT_CD = 360;          // game minutes: at most twice in a trading day
 const CHAT_LINES = ["YOU'LL NEVER GUESS", "SHE DIDN'T!", "...ANYWAY",
   "NO, GO ON", "THAT'S THE THIRD TIME", "BETTER GET BACK"];
@@ -5602,7 +5704,7 @@ function chatReady(c) {
   if (c.slot >= 0 || c.order || (c.napT || 0) > 0 || (c.chatCd || 0) > 0) return false;
   if ((c.p.bored || 0) < CHAT_AT || boredYields(c)) return false;
   const ds = c.dayState;
-  if (ds === "working") return !c.pendingOff && (c.p.job === "fishing" || c.kstate === "idle" || c.kstate === "wander");
+  if (ds === "working") return !c.pendingOff && (c.p.job === "fishing" || c.ksC === KS.idle || c.ksC === KS.wander);
   // ...and NOBODY strikes up a conversation in their sleep. Without this a
   // pair of shelter cots 26px apart chat at 04:30, which reads as a bug even
   // though the arithmetic is fine. The walk home in the dark still counts:
@@ -5612,18 +5714,18 @@ function chatReady(c) {
 }
 function startChat(a, b) {
   for (const [c, o] of [[a, b], [b, a]]) {
-    c.chatFrom = c.dayState; c.dayState = "chat";
-    c.chatWith = o; c.chatT = CHAT_SECS + srand() * 6;
+    c.chatFrom = c.dayState; c.dsC = DS.chat;
+    c.chatWith = o; c.chatT = CHAT_SECS + ((srand() * 6 * SEC) | 0);
     c.chatCd = CHAT_CD; c.chatLine = 0;
     c.wander = null; c.wanderT = 0;   // the conversation IS the wander now
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0;
     setT(c, c.x, c.y);
   }
-  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 };
+  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 * SEC };
   if (window._stats) window._stats.chats = (window._stats.chats || 0) + 1;
 }
 function endChat(c, paid) {
-  if (c.dayState !== "chat") return;
+  if (c.dsC !== DS.chat) return;
   if (paid) {
     c.p.bored = Math.max(0, (c.p.bored || 0) - CHAT_RELIEF);
     if (window._stats) window._stats.chatRelief = (window._stats.chatRelief || 0) + CHAT_RELIEF;
@@ -5638,13 +5740,13 @@ function endChat(c, paid) {
 // samples. Both exemptions are by construction rather than by special case.
 function updateChat(c, dt) {
   const o = c.chatWith;
-  if (!o || o.dayState !== "chat" || o.chatWith !== c) { endChat(c, false); return; }
-  c.chatT -= dt;
+  if (!o || o.dsC !== DS.chat || o.chatWith !== c) { endChat(c, false); return; }
+  c.chatT -= dtT;
   // alternate the bubbles so it reads as a conversation, not two monologues
   const beat = Math.floor((CHAT_SECS + 6 - c.chatT) / 3.5);
   if (beat > c.chatLine && !c.quip && !o.quip) {
     c.chatLine = beat;
-    c.quip = { text: CHAT_LINES[(beat + (c.p.name.length % 3)) % CHAT_LINES.length], t: 2.4 };
+    c.quip = { text: CHAT_LINES[(beat + (c.p.name.length % 3)) % CHAT_LINES.length], t: 2.4 * SEC };
   }
   if (c.chatT <= 0) endChat(c, true);
 }
@@ -5653,8 +5755,8 @@ function updateChat(c, dt) {
 function runChatter(dt) {
   const all = allCrabs();
   for (const c of all) {
-    if ((c.chatCd || 0) > 0) c.chatCd -= dt * TS;
-    if ((c.ballCd || 0) > 0) c.ballCd -= dt * TS;
+    if ((c.chatCd || 0) > 0) c.chatCd -= dtT;
+    if ((c.ballCd || 0) > 0) c.ballCd -= dtT;
   }
   for (let i = 0; i < all.length; i++) {
     const a = all[i];
@@ -5688,14 +5790,14 @@ function runChatter(dt) {
 // 4/8. The sleep REQUIREMENTS stay exactly as the owner set them; what gives
 // is the nod line, which now sits above the EXHAUSTED mood rather than on it.
 // Nods stay visible at 0.42 a town-day (from 0.63) and growth returns to 4/8.
-const NOD_AT = 0.96;
+const NOD_AT = qn(0.96);
 // per second of timed work past NOD_AT. MEASURED against the design brief's
 // ~5% ceiling on station time lost: a plain 4-crew town loses 1.4% of its
 // station time to nods and an all-overtime one 4.7%, at 0.63 and 4.08 nods per
 // town-day. The rate has never been what makes nods rare - being past the nod
 // line while actually mid-task is, and the housing rung is what decides that.
 const NOD_RATE = 0.03;
-const NOD_MIN = 2, NOD_SPAN = 3;   // 2-5 seconds, hard-capped: a stall, never a jam
+const NOD_MIN = 2 * SEC, NOD_SPAN = 3 * SEC;   // 2-5 seconds, hard-capped: a stall, never a jam
 // the states where a nod actually COSTS something - mid-task, mid-carry, or
 // holding a station. Never "idle" (a nod on a dead counter costs nobody
 // anything) and never waitSlot/waitCash (they hold nothing).
@@ -5703,7 +5805,7 @@ const NOD_STATES = ["walk", "toSlot", "work", "toStallClean", "cleaningStall"];
 const NOD_WAKE = ["WHAT? I'M UP", "JUST RESTING MY EYES", "WHERE WAS I"];
 
 // ---- THE SHORTCUT HOME ----------------------------------------------------
-const ROUGH_AT = 0.97;        // this far gone and the walk home is too far
+const ROUGH_AT = qn(0.97);        // this far gone and the walk home is too far
 const ROUGH_PX = 250;         // ...if there's still this much of it left
 // ...and then it is a CHANCE per second, not a cliff. A flat rule dropped every
 // exhausted crab the instant they left the shack (home is always further than
@@ -5725,10 +5827,10 @@ const ROUGH_RATE = 0.012;
 // order, or simply a shorter shift.
 function sleepRough(c) {
   c.p.rough = true; c.p.roughLast = day;
-  c.hidden = false; c.cstate = ""; c.busFrom = -1; c.busTo = -1;
-  c.dayState = "home"; c.duty = false; c.pendingOff = false;
+  c.hidden = false; c.csC = 0; c.busFrom = -1; c.busTo = -1;
+  c.dsC = DS.home; c.duty = false; c.pendingOff = false;
   c.y = clampY(c.y); setT(c, c.x, c.y);
-  c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 };
+  c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 * SEC };
   popText("TOO TIRED TO GET HOME", c.x - 22, c.y - 26, [190, 160, 230]);
   if (window._stats) window._stats.roughNights = (window._stats.roughNights || 0) + 1;
 }
@@ -5766,20 +5868,20 @@ function updateHome(c, dt) {
   if (c.p.rough) {
     if (darkness() >= 0.5) { setT(c, c.x, c.y); return; }
     c.p.rough = false;   // up with the light, stiff, and none the better for it
-    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(srand() * 3) | 0], t: 3 };
+    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(srand() * 3) | 0], t: 3 * SEC };
   }
   // a day off is for the beach: after the lie-in, amble the sand near home
   // between errands instead of pacing the porch. A WALK-OUT spends the day
   // exactly the same way - that is the whole point of taking one.
   if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
-    if (c._offPause > 0) { c._offPause -= dt; return; }
+    if (c._offPause > 0) { c._offPause -= dtT; return; }
     if (c._offWt == null) {
-      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + srand() * 240 - 120));
-      c._offWy = clearSpotY(c._offWt, 150 + srand() * 16);   // amble on the sand, not through the picnic tables
+      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + Math.floor(srand() * 240 * Q8) / Q8 - 120));   // same draw, on the grain
+      c._offWy = clearSpotY(c._offWt, 150 + Math.floor(srand() * 16 * Q8) / Q8);   // amble on the sand, not through the picnic tables
       setT(c, c._offWt, c._offWy);
     }
-    if (routedStep(c, crabMove(c) * 0.55, dt)) {
-      c._offWt = null; c._offPause = 2 + srand() * 5;
+    if (routedStep(c, idiv(crabMoveQ8(c) * 11, 20), dt)) {
+      c._offWt = null; c._offPause = 2 * SEC + ((srand() * 5 * SEC) | 0);
     }
     return;
   }
@@ -5801,13 +5903,17 @@ function updateHome(c, dt) {
   // ladder reads (night sleep is everyone's, so it would prove nothing). A
   // crab who commuted in and worked banks a couple of hours either side of
   // their shift and never reaches REST_HOURS; a crab who stayed home does.
-  if (c.p.sick && darkness() < 0.7) c.p.restT = (c.p.restT || 0) + dt * TS / 60;
+  if (c.p.sick && darkness() < 0.7) c.p.restT = (c.p.restT || 0) + dtT;
   const s = homeSpot(c);
   // SLEEP repairs TIRED: bedded down for the night, exhaustion drains away -
   // full rate in your own bed (house/boat), half on a shelter cot
   if (darkness() > 0.7 && (c.p.tired || 0) > 0) {
-    const rate = c.p.homeless ? TIRED_DRAIN.cot : TIRED_DRAIN.bed;
-    c.p.tired = Math.max(0, (c.p.tired || 0) * (1 - rate * dt * TS / 60));
+    // the geometric drain as one exact rational: bed 0.30/gh is t*dtT/1000,
+    // cot 0.10/gh is t*dtT/3000. Floor the amount REMOVED, so a rounding
+    // never invents rest that was not slept.
+    const den = c.p.homeless ? 3000 : 1000;
+    const t0 = c.p.tired || 0, off = (t0 * dtT - (t0 * dtT) % den) / den;
+    c.p.tired = Math.max(0, t0 - off);
   } else if ((c.p.tired || 0) > 0 && Math.abs(c.x - s.x) < 20) {
     // ...AND SO DOES A DAYTIME NAP. Rest was gated on the SUN, not on being
     // home: a morning crab's long free afternoon indoors repaired nothing
@@ -5816,12 +5922,274 @@ function updateHome(c, dt) {
     // home, settled, and off the clock now recovers at TIRED_NAP, which is a
     // fraction of the bedtime rate (a nap on the porch is not a night's
     // sleep) and keeps the same housing rung: a cot naps worse than a bed.
-    const rate = c.p.homeless ? TIRED_NAP.cot : TIRED_NAP.bed;
-    c.p.tired = Math.max(0, (c.p.tired || 0) * (1 - rate * dt * TS / 60));
+    // nap 0.24/gh is t*dtT/1250, cot 0.08/gh is t*dtT/3750 - exact, floored
+    const den = c.p.homeless ? 3750 : 1250;
+    const t0 = c.p.tired || 0, off = (t0 * dtT - (t0 * dtT) % den) / den;
+    c.p.tired = Math.max(0, t0 - off);
   }
-  routedWalk(c, s.x, s.y, crabMove(c) * 0.7, dt);
+  routedWalk(c, s.x, s.y, idiv(crabMoveQ8(c) * 7, 10), dt);
 }
 
+
+// ---------------------------------------------------------------- event codes
+// SLICE 6a. The four per-tick state machines store an INT CODE; the string
+// the suite, the save and the diary read is a prototype accessor over the
+// name table. The CODES drive logic; the strings render at the observation
+// point. Setters are STRICT - an unknown string is a thrown error, not a
+// silent NaN state - so every write site is provably in-table.
+const DS_NAMES = ["home", "toWork", "working", "toErrand", "errand", "atTap",
+  "toHome", "selfCook", "chat", "atBall", "directed"];
+const KS_NAMES = ["idle", "walk", "work", "toSlot", "waitSlot", "waitCash",
+  "busingTable", "cleaningStall", "toStallClean", "toTableClean", "nap", "wander"];
+const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
+  "walkToVehicle", "drive", "travel", "walkOff"];
+const VS_NAMES = ["", "ashore", "arriving", "waiting", "toSeat", "seatedWaiting",
+  "dining", "toStall", "waitStall", "outStall", "toTable", "showering", "toBiz",
+  "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving"];
+const DS = {}, KS = {}, CS = {}, VS = {};
+DS_NAMES.forEach((n, i) => DS[n] = i); KS_NAMES.forEach((n, i) => KS[n] = i);
+CS_NAMES.forEach((n, i) => CS[n] = i); VS_NAMES.forEach((n, i) => VS[n] = i);
+class CrabS {
+  get x() { return PXQ[this.si] / Q8; }
+  set x(v) { PXQ[this.si] = Math.round(v * Q8); }
+  get y() { return PYQ[this.si] / Q8; }
+  set y(v) { PYQ[this.si] = Math.round(v * Q8); }
+  get tx() { return PTXQ[this.si] / Q8; }
+  set tx(v) { PTXQ[this.si] = Math.round(v * Q8); }
+  get ty() { return PTYQ[this.si] / Q8; }
+  set ty(v) { PTYQ[this.si] = Math.round(v * Q8); }
+  get _mx() { return PMXQ[this.si] === MNULL ? null : PMXQ[this.si] / Q8; }
+  set _mx(v) { PMXQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get _my() { return PMYQ[this.si] === MNULL ? null : PMYQ[this.si] / Q8; }
+  set _my(v) { PMYQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get dayState() { return DS_NAMES[this.dsC]; }
+  set dayState(s) { const c = DS[s]; if (c === undefined) throw new Error("dayState? " + s); this.dsC = c; }
+  get kstate() { return KS_NAMES[this.ksC]; }
+  set kstate(s) { const c = KS[s]; if (c === undefined) throw new Error("kstate? " + s); this.ksC = c; }
+  get cstate() { return CS_NAMES[this.csC]; }
+  set cstate(s) { const c = CS[s]; if (c === undefined) throw new Error("cstate? " + s); this.csC = c; }
+}
+class VisS {
+  get x() { return PXQ[this.si] / Q8; }
+  set x(v) { PXQ[this.si] = Math.round(v * Q8); }
+  get y() { return PYQ[this.si] / Q8; }
+  set y(v) { PYQ[this.si] = Math.round(v * Q8); }
+  get tx() { return PTXQ[this.si] / Q8; }
+  set tx(v) { PTXQ[this.si] = Math.round(v * Q8); }
+  get ty() { return PTYQ[this.si] / Q8; }
+  set ty(v) { PTYQ[this.si] = Math.round(v * Q8); }
+  get _mx() { return PMXQ[this.si] === MNULL ? null : PMXQ[this.si] / Q8; }
+  set _mx(v) { PMXQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get _my() { return PMYQ[this.si] === MNULL ? null : PMYQ[this.si] / Q8; }
+  set _my(v) { PMYQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get wy() { return PWYQ[this.si] / Q8; }
+  set wy(v) { PWYQ[this.si] = Math.round(v * Q8); }
+  get state() { return VS_NAMES[this.stC]; }
+  set state(s) { const c = VS[s]; if (c === undefined) throw new Error("state? " + s); this.stC = c; }
+  // KERNEL PHASE 4 residency: the state code and the five needs live in
+  // planes the kernel shares. Same contract as x/y: the plane is the stored
+  // truth, these are its only doors. Foreign literals must vivify (an own
+  // data property SHADOWS an accessor - slice 6's lesson #1).
+  get stC() { return VSTCP[this.si]; }
+  set stC(v) { VSTCP[this.si] = v; }
+  get hunger() { return VHUN[this.si]; }
+  set hunger(v) { VHUN[this.si] = v; }
+  get thirst() { return VTHI[this.si]; }
+  set thirst(v) { VTHI[this.si] = v; }
+  get dirt() { return VDIRP[this.si]; }
+  set dirt(v) { VDIRP[this.si] = v; }
+  get bored() { return VBOR[this.si]; }
+  set bored(v) { VBOR[this.si] = v; }
+  get tired() { return VTIR[this.si]; }
+  set tired(v) { VTIR[this.si] = v; }
+  // KERNEL PHASE 5 residency: the counter machine's scalars and the two
+  // furniture holds. stall/table hand back the REGISTRY wrapper, so every
+  // identity compare (`seat.occupant === k`, `k.table === t`) still holds.
+  get patience() { return C_PAT[this.si]; }
+  set patience(v) { C_PAT[this.si] = v; }
+  get climb() { return C_CLM[this.si]; }
+  set climb(v) { C_CLM[this.si] = v; }
+  get showerT() { return C_SHW[this.si]; }
+  set showerT(v) { C_SHW[this.si] = v; }
+  get dineT() { return C_DIN[this.si]; }
+  set dineT(v) { C_DIN[this.si] = v; }
+  get waitT() { return C_WAI[this.si]; }
+  set waitT(v) { C_WAI[this.si] = v; }
+  get stall() { return C_STL[this.si] >= 0 ? FURN[C_STL[this.si]] : null; }
+  set stall(v) { C_STL[this.si] = v ? v.fid : -1; }
+  get table() { return C_TBL[this.si] >= 0 ? FURN[C_TBL[this.si]] : null; }
+  set table(v) { C_TBL[this.si] = v ? v.fid : -1; }
+}
+const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
+// the boundary for FOREIGN literals: the suite stages customer stubs as plain
+// objects speaking strings (a cultureway runtime may one day do the same).
+// An own `state:` data property would SHADOW the accessor, so the string is
+// lifted off, the prototype attached, and the string re-enters through the
+// strict setter - arriving as a code like every other write.
+const animTOf = (c) => c.animQ * 9 / 4294967296;   // exactly the old srand()*9 double
+function vivifyCust(o) {
+  const lift = {};
+  for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
+                   "hunger", "thirst", "dirt", "bored", "tired",
+                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table"])
+    if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
+  Object.setPrototypeOf(o, VisProto);
+  o.si = poolAlloc();
+  for (const f in lift) o[f] = lift[f];
+  // a foreign literal speaking px spawnX gets the Q8 grain the gates compare
+  if (o.spawnXQ == null && o.spawnX != null) { o.spawnXQ = Math.round(o.spawnX * Q8); delete o.spawnX; }
+  return o;
+}
+
+
+// ------------------------------------------------------------- the agent pool
+// SLICE 6b. Positions and motion targets live in SoA Int32Arrays of Q8
+// GRAINS - the numerator is the stored truth, the px Number every reader
+// sees is its exact double image q/256 through the prototype accessors
+// below. SoA over AoS-stride: the hot loops (collide, stepTo, visStep)
+// touch two or three fields across every agent, so each field is its own
+// dense cache line - and it is the layout the batch future wants. A town's
+// whole pool is ~7KB against 128KB of L1.
+const POOL_MAX = 160;
+// THE MOVEMENT KERNEL (the WASM spike): when the harness arms it, the pool's
+// backing store is the kernel's own linear memory, so a JS write and a kernel
+// read are the same bytes - zero copies at the boundary. Offsets are the
+// memory map in tools/kernel/kernel.c (base 16384; the low 8KB is the C
+// shadow stack). Unarmed, the arrays are plain and every hot loop below runs
+// its JS reference body - byte-for-byte the code that was here before.
+const KERN = (typeof window !== "undefined" && window._wasmKernel) || null;
+const _kb = KERN ? KERN.memory.buffer : null, _k0 = 16384;
+const PXQ  = KERN ? new Int32Array(_kb, _k0,        POOL_MAX) : new Int32Array(POOL_MAX),
+      PYQ  = KERN ? new Int32Array(_kb, _k0 + 640,  POOL_MAX) : new Int32Array(POOL_MAX),
+      PTXQ = KERN ? new Int32Array(_kb, _k0 + 1280, POOL_MAX) : new Int32Array(POOL_MAX),
+      PTYQ = KERN ? new Int32Array(_kb, _k0 + 1920, POOL_MAX) : new Int32Array(POOL_MAX),
+      PWYQ = KERN ? new Int32Array(_kb, _k0 + 2560, POOL_MAX) : new Int32Array(POOL_MAX),
+      PMXQ = KERN ? new Int32Array(_kb, _k0 + 3200, POOL_MAX) : new Int32Array(POOL_MAX),
+      PMYQ = KERN ? new Int32Array(_kb, _k0 + 3840, POOL_MAX) : new Int32Array(POOL_MAX);
+const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
+      KB_FLAGS = KERN ? new Int32Array(_kb, _k0 + 5120, POOL_MAX) : null,
+      KB_BERTH = KERN ? new Int32Array(_kb, _k0 + 5760, POOL_MAX) : null,
+      KF_X     = KERN ? new Int32Array(_kb, _k0 + 6400, POOL_MAX) : null,
+      KF_Y     = KERN ? new Int32Array(_kb, _k0 + 7040, POOL_MAX) : null,
+      KF_CAB   = KERN ? new Int32Array(_kb, _k0 + 7680, POOL_MAX) : null,
+      KS_X     = KERN ? new Int32Array(_kb, _k0 + 8320, POOL_MAX) : null,
+      KS_Y     = KERN ? new Int32Array(_kb, _k0 + 8960, POOL_MAX) : null,
+      KB_BLK   = KERN ? new Int32Array(_kb, _k0 + 9600, POOL_MAX) : null;
+// KERNEL PHASE 4: visitor residency planes (needs Q20, the VS state code) -
+// resident in BOTH modes, the accessors below are the only readers/writers.
+// Offsets are kernel.c's map; unarmed they are plain arrays like the pool's.
+const VHUN = KERN ? new Int32Array(_kb, 26688, POOL_MAX) : new Int32Array(POOL_MAX),
+      VTHI = KERN ? new Int32Array(_kb, 27328, POOL_MAX) : new Int32Array(POOL_MAX),
+      VDIRP = KERN ? new Int32Array(_kb, 27968, POOL_MAX) : new Int32Array(POOL_MAX),
+      VBOR = KERN ? new Int32Array(_kb, 28608, POOL_MAX) : new Int32Array(POOL_MAX),
+      VTIR = KERN ? new Int32Array(_kb, 29248, POOL_MAX) : new Int32Array(POOL_MAX),
+      VSTCP = KERN ? new Int32Array(_kb, 29888, POOL_MAX) : new Int32Array(POOL_MAX);
+// ...and vis_pick's per-think marshal planes (armed only). MB slot order is
+// the candidate order visPick evaluates: shack, juicebar, showers, arcade,
+// hotel. KM_TASTE is the Layer-0 cultureway hook table's kernel face - f64
+// weights straight from the culture document, filled per think for the
+// thinker's own culture; the kernel reads data and never a culture's name.
+const KVP_BIZ = ["shack", "juicebar", "showers", "arcade", "hotel"], KVP_RMAX = 8;
+const KM_OPEN  = KERN ? new Int32Array(_kb, 31168, 8) : null,
+      KM_UNLK  = KERN ? new Int32Array(_kb, 31200, 8) : null,
+      KM_TOURQ = KERN ? new Int32Array(_kb, 31232, 8) : null,
+      KM_ALLQ  = KERN ? new Int32Array(_kb, 31264, 8) : null,
+      KM_QX    = KERN ? new Int32Array(_kb, 31296, 8) : null,
+      KM_APQ   = KERN ? new Int32Array(_kb, 31328, 8) : null,
+      KM_RN    = KERN ? new Int32Array(_kb, 31360, 8) : null,
+      KM_PRICE = KERN ? new Int32Array(_kb, 31424, 64) : null,
+      KM_PAY   = KERN ? new Int32Array(_kb, 31680, 64) : null,
+      KM_DRINK = KERN ? new Int32Array(_kb, 31936, 64) : null,
+      KM_TASTE = KERN ? new Float64Array(_kb, 32192, 64) : null,
+      KM_VPOUT = KERN ? new Int32Array(_kb, 32704, 8) : null;
+// ...phase 5's marshal + ring views (armed only): the per-biz stall fid
+// lists cust_step's waitStall scan walks, and the event ring it emits into
+const KMS_FID = KERN ? new Int32Array(_kb, 38016, 80) : null,
+      KMS_N   = KERN ? new Int32Array(_kb, 38336, 8) : null,
+      KEV_N   = KERN ? new Int32Array(_kb, 38368, 1) : null,
+      KEV     = KERN ? new Int32Array(_kb, 38372, 48) : null;
+if (KERN && !(KERN.exports.abi_check && KERN.exports.abi_check(VS.toBiz, VS.inRoom, VS.onSand, VS.roam)))
+  throw new Error("kernel ABI mismatch: the VS codes moved under the compiled unit");
+// KERNEL PHASE 5 residency: the counter machine's per-customer scalars and
+// the furniture facts move into planes at the map's next free run (32768..),
+// so the compiled machine and the JS reference read the same bytes. All int:
+// patience is Q12, climb Q12, the three timers tick counts, STL/TBL are fids
+// (-1 none). Furniture: x in px ints, FLG bits (1 occupant, 2 dirty,
+// 4 cleaning), DSH the dishes count.
+const C_PAT = KERN ? new Int32Array(_kb, 32768, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_CLM = KERN ? new Int32Array(_kb, 33408, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_SHW = KERN ? new Int32Array(_kb, 34048, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_DIN = KERN ? new Int32Array(_kb, 34688, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_WAI = KERN ? new Int32Array(_kb, 35328, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_STL = KERN ? new Int32Array(_kb, 35968, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_TBL = KERN ? new Int32Array(_kb, 36608, POOL_MAX) : new Int32Array(POOL_MAX);
+const FURN_MAX = 64;
+const FT_X   = KERN ? new Int32Array(_kb, 37248, FURN_MAX) : new Int32Array(FURN_MAX),
+      FT_FLG = KERN ? new Int32Array(_kb, 37504, FURN_MAX) : new Int32Array(FURN_MAX),
+      FT_DSH = KERN ? new Int32Array(_kb, 37760, FURN_MAX) : new Int32Array(FURN_MAX);
+// the registry: fid -> wrapper, so the ID planes can hand back the object
+// every JS reader compares by identity. Free-listed - the annexe pops rooms.
+const FURN = new Array(FURN_MAX).fill(null);
+const furnFree = []; let furnTop = 0;
+class FurnS {
+  get x() { return FT_X[this.fid]; }
+  set x(v) { FT_X[this.fid] = v; }
+  // the occupant's IDENTITY lives on the object (JS compares `occupant.room
+  // === st`), but its TRUTH is the plane bit - the kernel frees a stall by
+  // clearing the bit, and the getter goes dark without a JS write.
+  get occupant() { return (FT_FLG[this.fid] & 1) ? this._occ : null; }
+  set occupant(v) { this._occ = v; if (v) FT_FLG[this.fid] |= 1; else FT_FLG[this.fid] &= ~1; }
+  get dirty() { return !!(FT_FLG[this.fid] & 2); }
+  set dirty(v) { if (v) FT_FLG[this.fid] |= 2; else FT_FLG[this.fid] &= ~2; }
+  get cleaning() { return !!(FT_FLG[this.fid] & 4); }
+  set cleaning(v) { if (v) FT_FLG[this.fid] |= 4; else FT_FLG[this.fid] &= ~4; }
+  get dishes() { return FT_DSH[this.fid]; }
+  set dishes(v) { FT_DSH[this.fid] = v; }
+}
+function mkFurn(o) {
+  const fid = furnFree.length ? furnFree.pop() : furnTop++;
+  if (fid >= FURN_MAX) throw new Error("furniture registry overflow at " + FURN_MAX);
+  const w = Object.setPrototypeOf({ fid }, FurnS.prototype);
+  FT_X[fid] = o.x; FT_FLG[fid] = 0; FT_DSH[fid] = 0; FURN[fid] = w;
+  for (const f in o) if (f !== "x" && f !== "occupant" && f !== "dirty" && f !== "cleaning" && f !== "dishes") w[f] = o[f];
+  w._occ = null;
+  if (o.occupant) w.occupant = o.occupant;
+  if (o.dirty) w.dirty = true; if (o.cleaning) w.cleaning = true;
+  if (o.dishes) w.dishes = o.dishes;
+  return w;
+}
+function freeFurn(w) { FURN[w.fid] = null; FT_FLG[w.fid] = 0; FT_DSH[w.fid] = 0; furnFree.push(w.fid); }
+// wrap the BIZ literals once, at load - every stall and table the town opens
+// with gets its fid here; the annexe's cabanas come through mkFurn at build.
+for (const b of Object.keys(BIZ)) {
+  if (BIZ[b].tables) BIZ[b].tables = BIZ[b].tables.map(mkFurn);
+  if (BIZ[b].stalls) BIZ[b].stalls = BIZ[b].stalls.map(mkFurn);
+}
+const MNULL = -0x80000000;   // the _mx/_my "no motion target this frame" sentinel
+const POOL_LIVE = new Uint8Array(POOL_MAX), POOL_MARK = new Uint8Array(POOL_MAX);
+let poolTop = 0; const poolFree = [];
+function poolAlloc() {
+  const i = poolFree.length ? poolFree.pop() : poolTop++;
+  if (i >= POOL_MAX) throw new Error("agent pool overflow at " + POOL_MAX);
+  PXQ[i] = 0; PYQ[i] = 0; PTXQ[i] = 0; PTYQ[i] = 0; PWYQ[i] = 0;
+  PMXQ[i] = MNULL; PMYQ[i] = MNULL; POOL_LIVE[i] = 1;
+  VHUN[i] = 0; VTHI[i] = 0; VDIRP[i] = 0; VBOR[i] = 0; VTIR[i] = 0; VSTCP[i] = 0;
+  C_PAT[i] = 0; C_CLM[i] = 0; C_SHW[i] = 0; C_DIN[i] = 0; C_WAI[i] = 0;
+  C_STL[i] = -1; C_TBL[i] = -1;   // no holds; 0 is a real fid
+  return i;
+}
+// the reap: slots owned by objects no pool can reach any more go back on the
+// freelist. Runs once a frame; marking every live agent is ~60 writes. This
+// replaces hooking each of the seven removal doors - a door added later
+// cannot leak.
+function poolReap() {
+  POOL_MARK.fill(0);
+  for (const c of crabs) POOL_MARK[c.si] = 1;
+  for (const c of npcs) POOL_MARK[c.si] = 1;
+  for (const k of customers) POOL_MARK[k.si] = 1;
+  for (let i = 0; i < poolTop; i++)
+    if (POOL_LIVE[i] && !POOL_MARK[i]) { POOL_LIVE[i] = 0; poolFree.push(i); }
+}
 function newCrab(persona) {
   if (persona.wallet == null) persona.wallet = 10;
   if (persona.job == null) persona.job = "shack";
@@ -5858,22 +6226,24 @@ function newCrab(persona) {
   if (persona.boredDays == null) persona.boredDays = 0;
   if (persona.walkout == null) persona.walkout = 0;
   if (persona.rough == null) persona.rough = false;
-  return {
+  const c = Object.setPrototypeOf({
     p: persona,
-    x: homeX({ p: persona }), y: 160, tx: 0, ty: 160,
-    flip: false, hidden: false, animT: srand() * 9,
-    dayState: "home", cstate: "", target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
+    si: poolAlloc(),
+    flip: false, hidden: false, animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
+    dsC: DS.home, csC: 0, target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
     duty: false, pendingOff: false, pauseT: 0, _offIdx: 0,
     // kitchen fields
-    kstate: "idle", cust: null, carrying: null, stepIdx: 0,
+    ksC: KS.idle, cust: null, carrying: null, stepIdx: 0,
     workT: 0, workMax: 0, slot: -1, slotKind: null,
     // needs-failure fields (all transient - derived behaviour, nothing to save)
     idleT: 0, wander: null, wanderT: 0, wanderCd: 0,
     chatT: 0, chatCd: 0, chatWith: null, chatFrom: null, chatLine: 0,
     napT: 0, napFrom: null,
     quip: null, quipT: 8 + srand() * 15,
-  };
+  }, CrabProto);
+  c.x = homeX({ p: persona }); c.y = 160; c.tx = 0; c.ty = 160;
+  return c;
 }
 // ---- THE TRUDGE: hunger and thirst fail as a SPEED PENALTY (Matt's call:
 // "dirt boredom and tiredness are good; hunger and thirst should just be a
@@ -5892,13 +6262,13 @@ function newCrab(persona) {
 // crabEff and both needs already feed the nightly sickness roll; a crab that
 // is starving AND parched must not compound into one that can no longer walk
 // to the food and water that would fix it. The two multiply, floored at 0.70.
-const DRAG_HUNGER_AT = 0.3;   // = crabEff's own hunger line: past 0.3 hunger
+const DRAG_HUNGER_AT = qn(0.3);   // = crabEff's own hunger line: past 0.3 hunger
                               // already costs prep, and now it costs pace too.
                               // Swept against the baseline matrix: at 0.5 the
                               // do-nothing town got RICHER than it is meant to
                               // be (2 of 16 surviving 30 days against the
                               // documented 0 of 16), at 0.3 it reads 0/16 again
-const DRAG_THIRST_AT = 0.5;   // pitched so the ramp passes through 0.85 at
+const DRAG_THIRST_AT = qn(0.5);   // pitched so the ramp passes through 0.85 at
                               // thirst 0.8 - the EXACT value of the -15% cliff
                               // it replaces, at the exact threshold it fired
                               // at. Swept against the tap's anti-trap probe,
@@ -5910,8 +6280,10 @@ const DRAG_THIRST_AT = 0.5;   // pitched so the ramp passes through 0.85 at
                               // same crab errand hours. Under the 25% gate,
                               // documented in the scenario, and this is the
                               // knob if it ever climbs past it.)
-const DRAG_MAX = 0.25;        // each need, at a pinned 1.00
-const DRAG_FLOOR = 0.70;      // the two TOGETHER can never go below this
+// DRAG_MAX is 0.25 per need at a pinned 1.00 - authored as the exact Q12
+// 1024/4096 inside _dragRampQ12, so there is no float twin to drift from it.
+// DRAG_FLOOR is 0.70 - the two together can never go below it - and lives as
+// DRAG_FLOOR_Q12 beside the ramp.
 // ...and the ONE exemption, which is THE SELF-HEALING RULE read straight: the
 // way out of a deficiency costs TIME, but it can never be closed off. A crab
 // is not slowed on the walk to the very thing that would fix it - the trudge
@@ -5923,19 +6295,29 @@ const DRAG_FLOOR = 0.70;      // the two TOGETHER can never go below this
 // reach free water 100px away. It also makes the fix LEGIBLE - the moment a
 // starving crab decides to eat, it picks its feet up.)
 function selfCareNeed(c) {
-  if (c.dayState === "atTap") return c.tapStop ? c.tapStop.need : null;
-  if (c.dayState === "selfCook") return c.cookNeed || "food";
-  if ((c.dayState === "toErrand" || c.dayState === "errand") && c.errand) return c.errand.need;
+  if (c.dsC === DS.atTap) return c.tapStop ? c.tapStop.need : null;
+  if (c.dsC === DS.selfCook) return c.cookNeed || "food";
+  if ((c.dsC === DS.toErrand || c.dsC === DS.errand) && c.errand) return c.errand.need;
   return null;
 }
 // The ramp lived as a per-call closure and profiled at 1% by itself; same
-// float ops in the same order, now allocated once.
-const _dragRamp = (v, at, off) => off ? 1 : 1 - DRAG_MAX * Math.min(1, Math.max(0, (v - at) / (1 - at)));
-function needDrag(c) {
-  if (_fNoDrag) return 1;   // paired-arm probe (see the anti-spiral suite gate)
+// shape in the same order, now in Q12 (4096 = x1.00) so the whole speed
+// chain folds in integers. DRAG_MAX 0.25 is exactly 1024/4096; each ramp
+// floors its own term (slice 4).
+const _dragRampQ12 = (v, at, off) => {
+  if (off) return 4096;
+  const over = Math.min(Q20 - at, Math.max(0, v - at));
+  return 4096 - idiv(over * 1024, Q20 - at);
+};
+// 0.70 lands between Q12 grains: 2867/4096 = 0.699951, the nearest (-0.007%,
+// the slice-3 two-column discipline - floor would be 2867 here too)
+const DRAG_FLOOR_Q12 = 2867;
+function needDragQ12(c) {
+  if (_fNoDrag) return 4096;   // paired-arm probe (see the anti-spiral suite gate)
   const fixing = _fNoCare ? null : selfCareNeed(c);
-  return Math.max(DRAG_FLOOR, _dragRamp(c.p.hunger || 0, DRAG_HUNGER_AT, fixing === "food")
-    * _dragRamp(c.p.thirst || 0, DRAG_THIRST_AT, fixing === "drink"));
+  return Math.max(DRAG_FLOOR_Q12, idiv(
+    _dragRampQ12(c.p.hunger || 0, DRAG_HUNGER_AT, fixing === "food")
+    * _dragRampQ12(c.p.thirst || 0, DRAG_THIRST_AT, fixing === "drink"), 4096));
 }
 // HEAT SHIMMER (the doc's T2, shipped as the cheap visual companion it was
 // pitched as): a parched crab does not walk uniformly slow, it LURCHES -
@@ -5943,16 +6325,126 @@ function needDrag(c) {
 // so it costs nothing mechanically: the ramp above is the whole penalty.
 // It never reaches zero either, so a panting crab still counts as a MOVER to
 // collide() and still clears the no-progress watchdog's 2px in 1.5s.
-const SHIMMER_AT = 0.6, SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;
-function heatShimmer(c) {
-  if (_fNoShim) return 1;
-  const f = Math.min(1, Math.max(0, ((c.p.thirst || 0) - SHIMMER_AT) / (1 - SHIMMER_AT)));
-  return f <= 0 ? 1 : 1 + SHIMMER_AMP * f * Math.sin(time * SHIMMER_HZ + c.animT * 6.3);
+const SHIMMER_AT = qn(0.6);   // the need level where the lurch begins
+// SHIMMER_AMP is 0.5 - authored as the exact shift num/2^16 in the factor
+// below; SHIMMER_HZ 4.0 became the BAM stride when slice 2 integerized the
+// phase. Neither survives as a float const a tuner could turn without
+// touching the arithmetic that owns it.
+// The phase is a BAM16 integer now (65,536 = one turn) walked off the master
+// tick, not a float second: 2048 a tick is 1/32 of a turn, so the orbit closes
+// in exactly 32 ticks and an odd-symmetric wave over it sums to exactly zero.
+// That is what makes the "mean-preserving by construction" claim above LITERAL
+// - a panting crab loses nothing on average, by arithmetic rather than by
+// hope. The period moves 1.5708s -> 1.6s (+1.9%) to buy that, which is the one
+// deliberate curve change in this slice; the sine itself waits for slice 4.
+const SHIMMER_STRIDE = 2048;
+const BAM_RAD = Math.PI * 2 / 65536;
+// The sine itself (slice 4): a baked Q15 quarter wave - generated and
+// receipted by tools/gen-luts.mjs --sin / --test-sin - reconstructed to the
+// full 4096-entry cycle by mirror and sign, so sin(i + half turn) === -sin(i)
+// EXACTLY, by construction rather than by rounding luck. The last
+// implementation-approximated function leaves the sim with it.
+const SIN_QW_Q15 = [
+  0, 50, 101, 151, 201, 251, 302, 352, 402, 452, 503, 553, 603, 653, 704, 754,
+  804, 854, 905, 955, 1005, 1055, 1106, 1156, 1206, 1256, 1307, 1357, 1407, 1457, 1507, 1558,
+  1608, 1658, 1708, 1758, 1809, 1859, 1909, 1959, 2009, 2059, 2110, 2160, 2210, 2260, 2310, 2360,
+  2410, 2461, 2511, 2561, 2611, 2661, 2711, 2761, 2811, 2861, 2911, 2962, 3012, 3062, 3112, 3162,
+  3212, 3262, 3312, 3362, 3412, 3462, 3512, 3562, 3612, 3662, 3712, 3761, 3811, 3861, 3911, 3961,
+  4011, 4061, 4111, 4161, 4210, 4260, 4310, 4360, 4410, 4460, 4509, 4559, 4609, 4659, 4708, 4758,
+  4808, 4858, 4907, 4957, 5007, 5056, 5106, 5156, 5205, 5255, 5305, 5354, 5404, 5453, 5503, 5552,
+  5602, 5651, 5701, 5750, 5800, 5849, 5899, 5948, 5998, 6047, 6096, 6146, 6195, 6245, 6294, 6343,
+  6393, 6442, 6491, 6540, 6590, 6639, 6688, 6737, 6786, 6836, 6885, 6934, 6983, 7032, 7081, 7130,
+  7179, 7228, 7277, 7326, 7375, 7424, 7473, 7522, 7571, 7620, 7669, 7718, 7767, 7815, 7864, 7913,
+  7962, 8010, 8059, 8108, 8157, 8205, 8254, 8303, 8351, 8400, 8448, 8497, 8545, 8594, 8642, 8691,
+  8739, 8788, 8836, 8885, 8933, 8981, 9030, 9078, 9126, 9175, 9223, 9271, 9319, 9367, 9416, 9464,
+  9512, 9560, 9608, 9656, 9704, 9752, 9800, 9848, 9896, 9944, 9992, 10039, 10087, 10135, 10183, 10231,
+  10278, 10326, 10374, 10421, 10469, 10517, 10564, 10612, 10659, 10707, 10754, 10802, 10849, 10897, 10944, 10992,
+  11039, 11086, 11133, 11181, 11228, 11275, 11322, 11370, 11417, 11464, 11511, 11558, 11605, 11652, 11699, 11746,
+  11793, 11840, 11886, 11933, 11980, 12027, 12074, 12120, 12167, 12214, 12260, 12307, 12353, 12400, 12446, 12493,
+  12539, 12586, 12632, 12679, 12725, 12771, 12817, 12864, 12910, 12956, 13002, 13048, 13094, 13141, 13187, 13233,
+  13279, 13324, 13370, 13416, 13462, 13508, 13554, 13599, 13645, 13691, 13736, 13782, 13828, 13873, 13919, 13964,
+  14010, 14055, 14101, 14146, 14191, 14236, 14282, 14327, 14372, 14417, 14462, 14507, 14553, 14598, 14643, 14688,
+  14732, 14777, 14822, 14867, 14912, 14956, 15001, 15046, 15090, 15135, 15180, 15224, 15269, 15313, 15358, 15402,
+  15446, 15491, 15535, 15579, 15623, 15667, 15712, 15756, 15800, 15844, 15888, 15932, 15976, 16019, 16063, 16107,
+  16151, 16195, 16238, 16282, 16325, 16369, 16413, 16456, 16499, 16543, 16586, 16630, 16673, 16716, 16759, 16802,
+  16846, 16889, 16932, 16975, 17018, 17061, 17104, 17146, 17189, 17232, 17275, 17317, 17360, 17403, 17445, 17488,
+  17530, 17573, 17615, 17657, 17700, 17742, 17784, 17827, 17869, 17911, 17953, 17995, 18037, 18079, 18121, 18163,
+  18204, 18246, 18288, 18330, 18371, 18413, 18454, 18496, 18537, 18579, 18620, 18661, 18703, 18744, 18785, 18826,
+  18868, 18909, 18950, 18991, 19032, 19072, 19113, 19154, 19195, 19236, 19276, 19317, 19357, 19398, 19438, 19479,
+  19519, 19560, 19600, 19640, 19680, 19721, 19761, 19801, 19841, 19881, 19921, 19961, 20000, 20040, 20080, 20120,
+  20159, 20199, 20238, 20278, 20317, 20357, 20396, 20436, 20475, 20514, 20553, 20592, 20631, 20670, 20709, 20748,
+  20787, 20826, 20865, 20904, 20942, 20981, 21019, 21058, 21096, 21135, 21173, 21212, 21250, 21288, 21326, 21364,
+  21403, 21441, 21479, 21516, 21554, 21592, 21630, 21668, 21705, 21743, 21781, 21818, 21856, 21893, 21930, 21968,
+  22005, 22042, 22079, 22116, 22154, 22191, 22227, 22264, 22301, 22338, 22375, 22411, 22448, 22485, 22521, 22558,
+  22594, 22631, 22667, 22703, 22739, 22776, 22812, 22848, 22884, 22920, 22956, 22991, 23027, 23063, 23099, 23134,
+  23170, 23205, 23241, 23276, 23311, 23347, 23382, 23417, 23452, 23487, 23522, 23557, 23592, 23627, 23662, 23697,
+  23731, 23766, 23801, 23835, 23870, 23904, 23938, 23973, 24007, 24041, 24075, 24109, 24143, 24177, 24211, 24245,
+  24279, 24312, 24346, 24380, 24413, 24447, 24480, 24514, 24547, 24580, 24613, 24647, 24680, 24713, 24746, 24779,
+  24811, 24844, 24877, 24910, 24942, 24975, 25007, 25040, 25072, 25105, 25137, 25169, 25201, 25233, 25265, 25297,
+  25329, 25361, 25393, 25425, 25456, 25488, 25519, 25551, 25582, 25614, 25645, 25676, 25708, 25739, 25770, 25801,
+  25832, 25863, 25893, 25924, 25955, 25986, 26016, 26047, 26077, 26108, 26138, 26168, 26198, 26229, 26259, 26289,
+  26319, 26349, 26378, 26408, 26438, 26468, 26497, 26527, 26556, 26586, 26615, 26644, 26674, 26703, 26732, 26761,
+  26790, 26819, 26848, 26876, 26905, 26934, 26962, 26991, 27019, 27048, 27076, 27104, 27133, 27161, 27189, 27217,
+  27245, 27273, 27300, 27328, 27356, 27384, 27411, 27439, 27466, 27493, 27521, 27548, 27575, 27602, 27629, 27656,
+  27683, 27710, 27737, 27764, 27790, 27817, 27843, 27870, 27896, 27923, 27949, 27975, 28001, 28027, 28053, 28079,
+  28105, 28131, 28157, 28182, 28208, 28234, 28259, 28284, 28310, 28335, 28360, 28385, 28411, 28436, 28460, 28485,
+  28510, 28535, 28560, 28584, 28609, 28633, 28658, 28682, 28706, 28730, 28755, 28779, 28803, 28827, 28850, 28874,
+  28898, 28922, 28945, 28969, 28992, 29016, 29039, 29062, 29085, 29108, 29131, 29154, 29177, 29200, 29223, 29246,
+  29268, 29291, 29313, 29336, 29358, 29380, 29403, 29425, 29447, 29469, 29491, 29513, 29534, 29556, 29578, 29599,
+  29621, 29642, 29664, 29685, 29706, 29728, 29749, 29770, 29791, 29812, 29832, 29853, 29874, 29894, 29915, 29936,
+  29956, 29976, 29997, 30017, 30037, 30057, 30077, 30097, 30117, 30136, 30156, 30176, 30195, 30215, 30234, 30253,
+  30273, 30292, 30311, 30330, 30349, 30368, 30387, 30406, 30424, 30443, 30462, 30480, 30498, 30517, 30535, 30553,
+  30571, 30589, 30607, 30625, 30643, 30661, 30679, 30696, 30714, 30731, 30749, 30766, 30783, 30800, 30818, 30835,
+  30852, 30868, 30885, 30902, 30919, 30935, 30952, 30968, 30985, 31001, 31017, 31033, 31050, 31066, 31082, 31097,
+  31113, 31129, 31145, 31160, 31176, 31191, 31206, 31222, 31237, 31252, 31267, 31282, 31297, 31312, 31327, 31341,
+  31356, 31371, 31385, 31400, 31414, 31428, 31442, 31456, 31470, 31484, 31498, 31512, 31526, 31539, 31553, 31567,
+  31580, 31593, 31607, 31620, 31633, 31646, 31659, 31672, 31685, 31698, 31710, 31723, 31736, 31748, 31760, 31773,
+  31785, 31797, 31809, 31821, 31833, 31845, 31857, 31869, 31880, 31892, 31903, 31915, 31926, 31937, 31949, 31960,
+  31971, 31982, 31993, 32004, 32014, 32025, 32036, 32046, 32057, 32067, 32077, 32087, 32098, 32108, 32118, 32128,
+  32137, 32147, 32157, 32166, 32176, 32185, 32195, 32204, 32213, 32223, 32232, 32241, 32250, 32258, 32267, 32276,
+  32285, 32293, 32302, 32310, 32318, 32327, 32335, 32343, 32351, 32359, 32367, 32375, 32382, 32390, 32397, 32405,
+  32412, 32420, 32427, 32434, 32441, 32448, 32455, 32462, 32469, 32476, 32482, 32489, 32495, 32502, 32508, 32514,
+  32521, 32527, 32533, 32539, 32545, 32550, 32556, 32562, 32567, 32573, 32578, 32584, 32589, 32594, 32599, 32604,
+  32609, 32614, 32619, 32624, 32628, 32633, 32637, 32642, 32646, 32650, 32655, 32659, 32663, 32667, 32671, 32674,
+  32678, 32682, 32685, 32689, 32692, 32696, 32699, 32702, 32705, 32708, 32711, 32714, 32717, 32720, 32722, 32725,
+  32728, 32730, 32732, 32735, 32737, 32739, 32741, 32743, 32745, 32747, 32748, 32750, 32752, 32753, 32755, 32756,
+  32757, 32758, 32759, 32760, 32761, 32762, 32763, 32764, 32765, 32765, 32766, 32766, 32766, 32767, 32767, 32767,
+  32767,
+];
+function sinQ15(i) {
+  const q = i & 1023, quad = (i >> 10) & 3;
+  return quad === 0 ? SIN_QW_Q15[q] : quad === 1 ? SIN_QW_Q15[1024 - q]
+       : quad === 2 ? -SIN_QW_Q15[q] : -SIN_QW_Q15[1024 - q];
 }
-function crabMove(c) {
-  const t = TRAITS[c.p.trait];
-  return 40 * t.move * (1 - 0.2 * Math.max(0, (c.p.bored || 0) - 0.5)) * (c.p.sick ? 0.5 : 1)
-    * needDrag(c) * heatShimmer(c);
+function heatShimmerQ12(c) {
+  if (_fNoShim) return 4096;
+  const th = c.p.thirst || 0;
+  if (th <= SHIMMER_AT) return 4096;
+  const f = Math.min(4096, idiv((th - SHIMMER_AT) * 4096, Q20 - SHIMMER_AT));
+  if (c.shimPh == null) c.shimPh = Math.round(animTOf(c) * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
+  const s = sinQ15(((T * SHIMMER_STRIDE + c.shimPh) & 0xFFFF) >> 4);
+  // 0.5 * (f/4096) * (s/32768) in Q12 is f*s/65536 - and it TRUNCATES, not
+  // floors: trunc is odd where floor is not, so the 32-tick orbit's paired
+  // samples cancel exactly and the mean factor is 4096 ON THE NOSE. That is
+  // the "mean-preserving by construction" receipt, proved in gen-luts
+  // --test-sin over every phase class and a spread of f.
+  const num = f * s;
+  return 4096 + (num < 0 ? -1 : 1) * Math.floor(Math.abs(num) / 65536);
+}
+// A speed is an int Q8 px/s (slice 4). The chain folds base -> bored ->
+// sick -> drag -> shimmer in that documented order, flooring each fold -
+// the float version was one order-free product, so the fold order is now
+// behavior and this comment is its record.
+const MOVE_Q8 = {};
+for (const k of Object.keys(TRAITS)) MOVE_Q8[k] = Math.round(40 * TRAITS[k].move * Q8);
+function crabMoveQ8(c) {
+  let v = MOVE_Q8[c.p.trait];
+  const over = Math.max(0, (c.p.bored || 0) - qn(0.5));
+  v -= idiv(v * over, 5 * Q20);                    // 1 - 0.2*(over/Q20), 0.2 = 1/5
+  if (c.p.sick) v = idiv(v, 2);
+  v = idiv(v * needDragQ12(c), 4096);
+  v = idiv(v * heatShimmerQ12(c), 4096);
+  return v;
 }
 function crabWork(c) { return TRAITS[c.p.trait].work; }
 // needs -> output: a well-kept crab works at 1.0. Let hunger or dirt slide
@@ -5962,10 +6454,13 @@ function crabWork(c) { return TRAITS[c.p.trait].work; }
 // "needs bite" scenario in tools/suite.mjs before touching these numbers.
 // (Fishing casts deliberately NOT coupled: the whole town eats the catch,
 // and any measurable drag there re-tilts the calibrated economy.)
-function crabEff(c) {
-  const hungry = Math.max(0, (c.p.hunger || 0) - 0.3) / 0.7;
-  const grubby = Math.max(0, (c.p.dirt || 0) - 0.6) / 0.4;
-  return 1 - 0.18 * Math.min(1, hungry) - 0.06 * Math.min(1, grubby);
+function crabEffQ12(c) {
+  // the two ramps, in Q20. Each is a fraction of its own span (0.7 of the
+  // hunger bar, 0.4 of the dirt bar) and each clamps at the top of it.
+  // Output in Q12: 0.18 = 9/50 and 0.06 = 3/50 exactly, floored per term.
+  const hungry = Math.min(Q20, idiv(Math.max(0, (c.p.hunger || 0) - qn(0.3)) * Q20, qn(0.7)));
+  const grubby = Math.min(Q20, idiv(Math.max(0, (c.p.dirt || 0) - qn(0.6)) * Q20, qn(0.4)));
+  return 4096 - idiv(hungry * 9 * 4096, 50 * Q20) - idiv(grubby * 3 * 4096, 50 * Q20);
 }
 // ---- THE WIDE BERTH (design doc D1, Matt's pick): dirt is the town's one
 // SOCIAL need, so it fails socially. A filthy crab's personal space inflates -
@@ -5974,13 +6469,15 @@ function crabEff(c) {
 // a bubble of empty boardwalk that follows one crab around.
 // (The doc's D2, the smudge trail, is deliberately NOT built - the doc holds
 // it back until dirt is reliably serviceable and the owner did not pick it.)
-const BERTH_AT = 0.6;     // where the bubble starts to open (= crabEff's dirt line)
+const BERTH_AT = qn(0.6);     // where the bubble starts to open (= crabEff's dirt line)
 const BERTH_PX = 10;      // full bubble at dirt 1.00: 12px personal space -> 22px
-const SHUN_AT = 0.8;      // a tourist takes the FAR table - binary, and pitched
+const SHUN_AT = qn(0.8);      // a tourist takes the FAR table - binary, and pitched
                           // high on purpose so seating does not churn on a 0.61
-const PATIENCE_FILTH = 0.3;   // up to +30% patience drain from a filthy server
-function crabBerth(c) {
-  return BERTH_PX * Math.min(1, Math.max(0, ((c.p.dirt || 0) - BERTH_AT) / (1 - BERTH_AT)));
+const PATIENCE_FILTH = 0.3;   // up to +30% patience drain from a filthy server (read as 3/10 by serverFilthQ12)
+const PQ = 4096;              // patience grain (slice 5): int Q12 author-seconds, the countdown's own unit
+function crabBerthQ8(c) {   // -> int Q8 px: the bubble's extra radius
+  const over = Math.min(Q20 - BERTH_AT, Math.max(0, (c.p.dirt || 0) - BERTH_AT));
+  return idiv(BERTH_PX * Q8 * over, Q20 - BERTH_AT);
 }
 
 // ---------------------------------------------------------------- sound (from CS1)
@@ -6048,7 +6545,7 @@ function pickTrack() {
       if (t.role || i === trackIdx) continue;
       if (Math.abs((t.e == null ? 1 : t.e) - want) === d) pool.push(i);
     }
-    if (pool.length) return pool[(srand() * pool.length) | 0];
+    if (pool.length) return pool[(vrand() * pool.length) | 0];   // music is view: the shuffle never advances the sim stream
   }
   return trackIdx;
 }
@@ -6126,19 +6623,19 @@ function popText(txt, x, y, color) {
 function $d(c) { return Math.round(c / 100); }
 function earn(amt, x, y) {
   coins += amt; lifetime += amt;
-  earnHist.push({ t: time, amt });
+  earnHist.push({ t: T, amt });
   popText("+$" + $d(amt), x, y, [255, 230, 120]);
   sfx.coin();
 }
 function expense(amt, x, y, label) {
   coins -= amt;
-  earnHist.push({ t: time, amt: -amt });   // income rate is net
+  earnHist.push({ t: T, amt: -amt });   // income rate is net
   popText("-$" + $d(amt) + (label ? " " + label : ""), x, y, [255, 120, 120]);
 }
 function incomeRate() {
-  while (earnHist.length && earnHist[0].t < time - 60) earnHist.shift();
+  while (earnHist.length && earnHist[0].t < T - 60 * TICK_HZ) earnHist.shift();
   if (!earnHist.length) return 0;
-  return earnHist.reduce((s, e) => s + e.amt, 0) / Math.max(10, time - earnHist[0].t);
+  return earnHist.reduce((s, e) => s + e.amt, 0) / Math.max(10, (T - earnHist[0].t) / TICK_HZ);
 }
 
 // ---------------------------------------------------------------- save
@@ -6154,7 +6651,7 @@ const SAVE_KEY = "crabshack3_v1";        // the legacy single-slot key: migratio
 // 2 = the cents era (numeric slice 1). A cents save read by a pre-cents build
 // would inflate every balance a hundredfold; that build's own "FROM A NEWER
 // CRAB SHACK" gate is exactly the refusal needed, so the bump IS the guard.
-const SAVE_VER = 2;
+const SAVE_VER = 3;
 const SLOTS = 5;
 const ACTIVE_KEY = SAVE_KEY + "_active";
 function slotKey(i) { return SAVE_KEY + "_s" + i; }
@@ -6166,8 +6663,33 @@ let activeSlot = 1;                      // autosave goes here; persisted in ACT
 // directly (the harness seeds the context's Math, which this delegates to).
 // It exists so slice 5 can split browser-only draws to a view stream without
 // hunting 93 call sites twice, and so a future backend can inject its own
-// integer generator at exactly one door. Do not add a second tap.
-function srand() { return Math.random(); }
+// integer generator at exactly one door.
+//
+// SLICE 5 lands that split. srand() is still the sim's only door, but the
+// door now has a swappable tap: the title screen re-enters real sim code
+// (updateBus, maybeQuip, the attract wander) as view-side theatre, and for
+// the length of that block the tap points at the VIEW stream below - so the
+// SIM stream's draw order is a closed sequence that browser-only theatre can
+// never advance. Headless never runs the title, so headless is byte-identical
+// by construction; that is the slice's gate, and the draw-count pin scenario
+// is its standing tripwire. One deliberate exception, part of the frozen
+// stream's spec: trackIdx's load-time draw below DOES execute headless and
+// stays on the sim stream - moving it would shift every draw after it.
+function srand() { return _rtap ? _rtap() : Math.random(); }   // var + fallback: module-eval draws (trackIdx) fire before initializers run
+var _rtap = null;   // null = the default sim stream (the context's Math.random, harness-seeded)
+// THE VIEW STREAM - its own mulberry32, fixed seed: cosmetic draws (title
+// wander, music shuffle) land here. Fixed on purpose - attract mode repeating
+// each boot is tradition, and a deterministic view stream stays testable.
+let _vs = 0x5eed3^0;
+function vrand() {
+  _vs = (_vs + 0x6D2B79F5) | 0;
+  let t = _vs;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+// run a view-side block on the view stream, whatever it re-enters
+function onViewStream(fn) { const keep = _rtap; _rtap = vrand; try { fn(); } finally { _rtap = keep || null; } }
 
 const FRESH = location.search.includes("fresh");
 const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 1])[1]) || 1);
@@ -6435,7 +6957,7 @@ function slotMeta(s) {
   const housed = (Array.isArray(s.personas) ? s.personas : [])
     .filter(p => p && !p.homeless).length;
   return { ver: SAVE_VER, day: d, weekday: WEEKDAYS[weekdayIdx(d)], won: !!s.won,
-    coins: Math.round(cx * (s.coins || 0)), rep: Math.round(s.rep != null ? s.rep : 30),
+    coins: Math.round(cx * (s.coins || 0)), rep: (s._num >= 5 ? repPts(s.rep != null ? s.rep : 30000) : Math.round(s.rep != null ? s.rep : 30)),
     pop: crew.length + npcN, crew, t: s.t || 0,
     debt: Math.round(cx * ((s.credit && s.credit.bal) || 0)),
     owned: owned.map(b => BIZ[b].short), nightly: rentDue + crewWages,
@@ -6504,8 +7026,8 @@ function save() {
     // THE CENTS ERA (numeric slice 1). Every money field in this envelope is
     // integer cents; an envelope without this flag is float dollars and gets
     // the one-shot migration in load(). Staged counter, per the protocol:
-    // 2 will be ticks, 3 Q-needs, 4 Q-positions.
-    _num: 1,
+    // 2 is ticks, 3 Q-needs, 4 Q-positions (the grain).
+    _num: 5,
     // THE GRIDS (slice 1b): tipShare rides as int TWENTIETHS and price as the
     // int board INDEX. Both used to be float fractions whose ranges overlap
     // the new integers (a tipShare of 1 is 100% in the old units and 5% in the
@@ -6624,6 +7146,58 @@ function save() {
 }
 let sudsRefunded = false;   // laundromat-removal migration: refund paid out (persisted)
 let firstPour = false;      // the juice bar's first-ever drink (persisted: one headline per town)
+// NUMERIC SLICE 2 (ticks): every persisted clock crosses to the tick grain.
+// tmin is stored in whole game minutes and STAYS there - it is the domain's
+// own unit and the tick of day is rebuilt from it exactly (5 ticks a minute).
+// NUMERIC SLICE 3 (needs). Every 0..1 need scales to Q20 HERE, on the parsed
+// envelope, before hydration - the same staged shape cents and ticks used. A
+// float-era save walks all three steps in order.
+function needsEnvelope(s) {
+  const q = (v) => (typeof v === "number" && isFinite(v) ? Math.round(Math.max(0, Math.min(1, v)) * Q20) : v);
+  for (const p of s.personas || []) {
+    // `sandy` is the pre-thirst name for tired and hydrates into it, so it
+    // crosses on this stage too - or a legacy town wakes up at 1e-6 tired.
+    for (const k of ["hunger", "thirst", "dirt", "bored", "tired", "sandy"]) if (p[k] != null) p[k] = q(p[k]);
+  }
+  for (const p of ((s.npc || {}).personas || [])) {
+    for (const k of ["hunger", "thirst", "dirt", "bored", "tired", "sandy"]) if (p[k] != null) p[k] = q(p[k]);
+  }
+  for (const v of s.visitors || []) {
+    for (const k of ["hu", "th", "di", "bo", "ti"]) if (v[k] != null) v[k] = q(v[k]);
+  }
+  s._num = 3;
+}
+// NUMERIC SLICE 4 (the grain). Positions were always WRITTEN rounded, so for
+// every honest envelope this stage is a proof, not a change: rounding an int
+// to the Q8 grain is the identity. It exists so a hand-edited or dev-era
+// float slips onto the grain instead of poisoning the movement kernels.
+function gridEnvelope(s) {
+  const g = (v) => Math.round((+v || 0) * Q8) / Q8;
+  for (const v of s.visitors || []) { if (v.x != null) v.x = g(v.x); if (v.y != null) v.y = g(v.y); }
+  s._num = 4;
+}
+// NUMERIC SLICE 5 (milli-rep). Word of mouth crosses to an int count of
+// millirep, 0..100,000 - milli, not deci, because the nightly relaxation's
+// floor makes a deadband at the grain, and at milli it is 0.017 rep where
+// deci's was 1.6 (formats doc, the rep row). Round-half-up at the boundary.
+function repEnvelope(s) {
+  if (typeof s.rep === "number" && isFinite(s.rep)) s.rep = Math.round(Math.max(0, Math.min(100, s.rep)) * 1000);
+  s._num = 5;
+}
+// a need off the wire: already Q20 in this era, clamped to the bar
+const needIn = (v) => Math.max(0, Math.min(Q20, Math.round(+v || 0)));
+
+function ticksEnvelope(s) {
+  const M = 5, H = 300;   // ticks per game minute / per game hour
+  if (s.ferry) s.ferry.t = Math.round((+s.ferry.t || 0) * M);
+  for (const p of s.personas || []) {
+    if (p.restT) p.restT = Math.round(p.restT * H);
+    if (p.otMin) p.otMin = Math.round(p.otMin * M);
+  }
+  for (const st of (s.stays || [])) if (st.mi != null && st.mi < 99999) st.mi = Math.round(st.mi * M);
+  s._num = 2;   // ...and the needs stage runs next: each envelope stamps its OWN rung
+}
+
 // NUMERIC SLICE 1 (cents), stage one of two. An envelope without `_num` is a
 // float-dollar town: every money field is scaled to cents HERE, on the parsed
 // envelope, BEFORE hydration - so every clamp downstream reads the unit it
@@ -6685,8 +7259,17 @@ function load(slot) {
   if (!Array.isArray(s.personas) || !s.personas.length) return false;   // reject before touching state
   const preCents = !s._num;
   if (preCents) centsEnvelope(s);
+  // NUMERIC SLICE 2 (ticks). The four persisted clocks were hours, game
+  // minutes and game minutes; they are tick counts now. Staged on the same
+  // `_num` counter slice 1 built, so a float-era save walks both steps.
+  if (!s._num || s._num < 2) ticksEnvelope(s);
+  if (!s._num || s._num < 3) needsEnvelope(s);
+  if (!s._num || s._num < 4) gridEnvelope(s);
+  if (!s._num || s._num < 5) repEnvelope(s);
   coins = s.coins || 0; lifetime = s.lifetime || 0;
-  day = s.day || 1; tmin = s.tmin != null ? s.tmin : 7 * 60;
+  day = s.day || 1;
+  tday = Math.max(0, Math.min(DAY_TICKS - 1, Math.round((s.tmin != null ? s.tmin : 7 * 60) * TICK_MIN)));
+  reclock(); mistRoll();
   // an old save has no midnight mark: open the day here rather than pretend
   // the town has earned nothing, which would read as a huge false loss
   dayOpen = typeof s.dayOpen === "number" ? s.dayOpen : coins;
@@ -7058,16 +7641,16 @@ function load(slot) {
       s.sandWhy = ["broke", "shut", "unmade", "full"].indexOf(st.sw) >= 0 ? st.sw : null;
     }
     for (const [key, sk] of [["hunger", "hu"], ["thirst", "th"], ["dirt", "di"], ["bored", "bo"], ["tired", "ti"]])
-      k[key] = Math.max(0, Math.min(1, +v[sk] || 0));
+      k[key] = needIn(v[sk]);
     k.log = Array.isArray(v.log) ? v.log.filter(e => Array.isArray(e) && e.length >= 4
       && typeof e[3] === "string").slice(-VIS_LOG_MAX)
       .map(e => [+e[0] || 1, +e[1] || 0, LOG_CATS[e[2]] ? e[2] : "life", e[3].slice(0, LOG_TEXT)]) : [];
     const ri = +v.rm;
     const rooms = hotelRooms();
     if (ri >= 0 && rooms[ri] && !rooms[ri].occupant) { k.room = rooms[ri]; rooms[ri].occupant = k; k.roomN = ri + 1; }
-    else if (k.state === "inRoom" || k.state === "toRoom") k.state = "roam";
-    if (k.state === "onSand") { k.rough = true; k.roughFlag = true; }
-    k.spawnX = k.x; k.y = k.wy; k.biz = null; k.recipe = null;
+    else if (k.stC === VS.inRoom || k.stC === VS.toRoom) k.stC = VS.roam;
+    if (k.stC === VS.onSand) { k.rough = true; k.roughFlag = true; }
+    k.spawnXQ = Math.round(k.x * Q8); k.y = k.wy; k.biz = null; k.recipe = null;
     customers.push(k);
   }
   if (s.ferry) {
@@ -7197,15 +7780,15 @@ function commitImport(i) {
 
 // ---------------------------------------------------------------- quips
 function quipContext(c) {
-  if (c.dayState === "working") return "work";
-  if (c.dayState === "home") return "home";
+  if (c.dsC === DS.working) return "work";
+  if (c.dsC === DS.home) return "home";
   return "commute";
 }
 function maybeQuip(c, dt) {
-  if (c.quip) { c.quip.t -= dt; if (c.quip.t <= 0) c.quip = null; }
-  c.quipT -= dt;
+  if (c.quip) { c.quip.t -= dtT; if (c.quip.t <= 0) c.quip = null; }
+  c.quipT -= dtT;
   if (c.quipT <= 0 && !c.hidden) {
-    const isNight = darkness() > 0.7 && c.dayState === "home";
+    const isNight = darkness() > 0.7 && c.dsC === DS.home;
     let lines = isNight ? ["ZZZ..."] : TRAITS[c.p.trait].quips[quipContext(c)];
     if (c.p.homeless && quipContext(c) === "home" && !isNight)
       lines = ["SAVING FOR A PLACE", "SHELTER SOUP AGAIN", "I'LL BOUNCE BACK"];
@@ -7215,12 +7798,12 @@ function maybeQuip(c, dt) {
       lines = ["THEY'LL COPE", "I NEEDED THIS", "NOT TODAY", "SOMEONE ELSE'S TURN"];
     if ((c.p.bored || 0) >= WANDER_AT && !isNight && !walkoutToday(c))
       lines = ["SAME OLD SAME OLD", "IS IT HOME TIME", "NOTHING EVER HAPPENS", "I'D KILL FOR AN ARCADE"];
-    if ((c.p.tired || 0) >= 0.8 && !isNight)
+    if ((c.p.tired || 0) >= qn(0.8) && !isNight)
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
-    if ((c.p.thirst || 0) >= 0.8 && !isNight)
+    if ((c.p.thirst || 0) >= qn(0.8) && !isNight)
       lines = ["PARCHED...", "SO DRY", "JUICE. PLEASE."];
-    c.quip = { text: lines[(srand() * lines.length) | 0], t: 2.6 };
-    c.quipT = 14 + srand() * 18;
+    c.quip = { text: lines[(srand() * lines.length) | 0], t: 2.6 * SEC };
+    c.quipT = 14 * SEC + ((srand() * 18 * SEC) | 0);
   }
 }
 
@@ -7262,17 +7845,36 @@ const FLOOR_MIN = 126, FLOOR_MAX = 168;
 const CAB_UP = 6, CAB_DN = 4;
 function furnUp(t) { return t.cabana ? CAB_UP : 9; }
 function furnDn(t) { return t.cabana ? CAB_DN : 6; }
+// THE STEP, in Q8 integers (slice 4). `speed` is int Q8 px/s; the dt
+// parameter is kept for its callers but the tick count dtT is the actual
+// clock (dt = dtT/20 is an inexact float; dtT is the exact truth). The
+// normalization is the contract's isqrt + one floor per component, toward
+// -inf - and the arrival radius 2.2px lands on the grain as 563/256.
+const ARRIVE_Q = Math.round(2.2 * Q8);   // 563
 function stepTo(c, tx, speed, dt, ty) {
-  if (ty == null) ty = c.ty != null ? c.ty : 160;
-  const dx = tx - c.x, dy = ty - c.y;
-  const d = Math.hypot(dx, dy);
-  if (d <= 2.2) { c.x = tx; c.y = ty; return true; }
-  if (Math.abs(dx) > 1) c.flip = dx < 0;
-  const step = Math.min(speed * dt, d);
-  c.x += dx / d * step;
-  c.y += dy / d * step;
+  // (6b) straight onto the pool: the stored grain IS the truth, so the px
+  // dance (x*Q8 ... /Q8) collapses into integer adds on PXQ/PYQ.
+  const i = c.si;
+  if (KERN) {   // the compiled body; the JS below stays the reference
+    const kr = KERN.exports.step_to(i, Math.round(tx * Q8),
+      ty == null ? PTYQ[i] : Math.round(ty * Q8), speed, dtT);
+    if (kr & 2) c.flip = !!(kr & 4);
+    if (kr & 1) return true;
+    c._stepped = true;
+    return false;
+  }
+  const txq = Math.round(tx * Q8), tyq = ty == null ? PTYQ[i] : Math.round(ty * Q8);
+  const dxq = txq - PXQ[i], dyq = tyq - PYQ[i];
+  const dsq = dxq * dxq + dyq * dyq;
+  if (dsq <= ARRIVE_Q * ARRIVE_Q) { PXQ[i] = txq; PYQ[i] = tyq; return true; }
+  if (dxq > Q8 || dxq < -Q8) c.flip = dxq < 0;
+  const dq = isqrt(dsq);
+  const stepq = Math.min(idiv(speed * dtT, TICK_HZ), dq);
+  PXQ[i] += tdiv(dxq * stepq, dq);
+  PYQ[i] += tdiv(dyq * stepq, dq);
   c._stepped = true;   // moved this frame (anchors are crabs that did not)
-  c._mx = tx;          // actual motion target this frame (collision uses this, not c.tx)
+  PMXQ[i] = txq;       // actual motion target this frame (collision uses this, not c.tx)
+  PMYQ[i] = tyq;       // ...and its y (slice 5: the mover-target exemption reads both)
   return false;
 }
 // THE WIDE BERTH, in the collider. Deliberately ASYMMETRIC and SIDEWAYS, and
@@ -7293,60 +7895,118 @@ function stepTo(c, tx, speed, dt, ty) {
 // have two body-widths, and this is a boardwalk read, not a bedroom one.
 // A crab standing in its station slot is exempt too - shoving a chef off the
 // grill is not "the town parts for him", it is a bug.
-function giveBerth(a, b, d, dt) {
-  const ra = crabBerth(a), rb = crabBerth(b);
+// (slice 4) `d5` is the ellipse distance in the 5x grid: 5*d in Q8, exact
+// from the collider's isqrt. Radii are Q8 ints; pushes floor to the grain.
+function giveBerth(a, b, d5, dt) {
+  const ra = crabBerthQ8(a), rb = crabBerthQ8(b);
   const r = Math.max(ra, rb);
-  if (r <= 0 || d >= 12 + r || window._noBerth) return;   // _noBerth: the paired-arm wedge probe
+  if (r <= 0 || d5 >= 5 * (12 * Q8 + r) || window._noBerth) return;   // _noBerth: the paired-arm wedge probe
   const dirty = ra >= rb ? a : b, clean = ra >= rb ? b : a;
   if (darkness() > 0.6) return;
-  if (dirty.dayState === "home" || clean.dayState === "home") return;
+  if (dirty.dsC === DS.home || clean.dsC === DS.home) return;
   if (clean.slotKind && clean.slot >= 0) return;
   let away = clean.y - dirty.y;
   if (Math.abs(away) < 1) away = (dirty.y - FLOOR_MIN < FLOOR_MAX - dirty.y) ? 1 : -1;
-  const push = Math.min((12 + r - d) * 0.5 * Math.min(1, dt * 12), 3);
-  clean.y = clampY(clean.y + Math.sign(away) * push);
+  const kq = Math.min(4096, idiv(12 * 4096 * dtT, TICK_HZ));   // min(1, dt*12) in Q12
+  const pushq = Math.min(idiv((5 * (12 * Q8 + r) - d5) * kq, 5 * 2 * 4096), 3 * Q8);
+  clean.y = clampY((clean.y * Q8 + Math.sign(away) * pushq) / Q8);
   // a crab who is STANDING there also steps BACK, which is what gives the
   // bubble its width. Only a still crab: it has no forward progress to lose,
   // so the no-progress watchdog can never read this as a pin (the same
   // still-vs-mover distinction the core collider already makes).
-  if (!clean._stepped) clean.x += Math.sign(clean.x - dirty.x || 1) * push;
+  if (!clean._stepped) clean.x = (clean.x * Q8 + Math.sign(clean.x - dirty.x || 1) * pushq) / Q8;
 }
 // soft-radius separation + station bodies: nobody stands inside anybody
 function collide(dt) {
   const bodies = [];
   for (const c of allCrabs()) {
     c._blocked = false;   // set again below by furniture deflections; read next frame
-    if (!c.hidden && c.cstate !== "drive" && !c.errandCust) bodies.push(c);
+    if (!c.hidden && c.csC !== CS.drive && !c.errandCust) bodies.push(c);
+  }
+  if (KERN) {   // the compiled pair loop; the JS below stays the reference.
+    // Marshal the per-body facts the kernel's gates read: pool index, the
+    // still/home/slot-exempt flags, and the berth radius. darkness() and
+    // _noBerth hoist to one flag each - both are pure reads.
+    for (let bi = 0; bi < bodies.length; bi++) {
+      const c = bodies[bi];
+      KB_SI[bi] = c.si;
+      KB_FLAGS[bi] = (c._stepped ? 1 : 0) | (c.dsC === DS.home ? 2 : 0)
+                   | (c.slotKind && c.slot >= 0 ? 4 : 0);
+      KB_BERTH[bi] = crabBerthQ8(c);
+    }
+    KERN.exports.collide_pairs(bodies.length, dtT,
+      darkness() > 0.6 ? 1 : 0, window._noBerth ? 1 : 0);
+    // ...and the solids: marshal the furniture and station rects (O(F), 60x
+    // cheaper than the O(F*B) deflection loops they feed) and let the kernel
+    // run both loops in the same order the JS below does.
+    let nf = 0, ns = 0;
+    for (const bizKey of BIZ_KEYS) {
+      if (!bizUnlocked(bizKey)) continue;
+      for (const t of bizFurniture(bizKey)) { KF_X[nf] = t.x; KF_Y[nf] = t.y; KF_CAB[nf] = t.cabana ? 1 : 0; nf++; }
+      const sts = BIZ[bizKey].stations;
+      for (const kind of Object.keys(sts))
+        for (let si2 = 0; si2 < sts[kind].length; si2++) { KS_X[ns] = sts[kind][si2].x; KS_Y[ns] = sts[kind][si2].y; ns++; }
+    }
+    for (let bi = 0; bi < bodies.length; bi++) KB_BLK[bi] = 0;
+    KERN.exports.collide_solids(bodies.length, nf, ns, dtT);
+    for (let bi = 0; bi < bodies.length; bi++) if (KB_BLK[bi]) bodies[bi]._blocked = true;
+    return;
   }
   for (let i = 0; i < bodies.length; i++)
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i], b = bodies[j];
-      const dx = b.x - a.x, dy = (b.y - a.y) * 1.8;   // wide sprites: ellipse
-      // far pair: hypot(dx,dy) >= max(|dx|,|dy|), and both consumers below
-      // want d < 12+BERTH_PX = 22, so a pair past 22 on either axis cannot
-      // touch anything - skip before paying for the sqrt. A pure skip: the
-      // survivors compute the identical hypot in the identical order.
-      if (dx > 22 || dx < -22 || dy > 22 || dy < -22) continue;
-      const d = Math.hypot(dx, dy);
-      if (d < 12 && d > 0.01) {
+      // (slice 4) the ellipse in integers: dy's x1.8 is exactly 9/5, so the
+      // pair lives in a 5x grid - A5 = 5*dx, B9 = 9*dy in Q8 - and the
+      // distance D5 = 5*d comes from one exact isqrt. Gates are squared
+      // compares; pushes floor to the grain, one floor per component.
+      const ia = a.si, ib = b.si;
+      const dxq = PXQ[ib] - PXQ[ia], dyq = PYQ[ib] - PYQ[ia];   // exact: grains
+      // far pair: past 22px on either ellipse axis nothing below can touch -
+      // skip before paying for the sqrt (22px is 5632 Q8; 1.8*|dy| > 22 is
+      // 9*|dyq| > 28160)
+      if (dxq > 5632 || dxq < -5632 || 9 * dyq > 140800 || 9 * dyq < -140800) continue;
+      const A5 = 5 * dxq, B9 = 9 * dyq;
+      const d5sq = A5 * A5 + B9 * B9;
+      // d > 0.01px is D5 > 12.8 i.e. d5sq >= 164; d < 12px is D5 < 15360
+      const touching = d5sq >= 164 && d5sq < 15360 * 15360;
+      const berthable = d5sq >= 164 && d5sq < 28160 * 28160;   // d < 12 + BERTH_PX
+      const d5 = (touching || berthable) ? isqrt(d5sq) : 0;
+      if (touching) {
         const still = (c) => !c._stepped;
         const aStill = still(a), bStill = still(b);
-        const push = Math.min((12 - d) / 2 * Math.min(1, dt * 12), 4);
-        const ux = dx / d, uy = dy / d / 1.8;
-        if (aStill && !bStill) { b.x += ux * push * 2; b.y = clampY(b.y + uy * push * 2); }
-        else if (bStill && !aStill) { a.x -= ux * push * 2; a.y = clampY(a.y - uy * push * 2); }
-        else if (Math.sign((a._mx != null ? a._mx : a.x) - a.x) !== Math.sign((b._mx != null ? b._mx : b.x) - b.x) && Math.abs(dx) > 2) {
+        const kq = Math.min(4096, idiv(12 * 4096 * dtT, TICK_HZ));   // min(1, dt*12) in Q12
+        const pushq = Math.min(idiv((15360 - d5) * kq, 5 * 2 * 4096), 4 * Q8);
+        // unit vector: ux = dx/d = 5*dxq/D5; uy = (1.8dy)/d/1.8 = 5*dyq/D5
+        const px2x = tdiv(5 * dxq * pushq * 2, d5), px2y = tdiv(5 * dyq * pushq * 2, d5);
+        // THE MOVER-TARGET EXEMPTION (slice 5, found by the freeze tripwire):
+        // a mover whose waypoint lies INSIDE a parked crab's touch ellipse
+        // used to be pushed out exactly as fast as it stepped in - a standoff
+        // that held a homeless crab 5px from her pier spot for 25 game-minutes
+        // (SANDY vs CLAWDIA's doorstep, seed 4242 day 4). The stations block
+        // below already grants "a crab headed for this exact spot may stand
+        // there"; this is the same grant for crab bodies: skip the push, let
+        // the arrival fire, and the waypoint advances next tick.
+        const atTargetQ = (mi, si2) => {
+          if (PMXQ[mi] === MNULL) return false;
+          const tA5 = 5 * (PMXQ[mi] - PXQ[si2]), tB9 = 9 * ((PMYQ[mi] === MNULL ? PYQ[mi] : PMYQ[mi]) - PYQ[si2]);
+          return tA5 * tA5 + tB9 * tB9 < 15360 * 15360;
+        };
+        const clampYQ = (q) => Math.max(FLOOR_MIN * Q8, Math.min(FLOOR_MAX * Q8, q));
+        if (aStill && !bStill) { if (!atTargetQ(ib, ia)) { PXQ[ib] += px2x; PYQ[ib] = clampYQ(PYQ[ib] + px2y); } }
+        else if (bStill && !aStill) { if (!atTargetQ(ia, ib)) { PXQ[ia] -= px2x; PYQ[ia] = clampYQ(PYQ[ia] - px2y); } }
+        else if (Math.sign((PMXQ[ia] === MNULL ? PXQ[ia] : PMXQ[ia]) - PXQ[ia]) !== Math.sign((PMXQ[ib] === MNULL ? PXQ[ib] : PMXQ[ib]) - PXQ[ib]) && (dxq > 512 || dxq < -512)) {
           // head-on: step around each other, not into each other
-          a.y = clampY(Math.max(FLOOR_MIN, a.y - push * 2));
-          b.y = clampY(b.y + push * 2);
-          if (b.y >= FLOOR_MAX - 0.5) b.y = clampY(b.y - push * 4);   // no room below: b passes above instead
+          PYQ[ia] = clampYQ(Math.max(FLOOR_MIN * Q8, PYQ[ia] - pushq * 2));
+          PYQ[ib] = clampYQ(PYQ[ib] + pushq * 2);
+          if (PYQ[ib] >= FLOOR_MAX * Q8 - 128) PYQ[ib] = clampYQ(PYQ[ib] - pushq * 4);   // no room below: b passes above instead
         }
         else {
-          a.x -= ux * push; a.y = clampY(a.y - uy * push);
-          b.x += ux * push; b.y = clampY(b.y + uy * push);
+          const p1x = tdiv(5 * dxq * pushq, d5), p1y = tdiv(5 * dyq * pushq, d5);
+          PXQ[ia] -= p1x; PYQ[ia] = clampYQ(PYQ[ia] - p1y);
+          PXQ[ib] += p1x; PYQ[ib] = clampYQ(PYQ[ib] + p1y);
         }
       }
-      if (d > 0.01 && d < 12 + BERTH_PX) giveBerth(a, b, d, dt);
+      if (berthable) giveBerth(a, b, d5, dt);
     }
   // solid tables: nobody walks through the picnic area
   for (const bizKey of BIZ_KEYS) {
@@ -7357,9 +8017,11 @@ function collide(dt) {
         if (Math.abs((c.tx || 0) - (t.x + 2)) < 8 && Math.abs((c.ty || 0) - (t.y + 12)) < 8) continue;
         const dx = c.x + 8 - (t.x + 10), dy = c.y - t.y;
         if (Math.abs(dx) < 14 && dy > -furnUp(t) && dy < furnDn(t)) {
-          const push = Math.min(95 * dt, 5);
-          if (Math.abs(dx) > Math.abs(dy) * 1.6) c.x += (dx > 0 ? 1 : -1) * push;
-          else c.y = clampY(c.y + (dy > -2 ? 1 : -1) * push);
+          const pushq = Math.min(idiv(95 * Q8 * dtT, TICK_HZ), 5 * Q8);
+          // 1.6 = 8/5 exactly: |dx| > 1.6|dy| in the grain is 5|dxq| > 8|dyq|
+          const dxq = Math.round(dx * Q8), dyq = Math.round(dy * Q8);
+          if (5 * Math.abs(dxq) > 8 * Math.abs(dyq)) c.x = (c.x * Q8 + (dxq > 0 ? 1 : -1) * pushq) / Q8;
+          else c.y = clampY((c.y * Q8 + (dyq > -2 * Q8 ? 1 : -1) * pushq) / Q8);
           c._blocked = true;   // furniture is in the way: the bounce budget ticks
         }
       }
@@ -7379,9 +8041,10 @@ function collide(dt) {
           const dx = c.x + 8 - cx, dy = c.y - st.y;
           if (Math.abs(dx) < 13 && dy > -10 && dy < 6) {
             // deflect briskly (faster than walk speed, so nobody grinds on a counter)
-            const push = Math.min(95 * dt, 5);   // stable at fast-forward
-            if (Math.abs(dx) > Math.abs(dy) * 1.6) c.x += (dx > 0 ? 1 : -1) * push;
-            else c.y = clampY(c.y + (dy > -2 ? 1 : -1) * push);
+            const pushq = Math.min(idiv(95 * Q8 * dtT, TICK_HZ), 5 * Q8);   // stable at fast-forward
+            const dxq = Math.round(dx * Q8), dyq = Math.round(dy * Q8);
+            if (5 * Math.abs(dxq) > 8 * Math.abs(dyq)) c.x = (c.x * Q8 + (dxq > 0 ? 1 : -1) * pushq) / Q8;
+            else c.y = clampY((c.y * Q8 + (dyq > -2 * Q8 ? 1 : -1) * pushq) / Q8);
             c._blocked = true;
           }
         }
@@ -7398,12 +8061,12 @@ function startCommute(c, toWork) {
     c.busFrom = nearestStop(c.x); c.busTo = nearestStop(dest);
     c.cstate = c.busFrom === c.busTo ? "travel" : "walkToStop";
   }
-  else if (m === "walk" || c.p.job === "fishing") c.cstate = "travel";   // no bike rack on the pier
+  else if (m === "walk" || c.p.job === "fishing") c.csC = CS.travel;   // no bike rack on the pier
   else c.cstate = toWork ? "drive" : "walkToVehicle";  // bike/buggy parked at work
 }
 
 function updateCommute(c, dt) {
-  const toWork = c.dayState === "toWork";
+  const toWork = c.dsC === DS.toWork;
   // a commute that straddles midnight into a day off turns around - long walk
   // commutes (a fisher's is ~3 game-hours) can legally start before the day
   // flips and must not deliver anyone to work on their Sunday
@@ -7420,67 +8083,67 @@ function updateCommute(c, dt) {
     return;
   }
   const m = c.p.mode, tr = TRAITS[c.p.trait];
-  const wspd = crabMove(c), vspd = MODES[m].speed * tr.move;
+  const wspd = crabMoveQ8(c), vspd = Math.round(MODES[m].speed * tr.move * Q8);
 
-  if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3;
-  if (c.pauseT > 0) { c.pauseT -= dt; return; }
+  if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3 * SEC;
+  if (c.pauseT > 0) { c.pauseT -= dtT; return; }
 
-  if (c.cstate === "travel") {           // walking the whole way
+  if (c.csC === CS.travel) {           // walking the whole way
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, toWork);
-  } else if (c.cstate === "drive") {     // bike/buggy: ride to park spot, walk rest
+  } else if (c.csC === CS.drive) {     // bike/buggy: ride to park spot, walk rest
     const b = BIZ[c.p.job];
     const park = toWork ? (m === "buggy" ? b.park + (c.p.house % 6) * 18 : b.rack + (c.p.house % 6) * 7) : homeX(c);
     if (stepTo(c, park, vspd, dt, 150)) {   // on the road, out of collide entirely
-      if (toWork) { c.cstate = "walkFromPark"; }
+      if (toWork) { c.csC = CS.walkFromPark; }
       else arriveCommute(c, false);
     }
-  } else if (c.cstate === "walkFromPark") {
+  } else if (c.csC === CS.walkFromPark) {
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, true);
-  } else if (c.cstate === "walkToVehicle") {   // heading home: fetch parked ride
+  } else if (c.csC === CS.walkToVehicle) {   // heading home: fetch parked ride
     const b = BIZ[c.p.job];
     const park = m === "buggy" ? b.park + (c.p.house % 6) * 18 : b.rack + (c.p.house % 6) * 7;
-    if (routedWalk(c, park, 150, wspd, dt)) c.cstate = "drive";
-  } else if (c.cstate === "walkToStop") {
+    if (routedWalk(c, park, 150, wspd, dt)) c.csC = CS.drive;
+  } else if (c.csC === CS.walkToStop) {
     setT(c, BUS_STOPS[c.busFrom], 148);
-    if (routedStep(c, wspd, dt)) c.cstate = "waitBus";
-  } else if (c.cstate === "waitBus") {
+    if (routedStep(c, wspd, dt)) c.csC = CS.waitBus;
+  } else if (c.csC === CS.waitBus) {
     if (bus.state === "dwell" && Math.abs(bus.x + BUS2.w / 2 - BUS_STOPS[c.busFrom]) < 6) {
-      c.hidden = true; c.cstate = "onBus"; sfx.bus();
+      c.hidden = true; c.csC = CS.onBus; sfx.bus();
     }
-  } else if (c.cstate === "onBus") {
+  } else if (c.csC === CS.onBus) {
     c.x = bus.x + BUS2.w / 2;
     if (bus.state === "dwell" && Math.abs(bus.x + BUS2.w / 2 - BUS_STOPS[c.busTo]) < 6) {
-      c.hidden = false; c.x = BUS_STOPS[c.busTo]; c.cstate = "walkOff";
+      c.hidden = false; c.x = BUS_STOPS[c.busTo]; c.csC = CS.walkOff;
     }
-  } else if (c.cstate === "walkOff") {
+  } else if (c.csC === CS.walkOff) {
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, toWork);
   }
 }
 
 function arriveCommute(c, atWork) {
   if (atWork) {
-    c.dayState = "working"; c.duty = true; c.kstate = "idle"; c.workBiz = c.p.job;
+    c.dsC = DS.working; c.duty = true; c.ksC = KS.idle; c.workBiz = c.p.job;
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
-    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 + srand() * 6; }
+    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 * SEC + ((srand() * 6 * SEC) | 0); }
   }
-  else { c.dayState = "home"; }
+  else { c.dsC = DS.home; }
 }
 
 function updateBus(dt) {
   if (bus.state === "dwell") {
-    bus.dwellT -= dt;
+    bus.dwellT -= dtT;
     if (bus.dwellT <= 0) { bus.state = "drive"; bus.passed = false; }
     return;
   }
   const prevCx = bus.x + BUS2.w / 2;
-  bus.x += bus.dir * 100 * dt;
+  bus.x = (bus.x * Q8 + bus.dir * idiv(100 * Q8 * dtT, TICK_HZ)) / Q8;
   const cx = bus.x + BUS2.w / 2;
   for (const s of BUS_STOPS) {
     const crossed = (prevCx - s) * (cx - s) <= 0;   // stop lies within this frame's travel
     if (crossed && bus.lastStop !== s) {
-      bus.state = "dwell"; bus.dwellT = 2.0; bus.lastStop = s;
+      bus.state = "dwell"; bus.dwellT = 2.0 * SEC; bus.lastStop = s;
       bus.x = s - BUS2.w / 2;
       return;
     }
@@ -7521,7 +8184,7 @@ function runJobBoard() {
         jobBoard.splice(jobBoard.indexOf(j), 1);   // price came back down; so does the posting
       } else if (j.day < day && npcs.length < 8) {
         const hire = spawnDrifter();
-        hire.quip = { text: "HEARD THE FISH ARE PAYING", t: 4 };
+        hire.quip = { text: "HEARD THE FISH ARE PAYING", t: 4 * SEC };
         jobBoard.splice(jobBoard.indexOf(j), 1);
       }
       continue;
@@ -7549,8 +8212,8 @@ function runJobBoard() {
       hire.p.job = j.biz; hire.p.employer = bizOwner(j.biz);
       // clock out of the old life cleanly - updateSchedule will commute them to the new job
       abortErrand(hire);
-      hire.duty = false; hire.pendingOff = false; hire.kstate = "idle";
-      hire.carrying = null; hire.dayState = "home"; hire.cstate = ""; hire.workBiz = j.biz;
+      hire.duty = false; hire.pendingOff = false; hire.ksC = KS.idle;
+      hire.carrying = null; hire.dsC = DS.home; hire.csC = 0; hire.workBiz = j.biz;
       jobBoard.splice(jobBoard.indexOf(j), 1);
       crabLog(hire, "life", "TOOK THE " + BIZ[j.biz].short + " JOB - $" + $d(j.wage) + " A DAY", 0);   // DIARY
       today.moved.push(hire.p.name + " HIRED AT " + BIZ[j.biz].name);
@@ -7612,7 +8275,7 @@ function convertTourist(k) {
   if (k.stall) { k.stall.occupant = null; k.stall.dirty = true; k.stall = null; }
   if (k.table) { k.table.occupant = null; k.table.dishes = 0; k.table = null; }
   for (const w of allCrabs()) if (w.cust === k) abortChef(w);   // unclaim a mid-prep order
-  k.done = true; k.state = "leaving"; k.claimed = false;
+  k.done = true; k.stC = VS.leaving; k.claimed = false;
   customers = customers.filter(q => q !== k);
   const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
   p2.name = freeCrewName(k.name);
@@ -7624,7 +8287,7 @@ function convertTourist(k) {
   // the person you were watching is still the person you're watching
   if (followCust === k) { followCust = null; followIdx = crabs.length - 1; followNpc = null; }
   if (dossier === k) dossier = c;
-  c.quip = { text: "I LIVE HERE NOW!", t: 3 };
+  c.quip = { text: "I LIVE HERE NOW!", t: 3 * SEC };
   crabLog(c, "life", "TRADED A HOLIDAY FOR AN APRON - HIRED", 0);   // DIARY
   return c;
 }
@@ -7642,9 +8305,9 @@ function hireCrew() {
   // the queue or at a table. Skip locals (k.isCrab: they have their own
   // lives) and anyone already walking out; prefer someone standing in line
   // over someone mid-shower
-  const eligible = customers.filter(k => !k.isCrab && k.state !== "leaving" && k.state !== "outStall");
-  const prefer = (pool) => pool.find(k => k.state === "waiting" || k.state === "arriving")
-    || pool.find(k => k.state !== "showering" && k.state !== "toStall" && k.state !== "waitStall")
+  const eligible = customers.filter(k => !k.isCrab && k.stC !== VS.leaving && k.stC !== VS.outStall);
+  const prefer = (pool) => pool.find(k => k.stC === VS.waiting || k.stC === VS.arriving)
+    || pool.find(k => k.stC !== VS.showering && k.stC !== VS.toStall && k.stC !== VS.waitStall)
     || pool[0];
   let pick = prefer(eligible);
   // A CULTURED VISITOR DECLINES THE APRON (CS3.5): she refuses out loud and
@@ -7713,24 +8376,24 @@ function updateSchedule(c, dt) {
   // around and goes home. Without this the dossier's TAP: REST would only
   // work at dawn, and the day the illness lands mid-commute would be a
   // full shift worked while ill.
-  if (onSickDay(c) && (c.dayState === "toWork" || c.dayState === "working")) {
-    if (c.dayState === "working") { c.duty = false; c.pendingOff = false; abortChef(c); }
+  if (onSickDay(c) && (c.dsC === DS.toWork || c.dsC === DS.working)) {
+    if (c.dsC === DS.working) { c.duty = false; c.pendingOff = false; abortChef(c); }
     crabLog(c, "life", "TOOK A SICK DAY AND WENT HOME", 1200);   // DIARY
     startCommute(c, false);
   }
   if (off && tmin >= OFF_WAKE && c.logOff !== day) { c.logOff = day; crabLog(c, "life", "TOOK THEIR DAY OFF", 0); }   // DIARY
-  if (c.dayState === "home" && !off && tmin >= leaveGmin(c) && tmin < sh.end - 30 && !onSickDay(c)
+  if (c.dsC === DS.home && !off && tmin >= leaveGmin(c) && tmin < sh.end - 30 && !onSickDay(c)
       && !(c.restDay === day && c.restUntil > tmin)) {   // ordered home: a real break before the schedule re-dispatches
     startCommute(c, true);
   }
-  if (c.dayState === "working") {
+  if (c.dsC === DS.working) {
     c.workedToday = true;   // fisher or shopkeep alike: tonight's tired bump is earned, not blanket
     // overtime is measured, not assumed: minutes clocked in OUTSIDE the
     // contracted window are the ones that earn the premium, so a crab who
     // knocks off early is paid for what they actually did
     const ds = dutyShift(c);
     const onOT = otEligible(c) && (tmin < ds.start || tmin >= ds.end);
-    if (onOT) c.otMin = (c.otMin || 0) + dt * TS;
+    if (onOT) c.otMin = (c.otMin || 0) + dtT;
     // TIREDNESS ACCRUES WHILE YOU WORK, not in a lump at knock-off. The TOTAL
     // is mathematically identical - TIRED_SHIFT / ownStdSpan per game-minute,
     // integrated across the shift, IS TIRED_SHIFT * workLoad, and the overtime
@@ -7747,14 +8410,30 @@ function updateSchedule(c, dt) {
     // crew's MORNING reading to 0.85. Now the housing ladder decides it: off a
     // cot you wake around 0.5 and cross the nod line halfway through every
     // shift; out of your own bed you wake near 0.05 and never do.
-    c.p.tired = Math.min(1, (c.p.tired || 0)
-      + TIRED_SHIFT / ownStdSpan(c) * (onOT ? OT_FATIGUE : 1) * dt * TS);
+    // ...and it accrues EXACTLY. The float form above this comment's history
+    // (rate / span * ot * dtT / GMIN) banked FLOAT STATE in a Q20 field -
+    // deterministic, so every fingerprint stayed green, but a spec violation
+    // the C port cannot reproduce. The exact form is the otPremium pattern:
+    // a per-crab remainder accumulator - add the numerator, move floor(R/D)
+    // whole grains, keep R % D for next tick. Unbiased over any span (the
+    // remainder carries what a plain floor would lose ~half a grain a tick
+    // of), one named boundary, and the OT premium 1.5 rides as exactly 3/2.
+    // The remainder lives at p.tiredRem so a mid-shift save carries it; a
+    // span change reinterprets a sub-grain leftover once per rota move,
+    // bounded below one grain, deterministic.
+    {
+      const den = ownStdSpan(c) * GMIN * (onOT ? 2 : 1);
+      const R = (c.p.tiredRem || 0) + TIRED_SHIFT * dtT * (onOT ? 3 : 1);
+      const move = (R - R % den) / den, t1 = (c.p.tired || 0) + move;
+      if (t1 >= Q20) { c.p.tired = Q20; c.p.tiredRem = 0; }   // the bar is full; overflow is lost, as it always was
+      else { c.p.tired = t1; c.p.tiredRem = R % den; }
+    }
   }
-  if (c.dayState === "working" && tmin >= sh.end) c.pendingOff = true;
-  if (c.dayState === "working" && c.pendingOff && c.kstate === "idle") {
+  if (c.dsC === DS.working && tmin >= sh.end) c.pendingOff = true;
+  if (c.dsC === DS.working && c.pendingOff && c.ksC === KS.idle) {
     // last call: stick around while anyone's still waiting in the grace window
     const lingering = tmin < sh.end + 45 &&
-      customers.some(k => k.biz === c.workBiz && k.state === "waiting" && !k.served);
+      customers.some(k => k.biz === c.workBiz && k.stC === VS.waiting && !k.served);
     if (lingering) return;
     c.duty = false; c.pendingOff = false;
     if (c.carrying) c.carrying = null;
@@ -7775,18 +8454,27 @@ function updateSchedule(c, dt) {
     // tiredness because the last two hours are the ones that break you.
     // Under default hours with no cover this is byte-for-byte the old numbers.
     logShiftEnd(c);   // DIARY
-    const load = shiftLoad(c), otF = (c.otMin || 0) / ownStdSpan(c);
-    c.p.hunger = Math.min(1, (c.p.hunger || 0) + 0.25 * (load + otF));  // a shift works up an appetite - a long one, more
+    // the load ratios as ONE exact rational each: load = dur/spanD and
+    // otF = otTicks/(GMIN*spanO) share the denominator 5*spanD*spanO, so
+    // floor(rate * (load + otF)) is floor(rate * (dur*5*spanO + otT*spanD) / D)
+    // with one floor at the end - the float dance (two divisions, an add, a
+    // multiply, then floor) could land a hair either side of a grain line.
+    const sD = dutyShift(c), dur = Math.max(0, sD.end - sD.start),
+      spanD = dutyStdSpan(c), spanO = ownStdSpan(c), otT = c.otMin || 0;
+    const loadN = dur * GMIN * spanO + otT * spanD, loadD = GMIN * spanD * spanO;
+    const hN = qn(0.25) * loadN;
+    c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + (hN - hN % loadD) / loadD);  // a shift works up an appetite - a long one, more
     // ...and thirst still reads how tired they were CLOCKING IN, never how
     // tired the shift left them. That is exactly what the old "checked
     // pre-bump" comment meant; now that tiredness accrues THROUGH the day it
     // has to be said with a field - c.tiredIn, stamped at arriveCommute. Same
     // rule, same firing rate, stated where it cannot drift.
-    c.p.thirst = Math.min(1, (c.p.thirst || 0) + 0.35 * (load + otF) * ((c.tiredIn || 0) > 0.5 ? 1.5 : 1));  // working a whole shift ALREADY tired makes you thirsty
+    const tN = qn(0.35) * loadN * ((c.tiredIn || 0) > qn(0.5) ? 3 : 2), tD = loadD * 2;   // the 1.5 rides as 3/2
+    c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
-    c.p.dirt = Math.min(1, (c.p.dirt || 0) + 0.25);      // and grubbies up the shell
-    c.p.bored = Math.min(1, (c.p.bored || 0) + 0.2);     // all work and no play...
+    c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
+    c.p.bored = Math.min(Q20, (c.p.bored || 0) + qn(0.2));     // all work and no play...
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
     // The staff meal counts too: refusing it here was the whole reason a crab
@@ -7802,32 +8490,32 @@ function updateSchedule(c, dt) {
   // comparison, not a utility function. Hunger and thirst always walk;
   // crabs aren't robots. The errand machinery handles the trip; the home
   // branch re-commutes them to the pier afterward.
-  if (c.p.job === "fishing" && c.dayState === "working" && !c.p.employer && c.errandCd <= 0) {
+  if (c.p.job === "fishing" && c.dsC === DS.working && !c.p.employer && c.errandCd <= 0) {
     // FULL freedom (the pressing-needs gate is gone - it was a command-economy
     // patch on a price problem). Price is what pulls them back to the rail.
     // NOTE: gated on STAFFING, not hours - the early crowd gets served while
     // the crew sets up (pre-hours behavior, kept bit-for-bit)
     const e = pickErrand(c);
     if (e && e.need === "food" && townCatch > 2) {
-      c.errandCd = 3;   // lunch is in the crate - updateFishing roasts it at 0.55
+      c.errandCd = 3 * SEC;   // lunch is in the crate - updateFishing roasts it at 0.55
     } else if (e && e.need === "fun" && trade.price >= FISH_IMPORT - 100) {   // within a dollar of the ceiling
       // opportunity cost: skip the fun break while the water's paying
       if (c.priceQuipDay !== day) {
         c.priceQuipDay = day;
-        c.quip = { text: "THE WATER'S MONEY TODAY", t: 3 };
+        c.quip = { text: "THE WATER'S MONEY TODAY", t: 3 * SEC };
       }
-      c.errandCd = 8;
+      c.errandCd = 8 * SEC;
     } else if (e && !e.selfCook) {
-      c.duty = false; c.errandCd = 6;
-      c.dayState = "home";
+      c.duty = false; c.errandCd = 6 * SEC;
+      c.dsC = DS.home;
       beginErrand(c, e, false);   // a fisher's water stop is the pier tap, ten paces off the rail
-    } else c.errandCd = 3;
+    } else c.errandCd = 3 * SEC;
   }
   // (an owner-operator used to top her pocket up from her till here. One
   // wallet: the shop's money is already in her pocket, so this was moving
   // money from an account to itself.)
   // off-duty errands, while town is open and it's not almost shift time
-  if (c.errandCd > 0) c.errandCd -= dt;
+  if (c.errandCd > 0) c.errandCd -= dtT;
   // A SICK DAY IS NOT A SHIFT (Matt, 2026-08-19: "I feel like sick crabs dont
   // get food or clean or anything"). `off` deliberately excludes illness, so
   // that a sick crab does not get a day-off crab's SPENDING thresholds - they
@@ -7841,9 +8529,9 @@ function updateSchedule(c, dt) {
   const errandWindow = ownTime ? tmin >= OFF_WAKE   // day off (or a sick day): the whole town is yours
     : (tmin < leaveGmin(c) - 30 || tmin >= sh.end);   // workday: before leaving, or after shift
   const townAwake = townOpen() || (tmin >= 20 * 60 && tmin < 23 * 60) || (tmin >= 5.5 * 60 && tmin < 8 * 60);
-  if (c.dayState === "home" && townAwake && c.errandCd <= 0 && errandWindow) {
+  if (c.dsC === DS.home && townAwake && c.errandCd <= 0 && errandWindow) {
     const e = pickErrand(c);
-    if (!beginErrand(c, e, true)) c.errandCd = 2;
+    if (!beginErrand(c, e, true)) c.errandCd = 2 * SEC;
   }
 }
 
@@ -7875,7 +8563,7 @@ function bizStaffed(b) { return bizUnlocked(b) && !bizDark(b) && allCrabs().some
 const ERRAND_RANK = { food: 4, drink: 3, clean: 2, vote: 2, fun: 1 };
 const DETOUR_SCALE = 400;   // px of added walking that halves a stop's appeal
 const DETOUR_MAX = 900;     // ~half the promenade: not before a shift, it can wait
-const DIRE = 0.9;           // this needy and geography stops mattering
+const DIRE = qn(0.9);           // this needy and geography stops mattering
 const CHAIN_PX = 260;       // a second stop this close beats walking home and back out
 function needLevel(c, need) {
   return need === "food" ? (c.p.hunger || 0) : need === "drink" ? (c.p.thirst || 0)
@@ -7903,18 +8591,34 @@ function errandDetour(c, e) {
   const stop = errandStopX(e), a = anchorX(c);
   return Math.abs(c.x - stop) + Math.abs(stop - a) - Math.abs(c.x - a);
 }
+// SLICE 5: the score is an EXACT RATIONAL {n, d} and the argmax compares by
+// cross-multiplication - the last float division in the sim's decision path
+// is gone. The value is the same score, term for term: appeal rides as
+// hundredths (1 -> 100, 0.35 -> 35, 0.84 -> 84), the detour as Q8 grains,
+// and 1 + d/SCALE becomes (SCALE_G + d_g)/SCALE_G over a 100x denominator.
+const DETOUR_SCALE_G = DETOUR_SCALE * Q8;
 function errandScore(c, e) {
   const lvl = needLevel(c, e.need || "food");
   // APPEAL is what keeps free water from eating the juice bar: a tap scores at
   // half a bought drink's pull, so the counter wins whenever the crab can
   // reach and afford one. It never zeroes out, so the tap is always THERE.
-  const ap = e.appeal != null ? e.appeal : 1;
-  if (lvl >= DIRE) return ap * (99 + ERRAND_RANK[e.need]);   // desperate: walk it, wherever it is
-  const d = errandDetour(c, e);
+  const ap = e.ap100 != null ? e.ap100 : 100;
+  if (lvl >= DIRE) return { n: ap * (99 + ERRAND_RANK[e.need]) * Q20, d: 100 };   // desperate: walk it, wherever it is
+  const dg = Math.round(errandDetour(c, e) * Q8);   // exact: a detour is a sum of Q8 images
   // the "don't backtrack the whole promenade before 9 AM" rule: on the way
   // out to a shift, a stop clear across town waits for the trip home
-  if (d > DETOUR_MAX && c.dayState === "home" && anchorX(c) !== homeX(c)) return -1;
-  return ap * (ERRAND_RANK[e.need] + lvl) / (1 + d / DETOUR_SCALE);
+  if (dg > DETOUR_MAX * Q8 && c.dsC === DS.home && anchorX(c) !== homeX(c)) return { n: -1, d: 1 };
+  // the rank rides in NEED UNITS so it still outranks a full bar: this is
+  // the pre-slice score x Q20, term for term, so the argmax is unchanged.
+  return { n: ap * (ERRAND_RANK[e.need] * Q20 + lvl) * DETOUR_SCALE_G, d: 100 * (DETOUR_SCALE_G + dg) };
+}
+// a/b > c/d exact and overflow-safe for positive denominators: floored
+// quotients first, then remainders cross-multiplied (r < d keeps both
+// products under 2^53 where the raw cross-products would not).
+function ratGt(a, b, c, d) {
+  const qa = idiv(a, b), qc = idiv(c, d);
+  if (qa !== qc) return qa > qc;
+  return (a - qa * b) * d > (c - qc * d) * b;
 }
 function pickErrand(c) {
   const staffed = bizStaffed;
@@ -7927,7 +8631,7 @@ function pickErrand(c) {
   // like one: the crab who walked out because they were bored out of their
   // shell will absolutely spend it at the arcade, if the town has one.
   const off = awayToday(c) && !c.p.sick;
-  const wantFood = (c.p.hunger || 0) >= (off ? 0.4 : 0.5);
+  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5));
   // restaurant staff privilege: cook your own meal when the kitchen is
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
@@ -7974,8 +8678,8 @@ function pickErrand(c) {
   // (0.55 for everything) still left SUDSY 27% of her life on the dehydration
   // line, because 0.45-0.55 thirst is precisely the window where she wanted a
   // drink and went to play instead.
-  const ballYields = (c.p.thirst || 0) >= 0.45 || (c.p.hunger || 0) >= 0.50
-    || (c.p.tired || 0) >= BALL_YIELD || (c.p.dirt || 0) >= 0.66;
+  const ballYields = (c.p.thirst || 0) >= qn(0.45) || (c.p.hunger || 0) >= qn(0.50)
+    || (c.p.tired || 0) >= BALL_YIELD || (c.p.dirt || 0) >= qn(0.66);
   // AND YOU DO NOT PLAY BALL ON THE CLOCK. pickErrand also serves the
   // on-shift paths - the fisher's break, the walk home past the counter - and
   // letting a game in there took its twelve seconds out of the working day of
@@ -7991,7 +8695,7 @@ function pickErrand(c) {
   // rival's price cut stopped winning share back, because the bar kept opening
   // late). Play when your day is actually done, or on a day off.
   const shEnd = effShift(c).end;
-  const ballFree = !c.duty && c.dayState !== "working"
+  const ballFree = !c.duty && c.dsC !== DS.working
     && (awayToday(c) || tmin >= shEnd || tmin + BALL_LEAD < leaveGmin(c));
   if ((c.p.bored || 0) >= ballAt && (c.ballCd || 0) <= 0 && !boredYields(c) && !ballYields
       && ballFree && !c.p.sick && ballHasRoom(c) && !cand.some(e2 => e2.need === "fun"))
@@ -8000,8 +8704,8 @@ function pickErrand(c) {
       // had two crabs in them; somebody already out there throwing is the
       // whole difference between 0.22 of relief and 0.08, so it should be
       // worth crossing the beach for.
-      appeal: TAP_APPEAL * (ballPlayers().length ? 2.4 : 1) });
-  if ((c.p.thirst || 0) >= 0.45) {
+      ap100: ballPlayers().length ? 84 : 35 });   // TAP_APPEAL x2.4 while the ball is out: 0.84 in hundredths
+  if ((c.p.thirst || 0) >= qn(0.45)) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
       const drinks = BIZ[drinkAt].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
@@ -8023,14 +8727,14 @@ function pickErrand(c) {
     // that this stop can never be unavailable. Both posts are offered and the
     // detour score picks the near one.
     if ((c.p.thirst || 0) >= TAP_AT)
-      for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", appeal: TAP_APPEAL });
+      for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", ap100: 35 });
 
   }
   // dirt is serviced at the showers too (the laundromat is gone): a grubby
   // crab heads for the taps at the same 0.66 threshold that fed the sickness
   // "cared" check - a shower takes dirt down 0.5 (0.7 deluxe), well below it
-  const needsBath = (c.p.dirt || 0) >= (off ? 0.5 : 0.66)
-    || (c.p.sick && (c.p.dirt || 0) >= 0.4);   // the sick drag themselves to the taps - staying clean is the cure
+  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66))
+    || (c.p.sick && (c.p.dirt || 0) >= qn(0.4));   // the sick drag themselves to the taps - staying clean is the cure
   // ON DUTY at the stalls, not "has ever worked a shift here": this gate used
   // to read c.workBiz, which is set at clock-in and NEVER CLEARED, so the
   // shower attendant was barred from her own stalls for life. SUDSY's dirt
@@ -8051,7 +8755,7 @@ function pickErrand(c) {
   // crab is pinned on the 0.95 sickness line by an environment that has no
   // route to soap - which is the ground the death roll now stands on.
   if (!canShower && (c.p.dirt || 0) >= (c.p.sick ? TAP_RINSE_SICK : TAP_RINSE_AT))
-    for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "clean", appeal: TAP_APPEAL });
+    for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "clean", ap100: 35 });
   // THE SHELTER POT IS A FLOOR UNDER ILLNESS, and it is deliberately narrow:
   // SICK crabs only, offered LAST, only when the town has nothing to sell them
   // right now, and only when the fund actually bought a bowl last night. Every
@@ -8073,7 +8777,7 @@ function pickErrand(c) {
   {
     const at = c.p.sick ? SOUP_SICK_AT : SOUP_AT;
     if (c.p.sick && potWarm() && (c.p.hunger || 0) >= at && !cand.some(e2 => e2.need === "food"))
-      take({ soup: true, need: "food", appeal: TAP_APPEAL });
+      take({ soup: true, need: "food", ap100: 35 });
   }
   // POLLING DAY IS AN ERRAND (see the POLLING DAY block). The table is at
   // POLL_X and the crab has to walk there, which means turnout is decided by
@@ -8094,29 +8798,34 @@ function pickErrand(c) {
   // shelter pot already, and a sick day is their own time.
   // Both tables are offered and the detour score picks the near one - the
   // identical shape the two standpipes use, three blocks up.
-  if (pollOpen() && !hasVoted(c) && !c.duty && c.dayState !== "working")
+  if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
   // bed rest otherwise: no arcade nights while ill
-  if (!c.p.sick && (c.p.bored || 0) >= (off ? 0.35 : 0.6) && staffed("arcade")) {
+  if (!c.p.sick && (c.p.bored || 0) >= (off ? qn(0.35) : qn(0.6)) && staffed("arcade")) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
-  let best = null, bestScore = 0;   // the chaining pick: best urgency per unit of detour
+  let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
+  // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
+  // slice 4): strict > means the FIRST candidate at a score keeps it, and the
+  // take() sequence above is fixed, so an exact tie - far likelier now that
+  // detours sit on the Q8 grain and levels on Q20 - resolves the same way on
+  // every engine, every run. Do not "fix" this to >= without a new tie rule.
   for (const e of cand) {
     const s = errandScore(c, e);
-    if (s > bestScore) { bestScore = s; best = e; }
+    if (ratGt(s.n, s.d, bestN, bestD)) { bestN = s.n; bestD = s.d; best = e; }
   }
   return best;
 }
 function startSelfCook(c, e) {
-  c.dayState = "selfCook"; c.cookStep = 0; c.cookRecipe = e.recipe;
+  c.dsC = DS.selfCook; c.cookStep = 0; c.cookRecipe = e.recipe;
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
   const s0 = sourceSpot(c.cookBiz, c); setT(c, s0.x, s0.y);   // same rule for a staff meal
 }
 function updateSelfCook(c, dt) {
   const sb = c.cookBiz || "shack", wk = sb === "juicebar" ? "juicer" : "grill";
   if (c.cookStep === 0) {                      // to the source bin: ring yourself up first
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       const r = c.cookRecipe;
       const pay = staffMealCharge(sb, r);   // the shop's meal policy sets the price (retail/at-cost/free)
       c.p.wallet = Math.max(0, c.p.wallet - pay);
@@ -8128,10 +8837,10 @@ function updateSelfCook(c, dt) {
         window._stats.staffMealCost = (window._stats.staffMealCost || 0) + ingredientCost(r.raw);   // cents, like the paid column
         window._stats.lastStaffMeal = { id: r.id, pay, cost: ingredientCost(r.raw) };
       }
-      c.carrying = r.raw; c.cookStep = 1; c.workT = 0.6;
+      c.carrying = r.raw; c.cookStep = 1; c.workT = 0.6 * SEC;
     }
   } else if (c.cookStep === 1) {               // grab
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       const g = tryAcquire(sb, wk);
       if (g >= 0) {
@@ -8141,9 +8850,9 @@ function updateSelfCook(c, dt) {
       }
     }
   } else if (c.cookStep === 2) {               // to the grill (or the juicer)
-    if (routedStep(c, crabMove(c), dt)) { c.workT = c.cookNeed === "drink" ? 1.5 : 3; c.cookStep = 3; }
+    if (routedStep(c, crabMoveQ8(c), dt)) { c.workT = (c.cookNeed === "drink" ? 1.5 : 3) * SEC; c.cookStep = 3; }
   } else if (c.cookStep === 3) {               // cook + eat (or blend + drink)
-    c.workT -= dt;
+    c.workT -= dtT;
     if (c.workT <= 0) {
       release(c); c.carrying = null;
       if (c.cookNeed === "drink" || DRINKS[c.cookRecipe.id]) c.p.thirst = 0;
@@ -8151,17 +8860,17 @@ function updateSelfCook(c, dt) {
       c.cookStep = 0;
       popText(c.cookNeed === "drink" ? "STAFF POUR!" : "STAFF MEAL!", c.x - 8, FLOOR_Y - 30, [140, 255, 160]);
       if (window._stats) window._stats.staffMeals = (window._stats.staffMeals || 0) + 1;
-      c.quip = { text: c.cookNeed === "drink" ? "BARKEEP'S PRIVILEGE" : "CHEF'S PRIVILEGE", t: 2.4 };
+      c.quip = { text: c.cookNeed === "drink" ? "BARKEEP'S PRIVILEGE" : "CHEF'S PRIVILEGE", t: 2.4 * SEC };
       crabLog(c, "need", c.cookNeed === "drink" ? "POURED THEMSELVES A DRINK AT WORK"   // DIARY
         : "COOKED THEMSELVES A STAFF MEAL", 0);
-      c.errandCd = 25; c.dayState = "home";
+      c.errandCd = 25 * SEC; c.dsC = DS.home;
       startCommute(c, false);
     }
   }
 }
 function startErrand(c, e) {
-  c.dayState = "toErrand"; c.errandBiz = e.biz; c.errand = e;
-  c.p.tired = Math.min(1, (c.p.tired || 0) + TIRED_ERRAND);   // errand legwork tires, a little
+  c.dsC = DS.toErrand; c.errandBiz = e.biz; c.errand = e;
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);   // errand legwork tires, a little
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
   // and only then slid back out to their own place - which is the one thing
@@ -8181,16 +8890,16 @@ function startTapStop(c, e) {
   // ballot box is not an exception - and the slot is read BEFORE the crab
   // enters the state, so they never count themselves.
   const slot = e.vote ? POLL_PLACES[e.poll].x + 4 + VOTE_DX * Math.min(4, pollVoters(e.poll).length) : null;
-  c.dayState = "atTap"; c.tapStop = e; c.tapT = 0;
-  c.p.tired = Math.min(1, (c.p.tired || 0) + TIRED_ERRAND);
+  c.dsC = DS.atTap; c.tapStop = e; c.tapT = 0;
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);
   if (slot != null) setT(c, slot, VOTE_Y);
   else setT(c, e.soup ? SOUP_X : WATER_TAPS[e.tap].x + 6, 163);
 }
 function updateTap(c, dt) {
   const e = c.tapStop;
-  if (!e) { c.dayState = "home"; return; }
+  if (!e) { c.dsC = DS.home; return; }
   if (c.tapT <= 0) {                      // still walking over
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       // ARRIVING AFTER THE POLLS SHUT is a real way to lose your vote, and it
       // is the whole point of there being a closing time. The rule is the one
       // a real returning officer uses: standing at the table when it shuts
@@ -8199,16 +8908,16 @@ function updateTap(c, dt) {
         if (pollCalled()) ballotBox.late.push(c.p.name);
         crabLog(c, "peril", "GOT TO THE POLLS AND THEY HAD SHUT", 0);   // DIARY
         popText("TOO LATE TO VOTE", c.x - 18, FLOOR_Y - 30, [190, 80, 80]);
-        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 };
+        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 * SEC };
         c.tapStop = null; c.tapT = 0; c.errandCd = VOTE_CD;
-        c.dayState = "home"; afterErrand(c, false);
+        c.dsC = DS.home; afterErrand(c, false);
         return;
       }
       c.tapT = e.vote ? VOTE_SECS : e.soup ? SOUP_MINS : TAP_SIP;
     }
     return;
   }
-  c.tapT -= dt;
+  c.tapT -= dtT;
   if (c.tapT > 0) return;
   if (e.vote) {
     // A PAPER, A PENCIL, AND A BOX. The mark is made here and the tally does
@@ -8219,7 +8928,7 @@ function updateTap(c, dt) {
     if (r === "cast") {
       crabLog(c, "life", "VOTED", 0);   // DIARY
       popText("VOTED", c.x - 6, FLOOR_Y - 30, [255, 216, 96]);
-      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(srand() * 3) | 0], t: 2.4 * SEC };
       if (window._stats) window._stats.votesCast = (window._stats.votesCast || 0) + 1;
     } else if (r === "nopaper") {
       // THE PILE RAN OUT. A crab walked the promenade to exercise the one
@@ -8228,7 +8937,7 @@ function updateTap(c, dt) {
       // happen to somebody by name - the same shape as a cold pot.
       crabLog(c, "peril", "CAME TO VOTE AND THE PAPER HAD RUN OUT", 0);   // DIARY
       popText("NO PAPER LEFT", c.x - 14, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(srand() * 3) | 0], t: 2.8 };
+      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(srand() * 3) | 0], t: 2.8 * SEC };
       if (window._stats) window._stats.votesRefused = (window._stats.votesRefused || 0) + 1;
     }
   } else if (e.soup) {
@@ -8238,28 +8947,28 @@ function updateTap(c, dt) {
     if (!takeBowl(c)) {
       crabLog(c, "peril", "THE SHELTER POT WAS COLD", 0);   // DIARY
       popText("THE POT IS COLD", c.x - 16, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(srand() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(srand() * 3) | 0], t: 2.6 * SEC };
     } else {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - SOUP_FILL);
       crabLog(c, "need", "ATE AT THE SHELTER POT", 0);   // DIARY
       popText("SHELTER POT", c.x - 14, FLOOR_Y - 30, [255, 210, 140]);
-      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(srand() * 3) | 0], t: 2.4 * SEC };
     }
   } else if (e.need === "clean") {
     c.p.dirt = Math.max(0, (c.p.dirt || 0) - TAP_RINSE);
     crabLog(c, "need", "RINSED OFF AT " + WATER_TAPS[e.tap].name, 0);   // DIARY
     popText("RINSED OFF", c.x - 12, FLOOR_Y - 30, [150, 210, 255]);
-    c.quip = { text: "COLD! BUT CLEANER", t: 2.4 };
+    c.quip = { text: "COLD! BUT CLEANER", t: 2.4 * SEC };
     if (window._stats) window._stats.tapRinses = (window._stats.tapRinses || 0) + 1;
   } else {
     c.p.thirst = Math.max(0, (c.p.thirst || 0) - TAP_QUENCH);
     crabLog(c, "need", "DRANK AT " + WATER_TAPS[e.tap].name, 0);   // DIARY
     popText("FREE WATER", c.x - 12, FLOOR_Y - 30, [150, 210, 255]);
-    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(srand() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(srand() * 3) | 0], t: 2.4 * SEC };
     if (window._stats) window._stats.tapDrinks = (window._stats.tapDrinks || 0) + 1;
   }
   c.tapStop = null; c.tapT = 0; c.errandCd = e.vote ? VOTE_CD : e.soup ? SOUP_CD : TAP_CD;
-  c.dayState = "home";
+  c.dsC = DS.home;
   afterErrand(c, true);   // free water is a stop like any other: chain on from it
 }
 // One door for every kind of stop pickErrand can hand back: a counter, your
@@ -8312,7 +9021,7 @@ function afterErrand(c, chain) {
   else startCommute(c, false);
 }
 function updateErrand(c, dt) {
-  if (c.dayState === "toErrand") {
+  if (c.dsC === DS.toErrand) {
     // THE LINE IS ALIVE WHILE YOU WALK TO IT. startErrand aims at the back of
     // the line as it stood when the crab set off; three guests can form up in
     // the time it takes to cross the promenade, and a fixed aim then lands the
@@ -8321,36 +9030,40 @@ function updateErrand(c, dt) {
     // every frame), so this is a comparison per crab and nothing re-plans.
     const tail = queueSlotX(c.errandBiz, queueLen(c.errandBiz));
     if (c.tx !== tail) setT(c, tail, 166);
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
-      const q = customers.filter(k => k.biz === c.errandBiz && (k.state === "waiting" || k.state === "arriving")).length;
+      const q = customers.filter(k => k.biz === c.errandBiz && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
       if (q >= QUEUE_MAX) {
-        c.quip = { text: "LINE'S TOO LONG", t: 2.4 };
-        c.errandCd = 12; c.dayState = "home";
+        c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
+        c.errandCd = 12 * SEC; c.dsC = DS.home;
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = { biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
-        need: c.errand.need, x: c.x, spawnX: c.x, state: "waiting",
-        patience: 90, maxPatience: 90, claimed: false, served: false, server: null };   // locals will wait
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
+        si: poolAlloc(),
+        need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
+        maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
+      cust.stC = VS.waiting;   // through the accessor - an own stC would shadow the plane
+      cust.patience = 90 * PQ;
+      cust.x = c.x;
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
       customers.push(cust); noteArrival(c.errandBiz);
-      c.errandCust = cust; c.dayState = "errand";
+      c.errandCust = cust; c.dsC = DS.errand;
     }
-  } else if (c.dayState === "errand") {
+  } else if (c.dsC === DS.errand) {
     const k = c.errandCust;
-    if (!k) { c.dayState = "home"; afterErrand(c, false); return; }
+    if (!k) { c.dsC = DS.home; afterErrand(c, false); return; }
     const open = allCrabs().some(w => w.duty && w.workBiz === k.biz &&
       (!w.pendingOff || tmin < effShift(w).end + 45));
-    if (!open && k.state === "waiting" && !k.claimed) {
-      k.state = "leaving"; k.happy = false;   // kitchen's dark - go home
-      c.quip = { text: "CLOSED?! HMPH", t: 2.2 };
+    if (!open && k.stC === VS.waiting && !k.claimed) {
+      k.stC = VS.leaving; k.happy = false;   // kitchen's dark - go home
+      c.quip = { text: "CLOSED?! HMPH", t: 2.2 * SEC };
       return;
     }
-    if ((k.state === "dining" || k.state === "seatedWaiting" || k.state === "toSeat") && k.table) { c.x = k.table.x + 2; c.y = k.table.y + 1; }
-    else if (k.state === "showering" && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
-    else if ((k.state === "toStall" || k.state === "outStall") && k.climb)
-      { c.hidden = false; c.x = k.x; c.y = 166 - 26 * k.climb; }   // stepping up/down
+    if ((k.stC === VS.dining || k.stC === VS.seatedWaiting || k.stC === VS.toSeat) && k.table) { c.x = k.table.x + 2; c.y = k.table.y + 1; }
+    else if (k.stC === VS.showering && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
+    else if ((k.stC === VS.toStall || k.stC === VS.outStall) && k.climb)
+      { c.hidden = false; c.x = k.x; c.y = (166 * Q8 - idiv(26 * Q8 * k.climb, 4096)) / Q8; }   // stepping up/down, on the grain
     else { c.hidden = false; c.x = k.x; c.y = 166; }
   }
 }
@@ -8359,10 +9072,10 @@ function finishErrand(k) {
   const c = k.crab;
   if (c.errandCust === k) {
     c.hidden = false;
-    c.errandCust = null; c.errandCd = 25;
+    c.errandCust = null; c.errandCd = 25 * SEC;
     if (!k.served) crabLog(c, "peril", "QUEUED AT THE " + BIZ[k.biz].name + " AND GAVE UP", 0);   // DIARY
-    if (!k.served) c.quip = { text: "LINE WAS TOO LONG", t: 2.4 };
-    c.dayState = "home";
+    if (!k.served) c.quip = { text: "LINE WAS TOO LONG", t: 2.4 * SEC };
+    c.dsC = DS.home;
     afterErrand(c, k.served);   // a served crab may chain on; a rage-quit just leaves
   }
 }
@@ -8540,7 +9253,7 @@ function abortErrand(c) {
   // crab is guaranteed to come and clear it. Leaving plates on an unflagged
   // table would strand it - unseatable (dishes) and unbuseable (not dirty).
   if (k.table) { k.table.occupant = null; k.table.dirty = true; k.table = null; }
-  k.done = true; k.state = "leaving"; k.claimed = false;
+  k.done = true; k.stC = VS.leaving; k.claimed = false;
   customers = customers.filter(q => q !== k);
   c.errandCust = null;
 }
@@ -8644,7 +9357,7 @@ function abortChef(c) {
   // crab who died or got yanked mid-bus would stay dirty and unseatable for
   // the rest of the run - the stall wedge, one furniture type over.
   if (c.cleanTable) { c.cleanTable.cleaning = false; c.cleanTable = null; }
-  c.kstate = "idle"; c.cust = null; c.carrying = null; c.stepIdx = 0;
+  c.ksC = KS.idle; c.cust = null; c.carrying = null; c.stepIdx = 0;
 }
 
 // ---------------------------------------------------------------- player orders (right-click)
@@ -8652,7 +9365,7 @@ function abortChef(c) {
 // crabs only - the townsfolk have their own lives (design choice: NPC agency
 // stays intact; see PLAN). Desktop right-click only this pass: long-press
 // would collide with merge mode's hold gesture, so touch is deferred.
-const ORDER_IDLE = 2.5;   // seconds a directed crab lingers before the schedule reclaims them
+const ORDER_IDLE = 2.5 * SEC;   // seconds a directed crab lingers before the schedule reclaims them
 // Break from ANY current activity, releasing every held resource: station
 // slot + claimed order + cleaning stall (abortChef), errand stall/table/
 // queue ghost (abortErrand), then bus/commute and selfCook state. A chef
@@ -8667,11 +9380,11 @@ function abortActivity(c) {
   c.cookStep = 0; c.cookRecipe = null;
   c.tapStop = null; c.tapT = 0;   // a tap holds nothing, but don't leave the stop armed
   c.duty = false; c.pendingOff = false;
-  c.cstate = ""; c.busFrom = -1; c.busTo = -1;
+  c.csC = 0; c.busFrom = -1; c.busTo = -1;
   c.hidden = false; c.pauseT = 0;
   c.y = clampY(c.y);   // yanked off a bus/stall: back into the walk band
   c.order = null;
-  c.dayState = "home";
+  c.dsC = DS.home;
 }
 function orderPop(c, ok, verdict) {
   popText(c.p.name + ": " + verdict, c.x - 12, c.y - 26, ok ? [140, 255, 160] : [255, 150, 130]);
@@ -8680,19 +9393,19 @@ function orderPop(c, ok, verdict) {
 function orderGoto(c, x, y) {
   abortActivity(c);
   c.order = { kind: "goto", x: Math.max(12, Math.min(WORLD_W - 24, x)), y: clampY(y), idleT: -1 };
-  c.dayState = "directed";
+  c.dsC = DS.directed;
   setT(c, c.order.x, c.order.y);
   orderPop(c, true, "ON IT!");
 }
 function updateDirected(c, dt) {
   const o = c.order;
-  if (!o) { c.dayState = "home"; return; }
+  if (!o) { c.dsC = DS.home; return; }
   if (o.idleT >= 0) {   // arrived: linger a beat, then the schedule reclaims them
-    o.idleT -= dt;
-    if (o.idleT <= 0) { c.order = null; c.dayState = "home"; c.errandCd = Math.max(c.errandCd, 1); }
+    o.idleT -= dtT;
+    if (o.idleT <= 0) { c.order = null; c.dsC = DS.home; c.errandCd = Math.max(c.errandCd, 1 * SEC); }
     return;
   }
-  if (routedStep(c, crabMove(c), dt)) o.idleT = ORDER_IDLE;
+  if (routedStep(c, crabMoveQ8(c), dt)) o.idleT = ORDER_IDLE;
 }
 // pickErrand's recipe/pricing/staffing gates, sans the need thresholds - a
 // directed crab runs the errand NOW if the till, wallet and line allow it
@@ -8732,7 +9445,7 @@ function orderCrab(c, wx, wy) {
   const atWorkplace = jb ? wx >= jb.x0 && wx <= jb.x1
     : wx >= PIER_X0 - 8 && wx <= PIER_X1 + 24;
   if (atWorkplace && !c.p.sick && tmin < sh.end - 30) {
-    if (c.dayState === "working" && c.duty) return orderPop(c, false, "ALREADY ON THE CLOCK");
+    if (c.dsC === DS.working && c.duty) return orderPop(c, false, "ALREADY ON THE CLOCK");
     abortActivity(c);
     startCommute(c, true);
     return orderPop(c, true, c.p.job === "fishing" ? "GONE FISHING!" : "BACK TO WORK!");
@@ -8781,11 +9494,11 @@ function orderCrab(c, wx, wy) {
 // via stepTo this frame count (deliberate waits - queues, station work, bus
 // stops, trait pauses - never call stepTo), and only with real distance
 // still to cover.
-const STUCK_WINDOW = 1.5;   // seconds of no net progress before a sidestep
+const STUCK_WINDOW = 1.5 * SEC;   // seconds of no net progress before a sidestep
 const STUCK_DIST = 2;       // "no progress" = net displacement under this many px
 const STUCK_FAR = 8;        // only when genuinely underway (target further than this)
 const STUCK_RETRIES = 4;    // sidesteps before giving up with a quip
-const DETOUR_T = 1.0;       // seconds each sidestep waypoint lives
+const DETOUR_T = 1.0 * SEC;  // seconds each sidestep waypoint lives
 // Matt's last-resort valve, on a different clock from the sidestep watchdog:
 // a trip may spend at most this many GAME-minutes bouncing off furniture in
 // total, then the crab squeezes past ("it's cute for ten minutes; all day is
@@ -8804,14 +9517,14 @@ function updateStuck(c, dt) {
   // light - and a crab dispatched to work before dawn kept the flag, and with
   // it a permanent exemption from this watchdog. One pinned rough sleeper then
   // stood in the road forever with nothing left to rescue him.
-  if ((c.napT || 0) > 0 || c.dayState === "chat" || c.wanderT > 0 ||
-      (c.p.rough && c.dayState === "home" && darkness() >= 0.5)) {
+  if ((c.napT || 0) > 0 || c.dsC === DS.chat || c.wanderT > 0 ||
+      (c.p.rough && c.dsC === DS.home && darkness() >= 0.5)) {
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0; c.bounceT = 0;
     return;
   }
   if (c.detour) {   // sidestep in progress: steer for the waypoint, then resume
-    c.detour.t -= dt;
-    const done = stepTo(c, c.detour.x, crabMove(c) * 1.2, dt, c.detour.y);
+    c.detour.t -= dtT;
+    const done = stepTo(c, c.detour.x, idiv(crabMoveQ8(c) * 6, 5), dt, c.detour.y);
     if (done || c.detour.t <= 0) c.detour = null;
     c.stuckT = 0; c.stuckRef = null;
     return;
@@ -8820,18 +9533,21 @@ function updateStuck(c, dt) {
     Math.abs((c._mx != null ? c._mx : c.x) - c.x) > STUCK_FAR;
   if (!walking) { c.stuckT = 0; c.stuckRef = null; c.stuckN = 0; c.bounceT = 0; return; }
   // bounce budget: count the game-minutes this trip has spent not getting there
-  if (c._blocked) c.bounceT = (c.bounceT || 0) + dt * TS;
+  if (c._blocked) c.bounceT = (c.bounceT || 0) + dtT;
   if ((c.bounceT || 0) >= BOUNCE_BUDGET) {
     c.bounceT = 0; c.stuckT = 0; c.stuckRef = null; c.stuckN = 0; c.detour = null;
     const dir2 = Math.sign((c._mx != null ? c._mx : c.x) - c.x) || 1;
     c.x += dir2 * WARP_PX;   // squeeze through, a shell's width
-    c.quip = { text: "EXCUSE ME", t: 1.8 };
+    c.quip = { text: "EXCUSE ME", t: 1.8 * SEC };
     if (window._stats) window._stats.warps = (window._stats.warps || 0) + 1;
     return;
   }
   if (!c.stuckRef) { c.stuckRef = { x: c.x, y: c.y }; c.stuckT = 0; return; }
-  c.stuckT += dt;
-  if (Math.hypot(c.x - c.stuckRef.x, c.y - c.stuckRef.y) >= STUCK_DIST) {
+  c.stuckT += dtT;
+  // squared compare - hypot is implementation-approximated and this is a pure
+  // gate (the distance's VALUE is never used), so the exact form replaces it
+  const spx = c.x - c.stuckRef.x, spy = c.y - c.stuckRef.y;
+  if (spx * spx + spy * spy >= STUCK_DIST * STUCK_DIST) {
     c.stuckRef = { x: c.x, y: c.y }; c.stuckT = 0; c.stuckN = 0;   // real progress: all clear
     return;
   }
@@ -8840,8 +9556,8 @@ function updateStuck(c, dt) {
   c.stuckT = 0; c.stuckRef = null;
   if (c.stuckN > STUCK_RETRIES) {
     c.stuckN = 0;
-    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 };
-    if (c.order) { c.order = null; c.dayState = "home"; }   // a directed crab abandons the order
+    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 * SEC };
+    if (c.order) { c.order = null; c.dsC = DS.home; }   // a directed crab abandons the order
     return;
   }
   // perpendicular sidestep: hop to whichever side of the lane has room
@@ -8856,12 +9572,12 @@ function updateFishing(c, dt) {
   // stand at the spot, cast, wait, land one - the town's oldest job
   if (c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; }
   if (c.roastT > 0) {   // lunch is on the driftwood fire
-    c.roastT -= dt;
+    c.roastT -= dtT;
     if (c.roastT <= 0) {
-      c.p.hunger = Math.max(0, (c.p.hunger || 0) - 0.65);
+      c.p.hunger = Math.max(0, (c.p.hunger || 0) - qn(0.65));
       crabLog(c, "need", "ROASTED A FRESH CATCH ON THE BEACH", 0);   // DIARY
       popText("FRESH CATCH LUNCH", c.x - 12, c.y - 24, [140, 255, 160]);
-      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(srand() * 3) | 0], t: 2.4 * SEC };
       if (window._stats) window._stats.roasts = (window._stats.roasts || 0) + 1;
     }
     return;
@@ -8870,19 +9586,19 @@ function updateFishing(c, dt) {
   // beats a $15 town lunch plus hours of walking, at any price - and for a
   // penniless fisher in a glut it's the safety valve that makes zero-wage
   // survivable. One fish off the day's landings, no money changes claws.
-  if ((c.p.hunger || 0) >= 0.55 && townCatch > 2) {   // never the town's last fish
-    townCatch--; c.roastT = 5;
+  if ((c.p.hunger || 0) >= qn(0.55) && townCatch > 2) {   // never the town's last fish
+    townCatch--; c.roastT = 5 * SEC;
     trade.useDay++;   // a roast eats a fish too - the market feels it
     if (window._stats) window._stats.roastStarts = (window._stats.roastStarts || 0) + 1;
     return;
   }
-  c.castT = (c.castT || 5) - dt;
+  c.castT = (c.castT || 5 * SEC) - dtT;
   if (c.castT <= 0) {
     // a live-aboard works the deeper water off their own deck: quicker bites,
     // and now and then the net comes up double
     const aboard = c.p.boat != null;
     const tier = fishTier(c);   // experience: quicker casts, better hauls
-    c.castT = (aboard ? 9 + srand() * 13 : 14 + srand() * 18) * tier.cast;
+    c.castT = (((aboard ? 9 * SEC + ((srand() * 13 * SEC) | 0) : 14 * SEC + ((srand() * 18 * SEC) | 0))) * tier.cast) | 0;
     let haul = srand() < (aboard ? 0.2 : 0) + tier.dbl ? 2 : 1;
     if (tier.big && srand() < tier.big) haul = 4;   // THE BIG ONE
     townCatch += haul; trade.landed += haul; trade.landedDay += haul;
@@ -8903,7 +9619,7 @@ function updateFishing(c, dt) {
     if (srand() < 0.25) c.quip = {
       text: trade.price >= FISH_IMPORT
         ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(srand() * 3) | 0]
-        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 };
+        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 * SEC };
   }
 }
 // A tourist will not sit at the table beside a visibly filthy crab: they take
@@ -8919,8 +9635,14 @@ function updateFishing(c, dt) {
 // beside somebody, which turns the refusal into a no-op.
 const SHUN_PX = 26;
 function tableShunned(t, skip) {
-  return allCrabs().some(c => !c.hidden && c !== skip && (c.p.dirt || 0) >= SHUN_AT &&
-    Math.hypot(c.x + 8 - (t.x + 10), (c.y - (t.y + 12)) * 1.8) < SHUN_PX);
+  // squared ellipse compare: hypot(dx, 1.8*dy) < 26 with 1.8 = 9/5 exactly,
+  // so 25*dx^2 + 81*dy^2 < 25*26^2 - a pure gate, and the inexact 1.8 float
+  // literal leaves the sim with the approximated hypot
+  return allCrabs().some(c => {
+    if (c.hidden || c === skip || (c.p.dirt || 0) < SHUN_AT) return false;
+    const dx = c.x + 8 - (t.x + 10), dy = c.y - (t.y + 12);
+    return 25 * dx * dx + 81 * dy * dy < 25 * SHUN_PX * SHUN_PX;
+  });
 }
 function pickSeat(tables, cust) {
   // a DIRTY table is not a table: it seats nobody until a crab has cleared it
@@ -8940,9 +9662,11 @@ function pickSeat(tables, cust) {
 }
 // ...and a tourist being served BY one runs out of patience quicker, on the
 // same ramp the bubble opens on (up to +30% at a pinned 1.00).
-function serverFilth(k) {
+function serverFilthQ12(k) {
+  // 1 + 0.3 * berthRatio, exact in Q12: 0.3 is 3/10 and the berth is already
+  // an int, so the multiplier is 4096 + idiv(3 * 4096 * berth, 10 * BERTH_PX * Q8)
   const s = k.server;
-  return s && s.p && !k.isCrab ? 1 + PATIENCE_FILTH * (crabBerth(s) / BERTH_PX) : 1;
+  return s && s.p && !k.isCrab ? 4096 + idiv(3 * 4096 * crabBerthQ8(s), 10 * BERTH_PX * Q8) : 4096;
 }
 // ------------------------------------------------- busing (the fancier tier)
 // A vacated table is DIRTY and seats nobody until a staff crab clears it -
@@ -8955,7 +9679,7 @@ function messyTable(bizKey) {
   return ts && ts.find(t => (t.dirty || t.dishes > 0) && !t.cleaning && !t.occupant) || null;
 }
 function startBus(c, t) {
-  t.cleaning = true; c.cleanTable = t; c.kstate = "toTableClean";
+  t.cleaning = true; c.cleanTable = t; c.ksC = KS.toTableClean;
   // clampY: a front-row table sits at y=158, so its "at the table" spot is off
   // the bottom of the walkable floor. Clamped it still lands inside collide()'s
   // own exemption box for that table (|dy| < 8), so the busing crab is never
@@ -8963,7 +9687,7 @@ function startBus(c, t) {
   setT(c, t.x + 2, clampY(t.y + 10));
 }
 function updateKitchen(c, dt) {
-  if (c.cust && (c.cust.state === "leaving" || c.cust.served)) { abortChef(c); return; }
+  if (c.cust && (c.cust.stC === VS.leaving || c.cust.served)) { abortChef(c); return; }
   const bizKey = c.workBiz, biz = BIZ[bizKey];
   // ---- THE MICROSLEEP -----------------------------------------------------
   // Runs BEFORE anything else in the kitchen, and AFTER the raged-guest abort
@@ -8979,17 +9703,17 @@ function updateKitchen(c, dt) {
   // that genuinely stepped this frame. kstate "nap" is likewise not one of the
   // moving kstates the suite's freeze detector samples.
   if ((c.napT || 0) > 0) {
-    c.napT -= dt;
+    c.napT -= dtT;
     if (c.napT <= 0) {
       c.kstate = c.napFrom || "idle"; c.napFrom = null;
-      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 };
+      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 * SEC };
     }
     return;
   }
   if ((c.p.tired || 0) >= NOD_AT && !patOff("nod") && NOD_STATES.includes(c.kstate)
       && srand() < NOD_RATE * dt) {
-    c.napFrom = c.kstate; c.kstate = "nap";
-    c.napT = NOD_MIN + srand() * NOD_SPAN;
+    c.napFrom = c.kstate; c.ksC = KS.nap;
+    c.napT = NOD_MIN + ((srand() * NOD_SPAN) | 0);
     if (window._stats) {
       window._stats.nods = (window._stats.nods || 0) + 1;
       window._stats.nodSecs = (window._stats.nodSecs || 0) + c.napT;
@@ -8999,9 +9723,13 @@ function updateKitchen(c, dt) {
   // hustle: kitchens move quick - but a run-down crab loses the spring in
   // their step: a gentle slope, plus a kicker once seriously neglected
   // (eff < 0.85), totalling ~-18% at rock bottom
-  const eff = crabEff(c);
-  const spd = crabMove(c) * 1.55 * (1 - 0.3 * (1 - eff) - 1.2 * Math.max(0, 0.85 - eff));
-  if (c.kstate === "idle") {
+  const effQ = crabEffQ12(c);
+  // 1.55 = 31/20; the slope 0.3(1-eff) = 3(4096-effQ)/10; the kicker
+  // 1.2*max(0, 0.85-eff) = 6*max(0, 17*4096 - 20*effQ)/100 - all exact
+  // rationals, floored per fold
+  const pQ = 4096 - idiv(3 * (4096 - effQ), 10) - idiv(6 * Math.max(0, 69632 - 20 * effQ), 100);
+  const spd = idiv(idiv(crabMoveQ8(c) * 31, 20) * pQ, 4096);
+  if (c.ksC === KS.idle) {
     const lastCall = c.pendingOff && tmin < effShift(c).end + 45;
     if (!c.pendingOff || lastCall) {
       // paying guests first; locals and crew get served in the lulls - but a
@@ -9017,8 +9745,8 @@ function updateKitchen(c, dt) {
       // -8% and -14%, while the queue geometry alone reads +2%/-1%. Where the
       // crabs STAND is a look; who gets served is the economy. See PLAN.
       const pending = customers.filter(k => k.biz === bizKey &&
-        (k.state === "waiting" || k.state === "seatedWaiting") && !k.claimed && !k.served);
-      const o = pending.find(k => k.isCrab && k.patience < k.maxPatience * 0.5)
+        (k.stC === VS.waiting || k.stC === VS.seatedWaiting) && !k.claimed && !k.served);
+      const o = pending.find(k => k.isCrab && 2 * k.patience < k.maxPatience)
         || pending.find(k => !k.isCrab) || pending[0];
       // TURNING THE ROOM, when the room is what the queue is waiting for.
       // Busing ONLY in the lull measured as a death spiral for table service:
@@ -9036,16 +9764,16 @@ function updateKitchen(c, dt) {
       // AND then waited behind the plates. Tourists can wait; they only lose
       // patience, and a tourist who has nowhere to sit is exactly the guest a
       // cleared table is for.
-      const messyFirst = !c.pendingOff && bts0 && o && !o.isCrab && o.state === "waiting" &&
+      const messyFirst = !c.pendingOff && bts0 && o && !o.isCrab && o.stC === VS.waiting &&
         !bts0.some(t => !t.occupant && t.dishes === 0 && !t.dirty) && messyTable(bizKey);
       if (o && !messyFirst) {
         // an order lands: the wander is over, wherever they got to. The walk
         // back to the crate is the entire cost of having drifted off.
         c.wander = null; c.wanderT = 0; c.idleT = 0; c.wanderCd = WANDER_CD;
-        o.claimed = true; c.cust = o; o.server = c; c.stepIdx = -1; c.kstate = "walk";
+        o.claimed = true; c.cust = o; o.server = c; c.stepIdx = -1; c.ksC = KS.walk;
         // send dine-in guests to a table right away - the server brings it out
         const bts = bizTables(bizKey);
-        if (o.state === "waiting" && bts) {
+        if (o.stC === VS.waiting && bts) {
           const seat = pickSeat(bts, o);
           if (seat) { seat.occupant = o; o.table = seat; o.state = "toSeat"; }
         }
@@ -9055,7 +9783,7 @@ function updateKitchen(c, dt) {
       const grubby = !c.pendingOff && biz.stalls && biz.stalls.find(t => t.dirty && !t.cleaning && !t.occupant);
       if (grubby) {
         c.wander = null; c.wanderT = 0; c.idleT = 0; c.wanderCd = WANDER_CD;
-        grubby.cleaning = true; c.cleanStall = grubby; c.kstate = "toStallClean";
+        grubby.cleaning = true; c.cleanStall = grubby; c.ksC = KS.toStallClean;
         setT(c, grubby.x + 2, grubby.y + 7);
         return;
       }
@@ -9083,7 +9811,7 @@ function updateKitchen(c, dt) {
     // The cost is ONLY ever the walk back, and it lands hardest exactly when
     // the shop is quiet, which is when it costs the town least.
     if (c.wanderT > 0) {                    // stood there, watching the sea
-      c.wanderT -= dt;
+      c.wanderT -= dtT;
       if (c.wanderT <= 0) { c.wander = null; c.wanderCd = WANDER_CD; }
       return;                               // holds position: no stepTo, so the
                                             // unstick watchdog never considers them
@@ -9091,13 +9819,13 @@ function updateKitchen(c, dt) {
     if (c.wander) {                         // walking out to it (kstate stays
       setT(c, c.wander.x, c.wander.y);      // "idle": the claim scan above runs
       if (routedStep(c, spd, dt)) {         // every frame, wander or no wander)
-        c.wanderT = WANDER_DWELL + srand() * 10;
-        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 };
+        c.wanderT = WANDER_DWELL + ((srand() * 10 * SEC) | 0);
+        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 * SEC };
       }
       return;
     }
-    if (c.wanderCd > 0) c.wanderCd -= dt;
-    c.idleT = (c.idleT || 0) + dt;
+    if (c.wanderCd > 0) c.wanderCd -= dtT;
+    c.idleT = (c.idleT || 0) + dtT;
     if (!c.pendingOff && !c.p.sick && !patOff("wander")
         && (c.p.bored || 0) >= WANDER_AT && !boredYields(c)
         && c.idleT >= WANDER_QUIET && c.wanderCd <= 0) {
@@ -9111,7 +9839,7 @@ function updateKitchen(c, dt) {
     }
     setT(c, ix, clearSpotY(ix, 146 + (Math.max(0, crabs.indexOf(c)) % 2) * 10));
     routedStep(c, spd, dt);
-  } else if (c.kstate === "walk") {
+  } else if (c.ksC === KS.walk) {
     // the crate is decided on ARRIVAL, not on claim - see sourceSpot. Only the
     // leg to the source (stepIdx -1) is re-aimed; a station slot is acquired,
     // so nobody else can be standing on one of those.
@@ -9121,49 +9849,49 @@ function updateKitchen(c, dt) {
     }
     if (routedStep(c, spd, dt)) {
       if (c.stepIdx === -1) {
-        if (ownerFunds(bizKey) < ingredientCost(c.cust.recipe.raw)) { c.kstate = "waitCash"; return; }
+        if (ownerFunds(bizKey) < ingredientCost(c.cust.recipe.raw)) { c.ksC = KS.waitCash; return; }
         debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
-        c.kstate = "work"; c.workMax = c.workT = 0.6; c.slotKind = null; c.slot = -1;
+        c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
       else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
       else {
         const [kind] = c.cust.recipe.steps[c.stepIdx];
         const s = tryAcquire(bizKey, kind);
-        if (s < 0) c.kstate = "waitSlot";
+        if (s < 0) c.ksC = KS.waitSlot;
         else {
           c.slotKind = kind; c.slot = s;
           const sp = stationSpot(bizKey, kind, s); setT(c, sp.x, sp.y);
-          c.kstate = "toSlot";
+          c.ksC = KS.toSlot;
         }
       }
     }
-  } else if (c.kstate === "toStallClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = 2.5 / (crabWork(c) * crabEff(c)); c.kstate = "cleaningStall"; }
-  } else if (c.kstate === "cleaningStall") {
-    c.workT -= dt;
+  } else if (c.ksC === KS.toStallClean) {
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (2.5 * SEC * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.ksC = KS.cleaningStall; }
+  } else if (c.ksC === KS.cleaningStall) {
+    c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.cleanStall) { c.cleanStall.dirty = false; c.cleanStall.cleaning = false; c.cleanStall = null; }
       crabLogEvery(c, "stall", 90, "work", "SCRUBBED OUT A SHOWER STALL");   // DIARY
-      c.kstate = "idle";
+      c.ksC = KS.idle;
       if (window._stats) window._stats.stallsCleaned = (window._stats.stallsCleaned || 0) + 1;
       popText("SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
-  } else if (c.kstate === "toTableClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = BUS_SECS / (crabWork(c) * crabEff(c)); c.kstate = "busingTable"; }
-  } else if (c.kstate === "busingTable") {
-    c.workT -= dt;
+  } else if (c.ksC === KS.toTableClean) {
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.ksC = KS.busingTable; }
+  } else if (c.ksC === KS.busingTable) {
+    c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.cleanTable) {
         c.cleanTable.dirty = false; c.cleanTable.cleaning = false; c.cleanTable.dishes = 0;
         c.cleanTable = null;
       }
-      c.kstate = "idle";
+      c.ksC = KS.idle;
       if (bizOwner(bizKey) === "player") today.bused = (today.bused || 0) + 1;
       if (window._stats) window._stats.tablesBused = (window._stats.tablesBused || 0) + 1;
       popText("CLEARED", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
-  } else if (c.kstate === "waitCash") {
+  } else if (c.ksC === KS.waitCash) {
     // step into the clear lane while waiting - squatting on the source spot
     // blocks a selfCook crab heading for the same bin (hold-and-wait deadlock)
     { const st0 = biz.stations[biz.source][0];
@@ -9172,9 +9900,9 @@ function updateKitchen(c, dt) {
     if (ownerFunds(bizKey) >= ingredientCost(c.cust.recipe.raw)) {
       debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
       consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
-      c.kstate = "work"; c.workMax = c.workT = 0.6; c.slotKind = null; c.slot = -1;
+      c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
     }
-  } else if (c.kstate === "waitSlot") {
+  } else if (c.ksC === KS.waitSlot) {
     const kind = c.cust.recipe.steps[c.stepIdx][0];
     // wait in the clear lane, not on the station spot: the crab HOLDING the
     // slot may be walking to this exact spot (a night pour made this jam
@@ -9186,17 +9914,17 @@ function updateKitchen(c, dt) {
     if (s >= 0) {
       c.slotKind = kind; c.slot = s;
       const sp = stationSpot(bizKey, kind, s); setT(c, sp.x, sp.y);
-      c.kstate = "toSlot";
+      c.ksC = KS.toSlot;
     }
-  } else if (c.kstate === "toSlot") {
+  } else if (c.ksC === KS.toSlot) {
     if (routedStep(c, spd, dt)) {
       const [, secs] = c.cust.recipe.steps[c.stepIdx];
-      const mult = masteryMult(c, c.cust.recipe.id) / (crabWork(c) * crabEff(c));
-      c.workMax = c.workT = secs * mult;
-      c.kstate = "work";
+      const mult = masteryMult(c, c.cust.recipe.id) * 4096 / (crabWork(c) * crabEffQ12(c));
+      c.workMax = c.workT = (secs * SEC * mult) | 0;
+      c.ksC = KS.work;
     }
-  } else if (c.kstate === "work") {
-    c.workT -= dt;
+  } else if (c.ksC === KS.work) {
+    c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.stepIdx === -1) {
         c.carrying = c.cust.recipe.raw;   // paid for at grab start
@@ -9207,12 +9935,12 @@ function updateKitchen(c, dt) {
       if (c.stepIdx >= c.cust.recipe.steps.length) {
         if (c.cust.table) setT(c, c.cust.table.x + 2, c.cust.table.y + 10);   // bring it out
         else { const so = stationSpot(bizKey, biz.out, 0); setT(c, so.x, so.y); }
-        c.kstate = "walk";
+        c.ksC = KS.walk;
       }
       else {
         const st0 = biz.stations[c.cust.recipe.steps[c.stepIdx][0]][0];
         setT(c, st0.x + 2, st0.y + 7);
-        c.kstate = "walk";
+        c.ksC = KS.walk;
       }
     }
   }
@@ -9251,7 +9979,7 @@ function creditCatch(c, haul) {
       crabLog(c, "life", t.label + " FISHING - " + c.p.made.caught + " LANDED", 0);   // DIARY
       toast = { text: c.p.name + " " + t.label + " FISHING! " + c.p.made.caught + " LANDED", t: 6 };
       popText(t.label + " FISHING", c.x - 26, c.y - 32, [255, 230, 120]);
-      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(srand() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(srand() * 3) | 0], t: 2.6 * SEC };
       sfx.ding();
       break;
     }
@@ -9268,7 +9996,7 @@ function creditAccomplishment(c, cust) {
       crabLog(c, "life", label + " " + dish + " (X" + n + ")", 0);   // DIARY
       toast = { text: c.p.name + " " + label + " " + dish + "! " + n + " SERVED", t: 6 };
       popText(label + " " + dish, c.x - 24, FLOOR_Y - 36, [255, 230, 120]);
-      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(srand() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(srand() * 3) | 0], t: 2.4 * SEC };
       sfx.ding();
       break;
     }
@@ -9379,7 +10107,7 @@ function payAndBenefit(c, cust) {
     if (!firstPour && c && c.p) {   // the bar's first drink is town news
       firstPour = true;
       toast = { text: c.p.name + " POURED THE JUICE BAR'S FIRST " + ITEM_NAMES[cust.recipe.icon] + "!", t: 6 };
-      c.quip = { text: "FRESH SQUEEZED!", t: 2.6 };
+      c.quip = { text: "FRESH SQUEEZED!", t: 2.6 * SEC };
     }
   }
   if (c && c.p) today.byCrab[c.p.name] = (today.byCrab[c.p.name] || 0) + 1;
@@ -9395,26 +10123,27 @@ function payAndBenefit(c, cust) {
       window._stats.npcSpendAtPlayer = (window._stats.npcSpendAtPlayer || 0) + price;
     if (cust.need === "food") cust.crab.p.hunger = 0;
     if (cust.need === "drink") {
-      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(srand() * 3) | 0], t: 2.4 };
+      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(srand() * 3) | 0], t: 2.4 * SEC };
       if (window._stats) window._stats.crabDrinks = (window._stats.crabDrinks || 0) + 1;
     }
     if (cust.need === "drink" || DRINKS[cust.recipe.id]) cust.crab.p.thirst = 0;   // any juice quenches, even one bought as lunch
-    if (cust.need === "fun") { cust.crab.p.bored = 0; cust.crab.quip = { text: "BEST DAY EVER!", t: 2.4 }; }
+    if (cust.need === "fun") { cust.crab.p.bored = 0; cust.crab.quip = { text: "BEST DAY EVER!", t: 2.4 * SEC }; }
     popText(ITEM_NAMES[cust.recipe.icon], cust.x - 14, 116, [140, 255, 160]);
   } else {
-    const tipMult = TRAITS[c.p.trait].tip * (1 - 0.3 * (c.p.dirt || 0))
-      * (1 - ((c.p.tired || 0) >= 0.85 ? 0.15 : 0));   // an EXHAUSTED server fumbles the charm (0.85 = the mood line; evenings routinely reach the old 0.66)
+    const tipMult = TRAITS[c.p.trait].tip * (1 - 0.3 * ((c.p.dirt || 0) / Q20))
+      * (1 - ((c.p.tired || 0) >= qn(0.85) ? 0.15 : 0));   // an EXHAUSTED server fumbles the charm (0.85 = the mood line; evenings routinely reach the old 0.66)
     // TABLE SERVICE KEEPS THE WHOLE TIP; the counter keeps a token of it.
     // `seatedWaiting` is exactly "this plate is going out to a seated guest" -
     // serve() calls us before it flips them to dining.
-    const seated = cust.state === "seatedWaiting";
+    const seated = cust.stC === VS.seatedWaiting;
     // THE TIP PRODUCT, IN MILLI-CENTS. The two float-derived factors - the
     // patience ratio and the charm multiplier - cross into Q16 here and NOWHERE
     // downstream; they are the last floats in this pipeline and they leave with
     // slice 3, when needs become Q20. Everything after this line is exact
     // integer arithmetic on a price that is already cents, and the worst-case
     // numerator is about 1.2e12 - comfortably inside the exact-integer range.
-    const PR = Math.max(0, Math.min(65536, Math.round(65536 * (cust.patience / cust.maxPatience))));
+    const PR = cust.patience >= cust.maxPatience ? 65536
+      : Math.max(0, idiv(131072 * cust.patience + cust.maxPatience, 2 * cust.maxPatience));   // exact round-half-up of 65536*p/maxP; the >= branch also keeps the suite's 0x7fffffff sentinel (patience is an i32 plane) out of the 2^53 window
     const TM = Math.max(0, Math.round(65536 * tipMult));
     const F = Math.floor(PR * TM / 65536);   // the two folded into one Q16 factor
     const counterN = (seated || window._fullCounterTip) ? 20 : 3;   // TIP_COUNTER 0.15 = 3/20 exactly
@@ -9479,19 +10208,19 @@ function visBenefit(k) {
 }
 function serve(c) {
   const cust = c.cust;
-  if (cust && cust.state === "toSeat") return;   // guest still walking to the table: wait a beat, retry next frame
-  if (cust && cust.state === "seatedWaiting") {
+  if (cust && cust.stC === VS.toSeat) return;   // guest still walking to the table: wait a beat, retry next frame
+  if (cust && cust.stC === VS.seatedWaiting) {
     // table delivery: payment + benefits as usual, then straight to dining
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100, rep + 0.8);   // table service impresses
-    cust.state = "dining"; cust.dineT = 6 + srand() * 4;
+    if (!cust.isCrab) rep = Math.min(100000, rep + 800);   // table service impresses
+    cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
     if (window._stats && bizOwner(cust.biz) !== "player")
       window._stats.npcServes = (window._stats.npcServes || 0) + 1;
-    c.cust = null; c.carrying = null; c.kstate = "idle"; c.stepIdx = 0;
+    c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
     // CLEAR THE NEXT TABLE ON THE WAY BACK. The server is standing IN the
     // dining room with an empty tray - the one moment in the day when busing
     // costs a few steps instead of a lap of the shack. Measured: with busing
@@ -9502,10 +10231,10 @@ function serve(c) {
     if (!c.pendingOff) { const nxt = messyTable(cust.biz); if (nxt) startBus(c, nxt); }
     return;
   }
-  if (cust && cust.state === "waiting") {
+  if (cust && cust.stC === VS.waiting) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100, rep + 0.4);
+    if (!cust.isCrab) rep = Math.min(100000, rep + 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
     const seat = tables ? pickSeat(tables, cust) : null;
     const stall = stalls ? stalls.find(t => !t.occupant && !t.dirty) : null;
@@ -9513,18 +10242,18 @@ function serve(c) {
     // The room was reserved before they joined the line (nobody sells the last
     // room twice), so there is nothing to find here - `leaving` sends them
     // through visAfterCounter, which checks them in.
-    if (BIZ[cust.biz].lodging) { cust.state = "leaving"; }
+    if (BIZ[cust.biz].lodging) { cust.stC = VS.leaving; }
     else if (stalls) {
-      if (stall) { stall.occupant = cust; cust.state = "toStall"; cust.stall = stall; }
-      else { cust.state = "waitStall"; cust.waitT = 30; }
+      if (stall) { stall.occupant = cust; cust.stC = VS.toStall; cust.stall = stall; }
+      else { cust.stC = VS.waitStall; cust.waitT = 30 * SEC; }
     }
-    else if (seat) { seat.occupant = cust; cust.state = "toTable"; cust.table = seat; }
-    else cust.state = "leaving";
+    else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
+    else cust.stC = VS.leaving;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
     if (window._stats && bizOwner(cust.biz) !== "player")
       window._stats.npcServes = (window._stats.npcServes || 0) + 1;
   }
-  c.cust = null; c.carrying = null; c.kstate = "idle"; c.stepIdx = 0;
+  c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
 }
 
 // ===========================================================================
@@ -9591,7 +10320,7 @@ const FERRY = {
 // of a guest's value. Four smaller boats put the same people through the same
 // dining room and the share comes back.
 const FERRY_TIMES = [8 * 60, 10.5 * 60, 13 * 60, 15.5 * 60];
-const FERRY_STAY = 75;                   // game-minutes tied up
+const FERRY_STAY = 75 * GMIN;            // game-minutes tied up, counted in ticks
 const FERRY_CALL = 165;                  // ...and how long before a sailing a leaver sets off
                                          // for the pier (the whole promenade, at a stroll)
 // A GOOD NAME FILLS THE BOAT. This replaces `spawnEvery`, and it makes the same
@@ -9616,8 +10345,13 @@ function ferryNotify(kind) {
 }
 function gnow() { return day * 1440 + tmin; }
 function ferryBatch() {
-  const n = FERRY_BASE + rep * FERRY_REP + (srand() - 0.5);
-  return Math.max(1, Math.min(FERRY_MAX, Math.round(n)));
+  // MILLI-UNITS, exact (slice 5): base 2.0 -> 2000, rep term 0.013/point ->
+  // 13 milli per millirep-thousand (idiv floors an always-positive product),
+  // the draw floors to whole milli, and the round-half-up happens ONCE at the
+  // passenger boundary. FERRY_BASE/FERRY_REP stay authored; this is their
+  // read boundary, the same shape as the cent's and qn()'s.
+  const nMilli = 1000 * FERRY_BASE + idiv(13 * rep, 1000) + Math.floor(srand() * 1000) - 500;   // 13 IS FERRY_REP (0.013/point) at the milli grain - 1000*0.013 in float is NOT 13
+  return Math.max(1, Math.min(FERRY_MAX, idiv(nMilli + 500, 1000)));
 }
 // ---- THE VISITOR -----------------------------------------------------------
 const VIS_STATES = { ashore: 1, roam: 1, toBiz: 1, toRoom: 1, inRoom: 1, onSand: 1, toPier: 1 };
@@ -9633,7 +10367,7 @@ const VIS_SPEED = 42;            // a stroll: a shade under a walking crab's 40 
 // hit one counter at once - at 50 the burst cost 2 seated guests a day their
 // $9 table tip and put rage 62% above the pre-pass build.
 const VIS_PATIENCE = 100;
-const VIS_THINK = 1.6;           // real seconds between "what do I fancy" checks
+const VIS_THINK = 1.6 * SEC;     // real seconds between "what do I fancy" checks
 // needs per GAME HOUR while awake. Pitched off the crabs' own cycle but a
 // little gentler: a visitor is not working a shift, and a visitor who needed
 // something every hour would simply queue all day.
@@ -9646,8 +10380,12 @@ const VIS_THINK = 1.6;           // real seconds between "what do I fancy" check
 // and the overflow was served over the pass for a token tip. Fewer, hungrier
 // visitors are worth more than more, thirstier ones, because SEATS are what
 // this town is short of.
-const VIS_RATE = { hunger: 0.115, thirst: 0.055, dirt: 0.090, bored: 0.045, tired: 0.048 };
-const VIS_WANT = { food: 0.45, drink: 0.40, clean: 0.45, fun: 0.45 };
+// Q20 PER TICK, round-half-up from the authored per-hour rates (0.115/hr =
+// 401.95 q20/tick -> 402). Rounding to NEAREST and not flooring is the whole
+// point: flooring all five runs the town's needs 1.19% slow, every one in the
+// same direction, which is a quietly easier game bought by arithmetic.
+const VIS_RATE = { hunger: 402, thirst: 192, dirt: 315, bored: 157, tired: 168 };   // per TICK, Q20
+const VIS_WANT = { food: qn(0.45), drink: qn(0.40), clean: qn(0.45), fun: qn(0.45) };
 // A VISITOR'S PRIORITIES ARE NOT A LOCAL'S. ERRAND_RANK puts washing third
 // because a crab washes when the day allows; a holidaymaker who has spent the
 // afternoon on a beach goes and has a shower, and SUDSY's whole business used
@@ -9712,11 +10450,11 @@ function freeVisitorName(pool) {
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
-  for (const key of keys) n[key] = 0.08 + srand() * 0.32;
+  for (const key of keys) n[key] = qn(0.08) + Math.floor(srand() * qn(0.32));
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
-    n[key] = 0.55 + srand() * 0.40;
+    n[key] = qn(0.55) + Math.floor(srand() * qn(0.40));
   }
   return n;
 }
@@ -9747,13 +10485,14 @@ function newVisitor(overnightOnly, cu) {
     color: cul ? (srand() * cul.colorways) | 0 : (srand() * CRAB_COLORS.length) | 0,
     acc: cul ? cul.accKeys[(srand() * cul.accKeys.length) | 0]
       : ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
-    animT: srand() * 9,
+    animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
     // they come off the boat ON THE PLANKS, at rail height, and walk down
-    x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
-    state: "ashore",
+    si: poolAlloc(), leg: 0,
     // the shop pipeline's own fields, dormant until they join a line
-    biz: null, recipe: null, patience: VIS_PATIENCE, maxPatience: VIS_PATIENCE,
-    claimed: false, served: false, happy: false, server: null, table: null, stall: null,
+    // (patience/table/stall are PLANE fields now - set through the accessors
+    // below the attach, never in the literal: an own property shadows)
+    biz: null, recipe: null, maxPatience: VIS_PATIENCE * PQ,
+    claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
     nights, nightsHad: 0, rough: false, roughNights: 0, unhoused: 0,
@@ -9761,8 +10500,14 @@ function newVisitor(overnightOnly, cu) {
     idleT: 0, target: null, log: [],
     // the visit's own ledger, minted with the purse - see THE DEPARTURE CARD
     stay: newStay(), qJoin: null,
-    hunger: n.hunger, thirst: n.thirst, dirt: n.dirt, bored: n.bored, tired: n.tired,
   };
+  Object.setPrototypeOf(v, VisProto);
+  // through the accessors: state and needs are plane grains now, and an own
+  // property in the literal above would shadow the doors (lesson #1)
+  v.stC = VS.ashore;
+  v.hunger = n.hunger; v.thirst = n.thirst; v.dirt = n.dirt; v.bored = n.bored; v.tired = n.tired;
+  v.patience = VIS_PATIENCE * PQ; v.table = null; v.stall = null;
+  v.x = FERRY.gangway; v.y = FERRY.deckY; v.wy = FERRY.deckY;
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
   // than bare-headed clerks, because pig society is not so egalitarian. One
@@ -9798,7 +10543,7 @@ function seedVisitors() {
     // still has a population on DAY 2 (measured: seeding day-trippers only left
     // day 2 thirty percent down on takings while the first boats rebuilt one)
     const v = newVisitor(srand() < 0.45);
-    v.state = "roam"; v.leg = 1;
+    v.stC = VS.roam; v.leg = 1;
     v.x = Math.round(VIS_ROAM[0] + srand() * (VIS_ROAM[1] - VIS_ROAM[0]));
     v.wy = FLOOR_Y; v.y = FLOOR_Y;
     v.wallet = Math.round(v.wallet * (0.55 + srand() * 0.45));   // part-way through the money
@@ -9813,19 +10558,25 @@ function seedVisitors() {
 // FINGERPRINT RULE: with no cultures registered, or every gate shut, this
 // consumes ZERO srand() draws - a pre-cultures town sails
 // byte-identical forever, so the roll is short-circuited BEFORE the draw.
-function cultureShare(cul) {
+// The arrival roll, exact (slice 5): authored repGate/shareRamp are rep
+// points, rep is millirep, and the ramp compare cross-multiplies instead of
+// dividing - draw * ramp_m is exact (a u32 image times an int ≤ 1e5 stays
+// under 2^53), so the roll is integer-deterministic. shareMax stays the
+// authored double and compares directly: an authored cap IS its double value.
+function cultureRolls(cul, rand) {
   const ar = cul.def.arrival || {};
-  const gate = ar.repGate != null ? ar.repGate : 80;
-  const ramp = ar.shareRamp > 0 ? ar.shareRamp : 80;
+  const gateM = 1000 * (ar.repGate != null ? ar.repGate : 80);
+  if (rep <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
+  const rampM = 1000 * (ar.shareRamp > 0 ? ar.shareRamp : 80);
   const cap = ar.shareMax != null ? ar.shareMax : 0.25;
-  return rep < gate ? 0 : Math.min(cap, (rep - gate) / ramp);
+  const draw = rand();
+  return draw < cap && draw * rampM < rep - gateM;
 }
 function ferryCulture() {
   for (const id in CULTURES) {
     const cul = CULTURES[id];
     if (!cul) continue;   // the crab entry is null: the default, never a roll
-    const share = cultureShare(cul);
-    if (share > 0 && srand() < share) return id;
+    if (cultureRolls(cul, srand)) return id;
   }
   return "crab";
 }
@@ -9843,7 +10594,7 @@ function ferryDock(n, idx) {
   for (let i = 0; i < count; i++) {
     const v = newVisitor(last, ferryCulture());
     v.x = FERRY.gangway - 4 - i * 7;   // down the plank and along the deck, in a line
-    v.thinkT = i * 3 + srand() * 8;   // ...and they do not all want lunch at 9:01
+    v.thinkT = i * 3 * SEC + ((srand() * 8 * SEC) | 0);   // ...and they do not all want lunch at 9:01
     customers.push(v);
     visLog(v, "life", vline(v, "ashore", "CAME ASHORE OFF THE FERRY"));
     // HARBOUR DUES, if that is the purse the town voted for. Charged at the
@@ -9900,8 +10651,8 @@ function visWalkMins(k) {
 // the far end of the promenade.
 function ferryDepartCall(sailAbs, minsLeft) {
   for (const k of visitorsInTown()) {
-    if (k.state === "toPier" || k.leaveT > sailAbs) continue;
-    if (!VIS_STATES[k.state] || k.state === "toBiz") continue;   // finish what you're queueing for
+    if (k.stC === VS.toPier || k.leaveT > sailAbs) continue;
+    if (!VIS_STATES[k.state] || k.stC === VS.toBiz) continue;   // finish what you're queueing for
     if (minsLeft != null && minsLeft > visWalkMins(k)) continue;
     visLeave(k);
   }
@@ -9911,7 +10662,7 @@ function visLeave(k) {
   // there: check them out properly so the night is credited and the room goes
   // back to housekeeping, then send them down the pier
   if (k.room) checkOut(k);
-  k.state = "toPier"; k.leg = 0; k.target = null;
+  k.stC = VS.toPier; k.leg = 0; k.target = null;
   visLog(k, "life", vline(k, "leaving", "HEADING BACK TO THE FERRY"));
 }
 // SHE HAS SAILED. Anybody who made it aboard goes home with whatever is left
@@ -9921,7 +10672,7 @@ function ferryGo() {
   ferryT = 0;
   const last = ferrySail >= FERRY_TIMES.length - 1;
   for (const k of visitorsInTown()) {
-    if (k.state !== "toPier" || k.x < FERRY.gangway - 12) continue;
+    if (k.stC !== VS.toPier || k.x < FERRY.gangway - 12) continue;
     visBoard(k);
   }
   // MISSED THE LAST BOAT. A day-tripper who dawdled is an overnighter now,
@@ -9954,7 +10705,7 @@ function visBoard(k) {
   // collapsed to 43 by day 5, which shrank the boat, which shrank the takings.
   // What ships is the one thing a player can actually fix.
   const rough = k.roughNights > 0;
-  rep = Math.max(0, Math.min(100, rep + (rough ? -1.2 : k.buys >= 2 ? 0.5 : 0)));
+  rep = Math.max(0, Math.min(100000, rep + (rough ? -1200 : k.buys >= 2 ? 500 : 0)));
   if (window._stats) {
     const s = window._stats;
     s.visDepart = (s.visDepart || 0) + 1;
@@ -9986,7 +10737,7 @@ function visBoard(k) {
 }
 // One clock, called from updateCustomers. Docks her on the timetable, calls
 // the leavers early enough to walk the promenade, and sails her.
-function runFerry(dtMin) {
+function runFerry(dtTicks) {
   if (ferryDay !== day) { ferryDay = day; ferrySail = -1; }
   for (let i = 0; i < FERRY_TIMES.length; i++) {
     if (i <= ferrySail) continue;
@@ -9996,10 +10747,10 @@ function runFerry(dtMin) {
     if (tmin >= FERRY_TIMES[i]) { ferrySail = i; ferryDock(null, i); ferryDepartCall(abs); }
   }
   if (ferryT > 0) {
-    ferryT -= dtMin;
+    ferryT -= dtTicks;
     // board anybody standing on the plank while she is alongside
     for (const k of visitorsInTown())
-      if (k.state === "toPier" && k.leg === 1 && k.x >= FERRY.gangway - 12) visBoard(k);
+      if (k.stC === VS.toPier && k.leg === 1 && k.x >= FERRY.gangway - 12) visBoard(k);
     if (ferryT <= 0) ferryGo();
   }
 }
@@ -10038,7 +10789,7 @@ function checkIn(k) {
 function checkOut(k) {
   if (k.room) { k.room.occupant = null; k.room.dirty = true; k.room = null; }
   k.nightsHad++;
-  k.state = "roam"; k.biz = null; k.target = null;
+  k.stC = VS.roam; k.biz = null; k.target = null;
   k.wy = FLOOR_Y; k.y = FLOOR_Y;
   visLog(k, "home", vline(k, "checkout", "CHECKED OUT - SLEPT WELL"));
 }
@@ -10054,7 +10805,7 @@ function checkOut(k) {
 function sleepOnSand(k) {
   let best = SAND_SPOTS[0];
   for (const s of SAND_SPOTS) if (Math.abs(s - k.x) < Math.abs(best - k.x)) best = s;
-  k.state = "onSand"; k.target = best + ((srand() * 18) | 0) - 9;
+  k.stC = VS.onSand; k.target = best + ((srand() * 18) | 0) - 9;
   k.rough = true;
   if (!k.roughFlag) {
     k.roughFlag = true; k.roughNights++;
@@ -10114,11 +10865,17 @@ function visLevel(k, need) {
 function visOpen(b) {
   return bizUnlocked(b) && !bizDark(b) && bizOpenNow(b) && bizStaffed(b);
 }
-function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
-  const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.state !== "leaving"
-    && (c.state === "arriving" || c.state === "waiting" || c.state === "toBiz")).length;
+// the two line counts, shared verbatim by visRoomFor and the kernel marshal
+// so the compiled scorer and the reference count the same heads
+function lineCounts(k, b) {
+  const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
+    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
   const allQ = customers.filter(c => c.biz === b && c !== k
-    && (c.state === "arriving" || c.state === "waiting" || c.state === "toBiz")).length;
+    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
+  return [tourQ, allQ];
+}
+function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
+  const [tourQ, allQ] = lineCounts(k, b);
   return tourQ < TOURIST_QUEUE_MAX && allQ < QUEUE_MAX;
 }
 function visPick(k) {
@@ -10194,8 +10951,12 @@ function visPick(k) {
     const d = Math.abs(k.x - BIZ[e.biz].queueX);
     let s;
     if (e.need === "room") {
-      if (tmin >= ROOM_HOUR) s = 99;   // the desk shuts before the town does: go now, wherever you are
-      else s = (ROOM_RANK + ROOM_URGE * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60))))
+      // IN NEED UNITS, like every other candidate below (slice 3): the room
+      // is scored against needs, so it rides the same Q20 scale or a bed can
+      // never outrank a taco again.
+      if (tmin >= ROOM_HOUR) s = 99 * Q20;   // the desk shuts before the town does: go now, wherever you are
+      else s = (ROOM_RANK * Q20 + Math.floor(ROOM_URGE * Q20
+        * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60)))))
         / (1 + d / DETOUR_SCALE);
     } else {
       // THE BOARD PRICE MOVES THE SHARE. The retired spawn timer carried the
@@ -10207,7 +10968,7 @@ function visPick(k) {
       // land, this decides WHOSE door they walk through. priceAppeal is
       // exactly 1 at the default price, so a town nobody has repriced behaves
       // bit-identically.
-      s = (VIS_RANK[e.need] + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
+      s = (VIS_RANK[e.need] * Q20 + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
     }
     // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
     // its picked recipe, so the weight is a straight lookup. Guarded so a
@@ -10225,59 +10986,118 @@ function visPick(k) {
     stayBlocked(k, "foreign");
   return best;
 }
+// THE COMPILED SCORER's marshal + drain (kernel phase 4). Fills the per-think
+// planes with the same facts the reference reads - the taste row is the
+// Layer-0 cultureway hook table crossing the boundary as pure data - calls
+// vis_pick (which draws through the SHARED cursor, same count, same order),
+// then drains the blocked counters into the stay exactly as stayBlocked did.
+function kernelVisPick(k) {
+  const res = roomReserve(k);
+  for (let s = 0; s < KVP_BIZ.length; s++) {
+    const b = KVP_BIZ[s], rs = BIZ[b].recipes;
+    if (rs.length > KVP_RMAX) throw new Error("recipe table outgrew the kernel plane: " + b);
+    KM_OPEN[s] = visOpen(b) ? 1 : 0;
+    KM_UNLK[s] = bizUnlocked(b) ? 1 : 0;
+    const tq = lineCounts(k, b);
+    KM_TOURQ[s] = tq[0]; KM_ALLQ[s] = tq[1];
+    KM_QX[s] = BIZ[b].queueX;
+    KM_APQ[s] = priceAppealQ16(b);
+    KM_RN[s] = rs.length;
+    for (let i = 0; i < rs.length; i++) {
+      KM_PRICE[s * KVP_RMAX + i] = menuPrice(b, rs[i]);
+      KM_PAY[s * KVP_RMAX + i] = rs[i].pay;
+      KM_DRINK[s * KVP_RMAX + i] = DRINKS[rs[i].id] ? 1 : 0;
+      KM_TASTE[s * KVP_RMAX + i] = tasteW(k, rs[i]);
+    }
+  }
+  const cultured = k.culture && k.culture !== "crab" ? 1 : 0;
+  const ret = KERN.exports.vis_pick(k.si, k.wallet, res, tmin, cultured,
+    wantsRoom(k) ? 1 : 0, freeRoom() ? 1 : 0, roomPrice());
+  const st = stayOf(k);
+  if (KM_VPOUT[0]) st.shut = (st.shut || 0) + KM_VPOUT[0];
+  if (KM_VPOUT[1]) st.full = (st.full || 0) + KM_VPOUT[1];
+  if (KM_VPOUT[2]) st.broke = (st.broke || 0) + KM_VPOUT[2];
+  if (KM_VPOUT[3]) st.foreign = (st.foreign || 0) + KM_VPOUT[3];
+  if (ret < 0) return null;
+  const slot = (ret >> 4) & 15;
+  return { biz: KVP_BIZ[slot], need: ["food", "drink", "clean", "fun", "room"][(ret >> 8) & 15],
+    recipe: BIZ[KVP_BIZ[slot]].recipes[ret & 15] };
+}
 function visGo(k, e) {
   // the room is RESERVED the moment they set off for it - nobody sells the
   // last room twice, and a held room is not a room housekeeping can strip
   if (e.biz === "hotel" && !k.room) { const r = freeRoom(); if (!r) return; r.occupant = k; k.room = r; }
   k.biz = e.biz; k.recipe = e.recipe; k.need = e.need;
-  k.state = "toBiz"; k.target = BIZ[e.biz].queueX + 46;
+  k.stC = VS.toBiz; k.target = BIZ[e.biz].queueX + 46;
   k.claimed = false; k.served = false; k.happy = false; k.server = null;
 }
 // ---- MOVEMENT + THE DAY ----------------------------------------------------
 function visStep(k, tx, ty, dt) {
-  const sp = VIS_SPEED * dt;
-  const dx = tx - k.x, dy = (ty == null ? k.wy : ty) - k.wy;
-  if (Math.abs(dx) > 1) { k.x += Math.sign(dx) * Math.min(sp, Math.abs(dx)); k.face = Math.sign(dx); }
-  if (Math.abs(dy) > 1) k.wy += Math.sign(dy) * Math.min(sp, Math.abs(dy));
-  return Math.abs(tx - k.x) <= 1 && Math.abs((ty == null ? k.wy : ty) - k.wy) <= 1;
+  // (slice 4) the stroll in Q8: per-frame step floors 42 px/s to the grain
+  const i = k.si;
+  if (KERN) {   // the compiled body; the JS below stays the reference
+    const kr = KERN.exports.vis_step(i, Math.round(tx * Q8),
+      ty == null ? PWYQ[i] : Math.round(ty * Q8), dtT);
+    if (kr & 2) k.face = (kr & 4) ? -1 : 1;
+    return !!(kr & 1);
+  }
+  const spq = idiv(VIS_SPEED * Q8 * dtT, TICK_HZ);
+  const txq = Math.round(tx * Q8), tyq = ty == null ? PWYQ[i] : Math.round(ty * Q8);
+  const dxq = txq - PXQ[i], dyq = tyq - PWYQ[i];
+  if (dxq > Q8 || dxq < -Q8) { PXQ[i] += Math.sign(dxq) * Math.min(spq, Math.abs(dxq)); k.face = Math.sign(dxq); }
+  if (dyq > Q8 || dyq < -Q8) PWYQ[i] += Math.sign(dyq) * Math.min(spq, Math.abs(dyq));
+  return Math.abs(txq - PXQ[i]) <= Q8 && Math.abs(tyq - PWYQ[i]) <= Q8;
 }
 // needs, the clock, and the wallet's own ticking - runs for EVERY visitor,
 // whatever state they are in, so a visitor stood in a queue still gets hungry
+let _ktMist = 0, _ktDrain = 0;   // vis_tick's per-frame args, set by updateCustomers when armed
 function visTick(k, dt) {
-  const hrs = dt * TS / 60;
+  if (KERN) {   // the compiled body; the JS below stays the reference
+    const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain);
+    // the object side drains IN PLACE, exactly where the reference did it:
+    // the mist ledger, the checkout, the sand-wake flags and diary line
+    if (r & 1) stayOf(k).mistMin += dtT;
+    if (r & 2) checkOut(k);
+    if (r & 4) {
+      k.rough = false; k.roughFlag = false; k.target = null;
+      visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
+    }
+    return;
+  }
+  const hrs = dtT / (60 * GMIN);
   // THE ONLY WEATHER THIS TOWN HAS, and it is a fact about the CALENDAR:
   // mistPeak is an integer hash of the day, the same on every machine, so a
   // guest who spent their evening out in a thick one is a guest whose stay the
   // player can go back and check. Indoors does not count - a paid bed is
   // exactly what buys you out of it, which is the whole point of saying so.
-  if (k.state !== "inRoom" && tmin >= 16.5 * 60 && mistNow() > 0.6)
-    stayOf(k).mistMin += dt * TS;
-  if (k.state === "inRoom") {
-    k.tired = Math.max(0, k.tired - VIS_BED_DRAIN * hrs);
+  if (k.stC !== VS.inRoom && tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536)
+    stayOf(k).mistMin += dtT;
+  if (k.stC === VS.inRoom) {
+    k.tired = Math.max(0, k.tired - ((Q20 * 3 * dtT / 10 - (Q20 * 3 * dtT / 10) % TICKS_PER_GH) / TICKS_PER_GH));
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) checkOut(k);
     return;
   }
-  if (k.state === "onSand") {
+  if (k.stC === VS.onSand) {
     // THE SAND BANKS NOTHING (sleepRough's rule, verbatim): exhaustion
     // prevents its own cure, and a night out here is a night of it.
-    k.dirt = Math.min(1, k.dirt + VIS_RATE.dirt * hrs * 1.5);
+    k.dirt = Math.min(Q20, k.dirt + ((VIS_RATE.dirt * dtT * 3) >> 1));   // 1.5x, exactly 3/2
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) {
-      k.state = "roam"; k.rough = false; k.roughFlag = false; k.target = null;
+      k.stC = VS.roam; k.rough = false; k.roughFlag = false; k.target = null;
       visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
     }
     return;
   }
   for (const n of ["hunger", "thirst", "dirt", "bored", "tired"])
-    k[n] = Math.min(1, (k[n] || 0) + VIS_RATE[n] * hrs);
+    k[n] = Math.min(Q20, (k[n] || 0) + VIS_RATE[n] * dtT);
 }
 function updateVisitor(k, dt) {
-  if (k.state === "ashore") {
+  if (k.stC === VS.ashore) {
     // down the planks and into town: along the deck, then onto the promenade
     if (k.leg === 0) { if (visStep(k, FERRY.shore, FERRY.deckY, dt)) k.leg = 1; return; }
-    if (visStep(k, FERRY.shore - 18, FLOOR_Y, dt)) { k.state = "roam"; k.target = null; k.y = FLOOR_Y; }
+    if (visStep(k, FERRY.shore - 18, FLOOR_Y, dt)) { k.stC = VS.roam; k.target = null; k.y = FLOOR_Y; }
     return;
   }
-  if (k.state === "toPier") {
+  if (k.stC === VS.toPier) {
     if (k.leg === 0) {
       if (visStep(k, FERRY.shore, FLOOR_Y, dt)) { k.leg = 1; }
       return;
@@ -10285,13 +11105,13 @@ function updateVisitor(k, dt) {
     visStep(k, FERRY.gangway + 4, FERRY.deckY, dt);
     return;
   }
-  if (k.state === "toRoom") {
+  if (k.stC === VS.toRoom) {
     const r = k.room;
-    if (!r) { k.state = "roam"; return; }
+    if (!r) { k.stC = VS.roam; return; }
     // ...and they stand at the door, wherever the door is: 148 for the back
     // wall's rooms (unchanged, to the pixel) and the boardwalk line for a
     // cabana in the forecourt (ACCOMMODATION UPGRADES).
-    if (visStep(k, r.x + 2, Math.min(FLOOR_MAX, r.y + 12), dt)) { k.state = "inRoom"; visLog(k, "home", vline(k, "turnin", "TURNED IN FOR THE NIGHT")); }
+    if (visStep(k, r.x + 2, Math.min(FLOOR_MAX, r.y + 12), dt)) { k.stC = VS.inRoom; visLog(k, "home", vline(k, "turnin", "TURNED IN FOR THE NIGHT")); }
     return;
   }
   // ASLEEP, AND THERE IS NOWHERE TO WALK. This guard is not decoration: with
@@ -10306,32 +11126,32 @@ function updateVisitor(k, dt) {
   // hunger, thirst, dirt and boredom overnight and drained tiredness at half
   // rate. visTick owns the night - the bed drain and the morning checkout -
   // so there is nothing for the mover to do here.
-  if (k.state === "inRoom") return;
-  if (k.state === "onSand") { visStep(k, k.target == null ? k.x : k.target, FLOOR_Y, dt); return; }
-  if (k.state === "toBiz") {
-    if (!visOpen(k.biz)) { k.state = "roam"; k.biz = null; k.target = null; return; }
+  if (k.stC === VS.inRoom) return;
+  if (k.stC === VS.onSand) { visStep(k, k.target == null ? k.x : k.target, FLOOR_Y, dt); return; }
+  if (k.stC === VS.toBiz) {
+    if (!visOpen(k.biz)) { k.stC = VS.roam; k.biz = null; k.target = null; return; }
     if (!visStep(k, k.target, FLOOR_Y, dt)) return;
     if (!visRoomFor(k, k.biz)) {   // the line filled while they walked: come back later
-      k.state = "roam"; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
+      k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
       return;
     }
-    k.state = "arriving"; k.spawnX = k.x; k.y = FLOOR_Y;
+    k.stC = VS.arriving; k.spawnXQ = Math.round(k.x * Q8); k.y = FLOOR_Y;
     // visStep settles within a pixel of its target y, and a line standing on
     // five different y values reads as a huddle however even the spacing is.
     // Everybody in a line stands ON the boardwalk line.
     k.wy = FLOOR_Y;
-    k.patience = VIS_PATIENCE; k.maxPatience = VIS_PATIENCE;
+    k.patience = VIS_PATIENCE * PQ; k.maxPatience = VIS_PATIENCE * PQ;
     queueJoin(k);   // the ticket is stamped HERE, not when their ferry docked
     stayQueued(k);  // ...and so is the clock the departure card quotes
     noteArrival(k.biz);
     return;
   }
   // ---- ROAM: the whole rest of a visit lives here ---------------------------
-  k.thinkT -= dt;
+  k.thinkT -= dtT;
   // TURNING IN. A visitor with a key walks to their door; one without takes
   // the beach, because the desk has shut and there is nowhere else to go.
   if (tmin >= BED_HOUR || tmin < WAKE_HOUR) {
-    if (k.room) { k.state = "toRoom"; return; }
+    if (k.room) { k.stC = VS.toRoom; return; }
     // ...and a visitor only beds down on the sand at ACTUAL BEDTIME. The town
     // opens at 07:00, which is on the wrong side of WAKE_HOUR: without this
     // clause the boat-load a new town starts with was filed as sleeping rough
@@ -10342,18 +11162,18 @@ function updateVisitor(k, dt) {
   }
   if (k.thinkT <= 0) {
     k.thinkT = VIS_THINK;
-    const e = visPick(k);
+    const e = KERN ? kernelVisPick(k) : visPick(k);   // the compiled scorer; visPick stays the reference
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
   // still for eleven hours is not.
   if (k.target == null || Math.abs(k.x - k.target) < 4) {
-    if (k.idleT > 0) { k.idleT -= dt; return; }
+    if (k.idleT > 0) { k.idleT -= dtT; return; }
     k.target = Math.round(Math.max(VIS_ROAM[0], Math.min(VIS_ROAM[1],
       k.x + (srand() - 0.5) * 2 * VIS_STROLL)));
     k.idleT = 0;
   }
-  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 + srand() * 5;
+  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 * SEC + ((srand() * 5 * SEC) | 0);
 }
 // A VISIT DOES NOT END AT THE COUNTER. The shop pipeline's `leaving` state
 // means "walk away from this counter" for a visitor, not "walk out of the
@@ -10366,9 +11186,9 @@ function visAfterCounter(k) {
   } else {
     visLog(k, "peril", vline(k, "gaveup", "GAVE UP WAITING AT THE " + (BIZ[k.biz] ? BIZ[k.biz].short : "COUNTER"), { BIZ: BIZ[k.biz] ? BIZ[k.biz].short : "COUNTER" }));
     stayQuit(k);   // the loudest thing in a stay: they will say so on the boat
-    k.bored = Math.min(1, k.bored + 0.05);
+    k.bored = Math.min(Q20, k.bored + qn(0.05));
   }
-  k.state = "roam"; k.biz = null; k.recipe = null; k.need = null;
+  k.stC = VS.roam; k.biz = null; k.recipe = null; k.need = null;
   k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
   k.target = null; k.thinkT = VIS_THINK;
   k.y = FLOOR_Y; k.wy = FLOOR_Y;
@@ -10389,7 +11209,7 @@ function visAfterCounter(k) {
 // counter - a single counter is one comparison and the numbers never collide.
 let qSeqN = 0;
 function queueJoin(k) { k.qSeq = ++qSeqN; }
-function inLine(k) { return k.state === "arriving" || k.state === "waiting"; }
+function inLine(k) { return k.stC === VS.arriving || k.stC === VS.waiting; }
 // Everyone standing in one business's line, nearest the counter first. It
 // stamps a ticket on anything that got into a line without one (a suite
 // fixture setting `state` by hand, a save that predates this) so the order is
@@ -10411,30 +11231,140 @@ function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
   const r = biz.recipes[(srand() * biz.recipes.length) | 0];
   const spawnX = biz.queueX + 150;
-  return { biz: bizKey, recipe: r,
+  const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
     name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
-    animT: srand() * 9,
-    x: spawnX, spawnX, state: "arriving", patience: 50, maxPatience: 50,
+    animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
+    si: poolAlloc(), spawnXQ: spawnX * Q8, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
-    claimed: false, served: false, server: null };
+    claimed: false, served: false, server: null }, VisProto);
+  w.stC = VS.arriving;   // through the accessor - an own stC would shadow the plane
+  w.patience = 50 * PQ;
+  w.x = spawnX;
+  return w;
+}
+// the counter machine's states - the set cust_step owns when the kernel is
+// armed. Everything else in the chain (the visitor walk states) stays JS.
+const KCUST_STATES = (() => { const t = new Uint8Array(32);
+  for (const s of ["arriving", "waiting", "toStall", "waitStall", "outStall",
+                   "showering", "toSeat", "seatedWaiting", "toTable", "dining", "leaving"])
+    t[VS[s]] = 1;
+  return t; })();
+// the ring drain: the kernel's (code, a, b) events, rendered at the same
+// frame position the reference produced them - strings, stats, sfx, the
+// crab's persona side of a shower, and the tip through payTip's own door
+function drainCustRing(k) {
+  const n = KEV_N[0];
+  for (let i = 0; i < n; i++) {
+    const code = KEV[i * 3], a = KEV[i * 3 + 1];
+    if (code === 1) {        // arrived at the counter: the ask
+      popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
+    } else if (code === 2) { // rage-quit in the line
+      k.happy = false; k.claimed = false;
+      if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
+      popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
+    } else if (code === 3) { // claimed a stall: the identity joins the plane bit
+      FURN[a].occupant = k;
+    } else if (code === 4) { // shower done (a = deep, b = isCrab)
+      if (k.isCrab) {
+        k.crab.p.dirt = Math.max(0, (k.crab.p.dirt || 0) - (a ? qn(0.7) : qn(0.5)));
+        crabLog(k.crab, "need", "TOOK A " + (a ? "LONG SOAK" : "SHOWER") + " AT THE " + BIZ[k.biz].name, 0);   // DIARY
+        k.crab.quip = { text: "SQUEAKY CLEAN!", t: 2.4 * SEC };
+      }
+      if (window._stats) {
+        window._stats.showersDone = (window._stats.showersDone || 0) + 1;
+        const kk = k.crab ? "showersDoneCrab" : "showersDoneTour";
+        window._stats[kk] = (window._stats[kk] || 0) + 1;
+      }
+      tradeImport("water", a ? 14 : 8);
+      popText("AHHH", k.x, 126, [140, 220, 255]);
+    } else if (code === 5) { // the stall wait ran out
+      k.happy = false;
+    } else if (code === 6) { // sat down to eat
+      if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
+    } else if (code === 7) { // rage-quit at the table
+      k.happy = false; k.claimed = false;
+      if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
+      if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
+      popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
+    } else if (code === 8) { // dining done: the table tip (a = tt, cents)
+      if (k.visitor) { k.wallet -= a; k.spent += a; stayOf(k).tips += a; }
+      payTip(k.biz, k.server, a * MC_PER_CENT, k.x, 130);
+      if (window._stats) window._stats.tableTip = (window._stats.tableTip || 0) + a;
+    }
+  }
 }
 function updateCustomers(dt) {
+  if (KERN) {   // vis_tick's frame facts, computed once with the reference's own expressions
+    _ktMist = tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536 ? 1 : 0;
+    _ktDrain = (Q20 * 3 * dtT / 10 - (Q20 * 3 * dtT / 10) % TICKS_PER_GH) / TICKS_PER_GH;
+    // ...and phase 5's stall lists: the fids cust_step's waitStall scan walks,
+    // in the reference's own array order (the find's order IS semantics)
+    for (let s2 = 0; s2 < KVP_BIZ.length; s2++) {
+      const sts = BIZ[KVP_BIZ[s2]].stalls;
+      KMS_N[s2] = sts ? sts.length : 0;
+      if (sts) for (let i2 = 0; i2 < sts.length; i2++) KMS_FID[s2 * 16 + i2] = sts[i2].fid;
+    }
+  }
   trackCloseQueues();   // hours-policy signal: who was still in line when a shop shut
-  runFerry(dt * TS);    // the timetable: she docks, lands a batch, and sails
+  runFerry(dtT);        // the timetable: she docks, lands a batch, and sails
   sweepRooms();         // a room whose guest has left town is an empty room, always
   // one pass over every line, so a place is a POSITION IN THE QUEUE rather than
   // a position in the array. Rebuilt each frame, which is what compacts the
   // line when the front is served: everybody behind moves up exactly one place.
-  const qslot = new Map();
-  for (const b of Object.keys(BIZ)) queueOrder(b).forEach((k, i) => qslot.set(k, queueSlotX(b, i)));
+  // One pass over customers instead of one filter PER BIZ - the grouping
+  // preserves array order within each line, tickets are still stamped in BIZ
+  // key order (queueJoin's ++qSeqN must not reorder across businesses), and
+  // the per-line sort is the same total order on the same tickets. Same
+  // slots, byte for byte; B fewer passes and no per-biz filter allocs.
+  const qslot = new Map(), qgroup = new Map();
+  for (const k of customers) {
+    if (!inLine(k)) continue;
+    const g = qgroup.get(k.biz);
+    if (g) g.push(k); else qgroup.set(k.biz, [k]);
+  }
+  for (const b of Object.keys(BIZ)) {
+    const g = qgroup.get(b);
+    if (!g) continue;
+    for (const k of g) if (!k.qSeq) queueJoin(k);
+    g.sort((a, b2) => a.qSeq - b2.qSeq);
+    g.forEach((k, i) => qslot.set(k, queueSlotX(b, i)));
+  }
   for (const k of customers) {
     if (k.visitor) {
       visTick(k, dt);                                        // needs run wherever they are
       if (VIS_STATES[k.state]) { updateVisitor(k, dt); continue; }
     }
-    if (k.state === "arriving" || k.state === "waiting") {
+    // KERNEL PHASE 5: the whole counter machine runs compiled, one call per
+    // customer at the reference's own point in the pass - a stall freed by
+    // this call is claimable by the NEXT customer, same frame, same order.
+    // The ring drains IMMEDIATELY so popText/sfx/stats/persona effects and
+    // the tip through payTip's door keep their exact frame position. The JS
+    // chain below stays the reference, byte for byte.
+    if (KERN) {
+      const bslot = KVP_BIZ.indexOf(k.biz);
+      if (bslot >= 0 && KCUST_STATES[VSTCP[k.si]]) {
+        const r = KERN.exports.cust_step(k.si, dtT,
+          qslot.has(k) ? qslot.get(k) * Q8 : PXQ[k.si],
+          bizStaffed(k.biz) ? 1 : 0, serverFilthQ12(k),
+          k.isCrab ? 1 : 0, k.visitor ? 1 : 0, k.happy ? 1 : 0,
+          k.wallet | 0, tableTipOf(k.biz),
+          (k.recipe ? (k.recipe.showerT || 5) : 5) * SEC,
+          k.recipe && k.recipe.deep ? 1 : 0, bslot,
+          k.spawnXQ == null ? MNULL : k.spawnXQ,
+          window._selfBused ? 1 : 0);
+        if (r) {
+          drainCustRing(k);
+          if (r & 2) { k.qWalk = false; k.face = -1; }
+          else if (r & 4) { k.qWalk = true; k.face = (r & 8) ? -1 : 1; }
+          if (r & 16) { finishErrand(k); continue; }
+          if (r & 32) { visAfterCounter(k); continue; }
+          continue;
+        }   // r === 0: not this unit's state (or a null hold) - the chain owns it
+      }
+    }
+    if (k.stC === VS.arriving || k.stC === VS.waiting) {
       // joined DURING this pass (a visitor whose walk ended a few lines up):
       // stand still, take a place next frame. One frame, and it is the frame
       // they stopped walking on.
@@ -10443,44 +11373,45 @@ function updateCustomers(dt) {
       // never overshoot its slot - which is the whole anti-jitter argument: with
       // no overshoot there is nothing to correct on the next frame, and a place
       // that only ever moves TOWARD the counter can never flip direction either.
-      const dxq = slot - k.x;
-      if (Math.abs(dxq) <= QUEUE_STEP * dt) { k.x = slot; k.qWalk = false; k.face = -1; }
-      else { k.x += Math.sign(dxq) * QUEUE_STEP * dt; k.qWalk = true; k.face = Math.sign(dxq); }
-      if (k.state === "arriving") {
+      const dq8 = slot * Q8 - k.x * Q8;   // exact: grains
+      const stepq = idiv(QUEUE_STEP * Q8 * dtT, TICK_HZ);   // 45px/s = exactly 576 Q8/tick
+      if (Math.abs(dq8) <= stepq) { k.x = slot; k.qWalk = false; k.face = -1; }
+      else { k.x = (k.x * Q8 + Math.sign(dq8) * stepq) / Q8; k.qWalk = true; k.face = Math.sign(dq8); }
+      if (k.stC === VS.arriving) {
         if (k.x === slot) {
-          k.state = "waiting";
+          k.stC = VS.waiting;
           popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
         }
       } else {
-        k.patience -= dt * (bizStaffed(k.biz) ? 1 : 6) * serverFilth(k);   // nobody home? give up quick
+        k.patience -= idiv(dtT * (bizStaffed(k.biz) ? 1 : 6) * serverFilthQ12(k) + 10, 20);   // nobody home? give up quick. ROUND-half-up at the drain boundary: floor ran every drain slow, same direction (slice 3's accrual lesson - the seated form was 0.95% slow)
         if (k.patience <= 0) {
-          k.state = "leaving"; k.happy = false; k.claimed = false;
+          k.stC = VS.leaving; k.happy = false; k.claimed = false;
           if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
           popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
         }
       }
-    } else if (k.state === "toStall") {
+    } else if (k.stC === VS.toStall) {
       const st = k.stall;
       const dxs = st.x + 3 - k.x;
-      if (Math.abs(dxs) > 2) k.x += Math.sign(dxs) * Math.min(45 * dt, Math.abs(dxs));
+      if (Math.abs(dxs) > 2) k.x = (k.x * Q8 + Math.sign(dxs) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs) * Q8))) / Q8;
       else {
-        k.climb = Math.min(1, (k.climb || 0) + dt * 1.8);   // step up into the stall
-        if (k.climb >= 1) { k.state = "showering"; k.showerT = k.recipe.showerT || 5; }
+        k.climb = Math.min(4096, (k.climb || 0) + idiv(4096 * 9 * dtT, 5 * TICK_HZ));   // step up into the stall (Q12, 1.8/s = 9/5)
+        if (k.climb >= 4096) { k.stC = VS.showering; k.showerT = (k.recipe.showerT || 5) * SEC; }
       }
-    } else if (k.state === "outStall") {   // hop back down to the floor, towel-fresh
-      k.climb = Math.max(0, (k.climb || 0) - dt * 2.2);
-      if (k.climb <= 0) k.state = "leaving";
-    } else if (k.state === "showering") {
-      k.showerT -= dt;
+    } else if (k.stC === VS.outStall) {   // hop back down to the floor, towel-fresh
+      k.climb = Math.max(0, (k.climb || 0) - idiv(4096 * 11 * dtT, 5 * TICK_HZ));   // 2.2/s = 11/5, Q12
+      if (k.climb <= 0) k.stC = VS.leaving;
+    } else if (k.stC === VS.showering) {
+      k.showerT -= dtT;
       if (k.showerT <= 0) {
         const st = k.stall;
         st.occupant = null; st.dirty = true; k.stall = null;
-        if (k.visitor) k.dirt = Math.max(0, k.dirt - (k.recipe.deep ? 0.7 : 0.5));   // same soap, same numbers
+        if (k.visitor) k.dirt = Math.max(0, k.dirt - (k.recipe.deep ? qn(0.7) : qn(0.5)));   // same soap, same numbers
         if (k.isCrab) {   // dirt-only: TIRED is slept off, not scrubbed off
-          k.crab.p.dirt = Math.max(0, (k.crab.p.dirt || 0) - (k.recipe.deep ? 0.7 : 0.5));
+          k.crab.p.dirt = Math.max(0, (k.crab.p.dirt || 0) - (k.recipe.deep ? qn(0.7) : qn(0.5)));
           crabLog(k.crab, "need", "TOOK A " + (k.recipe.deep ? "LONG SOAK" : "SHOWER")   // DIARY
             + " AT THE " + BIZ[k.biz].name, 0);
-          k.crab.quip = { text: "SQUEAKY CLEAN!", t: 2.4 };
+          k.crab.quip = { text: "SQUEAKY CLEAN!", t: 2.4 * SEC };
         }
         if (window._stats) {
           window._stats.showersDone = (window._stats.showersDone || 0) + 1;
@@ -10489,34 +11420,34 @@ function updateCustomers(dt) {
         }
         tradeImport("water", k.recipe.deep ? 14 : 8);
         popText("AHHH", k.x, 126, [140, 220, 255]);
-        k.state = "outStall";
+        k.stC = VS.outStall;
       }
-    } else if (k.state === "waitStall") {
-      k.waitT -= dt;
+    } else if (k.stC === VS.waitStall) {
+      k.waitT -= dtT;
       const st = BIZ[k.biz].stalls.find(t => !t.occupant && !t.dirty);
-      if (st) { st.occupant = k; k.stall = st; k.state = "toStall"; }
-      else if (k.waitT <= 0) { k.state = "leaving"; k.happy = false; }
-    } else if (k.state === "toSeat") {
+      if (st) { st.occupant = k; k.stall = st; k.stC = VS.toStall; }
+      else if (k.waitT <= 0) { k.stC = VS.leaving; k.happy = false; }
+    } else if (k.stC === VS.toSeat) {
       const t = k.table;
       const dxs2 = t.x + 10 - k.x;
-      if (Math.abs(dxs2) > 2) k.x += Math.sign(dxs2) * Math.min(45 * dt, Math.abs(dxs2));
-      else k.state = "seatedWaiting";
-    } else if (k.state === "seatedWaiting") {
-      k.patience -= dt * 0.35 * serverFilth(k);   // seated guests relax
+      if (Math.abs(dxs2) > 2) k.x = (k.x * Q8 + Math.sign(dxs2) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs2) * Q8))) / Q8;
+      else k.stC = VS.seatedWaiting;
+    } else if (k.stC === VS.seatedWaiting) {
+      k.patience -= idiv(7 * dtT * serverFilthQ12(k) + 200, 400);   // seated guests relax (0.35 = 7/20 over 20 ticks/s, round-half-up)
       if (k.patience <= 0) {
-        k.state = "leaving"; k.happy = false; k.claimed = false;
+        k.stC = VS.leaving; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }
-        if (!k.isCrab) { rep = Math.max(0, rep - 3); today.rage++; }
+        if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
         if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
         popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
       }
-    } else if (k.state === "toTable") {
+    } else if (k.stC === VS.toTable) {
       const t = k.table;
       const dxt = t.x + 10 - k.x;
-      if (Math.abs(dxt) > 2) k.x += Math.sign(dxt) * Math.min(45 * dt, Math.abs(dxt));
-      else { k.state = "dining"; k.dineT = 6 + srand() * 4; k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
-    } else if (k.state === "dining") {
-      k.dineT -= dt;
+      if (Math.abs(dxt) > 2) k.x = (k.x * Q8 + Math.sign(dxt) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxt) * Q8))) / Q8;
+      else { k.stC = VS.dining; k.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0); k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
+    } else if (k.stC === VS.dining) {
+      k.dineT -= dtT;
       if (k.dineT <= 0) {
         // THE FANCIER TIER ARRIVED (owner directive: "add table cleanup").
         // Guests used to bus their own - the outdoor-casual rule. Now they
@@ -10541,18 +11472,18 @@ function updateCustomers(dt) {
           // (payTip pops the gold "+$N TIP" - a second label here was the
           //  third pop on one tip)
         }
-        k.state = "leaving";
+        k.stC = VS.leaving;
       }
-    } else if (k.state === "leaving") {
-      k.x += (k.happy ? 50 : 75) * dt;
+    } else if (k.stC === VS.leaving) {
+      k.x = (k.x * Q8 + idiv((k.happy ? 50 : 75) * Q8 * dtT, TICK_HZ)) / Q8;
       if (k.isCrab) { finishErrand(k); continue; }
       // A VISITOR IS NOT LEAVING TOWN, they are leaving a COUNTER. A few paces
       // clear of the line and the visit picks up where it left off.
-      if (k.visitor && Math.abs(k.x - (k.spawnX == null ? k.x : k.spawnX)) > 26) { visAfterCounter(k); continue; }
+      if (k.visitor && Math.abs(PXQ[k.si] - (k.spawnXQ == null ? PXQ[k.si] : k.spawnXQ)) > 26 * Q8) { visAfterCounter(k); continue; }
     }
   }
   // A visitor stays until the ferry takes them; everybody else goes as before.
-  customers = customers.filter(k => k.visitor ? !k.gone : k.isCrab ? !k.done : k.x < (k.spawnX || WORLD_W) + 20);
+  customers = customers.filter(k => k.visitor ? !k.gone : k.isCrab ? !k.done : PXQ[k.si] < (k.spawnXQ || WORLD_W * Q8) + 20 * Q8);
   // (THE OLD SPAWN TIMER LIVED HERE.) Tourist demand is no longer a clock: it
   // is the visitors who are actually in town, deciding what they fancy. The
   // reputation term the timer carried now sets the SIZE OF THE BOAT instead -
@@ -10577,66 +11508,66 @@ function crabStatus(c) {
   if ((c.napT || 0) > 0)
     return "NODDED OFF " + (c.napFrom === "cleaningStall" || c.napFrom === "toStallClean"
       ? "OVER A STALL" : NAP_WHERE[c.slotKind] || "ON THE JOB");
-  if (c.dayState === "chat")
+  if (c.dsC === DS.chat)
     return "CHEWING THE FAT" + (c.chatWith ? " WITH " + c.chatWith.p.name : "");
   if (c.p.rough) return darkness() > 0.6 ? "ASLEEP WHERE THEY DROPPED" : "SLEPT ROUGH LAST NIGHT";
   if (c.p.sick) return (gravelyIll(c) ? "GRAVELY ILL - DAY " : "SICK - DAY ") + ((c.p.sick.days || 0) + 1)
     + (onSickDay(c) ? " - RESTING UP" : " - WORKING THROUGH IT");
   if (walkoutToday(c)) {   // an unauthorised day: same beach, no wage, nobody covering
     const why = c.p.walkoutWhy === "pay" ? " OVER THE PAY" : "";
-    if (c.dayState === "toErrand") return "WALKED OUT - OFF TO " + BIZ[c.errandBiz].short;
-    if (c.dayState === "errand") return "WALKED OUT - AT " + BIZ[c.errandBiz].name;
-    if (c.dayState === "home" && darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
-    if (c.dayState === "home") return tmin < OFF_WAKE ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
+    if (c.dsC === DS.toErrand) return "WALKED OUT - OFF TO " + BIZ[c.errandBiz].short;
+    if (c.dsC === DS.errand) return "WALKED OUT - AT " + BIZ[c.errandBiz].name;
+    if (c.dsC === DS.home && darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
+    if (c.dsC === DS.home) return tmin < OFF_WAKE ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
   }
 
   if (offToday(c)) {   // sick beats off; off beats everything but the commute home
-    if (c.dayState === "toErrand") return "DAY OFF - OFF TO " + BIZ[c.errandBiz].short;
-    if (c.dayState === "errand") return "DAY OFF - AT " + BIZ[c.errandBiz].name;
-    if (c.dayState === "selfCook") return "DAY OFF - RAIDING THE PANTRY";
-    if (c.dayState === "atBall") return "DAY OFF - BEACH BALL";
-    if (c.dayState === "atTap") return "DAY OFF - " + tapStatus(c);
-    if (c.dayState === "toHome") return "DAY OFF - STROLLING HOME";
-    if (c.dayState === "home") {
+    if (c.dsC === DS.toErrand) return "DAY OFF - OFF TO " + BIZ[c.errandBiz].short;
+    if (c.dsC === DS.errand) return "DAY OFF - AT " + BIZ[c.errandBiz].name;
+    if (c.dsC === DS.selfCook) return "DAY OFF - RAIDING THE PANTRY";
+    if (c.dsC === DS.atBall) return "DAY OFF - BEACH BALL";
+    if (c.dsC === DS.atTap) return "DAY OFF - " + tapStatus(c);
+    if (c.dsC === DS.toHome) return "DAY OFF - STROLLING HOME";
+    if (c.dsC === DS.home) {
       if (darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
       if (tmin < OFF_WAKE) return "DAY OFF - SLEEPING IN";
       return "DAY OFF - BEACHCOMBING";
     }
   }
-  if (c.p.job === "fishing" && c.dayState === "working") return "FISHING OFF THE PIER";
-  if (c.dayState === "home") {
+  if (c.p.job === "fishing" && c.dsC === DS.working) return "FISHING OFF THE PIER";
+  if (c.dsC === DS.home) {
     if (darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
     return c.p.homeless ? "AT THE SHELTER" : "CHILLING AT HOME";
   }
-  if (c.dayState === "working") {
+  if (c.dsC === DS.working) {
     // IDLE HANDS: still clocked in, just not standing where you left them
     // the rival's stakeout reads as what it is, not as a stroll
     if (c.wanderT > 0 && c.wander) return (c.wander.eyeing ? "SIZING UP " : "WATCHING ") + c.wander.label;
     if (c.wander) return (c.wander.eyeing ? "WALKING OVER TO " : "WANDERED OFF TO ") + c.wander.label;
-    if (c.kstate === "work" && c.slotKind === "board") return "CHOPPING";
-    if (c.kstate === "work" && c.slotKind === "grill") return "GRILLING";
-    if (c.kstate === "toStallClean" || c.kstate === "cleaningStall") return "SCRUBBING A STALL";
-    if (c.kstate === "toTableClean" || c.kstate === "busingTable") return "BUSING A TABLE";
-    if (c.kstate === "work") return "GRABBING FOOD";
+    if (c.ksC === KS.work && c.slotKind === "board") return "CHOPPING";
+    if (c.ksC === KS.work && c.slotKind === "grill") return "GRILLING";
+    if (c.ksC === KS.toStallClean || c.ksC === KS.cleaningStall) return "SCRUBBING A STALL";
+    if (c.ksC === KS.toTableClean || c.ksC === KS.busingTable) return "BUSING A TABLE";
+    if (c.ksC === KS.work) return "GRABBING FOOD";
     if (c.carrying) return "CARRYING " + ITEM_NAMES[c.carrying];
-    if (c.kstate === "waitCash") return "SHORT ON CASH!";
-    if (c.kstate === "waitSlot") return "WAITING FOR A SPOT";
+    if (c.ksC === KS.waitCash) return "SHORT ON CASH!";
+    if (c.ksC === KS.waitSlot) return "WAITING FOR A SPOT";
     return coveringToday(c) ? "COVERING A COWORKER'S SHIFT" : "ON SHIFT";
   }
-  if (c.dayState === "directed") return c.order && c.order.idleT >= 0 ? "TAKING A BREATHER" : "AS ORDERED";
-  if (c.dayState === "selfCook") {
+  if (c.dsC === DS.directed) return c.order && c.order.idleT >= 0 ? "TAKING A BREATHER" : "AS ORDERED";
+  if (c.dsC === DS.selfCook) {
     if (c.cookNeed === "drink") return c.cookStep >= 3 ? "POURING A DRINK" : "RAIDING THE FRUIT BIN";
     return c.cookStep >= 3 ? "COOKING A STAFF MEAL" : "RAIDING THE PANTRY";
   }
-  if (c.dayState === "toErrand") return "OFF TO " + BIZ[c.errandBiz].name;
-  if (c.dayState === "errand") return "IN LINE AT " + BIZ[c.errandBiz].name;
-  if (c.dayState === "atBall") return c.ballT > 0 ? "PLAYING BEACH BALL" : "OFF TO THE BEACH BALL";
-  if (c.dayState === "atTap") return tapStatus(c);
-  const toWork = c.dayState === "toWork";
-  if (c.cstate === "waitBus") return "WAITING FOR THE BUS";
-  if (c.cstate === "onBus") return "RIDING THE BUS";
-  if (c.cstate === "walkToStop") return "WALKING TO THE BUS";
-  if (c.cstate === "drive") return (c.p.mode === "bike" ? "BIKING" : "DRIVING") + (toWork ? " TO WORK" : " HOME");
+  if (c.dsC === DS.toErrand) return "OFF TO " + BIZ[c.errandBiz].name;
+  if (c.dsC === DS.errand) return "IN LINE AT " + BIZ[c.errandBiz].name;
+  if (c.dsC === DS.atBall) return c.ballT > 0 ? "PLAYING BEACH BALL" : "OFF TO THE BEACH BALL";
+  if (c.dsC === DS.atTap) return tapStatus(c);
+  const toWork = c.dsC === DS.toWork;
+  if (c.csC === CS.waitBus) return "WAITING FOR THE BUS";
+  if (c.csC === CS.onBus) return "RIDING THE BUS";
+  if (c.csC === CS.walkToStop) return "WALKING TO THE BUS";
+  if (c.csC === CS.drive) return (c.p.mode === "bike" ? "BIKING" : "DRIVING") + (toWork ? " TO WORK" : " HOME");
   return (toWork ? "WALKING TO WORK" : "HEADING HOME");
 }
 
@@ -10752,8 +11683,8 @@ function logShiftEnd(c) {
   crabLog(c, "work", c.p.job === "fishing" ? "CAME OFF THE WATER FOR THE DAY"
     : coveringToday(c) ? "COVERED A DOUBLE SHIFT AT THE " + BIZ[c.p.job].short
     : "FINISHED THE " + (SHIFT_WORD[c.p.shift] || "") + " SHIFT", 0);
-  if ((c.otMin || 0) >= 15)
-    crabLog(c, "work", "WORKED " + Math.round(c.otMin / 6) / 10 + "H OF OVERTIME", 0);
+  if ((c.otMin || 0) >= 15 * GMIN)
+    crabLog(c, "work", "WORKED " + Math.round(c.otMin / (6 * GMIN)) / 10 + "H OF OVERTIME", 0);
 }
 function logServe(c, cust) {
   if (!c || !c.p || !cust.recipe) return;
@@ -10782,10 +11713,10 @@ function logLaidOff(k) {   // called from layOff BEFORE the job fields are clear
 }
 function logFellIll(c) {
   const p = c.p, why = [];
-  if ((p.hunger || 0) >= 0.9) why.push("STARVED");
-  if ((p.thirst || 0) >= 0.9) why.push("PARCHED");
-  if ((p.dirt || 0) >= 0.9) why.push("FILTHY");
-  if ((p.tired || 0) >= 0.9) why.push("WORN OUT");
+  if ((p.hunger || 0) >= qn(0.9)) why.push("STARVED");
+  if ((p.thirst || 0) >= qn(0.9)) why.push("PARCHED");
+  if ((p.dirt || 0) >= qn(0.9)) why.push("FILTHY");
+  if ((p.tired || 0) >= qn(0.9)) why.push("WORN OUT");
   crabLog(c, "peril", "FELL ILL" + (why.length ? " - " + why.join(", ") : ""), 0);
 }
 // One pass per crab at settlement: the nights tally the housing banner reads,
@@ -10805,10 +11736,10 @@ function logNightly(c) {
   }
   // a convalescent day looks like silence from the outside - say what it was
   if (p.sick) crabLog(c, "peril", "SPENT THE DAY LAID UP - DAY " + ((p.sick.days || 0) + 1), 0);
-  if ((p.hunger || 0) >= 0.9) crabLog(c, "peril", "WENT TO BED HUNGRY", 0);
-  if ((p.thirst || 0) >= 0.9) crabLog(c, "peril", "WENT TO BED PARCHED", 0);
-  if ((p.dirt || 0) >= 0.9) crabLog(c, "peril", "WENT TO BED FILTHY", 0);
-  if ((p.tired || 0) >= 0.9) crabLog(c, "peril", "WENT TO BED DEAD ON THEIR FEET", 0);
+  if ((p.hunger || 0) >= qn(0.9)) crabLog(c, "peril", "WENT TO BED HUNGRY", 0);
+  if ((p.thirst || 0) >= qn(0.9)) crabLog(c, "peril", "WENT TO BED PARCHED", 0);
+  if ((p.dirt || 0) >= qn(0.9)) crabLog(c, "peril", "WENT TO BED FILTHY", 0);
+  if ((p.tired || 0) >= qn(0.9)) crabLog(c, "peril", "WENT TO BED DEAD ON THEIR FEET", 0);
 }
 
 // ---------------------------------------------------------------- input
@@ -11167,6 +12098,7 @@ cv.addEventListener("click", (ev) => {
         if (hit(cell.shift)) {   // M -> E -> D -> M: the roster's one real assignment
           const order = ["M", "E", "D"];
           c.p.shift = order[(order.indexOf(c.p.shift) + 1) % order.length];
+          rosterGen++;   // _needCover reads p.shift; the day-off memo keys on rosterGen
           sfx.buy(); save(); return;
         }
         if (hit(cell.ot)) {
@@ -11485,8 +12417,8 @@ cv.addEventListener("click", (ev) => {
   }
   // tourists are people too: click to follow them around their visit
   for (const k of customers) {
-    if (k.isCrab || k.state === "showering" || k.state === "inRoom") continue;
-    const ky = custY(k) - 4 - 26 * (k.climb || 0);
+    if (k.isCrab || k.stC === VS.showering || k.stC === VS.inRoom) continue;
+    const ky = custY(k) - 4 - 26 * ((k.climb || 0) / 4096);   // climb is Q12
     if (Math.abs(wx - (k.x + 8)) < 12 && Math.abs(p.y - ky) < 14) {
       sel = k; followCust = k; followIdx = -1; followNpc = null;
       return;
@@ -11610,14 +12542,14 @@ function drawHorizon() {
     if (bx < -4 || bx > W) continue;
     const bh = 3 + ((i * 7 + 3) % 4) + (i === 4 || i === 9 ? 3 : 0);
     rect(ctx, bx, HZ_Y - bh, 4, bh, night ? [22, 26, 52] : [128, 152, 186]);
-    if (night && (i * 3 + 1 + ((time * 0.2) | 0)) % 4)
+    if (night && (i * 3 + 1 + ((viewT * 0.2) | 0)) % 4)
       px(ctx, bx + 1, HZ_Y - bh + 1, [255, 214, 128]);
   }
   // harbour lights strung along the rest of the shore, only after dark
   if (night) for (let i = 0; i < 26; i++) {
     const lx = Math.round(((i * 47 + 11) % 300) - 22 - hx);
     if (lx < 0 || lx >= W) continue;
-    if ((i * 5 + ((time * 0.15) | 0)) % 7 === 0) continue;   // one or two are out
+    if ((i * 5 + ((viewT * 0.15) | 0)) % 7 === 0) continue;   // one or two are out
     px(ctx, lx, HZ_Y - 1 - (i % 2), [255, 206, 120]);
   }
   // THE LIGHT ON THE POINT. It turns whether or not anybody in this town is
@@ -11627,7 +12559,7 @@ function drawHorizon() {
     const base = hzRidge(HZ_LIGHT_X);
     rect(ctx, lx, base - 9, 3, 9, night ? [126, 130, 156] : [240, 244, 250]);
     rect(ctx, lx, base - 5, 3, 2, night ? [112, 62, 72] : [212, 84, 84]);
-    const lit = ((time * 0.85) % 4) < 1.2;
+    const lit = ((viewT * 0.85) % 4) < 1.2;
     rect(ctx, lx, base - 11, 3, 2, lit ? [255, 242, 172] : night ? [78, 82, 108] : [150, 160, 180]);
     if (lit) {
       px(ctx, lx - 1, base - 10, [255, 232, 144]);
@@ -11675,25 +12607,56 @@ function drawHorizonTraffic() {
 // thick it comes is an integer hash of the DAY - no RNG, nothing stored, no
 // save field - so the weather is a fact about the calendar, the same on every
 // machine, and a clear night is a small event rather than a coin flip.
-function mistPeak(d) {
+const MIST_POW_Q16 = [
+  0, 588, 1060, 1496, 1911, 2310, 2697, 3075, 3444, 3807, 4164, 4515, 4862, 5204, 5542, 5877,
+  6208, 6537, 6862, 7185, 7505, 7823, 8138, 8452, 8763, 9072, 9380, 9686, 9990, 10292, 10593, 10893,
+  11191, 11487, 11782, 12076, 12369, 12660, 12951, 13240, 13528, 13815, 14101, 14385, 14669, 14952, 15234, 15515,
+  15795, 16075, 16353, 16631, 16907, 17183, 17459, 17733, 18007, 18280, 18552, 18823, 19094, 19365, 19634, 19903,
+  20171, 20439, 20706, 20972, 21238, 21503, 21768, 22032, 22295, 22558, 22820, 23082, 23344, 23604, 23865, 24125,
+  24384, 24643, 24901, 25159, 25416, 25673, 25930, 26186, 26442, 26697, 26951, 27206, 27460, 27713, 27966, 28219,
+  28471, 28723, 28975, 29226, 29477, 29727, 29977, 30226, 30476, 30725, 30973, 31221, 31469, 31717, 31964, 32211,
+  32457, 32703, 32949, 33195, 33440, 33685, 33929, 34174, 34418, 34661, 34905, 35148, 35390, 35633, 35875, 36117,
+  36358, 36600, 36841, 37081, 37322, 37562, 37802, 38042, 38281, 38520, 38759, 38998, 39236, 39474, 39712, 39950,
+  40187, 40424, 40661, 40897, 41134, 41370, 41606, 41841, 42077, 42312, 42547, 42782, 43016, 43250, 43485, 43718,
+  43952, 44185, 44418, 44651, 44884, 45117, 45349, 45581, 45813, 46045, 46276, 46507, 46739, 46969, 47200, 47431,
+  47661, 47891, 48121, 48351, 48580, 48809, 49038, 49267, 49496, 49725, 49953, 50181, 50409, 50637, 50865, 51092,
+  51319, 51547, 51773, 52000, 52227, 52453, 52679, 52906, 53131, 53357, 53583, 53808, 54033, 54258, 54483, 54708,
+  54933, 55157, 55381, 55605, 55829, 56053, 56277, 56500, 56723, 56946, 57169, 57392, 57615, 57837, 58060, 58282,
+  58504, 58726, 58948, 59170, 59391, 59612, 59834, 60055, 60275, 60496, 60717, 60937, 61158, 61378, 61598, 61818,
+  62038, 62257, 62477, 62696, 62915, 63135, 63354, 63572, 63791, 64010, 64228, 64446, 64665, 64883, 65101, 65318,
+  65536,
+];
+// mistPeak in Q16 (65536 = full white-out), and it is an INTEGER now: the
+// day's hash indexes the baked pow table above, one linear step covers the low
+// 16 bits, and 1.25 folds in as an exact 5/4. Rolled ONCE a day at midnight -
+// the sim asks `mistNowQ16() * 5 > 3 * 65536` on the way to a hotel room, and
+// a threshold that decides whether a guest walks home in the fog should not be
+// re-derived from a transcendental sixty times a second.
+function mistPeakQ16(d) {
   let h = Math.imul(d | 0, 2654435761) >>> 0;
   h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
   // biased THICK on purpose: about a third of evenings the shore is simply
   // gone, about a quarter are clear enough to count the windows, and the rest
   // sit in between - so "I can see across tonight" is news
-  return Math.min(1, 0.18 + 1.25 * Math.pow((h >>> 8) / 16777216, 0.85));
+  const H = h >>> 8, hi = H >>> 16, lo = H & 0xFFFF;
+  const pw = MIST_POW_Q16[hi] + (((MIST_POW_Q16[hi + 1] - MIST_POW_Q16[hi]) * lo) >> 16);
+  return Math.min(65536, 11796 + ((pw * 5 - pw * 5 % 4) / 4));   // 0.18 + 1.25*u^0.85
 }
+let _mistDay = -1, mistTodayQ16 = 0, mistYestQ16 = 0;
+function mistRoll() { _mistDay = day; mistTodayQ16 = mistPeakQ16(day); mistYestQ16 = mistPeakQ16(day - 1); }
 // how much of it is out there right now: it comes in off the sea through the
 // late afternoon, sits all night, and burns off through the morning. The small
 // hours belong to YESTERDAY's mist, or it would change thickness at midnight.
-function mistNow() {
-  const t = tmin;
-  if (t < 6.5 * 60) return mistPeak(day - 1);
-  if (t < 9.5 * 60) return mistPeak(day - 1) * (1 - (t - 6.5 * 60) / (3 * 60));
-  if (t < 16.5 * 60) return 0;
-  if (t < 20 * 60) return mistPeak(day) * ((t - 16.5 * 60) / (3.5 * 60));
-  return mistPeak(day);
+function mistNowQ16() {
+  if (_mistDay !== day) mistRoll();   // also covers a fresh town and a load
+  const t = tdgm;   // deci-minutes: the burn-off and the roll-in are ramps
+  if (t < 3900) return mistYestQ16;
+  if (t < 5700) return (mistYestQ16 * (5700 - t) - mistYestQ16 * (5700 - t) % 1800) / 1800;
+  if (t < 9900) return 0;
+  if (t < 12000) return (mistTodayQ16 * (t - 9900) - mistTodayQ16 * (t - 9900) % 2100) / 2100;
+  return mistTodayQ16;
 }
+function mistNow() { return mistNowQ16() / 65536; }   // the DRAW layer's float view
 function drawMist() {
   if (window._noMist) return;
   const m = mistNow();
@@ -11705,7 +12668,7 @@ function drawMist() {
   // would just read as a broken renderer.
   for (let y = 26; y < SHORE_Y; y++) {
     const v = y < 42 ? (y - 26) / 16 : y < 66 ? 1 : 1 - 0.6 * (y - 66) / (SHORE_Y - 66);
-    const a = Math.min(1, m * (0.10 + 0.95 * v) * (0.86 + 0.14 * Math.sin(y * 0.55 - time * 0.5)));
+    const a = Math.min(1, m * (0.10 + 0.95 * v) * (0.86 + 0.14 * Math.sin(y * 0.55 - viewT * 0.5)));
     if (a <= 0.01) continue;
     ctx.fillStyle = `rgba(${c},${a.toFixed(3)})`;
     ctx.fillRect(0, y, W, 1);
@@ -11713,10 +12676,10 @@ function drawMist() {
   // banks of it rolling through, at their own speeds - the motion is what
   // makes it weather instead of a filter
   for (let i = 0; i < 5; i++) {
-    const wy = 40 + i * 8 + ((Math.sin(time * 0.17 + i * 2.3) * 2) | 0);
+    const wy = 40 + i * 8 + ((Math.sin(viewT * 0.17 + i * 2.3) * 2) | 0);
     if (wy >= SHORE_Y) continue;
     const ww = 70 + i * 26;
-    const wx = ((time * (5 + i * 3) + i * 130) % (W + ww * 2)) - ww;
+    const wx = ((viewT * (5 + i * 3) + i * 130) % (W + ww * 2)) - ww;
     ctx.fillStyle = `rgba(${c},${(0.30 * m).toFixed(3)})`;
     ctx.fillRect(wx | 0, wy, ww, 2 + (i % 2));
   }
@@ -11737,25 +12700,25 @@ function drawBG() {
   // weather - the hills are nearer than the sky and further than everything)
   drawHorizon();
   // clouds (parallax)
-  blit(ctx, CLOUD, ((time * 4 - camX * 0.4) % 320 + 320) % 320 - 30, 12);
-  blit(ctx, CLOUD, ((time * 2.5 - camX * 0.3 + 160) % 320 + 320) % 320 - 30, 30);
-  const gt = time % 24;
-  if (gt < 12 && dark < 0.5) blit(ctx, GULL[((time * 4) | 0) % 2], 256 - gt * 24, 22 + Math.sin(time * 2) * 3);
+  blit(ctx, CLOUD, ((viewT * 4 - camX * 0.4) % 320 + 320) % 320 - 30, 12);
+  blit(ctx, CLOUD, ((viewT * 2.5 - camX * 0.3 + 160) % 320 + 320) % 320 - 30, 30);
+  const gt = viewT % 24;
+  if (gt < 12 && dark < 0.5) blit(ctx, GULL[((viewT * 4) | 0) % 2], 256 - gt * 24, 22 + Math.sin(viewT * 2) * 3);
   // ocean (screen fixed)
   rect(ctx, 0, SKY_H, W, SHORE_Y - SKY_H, [40, 140, 220]);
   for (let y = SKY_H + 2; y < SHORE_Y; y += 5)
     for (let x = -8; x < W; x += 24) {
-      const off = ((Math.sin(time * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
+      const off = ((Math.sin(viewT * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
       rect(ctx, x + off, y, 10, 1, [96, 200, 255]);
     }
   // glints on the water
   for (let i = 0; i < 6; i++) {
-    if (((time * 2 + i * 1.7) | 0) % 3) continue;
-    const gx = (i * 89 + ((time * 0.7) | 0) * 37) % W;
-    const gy = SKY_H + 3 + (i * 11 + ((time * 0.4) | 0) * 5) % (SHORE_Y - SKY_H - 7);
+    if (((viewT * 2 + i * 1.7) | 0) % 3) continue;
+    const gx = (i * 89 + ((viewT * 0.7) | 0) * 37) % W;
+    const gy = SKY_H + 3 + (i * 11 + ((viewT * 0.4) | 0) * 5) % (SHORE_Y - SKY_H - 7);
     px(ctx, gx, gy, [235, 250, 255]);
   }
-  const f = (Math.sin(time * 0.9) * 3) | 0;
+  const f = (Math.sin(viewT * 0.9) * 3) | 0;
   rect(ctx, 0, SHORE_Y - 3 + Math.max(0, f), W, 2, [230, 250, 255]);
   drawHorizonTraffic();   // boats float ON the water, so: after it
   drawMist();             // and the weather takes the water and the shore together
@@ -11777,11 +12740,11 @@ function drawPier() {
   wrect(bx0, SHORE_Y, bx1 - bx0, 124 - SHORE_Y, [40, 140, 220]);
   for (let y = SHORE_Y + 3; y < 120; y += 5)
     for (let x = bx0; x < bx1; x += 24) {
-      const off = ((Math.sin(time * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
+      const off = ((Math.sin(viewT * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
       if (x + off > bx0 && x + off + 10 < bx1) wrect(x + off, y, 10, 1, [96, 200, 255]);
     }
   // foam where the channel laps the sand
-  const f = (Math.sin(time * 0.9 + 2) * 2) | 0;
+  const f = (Math.sin(viewT * 0.9 + 2) * 2) | 0;
   wrect(bx0, 122 + Math.max(0, f), bx1 - bx0, 2, [230, 250, 255]);
   wrect(bx0, SHORE_Y, 1, 124 - SHORE_Y, [170, 220, 250]);
   wrect(bx1 - 1, SHORE_Y, 1, 124 - SHORE_Y, [170, 220, 250]);
@@ -11810,9 +12773,9 @@ function drawPier() {
   // bait bucket between the fishing spots
   wblit(BUCKET, 1928, 97);
   // a gull loiters on the rail, eyeing the bucket (it clears off now and then)
-  if ((time % 47) < 34 && darkness() < 0.8) {
-    const hop = ((time * 2) | 0) % 8 === 0 ? -1 : 0;
-    wblit(GULL_SIT, 2020, 73 + hop, ((time / 9) | 0) % 2 === 0);   // east of the berths
+  if ((viewT % 47) < 34 && darkness() < 0.8) {
+    const hop = ((viewT * 2) | 0) % 8 === 0 ? -1 : 0;
+    wblit(GULL_SIT, 2020, 73 + hop, ((viewT / 9) | 0) % 2 === 0);   // east of the berths
   }
   // lamp post on the east end for the night tide
   wrect(dx1 - 8, 66, 2, 20, [70, 60, 90]);
@@ -11837,9 +12800,9 @@ function drawFerry() {
   if (!ferryHere() && !won) return;
   const x = FERRY.hull, y = FERRY.hullY;
   if (x + 60 - camX < 0 || x - 60 - camX > W) return;
-  const bob = Math.sin(time * 0.9) > 0 ? 1 : 0;
+  const bob = Math.sin(viewT * 0.9) > 0 ? 1 : 0;
   wblit(FERRY_ART[0], x, y + bob);
-  wblit(FERRY_SMOKE[((time * 3) | 0) % 2], x + 11, y - 3 + bob);
+  wblit(FERRY_SMOKE[((viewT * 3) | 0) % 2], x + 11, y - 3 + bob);
   // mooring lines + the gangway down to the planks
   wrect(FERRY.gangway + 2, y + 10 + bob, x - FERRY.gangway - 2, 1, [140, 90, 50]);
   for (let i = 0; i < 5; i++)
@@ -11863,12 +12826,12 @@ function drawBeachBall() {
   let bx = BALL_X, by = BALL_Y + 3;
   if (players.length >= 2) {
     const a = players[0], b = players[1];
-    const t = (time % 1.4) / 1.4;
+    const t = (viewT % 1.4) / 1.4;
     bx = a.x + 8 + (b.x - a.x) * t;
     by = BALL_Y + 1 - Math.sin(t * Math.PI) * 22;   // up and over
   } else if (players.length === 1) {
     const a = players[0];
-    const t = (time % 0.8) / 0.8;
+    const t = (viewT % 0.8) / 0.8;
     bx = a.x + 10;
     by = BALL_Y - 1 - Math.sin(t * Math.PI) * 10;   // bounced off your own claw
   }
@@ -11889,7 +12852,7 @@ function drawBoats() {
     if (c.p.boat == null) continue;
     const b = BOAT_BERTHS[c.p.boat];
     if (b.x - camX < -40 || b.x - camX > W + 40) continue;
-    const bob = Math.sin(time * 0.8 + c.p.boat * 2.1) > 0 ? 1 : 0;
+    const bob = Math.sin(viewT * 0.8 + c.p.boat * 2.1) > 0 ? 1 : 0;
     wblit(BOATS[c.p.color % BOATS.length], b.x, BOAT_Y + bob);
     // mooring line from the stern down to the pier rail
     wrect(b.x + 34, 80 + bob, 3, 1, [140, 90, 50]);
@@ -11995,8 +12958,8 @@ function drawTown() {
       smallText(ctx, "WATER", lx + 1, HOME_BOTTOM - STANDPIPE2.h - 8, [30, 20, 36]);
       smallText(ctx, "WATER", lx, HOME_BOTTOM - STANDPIPE2.h - 9, [235, 248, 255]);
     }
-    if (allCrabs().some(c => c.dayState === "atTap" && c.tapStop && !c.tapStop.soup && c.tapStop.tap === i && c.tapT > 0))
-      wblit(TAP_FLOW[((time * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
+    if (allCrabs().some(c => c.dsC === DS.atTap && c.tapStop && !c.tapStop.soup && c.tapStop.tap === i && c.tapT > 0))
+      wblit(TAP_FLOW[((viewT * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
   }
   drawPollingPlaces();
 // THE POLLING PLACE. A trestle, a box with a slot cut in the lid, and a board
@@ -12098,7 +13061,7 @@ function drawPollingPlaces() {
       wrect(px0 + 1, py + 1, 10, 1, [180, 130, 70]);                      // soup, just under the rim
       wrect(px0 + 2, py + 6, 8, 1, [255, 150, 60]);                       // embers under it
       for (let i = 0; i < 3; i++)
-        wrect(px0 + 2 + i * 4, py - 3 - ((time * 4 + i * 2) | 0) % 4, 1, 2, [235, 225, 205]);
+        wrect(px0 + 2 + i * 4, py - 3 - ((viewT * 4 + i * 2) | 0) % 4, 1, 2, [235, 225, 205]);
     }
   }
   // THE TOWN REMEMBERS. Driftwood markers, now on the little dune between the
@@ -12128,7 +13091,7 @@ function drawPollingPlaces() {
   drawFerryOffice();
   // parked vehicles: buggies pull off on the shoulder, bikes rack on the apron
   for (const c of crabs) {
-    if (c.dayState !== "working") continue;
+    if (c.dsC !== DS.working) continue;
     const b = BIZ[c.p.job];
     if (c.p.mode === "buggy") wblit(BUGGIES2[c.p.color], b.park + c.p.house * 18, ROAD_Y1 - BUGGIES2[0].h + 2);
     if (c.p.mode === "bike") wblit(BIKE, b.rack + c.p.house * 7 - 4, FLOOR_Y - 10);
@@ -12352,17 +13315,17 @@ function drawStation(key, kind, i) {
   const st = BIZ[key].stations[kind][i];
   const isBusy = busy[key] && busy[key][kind] && busy[key][kind][i];
   let art = STATION_ART[kind];
-  if (kind === "claw") art = CLAW_MACHINE[isBusy ? ((time * 4) | 0) % 2 : 0];
-  if (kind === "juicer") art = JUICER[isBusy ? ((time * 6) | 0) % 2 : 0];
+  if (kind === "claw") art = CLAW_MACHINE[isBusy ? ((viewT * 4) | 0) % 2 : 0];
+  if (kind === "juicer") art = JUICER[isBusy ? ((viewT * 6) | 0) % 2 : 0];
   if (kind === "stall") art = STALL[isBusy ? 1 : 0];
   wblit(art, st.x, st.y - art.h);
   if (kind === "grill" && isBusy) {
-    wblit(FLAME[((time * 8) | 0) % 2], st.x + 6, st.y - GRILL.h - 4);
+    wblit(FLAME[((viewT * 8) | 0) % 2], st.x + 6, st.y - GRILL.h - 4);
     // a wisp of smoke curls off the hot grill
     for (let i = 0; i < 3; i++) {
-      const ph = (time * 0.55 + i * 0.37 + st.x * 0.011) % 1;
+      const ph = (viewT * 0.55 + i * 0.37 + st.x * 0.011) % 1;
       if (ph > 0.8) continue;
-      const sx = st.x + 7 + i * 2 + ((Math.sin(time * 1.2 + i * 2.1 + st.x) * 2) | 0);
+      const sx = st.x + 7 + i * 2 + ((Math.sin(viewT * 1.2 + i * 2.1 + st.x) * 2) | 0);
       const sy = st.y - GRILL.h - 8 - ph * 12;
       const s = ph < 0.45 ? 2 : 1;
       wrect(sx, sy, s, s, ph < 0.3 ? [168, 168, 182] : [206, 206, 220]);
@@ -12373,19 +13336,19 @@ function drawStation(key, kind, i) {
 let _swoopT = 99;
 function drawSwoop() {
   // every so often a gull dives at the snack queue
-  const T = time % 41;
+  const T = viewT % 41;
   if (T < _swoopT && darkness() <= 0.5) sfx.gull();   // one cry per dive
   _swoopT = T;
   if (T > 5.5 || darkness() > 0.5) return;
   const t = T / 5.5;
   const wx2 = BIZ.shack.queueX + 180 - t * 220;
   const gy = 34 + Math.sin(t * Math.PI) * 100;
-  wblit(GULL[((time * 6) | 0) % 2], wx2, gy);
+  wblit(GULL[((viewT * 6) | 0) % 2], wx2, gy);
 }
 function drawBus() {
   const by = ROAD_Y1 - BUS2.h - 1;
   wblit(BUS2, bus.x, by, bus.dir < 0);
-  const riders = crabs.filter(c => c.cstate === "onBus");
+  const riders = crabs.filter(c => c.csC === CS.onBus);
   for (let i = 0; i < Math.min(riders.length, 5); i++) {
     const wx2 = bus.x + 8 + i * 12;
     wrect(wx2, by + 6, 2, 2, [30, 20, 36]);
@@ -12404,7 +13367,7 @@ function crabHat(c) { return isMayor(c) ? "tophat" : c.duty && !c.p.fisher ? "to
 function drawCrab(c) {
   if (c.hidden) return;
   const arts = CRAB_ARTS[c.p.color];
-  const riding = c.cstate === "drive" && (c.dayState === "toWork" || c.dayState === "toHome");
+  const riding = c.csC === CS.drive && (c.dsC === DS.toWork || c.dsC === DS.toHome);
   if (riding && c.p.mode === "buggy") {
     wblit(BUGGIES2[c.p.color], c.x - 16, ROAD_Y1 - BUGGIES2[0].h, c.flip);
     return;
@@ -12412,20 +13375,20 @@ function drawCrab(c) {
   // (both features touched these three: the nap/chat/rough poses from the
   //  needs work, and busing as a working pose from the table work)
   const napping = (c.napT || 0) > 0;
-  const chatting = c.dayState === "chat";
+  const chatting = c.dsC === DS.chat;
   const working = !napping &&
-    (c.kstate === "work" || c.kstate === "cleaningStall" || c.kstate === "busingTable") &&
-    c.dayState === "working";
+    (c.ksC === KS.work || c.ksC === KS.cleaningStall || c.ksC === KS.busingTable) &&
+    c.dsC === DS.working;
   const moving = !napping && !chatting &&
-    (c.dayState !== "home" || Math.hypot((c.tx || c.x) - c.x, (c.ty || c.y) - c.y) > 2);
-  const sleeping = napping || (!moving && c.dayState === "home" && (darkness() > 0.7 || c.p.rough));
+    (c.dsC !== DS.home || Math.hypot((c.tx || c.x) - c.x, (c.ty || c.y) - c.y) > 2);
+  const sleeping = napping || (!moving && c.dsC === DS.home && (darkness() > 0.7 || c.p.rough));
   let art;
   if (sleeping) art = arts.s;
-  else if (working) art = ((c.animT * 6) | 0) % 2 ? arts.w : arts.a;
-  else if (moving) art = ((c.animT * 8) | 0) % 2 ? arts.a : arts.b;
+  else if (working) art = ((animTOf(c) * 6) | 0) % 2 ? arts.w : arts.a;
+  else if (moving) art = ((animTOf(c) * 8) | 0) % 2 ? arts.a : arts.b;
   else art = arts.a;
-  const bob = sleeping ? (Math.sin(time * 1.6 + c.animT) > 0 ? 1 : 0)   // slow breathing
-    : working ? -(((c.animT * 6) | 0) % 2) : 0;
+  const bob = sleeping ? (Math.sin(viewT * 1.6 + animTOf(c)) > 0 ? 1 : 0)   // slow breathing
+    : working ? -(((animTOf(c) * 6) | 0) % 2) : 0;
   let y = c.y - 12 + bob;
   if (riding && c.p.mode === "bike") {
     wblit(BIKE, c.x - 2, ROAD_Y1 - 8, c.flip);
@@ -12441,15 +13404,15 @@ function drawCrab(c) {
     const ax = c.flip ? 16 - acc.dx - acc.art.w : acc.dx;
     wblit(acc.art, c.x + ax, y + acc.dy, c.flip);
   }
-  if ((c.p.dirt || 0) >= 0.66) wblit(DIRT, c.x, y, c.flip);
+  if ((c.p.dirt || 0) >= qn(0.66)) wblit(DIRT, c.x, y, c.flip);
   // THE WIDE BERTH's badge: the bubble of empty boardwalk needs a visible
   // cause, so a crab whose personal space has inflated wears stink lines.
-  if (crabBerth(c) > 0 && darkness() <= 0.6 && c.dayState !== "home")
-    wblit(STINK_MARK[((time * 3.1) | 0) % 2], c.x + 12, y - 7);
+  if (crabBerthQ8(c) > 0 && darkness() <= 0.6 && c.dsC !== DS.home)
+    wblit(STINK_MARK[((viewT * 3.1) | 0) % 2], c.x + 12, y - 7);
   if (sleeping) {   // a little Z drifts up from the shell
-    const ph = (time * 0.45 + c.animT * 0.37) % 1;
+    const ph = (viewT * 0.45 + animTOf(c) * 0.37) % 1;
     if (ph < 0.75) {
-      const zx = c.x + 13 + ((Math.sin(ph * 9 + c.animT) * 2) | 0) - camX;
+      const zx = c.x + 13 + ((Math.sin(ph * 9 + animTOf(c)) * 2) | 0) - camX;
       if (zx > -4 && zx < W) smallText(ctx, "Z", zx, y - 2 - ph * 13, ph < 0.4 ? [200, 210, 235] : [150, 160, 195]);
     }
   }
@@ -12458,10 +13421,10 @@ function drawCrab(c) {
   // so it appears the minute they clock past their shift and clears itself the
   // minute overtime ends. Bobs so it reads as a marker, not a hat.
   if (onOvertimeNow(c)) {
-    const bobb = Math.sin(time * 3 + c.animT) > 0 ? 0 : 1;
-    wblit(OT_MARK[((time * 2.2) | 0) % 2], c.x + 5, y - 18 - bobb);   // clear of the toque AND the work-progress bar
+    const bobb = Math.sin(viewT * 3 + c.animT) > 0 ? 0 : 1;
+    wblit(OT_MARK[((viewT * 2.2) | 0) % 2], c.x + 5, y - 18 - bobb);   // clear of the toque AND the work-progress bar
   }
-  if (c.p.job === "fishing" && c.dayState === "working") wblit(ROD[((c.animT * 2) | 0) % 2], c.x + 12, y - 3, c.flip);
+  if (c.p.job === "fishing" && c.dsC === DS.working) wblit(ROD[((c.animT * 2) | 0) % 2], c.x + 12, y - 3, c.flip);
   if (c.carrying) wblit(ITEMS[c.carrying], c.x + 4, y - 7);
   if ((working || (napping && (c.napFrom === "work" || c.napFrom === "cleaningStall"))) && c.workMax > 0.7) {
     const frac = 1 - c.workT / c.workMax;
@@ -12490,41 +13453,41 @@ function drawCustomer(k) {
       k.animT += 0.016;
       const cul = visCulture(k);   // null = crab: every expression below keeps its old value
       const arts = cul ? cul.arts[k.color] : CRAB_ARTS[k.color];
-      if (k.state === "showering") return;   // behind the curtain (stall draws the bather)
-      if (k.state === "inRoom") return;      // upstairs with the lamp on (the door draws them)
+      if (k.stC === VS.showering) return;   // behind the curtain (stall draws the bather)
+      if (k.stC === VS.inRoom) return;      // upstairs with the lamp on (the door draws them)
       // a crab shuffling up the line is WALKING, and legs sell it. Without this
       // the whole line slid up the boardwalk on its belly when the front left.
-      const moving = (k.state !== "waiting" && k.state !== "onSand") || (k.state === "waiting" && k.qWalk);
+      const moving = (k.stC !== VS.waiting && k.stC !== VS.onSand) || (k.stC === VS.waiting && k.qWalk);
       // a save-defined culture brings its own sleep pose: a pig on the sand
       // lies down on her side. The crab keeps standing, exactly as shipped.
-      const sleeping = !!cul && k.state === "onSand";
+      const sleeping = !!cul && k.stC === VS.onSand;
       const art = sleeping ? arts.s : moving && ((k.animT * 8) | 0) % 2 ? arts.b : arts.a;
       // a visitor faces the way they are walking; the old anonymous tourist
       // only ever walked one way, which is why this used to be a state test
-      const flip = k.visitor ? (k.face == null ? true : k.face < 0) : k.state !== "leaving";
+      const flip = k.visitor ? (k.face == null ? true : k.face < 0) : k.stC !== VS.leaving;
       const base = custY(k);
       const bodyW = cul ? cul.body.w : 16, bodyH = cul ? cul.body.h : 12;
-      const cy = base - bodyH - 26 * (k.climb || 0);
+      const cy = base - bodyH - 26 * ((k.climb || 0) / 4096);   // climb is Q12
       wblit(art, k.x, cy, flip);
       const acc = (cul ? cul.acc : ACCESSORIES)[k.acc];
       if (acc && !sleeping) {   // a side-sleeper's hat comes off (spec 5.5 rev 3)
         const ax = flip ? bodyW - acc.dx - acc.art.w : acc.dx;
         wblit(acc.art, k.x + ax, cy + acc.dy, flip);
       }
-      if (k.state === "onSand") {   // a night on the beach, and it shows
-        const ph = ((time * 0.7 + k.x * 0.01) % 1);
+      if (k.stC === VS.onSand) {   // a night on the beach, and it shows
+        const ph = ((viewT * 0.7 + k.x * 0.01) % 1);
         // the Z rises off the culture's mark anchor; the crab's 11 is its own
         smallText(ctx, "Z", k.x + (cul ? cul.body.anchors.mark.x : 11) - camX, cy - 4 - ph * 5, [200, 210, 255]);
       }
-      if (k.state === "waiting" || (k.visitor && k.state === "roam" && k.idleT > 0)) {
+      if (k.stC === VS.waiting || (k.visitor && k.stC === VS.roam && k.idleT > 0)) {
         // a NAME on the boardwalk is the whole point of making them real: you
         // are meant to recognise MISTY on her second day in town
-        const nm = k.name.split(" ")[0].slice(0, k.state === "waiting" ? 4 : 8);
+        const nm = k.name.split(" ")[0].slice(0, k.stC === VS.waiting ? 4 : 8);
         const nx = k.x + (cul ? cul.body.w >> 1 : 8) - smallTextWidth(nm) / 2 - camX;
         if (nx > -30 && nx < W) smallText(ctx, nm, nx, base + 2, [100, 80, 55]);
       }
     }
-    if ((k.state === "waiting" || k.state === "seatedWaiting") && !k.served) {
+    if ((k.stC === VS.waiting || k.stC === VS.seatedWaiting) && !k.served) {
       const bx = k.x - camX - 1, by = FLOOR_Y - 36;
       if (bx > -16 && bx < W) {
         rect(ctx, bx, by, 14, 13, [30, 20, 36]);
@@ -12550,19 +13513,19 @@ function drawNight() {
     // house stays dark all night (crew and townsfolk light up alike; boat
     // dwellers get their cabin lamp below instead)
     for (const c of allCrabs()) {
-      if (c.dayState !== "home" || c.hidden || c.p.boat != null) continue;
+      if (c.dsC !== DS.home || c.hidden || c.p.boat != null) continue;
       if (c.p.homeless) { wrect(SHELTER_X + 8, 130, 8, 6, [255, 216, 96]); wrect(SHELTER_X + 50, 130, 8, 6, [255, 216, 96]); }
       else wrect(HOUSE_XS[c.p.house] + 38, 132, 10, 8, [255, 216, 96]);
     }
     // a cabin lamp burns on each occupied live-aboard
     for (const c of allCrabs())
-      if (c.p.boat != null && c.dayState === "home" && !c.hidden)
+      if (c.p.boat != null && c.dsC === DS.home && !c.hidden)
         wrect(BOAT_BERTHS[c.p.boat].x + 7, BOAT_Y + 11, 3, 3, [255, 216, 96]);
     if (dark > 0.65) {
       for (let i = 0; i < 6; i++) {
-        if (((time * 3 + i) | 0) % 4 === 0) continue;
-        const fx = 480 + i * 260 + Math.sin(time * 0.31 + i * 2.1) * 55;
-        const fy = 148 + Math.sin(time * 0.73 + i * 1.3) * 9;
+        if (((viewT * 3 + i) | 0) % 4 === 0) continue;
+        const fx = 480 + i * 260 + Math.sin(viewT * 0.31 + i * 2.1) * 55;
+        const fy = 148 + Math.sin(viewT * 0.73 + i * 1.3) * 9;
         wrect(fx, fy, 1, 1, [190, 255, 140]);
       }
     }
@@ -12583,37 +13546,37 @@ function crabMood(c) {
   if (c.p.homeless) return ["DOWN", [190, 80, 80]];
   if (c.p.wallet < 1000) return ["BROKE", [190, 80, 80]];
   if (c.p.wallet > 120) return ["FLUSH", [180, 140, 30]];
-  if ((c.p.hunger || 0) > 0.7) return ["HUNGRY", [200, 110, 40]];
-  if ((c.p.thirst || 0) > 0.8) return ["PARCHED", [200, 110, 40]];
+  if ((c.p.hunger || 0) > qn(0.7)) return ["HUNGRY", [200, 110, 40]];
+  if ((c.p.thirst || 0) > qn(0.8)) return ["PARCHED", [200, 110, 40]];
   if ((c.p.dirt || 0) >= SHUN_AT) return ["RANK", [150, 110, 60]];   // the wide berth, named
-  if ((c.p.tired || 0) > 0.85) return ["EXHAUSTED", [190, 80, 80]];
+  if ((c.p.tired || 0) > qn(0.85)) return ["EXHAUSTED", [190, 80, 80]];
   // boredom's two moods, slotted to match the design doc's ranking: the crab
   // who has genuinely had enough outranks the clock, the merely restless one
   // does not outrank actually being mid-task
   if ((c.p.bored || 0) >= WALKOUT_AT) return ["AT A LOOSE END", [110, 120, 175]];
-  if (darkness() > 0.7 && c.dayState !== "home") return ["UP LATE", [120, 120, 140]];
-  if (darkness() > 0.7 && c.dayState === "home") return ["COZY", [180, 120, 60]];
-  if (c.dayState === "working" && c.kstate === "work") return ["BUSY", [40, 110, 190]];
+  if (darkness() > 0.7 && c.dsC !== DS.home) return ["UP LATE", [120, 120, 140]];
+  if (darkness() > 0.7 && c.dsC === DS.home) return ["COZY", [180, 120, 60]];
+  if (c.dsC === DS.working && c.ksC === KS.work) return ["BUSY", [40, 110, 190]];
   if ((c.p.bored || 0) >= WANDER_AT) return ["RESTLESS", [125, 135, 180]];
   return ["SUNNY", [40, 150, 70]];
 }
 function custStatus(k) {
   const b = BIZ[k.biz] ? BIZ[k.biz].name : "TOWN";
-  if (k.state === "ashore") return "WALKING DOWN THE PIER";
-  if (k.state === "toPier") return ferryHere() ? "BOARDING THE FERRY" : "WAITING FOR THE FERRY";
-  if (k.state === "toBiz") return "ON THEIR WAY TO THE " + BIZ[k.biz].short;
-  if (k.state === "toRoom") return "OFF TO ROOM " + (k.roomN || "?");
-  if (k.state === "inRoom") return "ASLEEP IN ROOM " + (k.roomN || "?");
-  if (k.state === "onSand") return "NO ROOM - OUT ON THE SAND";
-  if (k.state === "roam") return k.wallet < 600 ? "OUT OF MONEY, TAKING IT IN"
+  if (k.stC === VS.ashore) return "WALKING DOWN THE PIER";
+  if (k.stC === VS.toPier) return ferryHere() ? "BOARDING THE FERRY" : "WAITING FOR THE FERRY";
+  if (k.stC === VS.toBiz) return "ON THEIR WAY TO THE " + BIZ[k.biz].short;
+  if (k.stC === VS.toRoom) return "OFF TO ROOM " + (k.roomN || "?");
+  if (k.stC === VS.inRoom) return "ASLEEP IN ROOM " + (k.roomN || "?");
+  if (k.stC === VS.onSand) return "NO ROOM - OUT ON THE SAND";
+  if (k.stC === VS.roam) return k.wallet < 600 ? "OUT OF MONEY, TAKING IT IN"
     : k.idleT > 0 ? "WATCHING THE TOWN GO BY" : "STROLLING THE PROMENADE";
-  if (k.state === "arriving") return "HEADING TO THE " + b;
-  if (k.state === "waiting") return "IN LINE AT THE " + b;
-  if (k.state === "toSeat") return "FINDING A SEAT";
-  if (k.state === "seatedWaiting") return "WAITING ON THEIR ORDER";
-  if (k.state === "dining") return "EATING " + (ITEM_NAMES[k.recipe.icon] || "LUNCH");
-  if (k.state === "waitStall" || k.state === "toStall" || k.state === "outStall") return "AT THE SHOWERS";
-  if (k.state === "leaving") return k.happy ? "HEADING HOME HAPPY" : k.served ? "HEADING HOME" : "LEAVING IN A HUFF";
+  if (k.stC === VS.arriving) return "HEADING TO THE " + b;
+  if (k.stC === VS.waiting) return "IN LINE AT THE " + b;
+  if (k.stC === VS.toSeat) return "FINDING A SEAT";
+  if (k.stC === VS.seatedWaiting) return "WAITING ON THEIR ORDER";
+  if (k.stC === VS.dining) return "EATING " + (ITEM_NAMES[k.recipe.icon] || "LUNCH");
+  if (k.stC === VS.waitStall || k.stC === VS.toStall || k.stC === VS.outStall) return "AT THE SHOWERS";
+  if (k.stC === VS.leaving) return k.happy ? "HEADING HOME HAPPY" : k.served ? "HEADING HOME" : "LEAVING IN A HUFF";
   return "ENJOYING THE BEACH";
 }
 // how long they have been here, in the words a player would use
@@ -12623,13 +13586,13 @@ function visStayLabel(k) {
 }
 // the one thing about this visitor you would say first
 function visCondition(k) {
-  if (k.roughNights > 0 && k.state !== "inRoom") return ["SLEPT ROUGH", [190, 80, 80]];
+  if (k.roughNights > 0 && k.stC !== VS.inRoom) return ["SLEPT ROUGH", [190, 80, 80]];
   if (k.wallet < 600) return ["SPENT UP", [150, 120, 90]];
-  if (k.hunger > 0.75) return ["STARVING", [200, 110, 40]];
-  if (k.thirst > 0.75) return ["PARCHED", [200, 110, 40]];
-  if (k.dirt > 0.75) return ["GRUBBY", [150, 110, 60]];
-  if (k.tired > 0.75) return ["WORN OUT", [110, 120, 175]];
-  if (k.bored > 0.75) return ["BORED STIFF", [110, 120, 175]];
+  if (k.hunger > qn(0.75)) return ["STARVING", [200, 110, 40]];
+  if (k.thirst > qn(0.75)) return ["PARCHED", [200, 110, 40]];
+  if (k.dirt > qn(0.75)) return ["GRUBBY", [150, 110, 60]];
+  if (k.tired > qn(0.75)) return ["WORN OUT", [110, 120, 175]];
+  if (k.bored > qn(0.75)) return ["BORED STIFF", [110, 120, 175]];
   if (k.wallet > 70) return ["FLUSH", [180, 140, 30]];
   return ["ON HOLIDAY", [40, 150, 70]];
 }
@@ -12669,7 +13632,7 @@ function drawCustCard(k) {
   // ...and the same on the visitor's card, which had the same collision with a
   // slice(0, 9) in place of a measurement: TIDEPOOL is 47px from x29 and
   // DELIGHTED starts at x69.
-  const mood = !k.served && k.recipe && k.patience < 15 ? ["STEAMED", [190, 80, 80]]
+  const mood = !k.served && k.recipe && k.patience < 15 * PQ ? ["STEAMED", [190, 80, 80]]
     : k.visitor ? visCondition(k)
     : k.happy || k.served ? ["HAPPY", [40, 150, 70]] : ["VISITING", [110, 110, 130]];
   const cMoodX = 104 - smallTextWidth(mood[0]);
@@ -12689,7 +13652,7 @@ function drawCustCard(k) {
   smallText(ctx, "WANTS: " + (ITEM_NAMES[k.recipe.icon] || "?") + " $" + $d(menuPrice(k.biz, k.recipe)), 29, 28, [140, 110, 40]);
   smallText(ctx, "PATIENCE", 6, 44, [110, 110, 130]);
   rect(ctx, 40, 45, 60, 4, [30, 20, 36]);
-  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50)));
+  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50 * PQ)));
   rect(ctx, 41, 46, Math.round(58 * pf), 2, pf > 0.5 ? [96, 200, 120] : pf > 0.25 ? [235, 200, 90] : [235, 90, 90]);
   smallText(ctx, "MORE>", 126 - smallTextWidth("MORE>"), 52, [150, 140, 160]);   // its own row: the need bars own y44-49
 }
@@ -12760,11 +13723,11 @@ function drawFollowCard() {
     rect(ctx, 58, 35, 28, 8, [96, 170, 220]);
     smallText(ctx, "JOB>", 60, 36, [255, 255, 255]);
   }
-  const eff = crabEff(c) * (p.sick ? 0.5 : 1);   // illness halves everything - show it
+  const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);   // illness halves everything - show it
   if (eff < 0.995)
     smallText(ctx, "PACE " + Math.round(eff * 100) + "%", 74, 36, eff < 0.8 ? [190, 80, 80] : [200, 110, 40]);
   const bars = [["FED", 1 - (p.hunger || 0), 6], ["SIP", 1 - (p.thirst || 0), 30],
-    ["CLN", 1 - (p.dirt || 0), 54], ["FUN", 1 - (p.bored || 0), 78], ["ZZZ", 1 - (p.tired || 0), 102]];
+    ["CLN", 1 - (p.dirt || 0) / Q20, 54], ["FUN", 1 - (p.bored || 0) / Q20, 78], ["ZZZ", 1 - (p.tired || 0) / Q20, 102]];
   for (const [label, frac, bx] of bars) {
     smallText(ctx, label, bx, 44, [110, 110, 130]);
     rect(ctx, bx + 11, 45, 13, 4, [30, 20, 36]);
@@ -12814,9 +13777,9 @@ function navTill(key) { const bk = today.biz[key]; return bk ? bk.take || 0 : 0;
 function navFlashing(key) {
   const take = navTill(key);
   const seen = navTake[key];
-  if (seen != null && take > seen) navFlash[key] = time;
+  if (seen != null && take > seen) navFlash[key] = viewT;
   navTake[key] = take;                      // ...and a day rollover resets it to 0 without a flash
-  return navFlash[key] != null && time - navFlash[key] < NAV_FLASH;
+  return navFlash[key] != null && viewT - navFlash[key] < NAV_FLASH;
 }
 const NAV_H = 7;                            // the free rows between FLOOR_MAX and the panel
 const NAV_CHIP_H = 11;                      // ...and a thumb-sized chip row above them
@@ -13021,7 +13984,7 @@ function drawNav() {
   // polls are open and holds steady through the count, then goes when the
   // result is declared and the table comes down.
   if (pollCalled() && ballotBox.printed > 0 && !ballotBox.declared) {
-    const lit = ballotBox.shut || ((time * 2) | 0) % 2 === 0;
+    const lit = ballotBox.shut || ((viewT * 2) | 0) % 2 === 0;
     if (lit) for (const pl of POLL_PLACES)
       rect(ctx, Math.max(m.x, Math.min(m.x + m.w - 1, sx(pl.x + 16))), m.y + 1, 1, 2,
         ballotBox.papers > 0 || ballotBox.shut ? [255, 216, 96] : [200, 110, 40]);
@@ -13067,7 +14030,7 @@ function drawPanel() {
   blit(ctx, muted ? SPEAKER_OFF : SPEAKER_ON, 150, PANEL_Y + 3);
   {
     const invite = !musicOn && !muted && musNudges < 3;
-    const pulse = invite && (time % 2) < 1.2;
+    const pulse = invite && (viewT % 2) < 1.2;
     smallText(ctx, "MUS", 169, PANEL_Y + 3,
       !muted && musicOn ? [140, 220, 140] : pulse ? [255, 216, 96] : [140, 120, 110]);
     if (invite && !musNudged && screen === "play" && tmin > 9.5 * 60 && !toast && reportT <= 0) {
@@ -13126,7 +14089,7 @@ function drawPanel() {
   const due = nightlyDue() + creditDueTonight();
   const rTxt = "BILL $" + fmt(due) + (credit.bal > 0 ? " D$" + fmt(Math.round(credit.bal)) : "");
   const chipW = textWidth(rTxt, 5) + 8;
-  const crunch = coins < due && tmin >= 18 * 60 && tmin < 20 * 60 && ((time * 2) | 0) % 2;
+  const crunch = coins < due && tmin >= 18 * 60 && tmin < 20 * 60 && ((viewT * 2) | 0) % 2;
   rect(ctx, 252 - chipW, TAB_Y - 1, chipW, TAB_H + 1, crunch ? [150, 40, 40] : tab === "menu" ? [190, 140, 80] : [90, 70, 60]);
   text(ctx, rTxt, 252 - chipW + 4, TAB_TX - 1, coins < due ? [255, 140, 140] : tab === "menu" ? [40, 24, 16] : [200, 185, 170], 5);
 
@@ -13224,15 +14187,15 @@ function drawPanel() {
   }
 }
 
-function drawFloaters(dt) {
+function drawFloaters() {
+  // a READER now: lifetimes moved to ageFloaters (sim side, the seam) - the
+  // draw paints what the sim says is alive and mutates nothing
   for (const f of floaters) {
-    f.t -= dt; f.y -= 14 * dt;
     const raw = f.x - camX;
     if (raw < -30 || raw > W + 30) continue;   // offscreen event: no ghost text at the edges
     const fx = Math.max(2, Math.min(raw, W - textWidth(f.text) - 2));
     textShadow(ctx, f.text, fx, f.y, f.color, [30, 20, 36]);
   }
-  floaters = floaters.filter(f => f.t > 0);
 }
 // MR. PINCHERTON'S TERMS, hoisted out of the draw so the suite can measure
 // them. The card is 200px wide and the 5x7 font is 6px a character, so a term
@@ -13411,7 +14374,7 @@ function drawEnding() {
     + R.pop + " CRABS, " + R.housed + " HOUSED", x + 6, ly, [140, 110, 40]); ly += 10;
   const tag = "CRABALINA IS ON THE MAP";
   smallText(ctx, tag, x + ((w2 - smallTextWidth(tag)) >> 1), ly, [40, 130, 70]);
-  if (((time * 2) | 0) % 2)
+  if (((viewT * 2) | 0) % 2)
     smallText(ctx, "CLICK TO START OVER", x + ((w2 - smallTextWidth("CLICK TO START OVER")) >> 1), y + h2 - 9, [120, 110, 120]);
 }
 function drawGameOver() {
@@ -13433,7 +14396,7 @@ function drawGameOver() {
     text(ctx, "NIGHTLY RENT OWED $" + fmt(totalRent()), cx2 - 66, 114, [140, 60, 60], 6);
   }
   smallText(ctx, "SURVIVED " + day + " DAYS  EARNED $" + fmt(lifetime), cx2 - 78, 124, [90, 90, 110]);
-  const bl = ((time * 2) | 0) % 2;
+  const bl = ((viewT * 2) | 0) % 2;
   if (bl) text(ctx, "CLICK TO START OVER", cx2 - 56, 137, [40, 110, 60], 6);
 }
 function homeLabel(p) {
@@ -13714,12 +14677,12 @@ function drawCustDossier(k) {
   };
   row("NOW", custStatus(k).slice(0, 32), [70, 90, 130]);
   row("ORDER", (ITEM_NAMES[k.recipe.icon] || "?") + " - $" + $d(menuPrice(k.biz, k.recipe)) + (k.served ? " - PAID" : ""), [140, 110, 40]);
-  row("MOOD", !k.served && k.patience < 15 ? "ABOUT TO WALK OUT" : k.happy || k.served ? "HAVING A GREAT TIME" : "WAITING PATIENTLY",
-    !k.served && k.patience < 15 ? [190, 80, 80] : [40, 150, 70]);
+  row("MOOD", !k.served && k.patience < 15 * PQ ? "ABOUT TO WALK OUT" : k.happy || k.served ? "HAVING A GREAT TIME" : "WAITING PATIENTLY",
+    !k.served && k.patience < 15 * PQ ? [190, 80, 80] : [40, 150, 70]);
   ly += 2;
   smallText(ctx, "PATIENCE", x + 8, ly, [110, 110, 130]);
   rect(ctx, x + 44, ly, 100, 5, [30, 20, 36]);
-  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50)));
+  const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50 * PQ)));
   rect(ctx, x + 45, ly + 1, Math.round(98 * pf), 3, pf > 0.5 ? [96, 200, 120] : pf > 0.25 ? [235, 200, 90] : [235, 90, 90]);
   ly += 10;
   smallText(ctx, "WORD OF MOUTH: TOURISTS WHO LEAVE HAPPY", x + 8, ly, [90, 90, 105]); ly += 7;
@@ -13822,21 +14785,21 @@ function drawDossier() {
       + (granted ? "RESTING, UNPAID" : "AT WORK, PAID"),
       gravelyIll(c) ? [220, 60, 60] : granted ? [120, 150, 90] : [190, 80, 80], canOT ? "sick" : null);
     if (canOT) smallText(ctx, granted ? "TAP: WORK" : "TAP: REST", x + w2 - 40, ly - 9, [96, 170, 220]);
-    if (granted) smallText(ctx, "RESTED " + (p.restT || 0).toFixed(1) + "H/" + REST_HOURS
+    if (granted) smallText(ctx, "RESTED " + ((p.restT || 0) / (60 * GMIN)).toFixed(1) + "H/" + (REST_HOURS / (60 * GMIN))
       + "H - " + CARE_LANES[careLane(c)].label, x + 56, ly, [110, 100, 110]), ly += 9;
   }
-  const eff = crabEff(c) * (p.sick ? 0.5 : 1);
+  const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);
   if (eff < 0.995) {
     const why = [];
     if (p.sick) why.push("SICK");
-    if ((p.hunger || 0) > 0.3) why.push("HUNGRY");
-    if ((p.dirt || 0) > 0.6) why.push("GRUBBY");
+    if ((p.hunger || 0) > qn(0.3)) why.push("HUNGRY");
+    if ((p.dirt || 0) > qn(0.6)) why.push("GRUBBY");
     row("PACE", "WORKING AT " + Math.round(eff * 100) + "%" + (why.length ? " - " + why.join(", ") : ""),
       eff < 0.8 ? [190, 80, 80] : [200, 110, 40]);
   }
   // THE TRUDGE, named the way PACE names the prep drag: hunger and thirst fail
   // as a speed penalty, so the card says how slow and says why.
-  const walk = needDrag(c);
+  const walk = needDragQ12(c) / 4096;
   if (walk < 0.995) {
     const wwhy = [];
     if ((p.hunger || 0) > DRAG_HUNGER_AT) wwhy.push("HUNGRY");
@@ -13849,7 +14812,7 @@ function drawDossier() {
   // control bar along the bottom, and a stack of five labelled bars is the
   // 32px that has to give - the numbers are identical, the meters are shorter
   const bars = [["FED", 1 - (p.hunger || 0)], ["SIP", 1 - (p.thirst || 0)],
-    ["CLN", 1 - (p.dirt || 0)], ["FUN", 1 - (p.bored || 0)], ["ZZZ", 1 - (p.tired || 0)]];
+    ["CLN", 1 - (p.dirt || 0) / Q20], ["FUN", 1 - (p.bored || 0) / Q20], ["ZZZ", 1 - (p.tired || 0) / Q20]];
   bars.forEach(([label, frac], i) => {
     const bx = x + 6 + i * 40;
     smallText(ctx, label, bx, ly, [110, 110, 130]);
@@ -14694,9 +15657,10 @@ function drawCensus(R) {
       r.x + 12, ry + 8, otM ? [200, 110, 40] : [110, 100, 110]);
     smallText(ctx, WEEKDAYS[dayOffIdx(c)], r.x + 50, ry + 8, [70, 140, 200]);
     if (otM) smallText(ctx, "OT", r.x + 66, ry + 8, [255, 150, 40]);
-    const eff = crabEff(c) * (p.sick ? 0.5 : 1);
+    const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);
     smallText(ctx, Math.round(eff * 100) + "%", r.x + 78, ry + 8, eff < 0.8 ? [190, 80, 80] : eff < 0.995 ? [200, 110, 40] : [110, 100, 110]);
-    const bars = [1 - (p.hunger || 0), 1 - (p.thirst || 0), 1 - (p.dirt || 0), 1 - (p.bored || 0), 1 - (p.tired || 0)];
+    const bars = [1 - (p.hunger || 0) / Q20, 1 - (p.thirst || 0) / Q20, 1 - (p.dirt || 0) / Q20,
+      1 - (p.bored || 0) / Q20, 1 - (p.tired || 0) / Q20];
     for (let bi = 0; bi < bars.length; bi++) {
       const bx = r.x + 156 + bi * 10, f = Math.max(0, Math.min(1, bars[bi]));
       rect(ctx, bx, ry + 8, 9, 4, [30, 20, 36]);
@@ -14899,8 +15863,8 @@ function drawReport() {
   if (report.hallPaid) line(report.hallOwn ? "YOUR OWN " + purseOf(hall.policy).short : "TOWN " + (report.hallPol || "").split(" ")[0],
     "-$" + fmt(report.hallPaid), [150, 70, 60]);
   if (report.hallGot) line("SHELTER BOUGHT BOWLS", "+$" + fmt(report.hallGot), [40, 110, 60]);
-  const dRep = report.repEnd - report.repStart;
-  line("WORD OF MOUTH", report.repEnd + (dRep >= 0 ? "  +" + dRep : "  " + dRep),
+  const dRep = repPts(report.repEnd) - repPts(report.repStart);
+  line("WORD OF MOUTH", repPts(report.repEnd) + (dRep >= 0 ? "  +" + dRep : "  " + dRep),
     dRep >= 0 ? [40, 110, 60] : [180, 60, 60]);
   ly += 2;
   // THE MAYOR'S LINE. Always there, one row: who holds the office, what their
@@ -14956,7 +15920,7 @@ function drawReport() {
         r2.x + r2.w + 4, r2.y + 3, [150, 130, 120]);
     }
   }
-  if (((time * 1.5) | 0) % 2) smallText(ctx, "CLICK TO CARRY ON", x + 52, y + h2 - 9, [150, 130, 120]);
+  if (((viewT * 1.5) | 0) % 2) smallText(ctx, "CLICK TO CARRY ON", x + 52, y + h2 - 9, [150, 130, 120]);
 }
 
 // ===========================================================================
@@ -15057,7 +16021,7 @@ function stayBought(k, paid) {
   const s = stayOf(k);
   stayWait(k);
   s.serves++;
-  if (k.state === "seatedWaiting") s.tables++;
+  if (k.stC === VS.seatedWaiting) s.tables++;
   if (k.need === "room") { s.rooms++; return; }
   if (!k.recipe) return;
   if (k.need === "clean") s.washes++;
@@ -15252,20 +16216,20 @@ const DEPART_RULES = [
   // a meal, and this town never sold them a meal, and here they are getting on
   // the boat starving. Same shape for the drink, the wash and the bed.
   { id: "hungry", mood: "sour",
-    w: (r) => r.hunger >= 0.85 && r.meals === 0 ? 44 + 20 * r.hunger : 0,
+    w: (r) => r.hunger >= qn(0.85) && r.meals === 0 ? 44 + 20 * r.hunger : 0,
     line: () => "GETTING ON THIS BOAT HUNGRIER THAN I GOT OFF IT." },
   { id: "parched", mood: "sour",
-    w: (r) => r.thirst >= 0.85 && r.drinks === 0 ? 40 + 16 * r.thirst : 0,
+    w: (r) => r.thirst >= qn(0.85) && r.drinks === 0 ? 40 + 16 * r.thirst : 0,
     line: () => "NOT ONE COLD DRINK IN THE WHOLE PLACE. PARCHED." },
   { id: "grubby", mood: "sour",
-    w: (r) => r.dirt >= 0.85 && r.washes === 0 ? 38 + 16 * r.dirt : 0,
+    w: (r) => r.dirt >= qn(0.85) && r.washes === 0 ? 38 + 16 * r.dirt : 0,
     line: (r) => r.days + (r.days === 1 ? " DAY" : " DAYS")
       + " OF SALT AND SAND AND NOWHERE TO WASH IT OFF." },
   { id: "weary", mood: "flat",
-    w: (r) => r.tired >= 0.85 && r.nightsBed === 0 ? 34 + 12 * r.tired : 0,
+    w: (r) => r.tired >= qn(0.85) && r.nightsBed === 0 ? 34 + 12 * r.tired : 0,
     line: () => "WORN RIGHT OUT. NOWHERE IN THIS TOWN TO SIT DOWN." },
   { id: "bored", mood: "flat",
-    w: (r) => r.bored >= 0.85 && r.games === 0 ? 32 + 10 * r.bored : 0,
+    w: (r) => r.bored >= qn(0.85) && r.games === 0 ? 32 + 10 * r.bored : 0,
     line: () => "ONCE YOU'VE WALKED THE PROMENADE, THAT'S THE LOT." },
   // A LINE THEY NEARLY WALKED OUT OF. The threshold is MEASURED, not guessed:
   // over 266 departures in three do-nothing towns the median served guest's
@@ -15283,7 +16247,7 @@ const DEPART_RULES = [
     w: (r) => r.missed > 0 ? 25 : 0,
     line: () => "MISSED THE LAST BOAT. THAT WASN'T THE PLAN AT ALL." },
   { id: "mist", mood: "flat",
-    w: (r) => r.mistMin >= 100 ? 20 + Math.min(12, r.mistMin / 30) : 0,
+    w: (r) => r.mistMin >= 100 * GMIN ? 20 + Math.min(12, r.mistMin / (30 * GMIN)) : 0,
     line: () => "THE MIST CAME IN AND I NEVER DID SEE THE FAR SHORE." },
   { id: "table", mood: "made",
     w: (r) => r.tables >= 1 ? 30 + 8 * r.tables : 0,
@@ -15444,7 +16408,7 @@ function drawDepart() {
   }
   const more = page < departPages() - 1;
   const foot = more ? "CLICK FOR MORE   " + (page + 1) + "/" + departPages() : "CLICK TO CARRY ON";
-  if (more || ((time * 1.5) | 0) % 2)
+  if (more || ((viewT * 1.5) | 0) % 2)
     smallText(ctx, foot, x + ((w2 - smallTextWidth(foot)) >> 1), y + h2 - 8, [150, 130, 120]);
 }
 // One click: turn the page, and close on the last one. No chips, because the
@@ -15920,37 +16884,29 @@ function drawHirePointer() {
   // 5-row head) and at 26 its stem printed behind the bottom edge of the hire
   // card, which sits at y140. This lands it in the gap between the card and the
   // crab's own head, which is what it is pointing at.
-  const bob = Math.round(Math.sin(time * 6) * 2);
+  const bob = Math.round(Math.sin(viewT * 6) * 2);
   const py = Math.round(c.y) - 20 + bob;
   for (let i = 0; i < 5; i++) rect(ctx, sx - (4 - i), py + i, 2 * (4 - i) + 1, 1, [96, 232, 120]);
   rect(ctx, sx - 1, py - 4, 3, 4, [96, 232, 120]);
 }
 
 // ---------------------------------------------------------------- main loop
-let last = performance.now(), saveT = 0;
-function frame(now) {
-  refreshHatches();   // hatch flags snapshot: one global read set per frame
-  // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
-  // speed chips, and everything in the world runs on it. `raw` is WALL time,
-  // and the HIRE CARD runs on that instead: a card you are meant to read must
-  // not get six times shorter because the town is running at 6x. It buys the
-  // player nothing - the day underneath it is running at whatever speed they
-  // chose - it just means the card is legible at every one of them. (The toast
-  // deliberately stays on sim time: it is an event notice, and it belongs to
-  // the moment in the day that produced it.)
-  //
-  // Deliberately computed BESIDE the dt line rather than out of it, so the
-  // speed row's own arithmetic is left exactly as it was.
-  //
-  // AND `dt` NO LONGER ASKS ABOUT PAUSE. This branch was cut while a pause
-  // still existed; the operator removed it (see the ruling at FF_SPEED) and a
-  // union of the two sides here would have restored `paused ? 0 :` against a
-  // name that no longer exists - a ReferenceError on the first frame, and the
-  // whole game dark. Neither side was wrong; they were written a ruling apart.
-  const raw = Math.max(0, Math.min(0.1, (now - last) / 1000));
-  const dt = raw * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);
-  last = now; time += dt;
-  if (hireCard) { hireCard.t -= raw; if (hireCard.t <= 0) hireCard = null; }
+let last = performance.now(), saveT = 0, msAcc = 0;
+// ---------------------------------------------------------------- THE SEAM
+// The sim/view split (perf-ladder rung 1). State flows ONE WAY, sim -> view:
+// simClock and simTown are the whole of the world's advance - everything the
+// headless fingerprint sees, announcement state included (toasts, floaters,
+// the report and departure cards - the suite drives and reads them, so they
+// are observable sim, not decoration). viewFrame and the intro/title screens
+// are READERS: they may look at anything and write nothing the sim reads.
+// A headless run never enters a view function BY CONSTRUCTION - the one gate
+// in frame() is the only crossing, and window._viewCalls counts crossings so
+// the suite can assert zero. The two "go and look at this" camera snaps
+// (hireCrew, the ferry ending) are one-way EMISSIONS into view state, and the
+// title screen's attract-mode wander is view-side sim theatre - browser-only
+// by construction, srand-inventoried for slice 5.
+function simClock(dt, rawMs) {
+  if (hireCard) { hireCard.t -= rawMs / 1000; if (hireCard.t <= 0) hireCard = null; }   // WALL seconds, deliberately
   if (saveConfirmT > 0) { saveConfirmT -= dt; if (saveConfirmT <= 0) saveConfirm = null; }
   if (saleArmT > 0) { saleArmT -= dt; if (saleArmT <= 0) saleArm = null; }
   if (upArmT > 0) { upArmT -= dt; if (upArmT <= 0) upArm = null; }   // the accommodation chips' arm
@@ -15958,12 +16914,14 @@ function frame(now) {
   if (won) winT += dt;   // the beat before the ending card: she comes alongside first
   if (askArmT > 0) { askArmT -= dt; if (askArmT <= 0) askArm = null; }
   if (saveMsg && saveMsg.t > 0) { saveMsg.t -= dt; if (saveMsg.t <= 0) saveMsg = null; }
-  if (!gameOver && screen === "play") tmin += dt * TS;
-  if (tmin >= 1440) {
-    tmin -= 1440; day++;
+  if (!gameOver && screen === "play") tday += dtT;
+  reclock();
+  if (tday >= DAY_TICKS) {
+    tday -= DAY_TICKS; reclock(); day++;
+    mistRoll();   // tonight's shore, drawn once and held as an integer
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price
-    townCatch = Math.min(townCatch, 4); rep = rep + (30 - rep) * 0.06;
+    townCatch = Math.min(townCatch, 4); rep = rep + idiv((30000 - rep) * 6, 100);   // nightly relaxation, exact; floor's deadband at milli is 0.017 rep
     for (const c of allCrabs()) { c.workedToday = false; c.otMin = 0; }   // a new day's ledger
     trade.day = { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }; trade.landedDay = 0;
     townFund.dayIn = 0; townFund.dayOut = 0; townFund.youPaid = 0; townFund.youGot = 0;   // the fund's own day book
@@ -16046,13 +17004,13 @@ function frame(now) {
         window._stats.wagesOwed = (window._stats.wagesOwed || 0) + missedPay;
       }
     }
-    if (wages > 0) earnHist.push({ t: time, amt: -wages });
+    if (wages > 0) earnHist.push({ t: viewT, amt: -wages });
     // 2. house rent from each crab's own wallet; broke crabs move to the shelter
     let evictedNames = [];
     for (const c of allCrabs()) {
       logNightly(c);   // DIARY: the nights tally, the day's catch as one line, and what they took to bed
-      c.p.thirst = Math.min(1, (c.p.thirst || 0) + 0.15 * ((c.p.tired || 0) > 0.5 ? 1.5 : 1));   // a dry night - drier after a hard day
-      if (c.workedToday) { c.p.tired = Math.min(1, (c.p.tired || 0) + TIRED_NIGHT); c.workedToday = false; }   // the day's work catches up at dusk; idlers owe nothing
+      c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + Math.floor(qn(0.15) * ((c.p.tired || 0) > qn(0.5) ? 1.5 : 1)));   // a dry night - drier after a hard day
+      if (c.workedToday) { c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_NIGHT); c.workedToday = false; }   // the day's work catches up at dusk; idlers owe nothing
       if (c.p.homeless) {
         // shelter is free; move into a free house once savings allow
         const used = new Set(allCrabs().filter(k => !k.p.homeless).map(k => k.p.house));
@@ -16201,7 +17159,7 @@ function frame(now) {
     // she had to turn away, and the mayor reads the crabs who found no cot.
     runAccommodation();
     for (const c of npcs) {
-      c.p.hunger = Math.min(1, (c.p.hunger || 0) + 0.1);
+      c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + qn(0.1));
     }
     // 2.5 epidemiology: neglect breeds illness; illness spreads; rest + care cures
     {
@@ -16213,7 +17171,7 @@ function frame(now) {
         // three rules that were measured against each other - see illRisk.
         let risk = illRisk(k);
         for (const s2 of sickNow) {
-          const coworkers = s2.workBiz === k.workBiz && k.dayState !== "home" && !s2.p.npc;
+          const coworkers = s2.workBiz === k.workBiz && k.dsC !== DS.home && !s2.p.npc;
           const shelterMates = k.p.homeless && s2.p.homeless;
           if (coworkers || shelterMates) risk += 0.08;
         }
@@ -16229,17 +17187,17 @@ function frame(now) {
           homeless: !!k.p.homeless, wallet: Math.round(k.p.wallet || 0),
           risk: +risk.toFixed(5),
           now: { hunger: +(k.p.hunger || 0).toFixed(3), thirst: +(k.p.thirst || 0).toFixed(3),
-                 dirt: +(k.p.dirt || 0).toFixed(3), tired: +(k.p.tired || 0).toFixed(3) },
+                 dirt: +((k.p.dirt || 0) / Q20).toFixed(3), tired: +((k.p.tired || 0) / Q20).toFixed(3) },
         });
         if (risk > 0 && srand() < Math.min(0.5, risk)) {
           k.p.sick = { days: 0 }; today.sick.push(k.p.name);
           logFellIll(k);   // DIARY
           if (window._stats) {
             const why = [];
-            if ((k.p.hunger || 0) >= 0.9) why.push("hunger");
-            if ((k.p.thirst || 0) >= 0.9) why.push("thirst");
-            if ((k.p.dirt || 0) >= 0.9) why.push("dirt");
-            if ((k.p.tired || 0) >= 0.9) why.push("exhaustion");
+            if ((k.p.hunger || 0) >= qn(0.9)) why.push("hunger");
+            if ((k.p.thirst || 0) >= qn(0.9)) why.push("thirst");
+            if ((k.p.dirt || 0) >= qn(0.9)) why.push("dirt");
+            if ((k.p.tired || 0) >= qn(0.9)) why.push("exhaustion");
             if (why.length === 0) why.push("contagion");
             window._stats.causes = window._stats.causes || {};
             for (const w of why) window._stats.causes[w] = (window._stats.causes[w] || 0) + 1;
@@ -16331,7 +17289,7 @@ function frame(now) {
     const fin = settleCreditLine(credit.bal, coins, rent);
     if (fin.ok) {
       credit.bal = fin.bal; coins = fin.funds;
-      earnHist.push({ t: time, amt: fin.drew - rent - fin.paid });
+      earnHist.push({ t: viewT, amt: fin.drew - rent - fin.paid });
       const offNames = allCrabs().filter(c => offToday(c)).map(c => c.p.name);
       report = {
         day, served: today.served, revenue: Math.round(today.revenue), rage: today.rage,
@@ -16346,7 +17304,7 @@ function frame(now) {
         bowls: townFund.bowls, potShut: shelterShut(), potWhy: townFund.potWhy, mayor: hall.mayor,
         hallPol: policyLine(hall.policy), hallOwn: playerMayor(),
         off: offNames.slice(0, 4).join(", "),
-        repStart: Math.round(today.repStart), repEnd: Math.round(rep),
+        repStart: repPts(today.repStart), repEnd: repPts(rep),
         best: Object.keys(today.byCrab).sort((a, b) => today.byCrab[b] - today.byCrab[a])[0],
         bestN: 0, coins: Math.round(coins),
         tipsShared: Math.round(today.tipsShared || 0), bused: today.bused || 0,
@@ -16371,42 +17329,23 @@ function frame(now) {
   }
 
   if (screen === "play" && !gameOver) updateBankWarning();
+}
 
-  if (screen === "intro") {
-    camX = clampCam(BIZ.shack.x0 - 20);
-    drawBG(); drawTown();
-    for (const c of crabs) drawCrab(c);
-    drawIntro();
-    requestAnimationFrame(frame);
-    return;
-  }
-  if (screen === "title") {
-    // THE START SCREEN HAS ITS OWN TRACK, and it is the one named after it.
-    playRole("title");
-    if (newConfirmT > 0) newConfirmT -= dt;
-    // attract mode: slow ping-pong pan across the town
-    const span = WORLD_W - W, s = (time * 9) % (2 * span);
-    camX = s < span ? s : 2 * span - s;
-    updateBus(dt);
-    for (const c of crabs) {
-      c.animT += dt; maybeQuip(c, dt);
-      if (c._wt == null || Math.abs(c.x - c._wt) < 2)
-        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + srand() * 90 - 45));
-      else stepTo(c, c._wt, 11, dt, 158);
-    }
-    drawBG(); drawTown(); drawBus();
-    for (const c of crabs) drawCrab(c);
-    drawNight();
-    drawTitle();
-    drawSaveScreen();
-    drawHelp();   // HOW TO PLAY is readable before the first day, which is the point
-    requestAnimationFrame(frame);
-    return;
-  }
+// the announcement half of what drawFloaters used to do: lifetimes are SIM
+// (a float belongs to the moment in the day that produced it), rendering is
+// not. Headless towns now age their floats too, instead of hoarding every
+// pop-up since day one.
+function ageFloaters(dt) {
+  for (const f of floaters) { f.t -= dt; f.y = (f.y * Q8 - idiv(14 * Q8 * dtT, TICK_HZ)) / Q8; }   // rise on the grain
+  floaters = floaters.filter(f => f.t > 0);
+}
+
+function simTown(dt) {
+  poolReap();
   if (!gameOver) {
   updateBus(dt);
   if (tmin >= 7.5 * 60 && hireDay !== day) { hireDay = day; runJobBoard(); }
-  updatePoll(dt);   // the polls shut on the clock, and then the count runs on it too
+  updatePoll(dtT);  // the polls shut on the clock, and then the count runs on it too
   updateCustomers(dt);
   runChatter(dt);   // its own pass over the crab list - NOT folded into collide()
   for (const c of allCrabs()) {
@@ -16416,17 +17355,17 @@ function frame(now) {
     // not the schedule, not the kitchen, not the commute. That is the price of
     // boredom's only free cure, and it is the whole reason the cure is allowed
     // to exist at all (PLAN, THE SELF-HEALING RULE: it costs time, never money).
-    if (c.dayState === "chat") { updateChat(c, dt); maybeQuip(c, dt); continue; }
+    if (c.dsC === DS.chat) { updateChat(c, dt); maybeQuip(c, dt); continue; }
     updateSchedule(c, dt);
-    if (c.dayState === "toWork" || c.dayState === "toHome") updateCommute(c, dt);
-    else if (c.dayState === "toErrand" || c.dayState === "errand") updateErrand(c, dt);
-    else if (c.dayState === "atTap") updateTap(c, dt);
-    else if (c.dayState === "atBall") updateBall(c, dt);
-    else if (c.dayState === "selfCook") updateSelfCook(c, dt);
-    else if (c.dayState === "working" && c.p.job === "fishing") updateFishing(c, dt);
-    else if (c.dayState === "working") updateKitchen(c, dt);
-    else if (c.dayState === "directed") updateDirected(c, dt);
-    else if (c.dayState === "home") updateHome(c, dt);
+    if (c.dsC === DS.toWork || c.dsC === DS.toHome) updateCommute(c, dt);
+    else if (c.dsC === DS.toErrand || c.dsC === DS.errand) updateErrand(c, dt);
+    else if (c.dsC === DS.atTap) updateTap(c, dt);
+    else if (c.dsC === DS.atBall) updateBall(c, dt);
+    else if (c.dsC === DS.selfCook) updateSelfCook(c, dt);
+    else if (c.dsC === DS.working && c.p.job === "fishing") updateFishing(c, dt);
+    else if (c.dsC === DS.working) updateKitchen(c, dt);
+    else if (c.dsC === DS.directed) updateDirected(c, dt);
+    else if (c.dsC === DS.home) updateHome(c, dt);
     updateStuck(c, dt);
     maybeQuip(c, dt);
   }
@@ -16434,11 +17373,6 @@ function frame(now) {
   if (dossier && !dossier.p && !customers.includes(dossier)) dossier = null;
   // a selected tourist who leaves town (or a crab who dies) drops the selection
   if (sel && (sel.p ? !allCrabs().includes(sel) : !customers.includes(sel))) sel = null;
-  const followed = followNpc || followCust || (followIdx >= 0 && crabs[followIdx]);
-  if (followed) {
-    const t = clampCam(followed.x - W / 2 + 8);
-    camX += (t - camX) * Math.min(1, dt * 5);
-  }
   const reading = boardView || manage || saveView || dossier || helpView;
   if (reportT > 0 && !ffSleep && !reading) reportT -= dt;   // waits out a sun-skip, and waits behind an open card
   // THE DAY'S SECOND PAGE. It comes up when the report goes down - by the click
@@ -16452,8 +17386,58 @@ function frame(now) {
   saveT += dt; if (saveT > 5) { saveT = 0; save(); }
   }
 
+  ageFloaters(dt);
   if (!gameOver && !_fNoColl) collide(dt);
-  if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: no rendering
+}
+
+function introFrame() {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+    camX = clampCam(BIZ.shack.x0 - 20);
+    drawBG(); drawTown();
+    for (const c of crabs) drawCrab(c);
+    drawIntro();
+}
+
+function titleFrame(dt) {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+    // THE START SCREEN HAS ITS OWN TRACK, and it is the one named after it.
+    playRole("title");
+    if (newConfirmT > 0) newConfirmT -= dt;
+    // attract mode: slow ping-pong pan across the town
+    const span = WORLD_W - W, s = (viewT * 9) % (2 * span);
+    camX = s < span ? s : 2 * span - s;
+    // view-side sim theatre runs on the VIEW stream (slice 5): the wander's
+    // own draw and every draw inside the re-entered sim code land on vrand,
+    // and the sim stream is untouched while the title runs.
+    onViewStream(() => {
+      updateBus(dt);
+      for (const c of crabs) {
+        c.animT += dt; maybeQuip(c, dt);
+        if (c._wt == null || Math.abs(c.x - c._wt) < 2)
+          c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + Math.floor(srand() * 90 * Q8) / Q8 - 45));   // same draw, on the grain
+        else stepTo(c, c._wt, 11 * Q8, dt, 158);
+      }
+    });
+    drawBG(); drawTown(); drawBus();
+    for (const c of crabs) drawCrab(c);
+    drawNight();
+    drawTitle();
+    drawSaveScreen();
+    drawHelp();   // HOW TO PLAY is readable before the first day, which is the point
+}
+
+// the follow lerp, named so the suite can drive the view camera contract
+// from a frozen state snapshot - the seam "view is a reader" made testable
+function followCam(dt) {
+  const followed = followNpc || followCust || (followIdx >= 0 && crabs[followIdx]);
+  if (followed) {
+    const t = clampCam(followed.x - W / 2 + 8);
+    camX += (t - camX) * Math.min(1, dt * 5);
+  }
+}
+function viewFrame(dt) {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+  followCam(dt);
   drawBG();
   drawTown();
   drawBus();
@@ -16493,7 +17477,7 @@ function frame(now) {
       // same list, same cycle, their own silhouette.
       if (t.cabana) { drawCabana(t, stalls.indexOf(t) + 1); return; }
       const guest = t.occupant && t.occupant.visitor ? t.occupant : null;
-      const lit = guest && (guest.state === "inRoom" || darkness() > 0.4);
+      const lit = guest && (guest.stC === VS.inRoom || darkness() > 0.4);
       wblit(HOTEL_DOOR[lit ? 1 : 0], t.x, t.y - HOTEL_DOOR[0].h);
       // the room number on the transom, and a Z over the door of an occupied
       // one. Both sit in the 4px of wall between the awning and the door head -
@@ -16501,8 +17485,8 @@ function frame(now) {
       const n = stalls.indexOf(t) + 1;
       const nx = t.x + 7 - camX;
       if (nx > -12 && nx < W) smallText(ctx, "" + n, nx, t.y - HOTEL_DOOR[0].h - 5, [70, 60, 90]);
-      if (guest && guest.state === "inRoom") {
-        const ph = ((time * 0.7 + t.x * 0.01) % 1);
+      if (guest && guest.stC === VS.inRoom) {
+        const ph = ((viewT * 0.7 + t.x * 0.01) % 1);
         smallText(ctx, "Z", t.x + 12 - camX, t.y - HOTEL_DOOR[0].h + 3 - ph * 4, [190, 205, 255]);
       }
       if (t.dirty) {   // the maid hasn't been round
@@ -16512,7 +17496,7 @@ function frame(now) {
       }
     } }); continue; }
     if (stalls) for (const t of stalls) paint.push({ base: t.y, f: () => {
-      const bathing = t.occupant && t.occupant.state === "showering";
+      const bathing = t.occupant && t.occupant.stC === VS.showering;
       wblit(STALL[bathing ? 1 : 0], t.x, t.y - STALL[0].h);
       if (bathing) {   // feet peeking under the curtain
         const oc = t.occupant, cul = !oc.isCrab && visCulture(oc);
@@ -16524,7 +17508,7 @@ function frame(now) {
       if (bathing) {   // the bather's head bobs over the curtain
         const oc = t.occupant, cul = !oc.isCrab && visCulture(oc);
         const pcol = oc.isCrab ? oc.crab.p.color : (oc.p ? oc.p.color : oc.color);
-        const bob = Math.round(Math.sin(time * 3 + t.x) * 1.5);
+        const bob = Math.round(Math.sin(viewT * 3 + t.x) * 1.5);
         const hy = t.y - STALL[0].h + 4 + bob;
         if (cul && cul.bather) {
           // the culture declares its own over-the-curtain silhouette: a rect
@@ -16543,9 +17527,9 @@ function frame(now) {
       }
       if (bathing) {   // suds drift up over the curtain while the water runs
         for (let i = 0; i < 3; i++) {
-          const ph = (time * 0.6 + i * 0.33 + t.x * 0.013) % 1;
+          const ph = (viewT * 0.6 + i * 0.33 + t.x * 0.013) % 1;
           if (ph > 0.85) continue;
-          const sx = t.x + 3 + i * 4 + ((Math.sin(time * 1.5 + i * 2.1) * 2) | 0);
+          const sx = t.x + 3 + i * 4 + ((Math.sin(viewT * 1.5 + i * 2.1) * 2) | 0);
           const s = ph < 0.5 ? 2 : 1;
           wrect(sx, t.y - STALL[0].h - 2 - ph * 8, s, s, i % 2 ? [96, 200, 255] : [88, 205, 188]);
         }
@@ -16553,21 +17537,21 @@ function frame(now) {
       if (t.dirty) { px(ctx, t.x + 3 - camX, t.y - 2, [130, 220, 110]); px(ctx, t.x + 7 - camX, t.y - 1, [110, 190, 110]); px(ctx, t.x + 11 - camX, t.y - 2, [130, 220, 110]); }
     } });
   }
-  for (const k of customers) paint.push({ base: (k.state === "dining" || k.state === "seatedWaiting") && k.table ? (k.table.y + 1) : (k.isCrab ? 165 : custY(k)), f: () => drawCustomer(k) });
+  for (const k of customers) paint.push({ base: (k.stC === VS.dining || k.stC === VS.seatedWaiting) && k.table ? (k.table.y + 1) : (k.isCrab ? 165 : custY(k)), f: () => drawCustomer(k) });
   // ...and the ring goes wherever the body goes. drawCustomer hands a bathing
   // or sleeping guest over to the stall and the hotel door and draws nothing
   // itself, so without these two the ring blinks on bare wall.
-  if (sel && !sel.hidden && sel.state !== "showering" && sel.state !== "inRoom") paint.push({ base: sel.y - 0.1, f: () => {
+  if (sel && !sel.hidden && sel.stC !== VS.showering && sel.stC !== VS.inRoom) paint.push({ base: sel.y - 0.1, f: () => {
     // a soft ring under whoever you've picked: it stays put while you pan
-    const bx = sel.x + 8 - camX, by = (sel.p ? sel.y : custY(sel) - 4 - 26 * (sel.climb || 0)) + 2;
-    const blink = 0.55 + 0.45 * Math.sin(time * 4);
+    const bx = sel.x + 8 - camX, by = (sel.p ? sel.y : custY(sel) - 4 - 26 * ((sel.climb || 0) / 4096)) + 2;
+    const blink = 0.55 + 0.45 * Math.sin(viewT * 4);
     const col = [Math.round(120 + 135 * blink), Math.round(200 + 30 * blink), 120];
     for (let i = -6; i <= 6; i++) {
       const t2 = i / 6, dy = Math.round(2 * (1 - t2 * t2));
       px(ctx, bx + i, by - dy, col); px(ctx, bx + i, by + dy, col);
     }
   } });
-  for (const c of allCrabs()) paint.push({ base: c.cstate === "drive" && (c.dayState === "toWork" || c.dayState === "toHome") ? ROAD_Y1 : c.y, f: () => drawCrab(c) });
+  for (const c of allCrabs()) paint.push({ base: c.csC === CS.drive && (c.dsC === DS.toWork || c.dsC === DS.toHome) ? ROAD_Y1 : c.y, f: () => drawCrab(c) });
   paint.push({ base: FLOOR_Y, f: drawLandlord });
   // THE BALL IS A THING ON THE SAND, so it belongs in the paint list with the
   // crabs rather than in the terrain pass. (Matt: "the beach ball needs
@@ -16588,10 +17572,10 @@ function frame(now) {
   drawFloaters(dt);
   {  // directed-crab marker: a bouncing flag where the followed crab was sent
     const fc = followIdx >= 0 && crabs[followIdx];
-    if (fc && fc.order && fc.dayState === "directed" && fc.order.idleT < 0) {
+    if (fc && fc.order && fc.dsC === DS.directed && fc.order.idleT < 0) {
       const mx = fc.order.x + 6 - camX;
       if (mx > -8 && mx < W + 8) {
-        const my = fc.order.y - 16 - Math.abs(Math.sin(time * 5)) * 3;
+        const my = fc.order.y - 16 - Math.abs(Math.sin(viewT * 5)) * 3;
         rect(ctx, mx, my, 1, 9, [255, 255, 255]);        // pole
         rect(ctx, mx + 1, my, 5, 4, [255, 216, 96]);     // pennant
         px(ctx, mx + 6, my + 1, [255, 216, 96]);
@@ -16615,10 +17599,10 @@ function frame(now) {
   // only means a card the player opened OWNS THE SCREEN while it is open, which
   // is the same rule drawToast and drawFollowCard already follow.
   {  // town reputation chip, top-right of the world
-    const rTxt = "REP " + Math.round(rep);
+    const rTxt = "REP " + repPts(rep);
     const rw = smallTextWidth(rTxt) + 8;
     rect(ctx, W - rw - 2, 2, rw, 10, [30, 20, 36]);
-    smallText(ctx, rTxt, W - rw + 2, 4, rep >= 50 ? [140, 220, 140] : rep >= 25 ? [220, 205, 185] : [235, 130, 130]);
+    smallText(ctx, rTxt, W - rw + 2, 4, rep >= 50000 ? [140, 220, 140] : rep >= 25000 ? [220, 205, 185] : [235, 130, 130]);
   }
   {  // the little sun: skip to morning (top-right, under the REP chip)
     const on = ffSleep;
@@ -16638,7 +17622,7 @@ function frame(now) {
     if (bankHorizon <= CREDIT_CFG.CHIP_DAYS && !gameOver) {
       const wTxt = bankHorizon <= 0 ? "BANKRUPT TONIGHT!" : "BANKRUPT IN " + bankHorizon + "D";
       const ww = smallTextWidth(wTxt) + 8;
-      const blink = ((time * 2) | 0) % 2;
+      const blink = ((viewT * 2) | 0) % 2;
       rect(ctx, W - ww - 2, cy, ww, 10, blink ? [150, 30, 30] : [60, 16, 20]);
       smallText(ctx, wTxt, W - ww + 2, cy + 2, blink ? [255, 230, 230] : [235, 130, 130]);
       cy -= 12;
@@ -16678,11 +17662,63 @@ function frame(now) {
   drawHelp();          // the last word: HOW TO PLAY sits over everything, including game over
   if (window.MergeMode) MergeMode.frame(dt);
   // sun mode: chain extra 0.6s sim steps synchronously (same per-step bound the
-  // suite verifies at 6x) so the night passes in about a second of real time
-  if (ffSleep && screen === "play" && !gameOver && ffChain < 6) {
-    ffChain++; frame(last + 100); return;
+  // suite verifies at 6x) so the night passes in about a second of real time.
+  // A LOOP, not a re-entrant frame() - the re-entrant form scheduled a rAF per
+  // nested call, and every sun-skip left a permanent pack of parallel frame
+  // loops behind it (the play-test's "slow and choppy after the sun"). The
+  // steps are SIM-ONLY: same accumulator arithmetic, same tick math, and the
+  // seam's own theorem is what makes skipping the six invisible draws legal -
+  // a render moves nothing.
+  for (let c = 0; c < 6 && ffSleep && screen === "play" && !gameOver; c++) {
+    msAcc += 100;
+    const ct = (msAcc - msAcc % 50) / 50;
+    msAcc -= ct * 50;
+    dtT = ct * TURBO * 6;
+    const cdt = dtT / TICK_HZ;
+    T += dtT;
+    simClock(cdt, 100);
+    if (screen === "play") simTown(cdt);
+    last = performance.now();   // chained steps ran ahead of the real clock
   }
-  if (ffChain) { ffChain = 0; last = performance.now(); }   // resync: chained steps ran ahead of the real clock
+}
+
+function frame(now) {
+  refreshHatches();   // hatch flags snapshot: one global read set per frame
+  // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
+  // speed chips, and everything in the world runs on it. `raw` is WALL time,
+  // and the HIRE CARD runs on that instead: a card you are meant to read must
+  // not get six times shorter because the town is running at 6x. It buys the
+  // player nothing - the day underneath it is running at whatever speed they
+  // chose - it just means the card is legible at every one of them. (The toast
+  // deliberately stays on sim time: it is an event notice, and it belongs to
+  // the moment in the day that produced it.)
+  //
+  // Deliberately computed BESIDE the dt line rather than out of it, so the
+  // speed row's own arithmetic is left exactly as it was.
+  //
+  // AND `dt` NO LONGER ASKS ABOUT PAUSE. This branch was cut while a pause
+  // still existed; the operator removed it (see the ruling at FF_SPEED) and a
+  // union of the two sides here would have restored `paused ? 0 :` against a
+  // name that no longer exists - a ReferenceError on the first frame, and the
+  // whole game dark. Neither side was wrong; they were written a ruling apart.
+  // THE QUANTIZER. Wall milliseconds in, WHOLE TICKS out, with the remainder
+  // carried in an accumulator so a 60Hz browser (16.7ms - a third of a tick)
+  // still advances the world instead of freezing at floor(0.33) = 0. Headless
+  // steps exactly 50ms, so rawTicks is exactly 1 and msAcc never leaves 0 -
+  // the sim's arithmetic is integer whether or not the clock feeding it is.
+  const rawMs = Math.max(0, Math.min(100, now - last));
+  msAcc += rawMs;
+  const rawTicks = (msAcc - msAcc % 50) / 50;
+  msAcc -= rawTicks * 50;
+  dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
+  const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
+  last = now; T += dtT;
+  simClock(dt, rawMs);
+  if (screen === "intro") { introFrame(); requestAnimationFrame(frame); return; }
+  if (screen === "title") { titleFrame(dt); requestAnimationFrame(frame); return; }
+  simTown(dt);
+  if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: the seam
+  viewFrame(dt);
   requestAnimationFrame(frame);
 }
 
