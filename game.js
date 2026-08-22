@@ -8537,10 +8537,15 @@ function orderCrab(c, wx, wy) {
     return orderPop(c, true, "HEADING HOME");
   }
   // a business -> run that errand now (their own workplace reaches here only
-  // off-shift or sick, which is exactly when dinner beats clocking in)
+  // off-shift or sick, which is exactly when dinner beats clocking in).
+  // ON DUTY IS NOT A REFUSAL (owner ruling, 2026-08-21): the boss can pull
+  // their own staffer off the counter mid-shift - abortActivity releases the
+  // station and any claimed order, the errand runs, and updateSchedule
+  // marches them back to work from "home" while the shift window is open.
+  // The price is the unstaffed minutes, the same price the on-shift break
+  // already charges; nothing here is free.
   for (const b of Object.keys(BIZ)) {
     if (!bizUnlocked(b) || wx < BIZ[b].x0 || wx > BIZ[b].x1) continue;
-    if (c.duty || c.dayState === "working") return orderPop(c, false, "ON THE CLOCK");
     if (bizDark(b)) return orderPop(c, false, "IT'S SHUT");
     if (!bizOpenNow(b) && b !== c.p.job) return orderPop(c, false, "IT'S CLOSED");   // own shop: selfCook privilege still applies
     const e = forcedErrand(c, b);

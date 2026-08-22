@@ -1243,11 +1243,15 @@ scenario("juicebar economics: ledger flows, register income, staff retail", () =
 
 scenario("orders: redirect walks the crab there, then the schedule reclaims them", () => {
   const sim = createSim({ seed: 1337 });
-  sim.runUntil('crabs[0].dayState === "working" && tmin > 10 * 60', {});
-  // refusals are explicit: on the clock, a business order pops instead of firing
-  sim.G("orderCrab(crabs[0], 1000, 160)");   // 1000 = SUDS SHOWERS
-  if (sim.G('crabs[0].dayState') !== "working") return "on-duty biz order should refuse, not fire";
-  if (!sim.G('floaters.some(f => f.text.includes("ON THE CLOCK"))')) return "refusal was silent";
+  sim.runUntil('crabs[0].dayState === "working" && tmin > 10 * 60 && bizStaffed("showers")', {});
+  // ON DUTY IS NOT A REFUSAL (2026-08-21): a biz order pulls the crab off the
+  // counter and fires the errand - the boss's call, priced in unstaffed
+  // minutes. Every hold must be released on the way out.
+  sim.G("crabs[0].p.wallet = 60; orderCrab(crabs[0], 1000, 160)");   // 1000 = SUDS SHOWERS
+  if (sim.G('crabs[0].dayState') !== "toErrand")
+    return "on-duty biz order should fire the errand, got: " + sim.G('crabs[0].dayState');
+  if (sim.G("crabs[0].duty")) return "errand fired but the crab is still on duty";
+  if (sim.G("crabs[0].slot") !== -1 || sim.G("!!crabs[0].cust")) return "biz order leaked a station/customer hold";
   // the redirect proper: open ground in the showers/shack gap
   sim.G("orderCrab(crabs[0], 1180, 160)");
   if (sim.G('crabs[0].dayState') !== "directed") return "order did not take: " + sim.G('crabs[0].dayState');

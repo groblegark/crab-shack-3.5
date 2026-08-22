@@ -3182,6 +3182,19 @@ them, rep is 5 points lower, and the player's till is $64/$105 down at the end
 of day two. Two fixtures that used to CLEAR the opening crowd are now no-ops
 and are kept as belts, with their comments re-pointed to say so.
 
+## ON DUTY IS NOT A REFUSAL (Matt, 2026-08-21) — a ruling
+
+An owner's business order to their own staffer fires MID-SHIFT: the boss can
+pull a crab off the counter, `abortActivity` releases the station and any
+claimed order (the same path ground-clicks on duty crabs always used), the
+errand runs, and `updateSchedule` marches them back to work from "home" while
+the shift window is open. The price is the unstaffed minutes — the same price
+the on-shift break already charges; nothing is conjured. The `atWorkplace`
+"ALREADY ON THE CLOCK" no-op refusal stays (ordering a crab to where they
+already are means nothing). Ruled on CS3, dropped there, landed here — CS3.5
+owns it now. The relaxed scenario assertion is mutation-tested: reinsert the
+gate and "orders: redirect walks the crab there" fails on the mechanism.
+
 ## ONE ACCOUNT PER CRAB (Matt, 2026-08-20) — a ruling
 
 > "sudsy was able to finance way more money than he had in his wallet — we
