@@ -10832,7 +10832,7 @@ function updateCustomers(dt) {
           popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
         }
       } else {
-        k.patience -= idiv(dtT * (bizStaffed(k.biz) ? 1 : 6) * serverFilthQ12(k), 20);   // nobody home? give up quick (dt*mult*filth in Q12: dtT/20 s x filthQ)
+        k.patience -= idiv(dtT * (bizStaffed(k.biz) ? 1 : 6) * serverFilthQ12(k) + 10, 20);   // nobody home? give up quick. ROUND-half-up at the drain boundary: floor ran every drain slow, same direction (slice 3's accrual lesson - the seated form was 0.95% slow)
         if (k.patience <= 0) {
           k.state = "leaving"; k.happy = false; k.claimed = false;
           if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
@@ -10882,7 +10882,7 @@ function updateCustomers(dt) {
       if (Math.abs(dxs2) > 2) k.x = (k.x * Q8 + Math.sign(dxs2) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs2) * Q8))) / Q8;
       else k.state = "seatedWaiting";
     } else if (k.state === "seatedWaiting") {
-      k.patience -= idiv(7 * dtT * serverFilthQ12(k), 400);   // seated guests relax (0.35 = 7/20, over 20 ticks/s)
+      k.patience -= idiv(7 * dtT * serverFilthQ12(k) + 200, 400);   // seated guests relax (0.35 = 7/20 over 20 ticks/s, round-half-up)
       if (k.patience <= 0) {
         k.state = "leaving"; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }

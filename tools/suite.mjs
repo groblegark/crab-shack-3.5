@@ -691,7 +691,7 @@ scenario("slots: the preview card reflects the town it came from", () => {
   const store = new Map();
   const sim = createSim({ seed: 12, storage: store, fresh: false });
   sim.runDays(3);
-  sim.G('coins = 84300; rep = 51; crabs[0].p.sick = { days: 2 };'
+  sim.G('coins = 84300; rep = 51000; crabs[0].p.sick = { days: 2 };'
     + ' crabs[1].p.boat = null; crabs[1].p.house = 7; crabs[1].p.homeless = false; save()');
   const meta = JSON.parse(store.get(SLOT1))._meta;
   const town = JSON.parse(sim.G('JSON.stringify([day, WEEKDAYS[weekdayIdx(day)], crabs.length + npcs.length, crabs.map(c => c.p.name)])'));
@@ -918,7 +918,7 @@ scenario("needs bite: needy crew serve measurably fewer dishes", () => {
     // ratio this scenario measures. The channel under test is crabEff, not rent.
     const pin = `for (const c of crabs) { c.p.hunger = ${needy ? "Q20" : 0}; c.p.dirt = ${needy ? "Q20" : 0};
       c.p.bored = 0; c.p.tired = 0; c.p.sick = null; c.p.homeless = false; }
-      crabs.forEach((c, i) => { c.p.house = i; }); rep = 90;
+      crabs.forEach((c, i) => { c.p.house = i; }); rep = 90000;
       townCatch = 40; spawnT = 0;`;
     // townCatch: fish never scarce. spawnT: demand SATURATED - the town has
     // more sinks than when this test was written (juice bar), and with a
@@ -10965,7 +10965,7 @@ scenario("cultureways: the arrival gate holds shut below rep 80 and opens above"
     vis: customers.filter(k => k.visitor && !k.gone).map(k => k.name).sort() })`;
   const runTwin = (withPig) => {
     const env = JSON.parse(JSON.stringify(base));
-    env.rep = 40;
+    env.rep = 40000;   // a stage-5 envelope speaks millirep
     if (withPig) env.cultures = { pig: PIG_FIXTURE };
     const st = new Map([[SLOT1, JSON.stringify(env)]]);
     const sim = createSim({ seed, storage: st, fresh: false });
@@ -10979,7 +10979,7 @@ scenario("cultureways: the arrival gate holds shut below rep 80 and opens above"
   // Probe DURING the run - day-trippers sail, so a boundary count can read
   // zero even when the boat carried pigs all day.
   const env = JSON.parse(JSON.stringify(base));
-  env.rep = 100; env.cultures = { pig: PIG_FIXTURE };
+  env.rep = 100000; env.cultures = { pig: PIG_FIXTURE };   // millirep: the gate reads 80000
   const st = new Map([[SLOT1, JSON.stringify(env)]]);
   const b = createSim({ seed: 72, storage: st, fresh: false });
   const landed = b.runUntil(`customers.some(k => k.culture === "pig" && k.visitor)`,
@@ -11001,7 +11001,7 @@ scenario("cultureways: a minted pig round-trips and a minted crab stays byte-sha
   const a = createSim({ seed: 73, storage: store, fresh: false });
   a.runDays(1); a.G("save()");
   const env = JSON.parse(store.get(SLOT1));
-  env.rep = 100; env.cultures = { pig: PIG_FIXTURE };
+  env.rep = 100000; env.cultures = { pig: PIG_FIXTURE };   // millirep: the gate reads 80000
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 74, storage: store, fresh: false });
   b.runDays(3);
