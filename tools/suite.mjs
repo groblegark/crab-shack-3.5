@@ -591,7 +591,7 @@ scenario("slots: a legacy single-key save migrates into slot 1, losing nothing",
   const slot = JSON.parse(store.get(SLOT1));
   for (const k of Object.keys(legacy))          // every field arrives byte-identical
     if (JSON.stringify(slot[k]) !== JSON.stringify(legacy[k])) return "migration changed " + k;
-  if (slot._ver !== 2 || !slot._meta) return "migrated slot carries no version/meta";   // SAVE_VER: the cents era
+  if (slot._ver !== 3 || !slot._meta) return "migrated slot carries no version/meta";   // SAVE_VER: the needs era
   if (slot._meta.day !== 6 || slot._meta.coins !== 51200 || slot._meta.crew.length !== 2)   // the card speaks cents whatever era the envelope is
     return "migrated meta wrong: " + JSON.stringify(slot._meta);
   const st = JSON.parse(sim.G("JSON.stringify([Math.round(coins), day, UPS.chef.lvl, activeSlot, crabs.map(c => c.p.name), memorials.length])"));
@@ -4746,7 +4746,7 @@ scenario("the beach ball is LIMITED fun", () => {
   })()`));
   if (!(relief.pair > relief.solo)) return `playing alone (${relief.solo}) is as good as playing together (${relief.pair})`;
   if (!(relief.solo >= relief.chat)) return "a solo throw is worth less than standing about talking";
-  if (relief.pair >= 1) return "a game of catch cures boredom outright - that is the arcade's job";
+  if (relief.pair >= Q20) return "a game of catch cures boredom outright - that is the arcade's job";
   // IT ACTUALLY WORKS: a bored crab with no arcade in town walks out and plays,
   // and comes back measurably less bored.
   const played = JSON.parse(sim.G(`(() => {
@@ -6822,7 +6822,7 @@ scenario("an empty fund means a cold pot, and a cold pot feeds nobody", () => {
     return JSON.stringify({ okEmpty, hEmpty, coldEmpty, okFull, left, ate, okShut, warmShut });
   })()`));
   if (got.okEmpty !== false) return "an empty pot served a bowl";
-  if (Math.abs(got.hEmpty - 0.9) > 1e-9) return `a cold pot moved hunger to ${got.hEmpty}`;
+  if (got.hEmpty !== qn(0.9)) return `a cold pot moved hunger to ${got.hEmpty}`;
   if (got.coldEmpty !== 1) return `the turn-away was not counted (cold ${got.coldEmpty})`;
   if (got.okFull !== true || got.left !== 0 || got.ate !== 1)
     return `a stocked pot did not serve cleanly (ok ${got.okFull}, left ${got.left}, ate ${got.ate})`;
