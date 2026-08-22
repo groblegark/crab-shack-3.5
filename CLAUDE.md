@@ -16,7 +16,13 @@ numbers, backlog, and conventions. Don't duplicate it — update it there.
   instantly and proves nothing. Always pass the day you want to reach.
 
 ## Perf expectations
-- ~5–10 sim-days/sec per core, single-threaded per seed.
+- ~5–10 sim-days/sec per core in the vm realm, single-threaded per seed —
+  and **~4.3x that in the main realm** (`SIMLIB_REALM=main`, or `--realm main`
+  on headless/bench): the vm escape runs the game files outside the vm
+  context's contextify interceptor, fingerprint/suite/matrix-identical by
+  receipt (design/cs35-research/vm-escape/). The full sharded suite runs in
+  ~35s there vs ~103s. Default stays vm until the numeric branch merges;
+  debug in vm (real filenames in stack traces), measure in main.
 - Seed matrices: `node tools/headless.mjs --days N --seeds K [--jobs J]`.
   `--jobs` forks one worker per seed (default: min(seeds, cores−1));
   `--jobs 1` is the exact sequential path. Seeds are deterministic either way.

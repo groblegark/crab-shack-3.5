@@ -96,6 +96,18 @@ string, so `G("day")` every frame is nearly free. This is the third time this
 session that the machine, not the code, produced a confident wrong multiple;
 `bench.mjs`'s header records the other two.
 
+**LANDED (2026-08-22).** The escape shipped as `simlib.loadGame`'s `main`
+realm (`SIMLIB_REALM=main`, `createSim({realm})`, `--realm` on headless and
+bench), G() minted as an eval closure inside the Function body, per-sim
+isolation probed (interleaved same-seed sims reproduce solo fingerprints;
+`globalThis` gains no properties). Measured on landing, interleaved
+best-of-3 both passes: **4.3x** (2.48-2.55 → 10.83-11.06 sim-days/s),
+fingerprints identical in every run, suite 253/253 exit 0 in both realms
+(35s main vs 101s vm), 16-seed matrix byte-identical. Receipts in
+`design/cs35-research/vm-escape/`. The default stays `vm` until the numeric
+branch merges its in-flight re-baselines; the re-profile this section calls
+for should run in the main realm.
+
 ## 2. THE WASM RUNG
 
 **What the literature actually supports.** The eye-catching numbers (8-27x)
