@@ -6440,8 +6440,19 @@ scenario("hotelier: her board moves with the house, her wage moves the whole tow
   // ---- SHORT OF HANDS: a guest on the sand with a bed standing unmade is a
   // sale her laundry cost her, and she answers it with money OVER the market.
   const crew = sim.G(`crabs[0].p.name`);
-  const rates = () => JSON.parse(sim.G(`JSON.stringify({ hotel: bizWage("hotel"),
-    town: townWage("shack"), going: goingRate(crabs[0]), ratio: payRatio(crabs[0]) })`));
+  // THE GOING RATE IS READ WITH THE TOWN'S WAGE FLOOR ARMED OFF, and that is
+  // the narrow hatch rather than a thumb on the scale. goingRate() is a max,
+  // and the floor reaches it through peerWage() - a colleague's packet is
+  // max(minWage, raw). Numeric slice 2 re-rolled this town's election, the
+  // mayor it returned sets a $32 floor, and a $32 floor swallows a hotelier
+  // bidding the town from $21.50 to $23.50 - so the assertion below stopped
+  // measuring her lever and started measuring the ballot. _noFloor is the
+  // per-CLAUDE.md narrow flag (the office keeps running, only the floor goes),
+  // it is armed for the READ only, and the floor has its own scenarios.
+  const rates = () => JSON.parse(sim.G(`{ window._noFloor = true;
+    const r = JSON.stringify({ hotel: bizWage("hotel"), town: townWage("shack"),
+      going: goingRate(crabs[0]), ratio: payRatio(crabs[0]) });
+    window._noFloor = false; r; }`));
   sim.G(`setBizWage("hotel", WAGE_STD);`);
   const before = rates();
   night(`today.roomsLost = 2;`);
