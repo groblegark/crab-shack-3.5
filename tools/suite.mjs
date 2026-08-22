@@ -2075,18 +2075,34 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
   // Re-baselined LAST, deliberately, after the other seven failures from this
   // refactor were understood. A fingerprint re-pointed while the world is
   // still wrong just freezes the wrongness.
-  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 1a (money -> integer cents),
-  // PROVISIONALLY - the receipted re-baseline with tools/fpdiff.mjs receipts
-  // lands after 1b, per the protocol's one-re-baseline-per-slice rule. The
-  // drift is exactly the shape the slice predicts, and the proof is what did
-  // NOT move: rep to 4dp, catch, serves, rage and EVERY POSITION are
-  // byte-identical on both seeds. Money moved by accumulated per-sale cent
-  // rounding only: coins 14849.4 -> 14822 (-27c over two days of tips
-  // rounding at payTip's door), SUDSY's till -1c, REEF exact on 1337; the
-  // same fields a handful of cents on 4242. No threshold crossings - a crab
-  // whose wallet crossed a rent gate would have moved, and nobody moved.
+  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 1 (money -> integer cents). This
+  // is THE slice's one receipted re-baseline and it RETIRES the provisional
+  // re-point 1a took: the numbers below are measured on the tree that has all
+  // of slice 1, 1a and 1b together.
+  //
+  // 1a (representation) moved money by accumulated per-sale cent rounding:
+  // coins 14849.4 -> 14822 over two days of tips rounding at payTip's door,
+  // SUDSY's till -1c, REEF exact on 1337, the same fields a handful of cents
+  // on 4242 - with rep, catch, serves, rage and every position byte-identical.
+  //
+  // 1b (the intermediates and the grids) then moved EXACTLY ONE FIELD, ONE
+  // CENT: 1337's coins, 14822 -> 14821. Seed 4242 is byte-identical, whole.
+  // Classified by tools/fpdiff.mjs --money-tol 1 (the tolerance is a CENT now,
+  // because the fingerprint counts cents): 1 rounding-shaped, 0 behavior-shaped.
+  //
+  // ATTRIBUTED, not assumed - the cent was traced to its mechanism by arming
+  // the old float tip product back on this exact tree, which returns 1337 to
+  // 14822 and leaves 4242 where it stands. So the cent is the tip product's
+  // Q16 quantization of the two float-derived factors (the patience ratio and
+  // the charm multiplier), and it is NOT the other three 1b changes, which are
+  // provably inert on a default town: the split floors n/20 with n = 0 here so
+  // there is nothing to floor, the board sits at index 20 where menuPrice is
+  // the recipe price and PRICE_APPEAL_Q16[20] is exactly 65536, and no crab in
+  // this two-day window works a minute of overtime.
+  // No threshold crossings anywhere - a crab whose wallet crossed a rent gate
+  // would have moved, and nobody moved.
   const want = {
-    1337: '{"day":3,"tmin":0,"coins":14822,"rep":53.609,"catch":4,"serves":42,"crabServes":4,"rage":4,"till":22046,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22046],["REEF",19636],["SALTY",100],["DRIFT",1600],["KELP",100]],"pos":[[520,154],[108,154],[974.7,166.9],[2136,154],[2072,154],[894.7,167.8],[443.2,167.4]]}',
+    1337: '{"day":3,"tmin":0,"coins":14821,"rep":53.609,"catch":4,"serves":42,"crabServes":4,"rage":4,"till":22046,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22046],["REEF",19636],["SALTY",100],["DRIFT",1600],["KELP",100]],"pos":[[520,154],[108,154],[974.7,166.9],[2136,154],[2072,154],[894.7,167.8],[443.2,167.4]]}',
     4242: '{"day":3,"tmin":0,"coins":11191,"rep":54.2896,"catch":4,"serves":44,"crabServes":3,"rage":5,"till":22599,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22599],["REEF",24595],["SALTY",100],["DRIFT",100],["KELP",800]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
