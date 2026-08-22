@@ -1394,7 +1394,8 @@ scenario("tired: a workday accrues it; sleep drains it, bed beating cot", () => 
   }`);
   const d0 = sim.G("day");
   sim.runUntil(`day === ${d0} + 1 && tmin >= 5.8 * 60`, { maxSteps: 400000 });
-  const bed = sim.G("crabs[0].p.tired || 0"), cot = sim.G('npcs.find(k => k.p.name === "SALTY").p.tired || 0');
+  const bed = sim.G("crabs[0].p.tired || 0") / Q20,
+    cot = sim.G('npcs.find(k => k.p.name === "SALTY").p.tired || 0') / Q20;
   // RE-POINTED (the sleep directives, 2026-08-19 - "we need to be sure the
   // shelter doesn't give you much rest" / "higher sleep requirements"). The
   // old gates were written when a night in a bed ZEROED you: bed < 0.10 (it
@@ -1679,9 +1680,9 @@ scenario("tired: the morning and evening shifts end the week level", () => {
     sumM += acc.M[0] / acc.M[1]; sumE += acc.E[0] / acc.E[1]; n++;
   }
   if (n < 4) return `only ${n} seeds produced both shifts`;
-  const gap = Math.abs(sumM / n - sumE / n);
+  const gap = Math.abs(sumM / n - sumE / n) / Q20;   // the bar's own units
   return gap <= 0.04 ? true
-    : `the shift you draw still decides your fatigue: mean gap ${gap.toFixed(3)} over ${n} seeds (M ${(sumM/n).toFixed(3)}, E ${(sumE/n).toFixed(3)})`;
+    : `the shift you draw still decides your fatigue: mean gap ${gap.toFixed(3)} over ${n} seeds (M ${(sumM/n/Q20).toFixed(3)}, E ${(sumE/n/Q20).toFixed(3)})`;
 });
 
 scenario("days off: everyone rests their weekday and plays customer", () => {
@@ -3982,8 +3983,8 @@ scenario("shortcut home: sleeping rough banks nothing - and the player can break
   if (!rough) return "an exhausted crab walking the whole promenade home ALWAYS made it - TI4 never fired";
   const bed = arm(seed, { rough: 1 });
   if (!bed) return "the control arm never ran";
-  const tR = rough.G(`crabs.find(c => c.p.name === window._w).p.tired`);
-  const tB = bed.G(`crabs.find(c => c.p.name === window._w).p.tired`);
+  const tR = rough.G(`crabs.find(c => c.p.name === window._w).p.tired`) / Q20;
+  const tB = bed.G(`crabs.find(c => c.p.name === window._w).p.tired`) / Q20;
   // THE SPIRAL, stated: a rough night banks nothing, so they wake as spent as
   // they lay down, while the same crab in a real bed wakes clear.
   if (!(tR > 0.9)) return `a rough sleeper woke at tired ${tR.toFixed(2)} - the street repaired them`;
