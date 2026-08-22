@@ -3182,6 +3182,58 @@ them, rep is 5 points lower, and the player's till is $64/$105 down at the end
 of day two. Two fixtures that used to CLEAR the opening crowd are now no-ops
 and are kept as belts, with their comments re-pointed to say so.
 
+## CRAB SCIENCE (2026-08-22) — the bench, and what a recipe turned out to be
+
+A lab town, entered from the title. You set a seed, an opening plan, a span
+and a stopping rule; the bench lives the whole town out at speed, then hands
+you its days on a bar you can walk back and forth, and lets you step into any
+morning of it and keep playing. Shipped deliberately small: three plans, three
+rules, one seed, days as the grain.
+
+**A run is a RECIPE, NOT A RECORDING**, and the recipe is the URL —
+`?lab&seed=4242&plan=2&span=8&rule=0` is a whole experiment, which makes a
+town a thing you can hand somebody as a link. The numeric era is what pays
+for this: integers end to end and one counted stream mean (seed, plan) fixes
+every day that follows.
+
+**A KEYFRAME IS A SAVE ENVELOPE, one per day.** Measured before building on
+it: an envelope is NOT a bit-exact freeze of an instant — reload a town
+mid-walk and its crabs stand where the loader puts them, its session counters
+restart. That is right for a game save, and it fixes the honest meaning of a
+scrub here: a keyframe is A MORNING YOU CAN GO BACK TO, not a paused frame.
+Landing on one costs **0.28ms** (it is a load, not a re-simulation), so the
+bar is instant at any length; living the town costs about **12 sim-days/sec**
+with the kernel armed, **7** without.
+
+**THE LESSON THAT COST THE MOST.** The first design reset the world in place
+between runs instead of booting clean, and chasing that reset taught something
+worth keeping: the town came back identical by every measure I could name —
+draws, positions, needs, ledgers, furniture bits, pool slots — and still
+diverged on the twenty-four-thousandth tick, inside one visitor's mind, over
+residue nobody had thought to look for. **A boot has no residue.** So a run is
+a boot: the seed is installed above the world's own construction, and the
+founding crabs are already that recipe's crabs. Three real leaks were found on
+the way and are fixed where they were: the agent pool overflowed at 160 when
+twenty landings ran without a tick between them (the mark-and-reap never got
+its beat), the furniture kept its guests because occupancy is a plane BIT
+rather than a field (a fresh morning opened onto a full hotel), and the
+session ledgers — the earnings history the rival prices her ambition from, the
+queue's ticket counter — carried the last town's books onto the new town's
+desk.
+
+**IT NEVER SCRIES YOUR TOWN**, which is the standing ruling ("interface
+opacity is a bug, economic uncertainty is the game") holding against the
+obvious back door. Science runs are their own towns on their own seeds; the
+lab reads no slot and writes none while it runs; PLAY THIS DAY hands you a
+copy that becomes an ordinary town in the ordinary way. Your saved towns are
+never rewound, because a lab that could rewind them is a save-scummer with a
+lab coat on.
+
+Left for later, named rather than half-built: player-authored stopping rules
+(that is Layer-1 bytecode work — the fixed `SCI_RULES` table is the seam they
+plug into), sub-day scrubbing, comparing two runs side by side, and any
+parameter the seed matrices carry that the four rows do not.
+
 ## THE PIGS SHIP (2026-08-22) — the first bundled cultureway
 
 Pigs arrive in a town nobody staged. Before this, `cultures.pig` existed only

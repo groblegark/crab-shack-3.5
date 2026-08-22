@@ -6705,8 +6705,32 @@ function vrand() {
 }
 // run a view-side block on the view stream, whatever it re-enters
 function onViewStream(fn) { const keep = _rtap; _rtap = vrand; try { fn(); } finally { _rtap = keep || null; } }
-
 const FRESH = location.search.includes("fresh");
+// THE LAB BOOTS CLEAN. A science run needs a pristine day-one town as its
+// tick zero, and the browser holds exactly one town in module scope - so the
+// bench is entered the way this game has always switched towns, by a clean
+// boot. `?lab` skips the boot-load, which makes the origin identical on every
+// visit and means a recipe reproduces across sessions, not just within one.
+// Your saved towns are not read, not written and not rewound.
+const LAB = location.search.includes("lab");
+// THE RECIPE IS THE URL. `?lab&seed=4242&plan=2&span=8&rule=0` is a whole
+// experiment, which makes a run reproducible across sessions and machines and
+// makes a town something you can hand somebody as a link. Read here, before
+// anything is built, because the seed has to be installed before the founding
+// crabs are minted - they are part of the town the recipe names.
+const LAB_ARG = (k, d) => {
+  const m = location.search.match(new RegExp("[?&]" + k + "=(-?\\d+)"));
+  return m ? parseInt(m[1]) : d;
+};
+// A LAB TOWN IS SEEDED FROM ITS FIRST BREATH, above the world's own
+// construction, so the founding crabs, the townsfolk and the first boat are
+// part of the recipe rather than three things that happened to a recipe.
+// sciSeedStream is a function declaration and hoists, which is what lets the
+// bench's own seeder run this early - and it MATTERS that it is that function
+// and not an inline generator, because with the kernel armed the sim's cursor
+// lives in kernel memory and both sides have to be seeded together.
+if (LAB) sciSeedStream(LAB_ARG("seed", 1337));
+
 const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 1])[1]) || 1);
 
 // ============================================================= CULTUREWAYS
@@ -7046,8 +7070,13 @@ function migrateLegacy() {
   localStorage.removeItem(SAVE_KEY);
   return !!ok;
 }
-function save() {
-  if (FRESH || wiping) return;
+// `hold` returns the envelope INSTEAD of writing it to a slot - the science
+// center's keyframes are save envelopes that never touch a player's town, and
+// building them through this one function is what keeps a keyframe and a save
+// the same object forever (a second envelope builder would drift the day
+// somebody adds a field to one of them).
+function save(hold) {
+  if (!hold && (FRESH || wiping || SCI.run)) return;   // a science run never writes a slot
   const lv = {}; for (const k in UPS) lv[k] = UPS[k].lvl;
   const env = {
     coins, lifetime, lv, day, tmin, lastRentDay, gameOver, memorials, rep, townCatch, t: nowMs(),   // (no `rate`: nothing accrues offline)
@@ -7177,6 +7206,7 @@ function save() {
   if (rawCultures) env.cultures = rawCultures;   // cultureways round-trip verbatim (CS3.5)
   env._ver = SAVE_VER;
   env._meta = slotMeta(env);   // written at save time; re-derivable if it ever goes missing
+  if (hold) return env;
   writeSlotEnv(activeSlot, env);
 }
 let sudsRefunded = false;   // laundromat-removal migration: refund paid out (persisted)
@@ -7287,9 +7317,13 @@ function centsEnvelope(s) {
     if (v.st && typeof v.st === "object") { v.st.tp = m(v.st.tp); v.st.tp2 = m(v.st.tp2); v.st.du = m(v.st.du); }
   }
 }
-function load(slot) {
-  if (FRESH) return false;
-  const s = readSlotEnv(slot == null ? activeSlot : slot);
+// `envIn` loads an envelope the caller already holds instead of reading a
+// slot - the science center materializes a keyframe through the SAME loader a
+// saved town walks, migrations and all, so a scrubbed moment and a loaded save
+// can never be two different code paths.
+function load(slot, envIn) {
+  if (FRESH && !envIn) return false;
+  const s = envIn || readSlotEnv(slot == null ? activeSlot : slot);
   if (!s) return false;
   if (!Array.isArray(s.personas) || !s.personas.length) return false;   // reject before touching state
   const preCents = !s._num;
@@ -12021,12 +12055,23 @@ addEventListener("mouseup", () => {
 cv.addEventListener("touchstart", (ev) => {
   const t = ev.touches[0];
   const p = evPos(t);
+  // THE BENCH TAKES THE FINGER FIRST, or the world-drag below would claim the
+  // scrub as a camera pan (the same collision the order path has). A drag on
+  // the bar previews a day; the tap that lands it arrives as a click.
+  if (screen === "sci") {
+    if (SCI.days.length && sciHit(p, sciBarRect())) SCI.drag = sciBarIndex(p);
+    return;
+  }
   if (window.MergeMode && MergeMode.touchStart(p)) return;
   if (tipTrackHit(p)) { tipDrag = true; return; }
   if (navTrackHit(p)) { navDrag = true; navDragX = p.x; return; }
   if (p.y < PANEL_Y) { dragging = true; dragStartX = p.x; dragCamX = camX; dragMoved = false; }
 }, { passive: true });
 cv.addEventListener("touchmove", (ev) => {
+  if (screen === "sci") {
+    if (SCI.drag >= 0) { ev.preventDefault(); SCI.drag = sciBarIndex(evPos(ev.touches[0])); }
+    return;
+  }
   if (tipDrag) { ev.preventDefault(); tipSliderTo(manage, evPos(ev.touches[0]).x); return; }
   if (window.MergeMode && MergeMode.touchMove(evPos(ev.touches[0]))) { ev.preventDefault(); return; }
   if (navDrag) {
@@ -12047,6 +12092,11 @@ cv.addEventListener("touchcancel", () => {
   if (window.MergeMode && MergeMode.touchCancel) MergeMode.touchCancel();
 }, { passive: true });
 cv.addEventListener("touchend", (ev) => {
+  // COMMIT ON RELEASE: one town materialized per gesture, not one per pixel
+  if (screen === "sci") {
+    if (SCI.drag >= 0) { const i = SCI.drag; SCI.drag = -1; sciGoto(i); sfx.ding(); }
+    return;
+  }
   if (tipDrag) { tipDrag = false; dragging = false; dragMoved = false; sfx.buy(); save(); return; }
   const t = ev.changedTouches && ev.changedTouches[0];
   if (window.MergeMode && MergeMode.touchEnd(t ? evPos(t) : null)) { dragging = false; dragMoved = false; return; }
@@ -12076,6 +12126,7 @@ cv.addEventListener("click", (ev) => {
   // so there is no screen it can be under.
   if (helpView) { tapHelp(evPos(ev)); return; }
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
+  if (screen === "sci") { sciTap(evPos(ev)); return; }
   if (screen === "title") {
     const p = evPos(ev);
     const bx = W / 2 - 50;
@@ -12092,6 +12143,16 @@ cv.addEventListener("click", (ev) => {
         return;
       }
       if (p.y >= ny + 20 && p.y < ny + 36) { openSaveView(); sfx.ding(); return; }
+    }
+    {
+      const r = sciTitleRect();
+      if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) {
+        sfx.ding();
+        // a clean boot into the lab: one reload, and the origin is pristine
+        if (LAB) { screen = "sci"; return; }
+        location.href = location.pathname + "?lab";
+        return;
+      }
     }
     return;
   }
@@ -14427,6 +14488,12 @@ function drawTitle() {
     for (let i = 1; i <= SLOTS; i++) if (slotCard(i)) n++;
     smallText(ctx, n === 1 ? "1 TOWN SAVED" : n + " TOWNS SAVED", W / 2 - smallTextWidth(n + " TOWNS SAVED") / 2,
       sy + 19, [200, 190, 180]);
+  }
+  {  // the bench: its own towns, on their own seeds, never yours
+    const r = sciTitleRect();
+    rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 36]);
+    rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [70, 120, 150]);
+    text(ctx, "CRAB SCIENCE", r.x + 9, r.y + 5, [200, 235, 255]);
   }
   // THE CREDIT NAMES THE TRACK THAT IS ACTUALLY QUEUED. It was hardcoded to
   // PIXEL WAVE WALTZ while PLAYLIST rotates TWELVE tracks, so the title screen
@@ -17857,6 +17924,330 @@ function vpSwapOut() {
   vpSwapped = false;
 }
 
+// ========================================================== CRAB SCIENCE
+// A LAB BENCH FOR A DETERMINISTIC TOWN. You give it a recipe - a seed, an
+// opening plan, a stopping rule - and it lives the whole town out at speed,
+// then lets you walk the timeline and step into any morning of it.
+//
+// THE ONE IDEA IT IS BUILT ON: a run is a RECIPE, NOT A RECORDING. The
+// numeric era made the sim an integer machine whose every draw comes from one
+// counted stream, so (seed, plan) fixes every day that follows. Re-running a
+// recipe does not approximate the old run, it IS the old run. That is what
+// makes a timeline scrubbable without storing one.
+//
+// WHY THE BROWSER NEEDS SEEDING AT ALL, which surprised me: headless towns are
+// deterministic because the harness swaps in a seeded generator, but the
+// SHIPPED game draws from the browser's own Math.random - a played town has
+// never been reproducible, and never needed to be. A science run installs a
+// seeded tap at `_rtap`, the one door slice 5 built for exactly this, and
+// takes it back out when the run ends. Ordinary play is untouched.
+//
+// WHY KEYFRAMES ARE SAVE ENVELOPES: because the game already has a complete,
+// maintained, migration-aware serialization of a town, and a second one would
+// drift. Measured before building on it (tools/sci-probe.mjs): an envelope is
+// NOT a bit-exact freeze of an instant - reload a town mid-walk and its crabs
+// stand where the loader puts them, its session counters restart. That is
+// right for a game save and it fixes the honest meaning of a scrub here: a
+// keyframe is A MORNING YOU CAN GO BACK TO, not a paused frame. The lab
+// therefore keys on day boundaries, where a town has no mid-stride to lose.
+//
+// THE RULING IT KEEPS: "interface opacity is a bug, economic uncertainty is
+// the game" - so the lab never scries YOUR town. Science runs are their own
+// towns, entered from the title, on their own seeds; PLAY THIS DAY hands you
+// a copy to keep, and your saved towns are never rewound. See the close-out.
+const SCI = {
+  run: false,        // a run is executing (suppresses autosave; gates the seeded tap)
+  seed: 1337,
+  plan: 0,           // index into SCI_PLANS
+  stopDay: 12,
+  rule: 0,           // index into SCI_RULES
+  days: [],          // one row per lived day: { day, env, coins, lifetime, rep, note }
+  at: -1,            // which day row is materialized in the world, -1 = none
+  drag: -1,          // finger/mouse scrub target while held, -1 = not scrubbing
+  msg: "",
+  origin: null,      // the boot envelope: every run's tick zero
+};
+const SCI_PLANS = [
+  { name: "BUY NOTHING", buy: [] },
+  { name: "A COOK", buy: ["chef"] },
+  { name: "A COOK + A TABLE", buy: ["chef", "table"] },
+];
+// Stopping rules are a FIXED, NAMED set. Player-authored predicates are the
+// cultureway tower's Layer-1 work (design/cs35-cultureway-substrate.md); the
+// seam where they would plug in is this table and nothing else.
+const SCI_RULES = [
+  { name: "RUN THE FULL SPAN", hit: () => false },
+  { name: "STOP IF THE TOWN FAILS", hit: () => gameOver },
+  { name: "STOP AT 50% REPUTATION", hit: () => rep >= 50000 },
+];
+// mulberry32, the sim's own generator, for when the compiled kernel is off
+function sciMul32(a) {
+  let s = a | 0;
+  return () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Seed the SIM stream for a run. With the kernel armed the cursor lives in
+// kernel memory and kernel-side consumers draw from it too, so seeding must
+// go through the kernel or the two sides would walk different sequences -
+// the same reason the harness seeds it there.
+function sciSeedStream(seed) {
+  if (KERN && KERN.exports.rng_seed) {
+    KERN.exports.rng_seed(seed >>> 0);
+    const u32 = KERN.exports.rng_u32;
+    _rtap = () => (u32() >>> 0) / 4294967296;
+  } else _rtap = sciMul32(seed);
+}
+function sciFreeStream() { _rtap = null; }   // back to the browser's own Math.random
+// ONE SIM TICK, no view: the rung-1 seam is what makes this callable at all -
+// simClock and simTown are the whole world, and drawing is a reader that a
+// run at speed simply does not call.
+function sciTick() {
+  dtT = 1; T += 1;
+  const dt = 1 / TICK_HZ;
+  simClock(dt, 50);
+  if (screen !== "play") return;
+  simTown(dt);
+}
+// The opening plan, bought the way the seed matrices buy it: only what the
+// town can afford while covering tonight's bill. Nothing is conjured - the
+// standing ruling - so a plan is a PLAN, not a grant, and a poor town simply
+// never gets there.
+function sciBuy(plan) {
+  for (const k of plan) {
+    const u = UPS[k];
+    if (!u || u.lvl >= u.max) continue;
+    const crew = crabs.reduce((s, c) => s + Math.round(wageRate(c)), 0);
+    const reserve = upCost(u) + crew + (k === "chef" ? bizWage("shack") : 0) + totalRent() + 7000;
+    if (coins >= reserve) tryBuy(k);
+  }
+}
+function sciDayNote() {
+  if (gameOver) return "THE TOWN FAILED";
+  if (won) return "THE FERRY!";
+  const c = crabs.length + npcs.length;
+  return c + (c === 1 ? " CRAB" : " CRABS") + ", REP " + repPts(rep) + "%";
+}
+// SHUTTLING A TOWN IN, which a scrub does over and over. Loading an envelope
+// restores a town's DURABLE facts; it does not empty the room it walks into.
+// Measured, each of these the hard way: the guests' bodies keep their pool
+// slots (and the planes are read in slot order, so the same town under
+// different slot numbers is a different arithmetic); the chairs they sat in
+// keep their occupancy, which is a plane BIT rather than a field, so a fresh
+// morning opened onto a full hotel; and the session ledgers - the earnings
+// history the rival prices her ambition from, the queue's ticket counter -
+// are what this RUNTIME has seen rather than anything a save carries.
+// (rosterGen and furnGen are deliberately NOT reset: they are
+// memo-invalidation counters, and winding one BACK would make a stale cache
+// look current. Monotonic is their whole contract.)
+function sciShuttle(envJson) {
+  T = 0; dtT = 0;
+  floaters.length = 0; toast = null; report = null; reportT = 0;
+  customers.length = 0;
+  poolTop = 0; poolFree.length = 0; POOL_LIVE.fill(0);
+  earnHist.length = 0;
+  qSeqN = 0;
+  FT_FLG.fill(0); FT_DSH.fill(0);
+  for (const b of Object.keys(BIZ)) {
+    for (const t of BIZ[b].tables || []) t._occ = null;
+    for (const t of BIZ[b].stalls || []) t._occ = null;
+  }
+  if (window._stats) for (const k of Object.keys(window._stats)) {
+    const v = window._stats[k];
+    window._stats[k] = typeof v === "number" ? 0 : Array.isArray(v) ? [] : typeof v === "object" && v ? {} : v;
+  }
+  initNpcs();                      // the townsfolk go back to their own front doors
+  load(null, JSON.parse(envJson));
+  poolReap();                      // ...and the slots the old bodies held go back
+}
+// LIVE THE WHOLE TOWN. Runs synchronously - a dozen days is about a second
+// with the kernel armed, and a run that blocks briefly is honest where a
+// half-drawn progress bar would be a lie about what the sim is doing.
+function sciStart() {
+  const plan = SCI_PLANS[SCI.plan].buy, rule = SCI_RULES[SCI.rule];
+  SCI.run = true;
+  SCI.days = []; SCI.at = -1; SCI.msg = "";
+  // NO RESET HERE, ON PURPOSE. This runs once, at boot, on a world that has
+  // never been anything else - the URL's seed was installed above the world's
+  // own construction, so the founding crabs are already this recipe's crabs.
+  // Chasing an in-place reset that could stand in for a clean boot is what
+  // taught the lesson: the town came back identical by every measure I could
+  // name - draws, positions, needs, ledgers, furniture, pool slots - and still
+  // diverged on the twenty-four-thousandth tick, inside one visitor's mind,
+  // over residue I had not thought to look for. A boot has no residue.
+  screen = "play";
+  let guard = 0;
+  const capture = () => {
+    SCI.days.push({ day, env: JSON.stringify(save(true)), coins, lifetime, rep, note: sciDayNote() });
+  };
+  sciBuy(plan);
+  capture();
+  while (day <= SCI.stopDay && !gameOver && !rule.hit() && guard++ < 400000) {
+    const d0 = day;
+    sciTick();
+    if (tmin >= 9 * 60 && tmin <= 19 * 60) sciBuy(plan);
+    if (day !== d0) capture();
+  }
+  if (!SCI.days.length || SCI.days[SCI.days.length - 1].day !== day) capture();
+  // THE STREAM STAYS SEEDED for the rest of the lab session. Shuttling a
+  // keyframe in mints its guests, and minting draws - hand the stream back to
+  // the browser's own unseeded Math.random here and the same day would
+  // materialize differently every time you scrubbed to it. Invisible in the
+  // harness, whose Math.random is seeded anyway; a real bug in a real browser.
+  SCI.run = false;
+  SCI.at = SCI.days.length - 1;
+  SCI.msg = gameOver ? "THE TOWN FAILED ON DAY " + day
+    : won ? "THEY BOUGHT THE FERRY"
+    : rule.hit() ? rule.name.replace("STOP AT ", "REACHED ").replace("STOP IF ", "")
+    : "LIVED " + SCI.stopDay + " DAYS";
+  // ...and the bench opens on the timeline it just lived. The run ticks with
+  // screen = "play" because that is what simTown asks of the world; landing
+  // there afterwards would drop the player into a town with no way back to
+  // the days they came for.
+  screen = "sci";
+  sfx.ding();
+}
+// Materialize a day: the keyframe goes through the ordinary loader, so what
+// you are looking at is a town this game could have loaded from a file.
+function sciGoto(i) {
+  const row = SCI.days[i];
+  if (!row) return;
+  SCI.run = true;                       // no slot writes while we shuttle
+  sciShuttle(row.env);
+  SCI.run = false;
+  SCI.at = i;
+  screen = "sci";
+}
+function sciPlay() {
+  if (SCI.at < 0) return;
+  const d = SCI.days[SCI.at].day;
+  SCI.run = true; sciShuttle(SCI.days[SCI.at].env); SCI.run = false;
+  screen = "play";
+  SCI.days = []; SCI.at = -1;
+  startMusic(); sfx.buy();
+  toast = { text: "DAY " + d + " OF THAT TOWN IS YOURS NOW", t: 8 };
+  save();                                // it becomes an ordinary town, in the ordinary slot
+}
+// ---- the bench itself. 5x7 for headings, 3x5 for the rows; every string that
+// could run long goes through fitSmall, because the no-off-canvas sweep reads
+// these screens too.
+// the title's own entry, under the towns shelf and its count line
+function sciTitleRect() { return { x: W / 2 - 50, y: (hasSave ? 138 : 122) + 46, w: 100, h: 16 }; }
+const SCI_ROWS = [64, 80, 96, 112];      // seed / plan / span / rule
+function sciRowRect(i) { return { x: 16, y: SCI_ROWS[i], w: W - 32, h: 14 }; }
+function sciBarRect() { return { x: 16, y: H - 58, w: W - 32, h: 12 }; }
+function sciBtnRect() { return { x: W / 2 - 50, y: H - 40, w: 100, h: 16 }; }
+function sciBackRect() { return { x: 6, y: 6, w: 40, h: 12 }; }
+function sciRunRect() { return { x: W / 2 - 50, y: 132, w: 100, h: 16 }; }
+function sciFrame(dt) {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+  const done = SCI.days.length > 0;
+  if (done && SCI.at >= 0) { drawBG(); drawTown(); for (const c of crabs) drawCrab(c); drawNight(); }
+  else { rect(ctx, 0, 0, W, H, [18, 14, 24]); }
+  // a scrim so the bench is readable over a live town
+  rect(ctx, 0, 0, W, done ? 30 : H, [18, 14, 24]);
+  text(ctx, "CRAB SCIENCE", W / 2 - textWidth("CRAB SCIENCE") / 2, 10, [150, 220, 255]);
+  {
+    const r = sciBackRect();
+    rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 36]);
+    smallText(ctx, "BACK", r.x + 4, r.y + 3, [200, 190, 180]);
+  }
+  if (!done) {
+    smallText(ctx, "LIVE A TOWN OUT AND WALK ITS DAYS", 16, 40, [150, 140, 150]);
+    const rows = [
+      ["SEED", String(SCI.seed)],
+      ["OPENING", SCI_PLANS[SCI.plan].name],
+      ["SPAN", SCI.stopDay + " DAYS"],
+      ["RULE", SCI_RULES[SCI.rule].name],
+    ];
+    rows.forEach(([k, v], i) => {
+      const r = sciRowRect(i);
+      rect(ctx, r.x, r.y, r.w, r.h, [30, 24, 40]);
+      smallText(ctx, k, r.x + 4, r.y + 4, [150, 200, 230]);
+      smallText(ctx, fitSmall(v, r.w - 76), r.x + 56, r.y + 4, [235, 225, 210]);
+      smallText(ctx, "-", r.x + r.w - 20, r.y + 4, [200, 190, 180]);
+      smallText(ctx, "+", r.x + r.w - 9, r.y + 4, [200, 190, 180]);
+    });
+    const b = sciRunRect();
+    rect(ctx, b.x, b.y, b.w, b.h, [30, 20, 36]);
+    rect(ctx, b.x + 1, b.y + 1, b.w - 2, b.h - 2, [90, 170, 120]);
+    text(ctx, "LIVE IT", b.x + 32, b.y + 5, [20, 40, 28]);
+    smallText(ctx, fitSmall("THE SAME RECIPE ALWAYS LIVES THE SAME TOWN", W - 32), 16, b.y + 24, [120, 112, 122]);
+    return;
+  }
+  // ---- results + the timeline
+  const at = SCI.drag >= 0 ? SCI.drag : SCI.at;
+  const row = SCI.days[at] || SCI.days[SCI.days.length - 1];
+  smallText(ctx, fitSmall(SCI.msg, W - 32), 16, 20, [235, 225, 210]);
+  const bar = sciBarRect();
+  rect(ctx, 0, bar.y - 16, W, H - bar.y + 16, [18, 14, 24]);
+  smallText(ctx, fitSmall("DAY " + row.day + "  $" + $d(row.coins) + "  " + row.note, W - 32),
+    16, bar.y - 12, [200, 220, 235]);
+  rect(ctx, bar.x, bar.y, bar.w, bar.h, [30, 24, 40]);
+  // one notch per lived day, the whole run at a glance
+  const n = SCI.days.length;
+  for (let i = 0; i < n; i++) {
+    const x = bar.x + 1 + Math.floor(i * (bar.w - 2) / Math.max(1, n));
+    const w = Math.max(1, Math.floor((bar.w - 2) / Math.max(1, n)) - 1);
+    const d = SCI.days[i];
+    const col = d.note === "THE TOWN FAILED" ? [200, 80, 80]
+      : i === at ? [255, 216, 96] : [90, 130, 160];
+    rect(ctx, x, bar.y + 1, w, bar.h - 2, col);
+  }
+  const b = sciBtnRect();
+  rect(ctx, b.x, b.y, b.w, b.h, [30, 20, 36]);
+  rect(ctx, b.x + 1, b.y + 1, b.w - 2, b.h - 2, [190, 140, 80]);
+  text(ctx, "PLAY THIS DAY", b.x + 12, b.y + 5, [40, 24, 16]);
+}
+// ONE RULE, TWO INPUT DEVICES: every control here is a tap on a rect, and the
+// scrub bar is a drag that COMMITS ON RELEASE - which is the same gesture a
+// finger and a mouse both make, and it means one town is materialized per
+// gesture instead of one per pixel.
+function sciHit(p, r) { return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h; }
+function sciBarIndex(p) {
+  const bar = sciBarRect(), n = SCI.days.length;
+  if (!n) return -1;
+  const i = Math.floor((p.x - bar.x) * n / Math.max(1, bar.w));
+  return Math.max(0, Math.min(n - 1, i));
+}
+function sciTap(p) {
+  if (sciHit(p, sciBackRect())) {
+    if (SCI.days.length) { SCI.days = []; SCI.at = -1; SCI.msg = ""; sfx.ding(); return; }
+    sciFreeStream(); screen = "title"; sfx.ding(); return;
+  }
+  if (!SCI.days.length) {
+    const r0 = sciRowRect(0);
+    for (let i = 0; i < 4; i++) {
+      const r = sciRowRect(i);
+      if (p.y < r.y || p.y >= r.y + r.h) continue;
+      const minus = p.x >= r.x + r.w - 24 && p.x < r.x + r.w - 12;
+      const plus = p.x >= r.x + r.w - 13;
+      if (!minus && !plus) return;
+      const d = plus ? 1 : -1;
+      if (i === 0) SCI.seed = Math.max(1, SCI.seed + d);
+      if (i === 1) SCI.plan = (SCI.plan + d + SCI_PLANS.length) % SCI_PLANS.length;
+      if (i === 2) SCI.stopDay = Math.max(2, Math.min(30, SCI.stopDay + d));
+      if (i === 3) SCI.rule = (SCI.rule + d + SCI_RULES.length) % SCI_RULES.length;
+      sfx.ding();
+      return;
+    }
+    // LIVE IT is a navigation, not a call: the recipe goes in the URL and the
+    // town is built from nothing by the boot below. Same two-step shape as the
+    // SEND chip - you set the recipe, then you commit it.
+    if (sciHit(p, sciRunRect()))
+      location.href = location.pathname + "?lab&seed=" + SCI.seed + "&plan=" + SCI.plan +
+        "&span=" + SCI.stopDay + "&rule=" + SCI.rule;
+    return;
+  }
+  if (sciHit(p, sciBtnRect())) { sciPlay(); return; }
+  const i = sciBarIndex(p);
+  if (i >= 0 && sciHit(p, sciBarRect())) { sciGoto(i); sfx.ding(); }
+}
+
 function frame(now) {
   refreshHatches();   // hatch flags snapshot: one global read set per frame
   // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
@@ -17894,6 +18285,10 @@ function frame(now) {
   simClock(dt, rawMs);
   if (screen === "intro") { introFrame(); requestAnimationFrame(frame); return; }
   if (screen === "title") { titleFrame(dt); requestAnimationFrame(frame); return; }
+  // the bench is a READER like every other screen: it draws the town its
+  // keyframe loaded and advances nothing - a run advances the sim inside
+  // sciStart, synchronously, and is over before a frame is drawn
+  if (screen === "sci") { sciFrame(dt); requestAnimationFrame(frame); return; }
   simTown(dt);
   if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: the seam
   vpSwapIn();
@@ -17931,7 +18326,10 @@ activeSlot = readActiveSlot();
 // again alongside a save's own documents; a town with no save at all would
 // otherwise sail forever with an empty mainland.
 loadCultures(null);
-hasSave = load();
+// ...and a LAB town never reads a slot: its tick zero is this boot, not
+// whatever the player last left behind. (The peoples above still arrive -
+// pigs sail to a science town like any other.)
+hasSave = LAB ? false : load();
 if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
   coins = 15000;   // cents - a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
@@ -17944,6 +18342,19 @@ if (!hasSave) {
 // a modern save that legitimately holds no visitors (saved at midnight, say)
 // must stay empty rather than have a crowd conjured onto its promenade.
 if (hasSave && preVisSave) seedVisitors();
+// THE LAB RUNS ITS RECIPE HERE, on a world one line old. If the URL carries a
+// seed the town is lived out immediately and the bench opens on its timeline;
+// a bare `?lab` opens the setup form instead.
+if (LAB) {
+  screen = "sci";
+  if (/[?&]seed=/.test(location.search)) {
+    SCI.seed = LAB_ARG("seed", 1337);
+    SCI.plan = Math.max(0, Math.min(SCI_PLANS.length - 1, LAB_ARG("plan", 0)));
+    SCI.stopDay = Math.max(2, Math.min(30, LAB_ARG("span", 12)));
+    SCI.rule = Math.max(0, Math.min(SCI_RULES.length - 1, LAB_ARG("rule", 0)));
+    sciStart();
+  }
+}
 requestAnimationFrame(frame);
 
 // console cheat for tinkering: cheat(500)
