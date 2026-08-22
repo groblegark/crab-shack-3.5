@@ -5927,6 +5927,18 @@ const DS = {}, KS = {}, CS = {}, VS = {};
 DS_NAMES.forEach((n, i) => DS[n] = i); KS_NAMES.forEach((n, i) => KS[n] = i);
 CS_NAMES.forEach((n, i) => CS[n] = i); VS_NAMES.forEach((n, i) => VS[n] = i);
 class CrabS {
+  get x() { return PXQ[this.si] / Q8; }
+  set x(v) { PXQ[this.si] = Math.round(v * Q8); }
+  get y() { return PYQ[this.si] / Q8; }
+  set y(v) { PYQ[this.si] = Math.round(v * Q8); }
+  get tx() { return PTXQ[this.si] / Q8; }
+  set tx(v) { PTXQ[this.si] = Math.round(v * Q8); }
+  get ty() { return PTYQ[this.si] / Q8; }
+  set ty(v) { PTYQ[this.si] = Math.round(v * Q8); }
+  get _mx() { return PMXQ[this.si] === MNULL ? null : PMXQ[this.si] / Q8; }
+  set _mx(v) { PMXQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get _my() { return PMYQ[this.si] === MNULL ? null : PMYQ[this.si] / Q8; }
+  set _my(v) { PMYQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
   get dayState() { return DS_NAMES[this.dsC]; }
   set dayState(s) { const c = DS[s]; if (c === undefined) throw new Error("dayState? " + s); this.dsC = c; }
   get kstate() { return KS_NAMES[this.ksC]; }
@@ -5935,6 +5947,20 @@ class CrabS {
   set cstate(s) { const c = CS[s]; if (c === undefined) throw new Error("cstate? " + s); this.csC = c; }
 }
 class VisS {
+  get x() { return PXQ[this.si] / Q8; }
+  set x(v) { PXQ[this.si] = Math.round(v * Q8); }
+  get y() { return PYQ[this.si] / Q8; }
+  set y(v) { PYQ[this.si] = Math.round(v * Q8); }
+  get tx() { return PTXQ[this.si] / Q8; }
+  set tx(v) { PTXQ[this.si] = Math.round(v * Q8); }
+  get ty() { return PTYQ[this.si] / Q8; }
+  set ty(v) { PTYQ[this.si] = Math.round(v * Q8); }
+  get _mx() { return PMXQ[this.si] === MNULL ? null : PMXQ[this.si] / Q8; }
+  set _mx(v) { PMXQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get _my() { return PMYQ[this.si] === MNULL ? null : PMYQ[this.si] / Q8; }
+  set _my(v) { PMYQ[this.si] = v == null ? MNULL : Math.round(v * Q8); }
+  get wy() { return PWYQ[this.si] / Q8; }
+  set wy(v) { PWYQ[this.si] = Math.round(v * Q8); }
   get state() { return VS_NAMES[this.stC]; }
   set state(s) { const c = VS[s]; if (c === undefined) throw new Error("state? " + s); this.stC = c; }
 }
@@ -5945,12 +5971,51 @@ const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // lifted off, the prototype attached, and the string re-enters through the
 // strict setter - arriving as a code like every other write.
 function vivifyCust(o) {
-  if (Object.prototype.hasOwnProperty.call(o, "state")) {
-    const s = o.state; delete o.state; Object.setPrototypeOf(o, VisProto); o.state = s;
-  } else Object.setPrototypeOf(o, VisProto);
+  const lift = {};
+  for (const f of ["state", "x", "y", "wy", "tx", "ty", "_mx", "_my"])
+    if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
+  Object.setPrototypeOf(o, VisProto);
+  o.si = poolAlloc();
+  for (const f in lift) o[f] = lift[f];
   return o;
 }
 
+
+// ------------------------------------------------------------- the agent pool
+// SLICE 6b. Positions and motion targets live in SoA Int32Arrays of Q8
+// GRAINS - the numerator is the stored truth, the px Number every reader
+// sees is its exact double image q/256 through the prototype accessors
+// below. SoA over AoS-stride: the hot loops (collide, stepTo, visStep)
+// touch two or three fields across every agent, so each field is its own
+// dense cache line - and it is the layout the batch future wants. A town's
+// whole pool is ~7KB against 128KB of L1.
+const POOL_MAX = 160;
+const PXQ = new Int32Array(POOL_MAX), PYQ = new Int32Array(POOL_MAX),
+      PTXQ = new Int32Array(POOL_MAX), PTYQ = new Int32Array(POOL_MAX),
+      PWYQ = new Int32Array(POOL_MAX),
+      PMXQ = new Int32Array(POOL_MAX), PMYQ = new Int32Array(POOL_MAX);
+const MNULL = -0x80000000;   // the _mx/_my "no motion target this frame" sentinel
+const POOL_LIVE = new Uint8Array(POOL_MAX), POOL_MARK = new Uint8Array(POOL_MAX);
+let poolTop = 0; const poolFree = [];
+function poolAlloc() {
+  const i = poolFree.length ? poolFree.pop() : poolTop++;
+  if (i >= POOL_MAX) throw new Error("agent pool overflow at " + POOL_MAX);
+  PXQ[i] = 0; PYQ[i] = 0; PTXQ[i] = 0; PTYQ[i] = 0; PWYQ[i] = 0;
+  PMXQ[i] = MNULL; PMYQ[i] = MNULL; POOL_LIVE[i] = 1;
+  return i;
+}
+// the reap: slots owned by objects no pool can reach any more go back on the
+// freelist. Runs once a frame; marking every live agent is ~60 writes. This
+// replaces hooking each of the seven removal doors - a door added later
+// cannot leak.
+function poolReap() {
+  POOL_MARK.fill(0);
+  for (const c of crabs) POOL_MARK[c.si] = 1;
+  for (const c of npcs) POOL_MARK[c.si] = 1;
+  for (const k of customers) POOL_MARK[k.si] = 1;
+  for (let i = 0; i < poolTop; i++)
+    if (POOL_LIVE[i] && !POOL_MARK[i]) { POOL_LIVE[i] = 0; poolFree.push(i); }
+}
 function newCrab(persona) {
   if (persona.wallet == null) persona.wallet = 10;
   if (persona.job == null) persona.job = "shack";
@@ -5987,9 +6052,9 @@ function newCrab(persona) {
   if (persona.boredDays == null) persona.boredDays = 0;
   if (persona.walkout == null) persona.walkout = 0;
   if (persona.rough == null) persona.rough = false;
-  return Object.setPrototypeOf({
+  const c = Object.setPrototypeOf({
     p: persona,
-    x: homeX({ p: persona }), y: 160, tx: 0, ty: 160,
+    si: poolAlloc(),
     flip: false, hidden: false, animT: srand() * 9,
     dsC: DS.home, csC: 0, target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
@@ -6003,6 +6068,8 @@ function newCrab(persona) {
     napT: 0, napFrom: null,
     quip: null, quipT: 8 + srand() * 15,
   }, CrabProto);
+  c.x = homeX({ p: persona }); c.y = 160; c.tx = 0; c.ty = 160;
+  return c;
 }
 // ---- THE TRUDGE: hunger and thirst fail as a SPEED PENALTY (Matt's call:
 // "dirt boredom and tiredness are good; hunger and thirst should just be a
@@ -8732,8 +8799,10 @@ function updateErrand(c, dt) {
         return;
       }
       const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
-        need: c.errand.need, x: c.x, spawnX: c.x, stC: VS.waiting,
+        si: poolAlloc(),
+        need: c.errand.need, spawnX: c.x, stC: VS.waiting,
         patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
+      cust.x = c.x;
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
       customers.push(cust); noteArrival(c.errandBiz);
       c.errandCust = cust; c.dsC = DS.errand;
@@ -10175,7 +10244,7 @@ function newVisitor(overnightOnly, cu) {
       : ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animT: srand() * 9,
     // they come off the boat ON THE PLANKS, at rail height, and walk down
-    x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
+    si: poolAlloc(), leg: 0,
     stC: VS.ashore,
     // the shop pipeline's own fields, dormant until they join a line
     biz: null, recipe: null, patience: VIS_PATIENCE * PQ, maxPatience: VIS_PATIENCE * PQ,
@@ -10190,6 +10259,7 @@ function newVisitor(overnightOnly, cu) {
     hunger: n.hunger, thirst: n.thirst, dirt: n.dirt, bored: n.bored, tired: n.tired,
   };
   Object.setPrototypeOf(v, VisProto);
+  v.x = FERRY.gangway; v.y = FERRY.deckY; v.wy = FERRY.deckY;
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
   // than bare-headed clerks, because pig society is not so egalitarian. One
@@ -10849,14 +10919,16 @@ function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
   const r = biz.recipes[(srand() * biz.recipes.length) | 0];
   const spawnX = biz.queueX + 150;
-  return Object.setPrototypeOf({ biz: bizKey, recipe: r,
+  const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
     name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animT: srand() * 9,
-    x: spawnX, spawnX, stC: VS.arriving, patience: 50 * PQ, maxPatience: 50 * PQ,
+    si: poolAlloc(), spawnX, stC: VS.arriving, patience: 50 * PQ, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null }, VisProto);
+  w.x = spawnX;
+  return w;
 }
 function updateCustomers(dt) {
   trackCloseQueues();   // hours-policy signal: who was still in line when a shop shut
@@ -16848,6 +16920,7 @@ function ageFloaters(dt) {
 }
 
 function simTown(dt) {
+  poolReap();
   if (!gameOver) {
   updateBus(dt);
   if (tmin >= 7.5 * 60 && hireDay !== day) { hireDay = day; runJobBoard(); }
