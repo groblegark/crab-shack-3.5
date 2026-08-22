@@ -5990,10 +5990,24 @@ function vivifyCust(o) {
 // dense cache line - and it is the layout the batch future wants. A town's
 // whole pool is ~7KB against 128KB of L1.
 const POOL_MAX = 160;
-const PXQ = new Int32Array(POOL_MAX), PYQ = new Int32Array(POOL_MAX),
-      PTXQ = new Int32Array(POOL_MAX), PTYQ = new Int32Array(POOL_MAX),
-      PWYQ = new Int32Array(POOL_MAX),
-      PMXQ = new Int32Array(POOL_MAX), PMYQ = new Int32Array(POOL_MAX);
+// THE MOVEMENT KERNEL (the WASM spike): when the harness arms it, the pool's
+// backing store is the kernel's own linear memory, so a JS write and a kernel
+// read are the same bytes - zero copies at the boundary. Offsets are the
+// memory map in tools/kernel/kernel.c (base 16384; the low 8KB is the C
+// shadow stack). Unarmed, the arrays are plain and every hot loop below runs
+// its JS reference body - byte-for-byte the code that was here before.
+const KERN = (typeof window !== "undefined" && window._wasmKernel) || null;
+const _kb = KERN ? KERN.memory.buffer : null, _k0 = 16384;
+const PXQ  = KERN ? new Int32Array(_kb, _k0,        POOL_MAX) : new Int32Array(POOL_MAX),
+      PYQ  = KERN ? new Int32Array(_kb, _k0 + 640,  POOL_MAX) : new Int32Array(POOL_MAX),
+      PTXQ = KERN ? new Int32Array(_kb, _k0 + 1280, POOL_MAX) : new Int32Array(POOL_MAX),
+      PTYQ = KERN ? new Int32Array(_kb, _k0 + 1920, POOL_MAX) : new Int32Array(POOL_MAX),
+      PWYQ = KERN ? new Int32Array(_kb, _k0 + 2560, POOL_MAX) : new Int32Array(POOL_MAX),
+      PMXQ = KERN ? new Int32Array(_kb, _k0 + 3200, POOL_MAX) : new Int32Array(POOL_MAX),
+      PMYQ = KERN ? new Int32Array(_kb, _k0 + 3840, POOL_MAX) : new Int32Array(POOL_MAX);
+const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
+      KB_FLAGS = KERN ? new Int32Array(_kb, _k0 + 5120, POOL_MAX) : null,
+      KB_BERTH = KERN ? new Int32Array(_kb, _k0 + 5760, POOL_MAX) : null;
 const MNULL = -0x80000000;   // the _mx/_my "no motion target this frame" sentinel
 const POOL_LIVE = new Uint8Array(POOL_MAX), POOL_MARK = new Uint8Array(POOL_MAX);
 let poolTop = 0; const poolFree = [];
@@ -7681,6 +7695,14 @@ function stepTo(c, tx, speed, dt, ty) {
   // (6b) straight onto the pool: the stored grain IS the truth, so the px
   // dance (x*Q8 ... /Q8) collapses into integer adds on PXQ/PYQ.
   const i = c.si;
+  if (KERN) {   // the compiled body; the JS below stays the reference
+    const kr = KERN.exports.step_to(i, Math.round(tx * Q8),
+      ty == null ? PTYQ[i] : Math.round(ty * Q8), speed, dtT);
+    if (kr & 2) c.flip = !!(kr & 4);
+    if (kr & 1) return true;
+    c._stepped = true;
+    return false;
+  }
   const txq = Math.round(tx * Q8), tyq = ty == null ? PTYQ[i] : Math.round(ty * Q8);
   const dxq = txq - PXQ[i], dyq = tyq - PYQ[i];
   const dsq = dxq * dxq + dyq * dyq;
@@ -7741,7 +7763,21 @@ function collide(dt) {
     c._blocked = false;   // set again below by furniture deflections; read next frame
     if (!c.hidden && c.csC !== CS.drive && !c.errandCust) bodies.push(c);
   }
-  for (let i = 0; i < bodies.length; i++)
+  if (KERN) {   // the compiled pair loop; the JS below stays the reference.
+    // Marshal the per-body facts the kernel's gates read: pool index, the
+    // still/home/slot-exempt flags, and the berth radius. darkness() and
+    // _noBerth hoist to one flag each - both are pure reads.
+    for (let bi = 0; bi < bodies.length; bi++) {
+      const c = bodies[bi];
+      KB_SI[bi] = c.si;
+      KB_FLAGS[bi] = (c._stepped ? 1 : 0) | (c.dsC === DS.home ? 2 : 0)
+                   | (c.slotKind && c.slot >= 0 ? 4 : 0);
+      KB_BERTH[bi] = crabBerthQ8(c);
+    }
+    KERN.exports.collide_pairs(bodies.length, dtT,
+      darkness() > 0.6 ? 1 : 0, window._noBerth ? 1 : 0);
+  }
+  else for (let i = 0; i < bodies.length; i++)
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i], b = bodies[j];
       // (slice 4) the ellipse in integers: dy's x1.8 is exactly 9/5, so the
@@ -10749,6 +10785,12 @@ function visGo(k, e) {
 function visStep(k, tx, ty, dt) {
   // (slice 4) the stroll in Q8: per-frame step floors 42 px/s to the grain
   const i = k.si;
+  if (KERN) {   // the compiled body; the JS below stays the reference
+    const kr = KERN.exports.vis_step(i, Math.round(tx * Q8),
+      ty == null ? PWYQ[i] : Math.round(ty * Q8), dtT);
+    if (kr & 2) k.face = (kr & 4) ? -1 : 1;
+    return !!(kr & 1);
+  }
   const spq = idiv(VIS_SPEED * Q8 * dtT, TICK_HZ);
   const txq = Math.round(tx * Q8), tyq = ty == null ? PWYQ[i] : Math.round(ty * Q8);
   const dxq = txq - PXQ[i], dyq = tyq - PWYQ[i];
