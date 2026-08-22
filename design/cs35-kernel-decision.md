@@ -417,6 +417,34 @@ ID-izing into planes as their own layout landing, with the event ring
 landing WITH that machine (VP_OUT + the vis_tick mask demonstrate the
 out-plane pattern). Phase 5, one fork, nothing else in the directive.
 
+## PHASE 5 ADDENDUM (2026-08-22) — the counter machine compiles whole
+
+The customers+visitors unit's second half is kernel-side: furniture
+ID-ized into fid planes (identity on the object, truth in the plane bit),
+the counter scalars resident, and `cust_step` running the whole
+line/seat/stall/serve-pay chain one call per customer at the reference's
+own pass position — mid-frame resource exchanges preserved by
+construction, the dine draw through the shared cursor, and the EVENT RING
+real: the kernel emits codes, JS renders strings and pays the tip at
+`payTip`'s own door (the kernel computes only the wallet clamp, so
+conservation's referee never moved).
+
+Kernel on/off: **1.71–1.75× interleaved best-of-5** (phase 4: 1.67–1.71),
+kernel-side share of the unarmed bill ~42%. Absolutes this session are
+neighbour-degraded (load 14–32) — ratios only; the quiet-box remeasure is
+owed before any absolute-reading decision. The mutation discipline paid
+twice: day-end digests provably cannot see queue-walk mutations (positions
+converge to exact slots), so the agreement scenario grew the counter
+planes and all five mutations bite there by name — including the wallet
+clamp severing, which manufactures the negative wallet the clamp exists to
+prevent. One vacuous-by-modular-arithmetic mutation recorded and escalated
+rather than claimed.
+
+Remaining JS: the kitchen machine (serve's seat/stall assignment writes
+the same furniture planes this phase landed), the schedule chain, the
+ferry/rooms/queue-build glue, and the dispatch self. Next: schedule+kitchen
+as one unit, then the single-`tick()` hoist.
+
 ## Sources
 
 - [Understanding the Performance of WebAssembly Applications](https://benchmarkingwasm.github.io/BenchmarkingWebAssembly/)
