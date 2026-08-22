@@ -135,7 +135,34 @@ bug, filed as one — never a float island in game.js. The slice ledger
 (what's converted, what units, where the rounding point is) lives in
 this file and updates with each slice.
 
-**SLICE LEDGER**: nothing converted yet. (Updates land here.)
+**SLICE LEDGER**
+
+| slice | state | unit | the rounding point |
+|---|---|---|---|
+| 1 MONEY | **1a LANDED** (1b open) | integer **cents**, every balance and every price | the cent is BORN at `menuPrice`/`ingredientCost`/`upCost` (author-dollar tables cross ×100 at their read boundary) and at the visitor purse mint; a TIP rounds ONCE at `payTip`'s door; the fund's three doors floor to whole cents; `localPrice` still rounds up to the whole DOLLAR |
+| 2–6 | not started | — | — |
+
+Ruling 7a is **in force** from 1a: a CS3 change touching money is translated
+at the boundary, not merged textually. First application, 2026-08-21: the
+on-duty-order change (`cs35` 84f7346) carried `p.wallet = 60` and landed here
+as `6000`.
+
+**1a is verified** (protocol par.2, everything but the receipted fingerprint
+re-baseline, which the slice takes ONCE after 1b): suite 253/253; baseline
+0/16 exact, median 12; growth 4/16; conservation now a THEOREM — 558 audited
+fund movements over three 30-day seeds, every one `delta === want`, all three
+doors exercised; the pre-cents migration lands to the cent and a save/load
+roundtrip is EXACT, which retires the census's silent sub-cent bug; and the
+day-2 fingerprint is **bit-identical under JavaScriptCore** on both seeds
+(`cs35-research/numeric-wip/1a-crossengine.txt`). Both frozen fingerprints
+carry a provisional re-point with the drift receipt in the comment: rep,
+serves, rage and every position byte-identical, money moved by accumulated
+per-sale cent rounding only.
+
+**The one real bug 1a found**: SUDSY and REEF opened on tills of `200`/`140`
+— cents-as-dollars — so a converted town ran its first days a hundredfold
+poor until the fingerprint caught it. A constant that is *already* a bare
+number is the easiest thing in a unit conversion to miss.
 
 ## WHAT STAYS FLOAT FOREVER
 

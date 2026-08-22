@@ -1247,7 +1247,7 @@ scenario("orders: redirect walks the crab there, then the schedule reclaims them
   // ON DUTY IS NOT A REFUSAL (2026-08-21): a biz order pulls the crab off the
   // counter and fires the errand - the boss's call, priced in unstaffed
   // minutes. Every hold must be released on the way out.
-  sim.G("crabs[0].p.wallet = 60; orderCrab(crabs[0], 1000, 160)");   // 1000 = SUDS SHOWERS
+  sim.G("crabs[0].p.wallet = 6000; orderCrab(crabs[0], 1000, 160)");   // 1000 = SUDS SHOWERS (Ruling 7a: $60 translated to cents at the boundary)
   if (sim.G('crabs[0].dayState') !== "toErrand")
     return "on-duty biz order should fire the errand, got: " + sim.G('crabs[0].dayState');
   if (sim.G("crabs[0].duty")) return "errand fired but the crab is still on duty";
