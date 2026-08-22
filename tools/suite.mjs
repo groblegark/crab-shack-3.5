@@ -10943,6 +10943,36 @@ scenario("cultureways: a minted pig round-trips and a minted crab stays byte-sha
   return true;
 });
 
+// ---- THE SEAM (perf-ladder rung 1): golden boundary scenarios. The split's
+// contract is one-way flow, and each of these is mutation-tested (see the
+// rung-1 close-out): a viewFrame call smuggled past the headless gate, an
+// aging line put back into drawFloaters, and an srand() dropped into drawBG
+// each fail their scenario naming the mechanism.
+
+scenario("seam: a headless day never enters the view", () => {
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const n = sim.G("window._viewCalls || 0");
+  if (n !== 0) return `the sim crossed the seam ${n} time(s) - a view function ran headless`;
+  return true;
+});
+
+scenario("seam: the view is a reader - two renders move nothing", () => {
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil('tmin > 10 * 60', {});
+  sim.G('popText("SEAM PROBE", 1000, 100, [255,255,255])');   // a floater to tempt the old aging bug
+  const digest = () => sim.G(`JSON.stringify([T, coins, day, tmin, rep, floaters.map(f => [f.text, f.t, f.y]),
+    customers.length, allCrabs().map(c => [c.x | 0, c.y | 0, c.p.wallet, c.p.hunger, c.p.dirt])])`);
+  sim.G(`{ const real = srand; window._seamDraws = 0; srand = () => (window._seamDraws++, real()); }`);
+  const before = digest();
+  sim.G("viewFrame(0.05); viewFrame(0.05)");   // render twice from the same frozen state
+  const after = digest(), draws = sim.G("window._seamDraws"), calls = sim.G("window._viewCalls || 0");
+  if (calls !== 2) return `expected 2 seam crossings, counted ${calls}`;
+  if (draws !== 0) return `a render drew ${draws} number(s) from the SIM stream - slice 5's isolation broken`;
+  if (before !== after) return "rendering moved sim state - the view wrote something the sim reads";
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
