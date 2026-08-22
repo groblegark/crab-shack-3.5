@@ -349,7 +349,7 @@ const HOURS_MIN = 6 * 60, HOURS_MAX = 24 * 60, HOURS_SPAN_MIN = 4 * 60;
 // never silent. The alternative - a private rate that survives a change of
 // employer - would let a $50 crew crab wander onto SUDSY's payroll and bankrupt
 // her with a deal she never made.
-const WAGE_STD = 23;
+const WAGE_STD = 2300;   // cents (numeric slice 1a)
 const WAGE_MIN = 8, WAGE_MAX = 60;   // the stepper's band: below the pier's worst day, above its best
 const clampWage = (n) => Math.max(WAGE_MIN, Math.min(WAGE_MAX, Math.round(+n || 0)));
 function bizWage(b) { return BIZ[b] && BIZ[b].wage != null ? BIZ[b].wage : WAGE_STD; }
@@ -430,7 +430,9 @@ const clampPrice = (v) => Math.max(PRICE_MIN, Math.min(PRICE_MAX,
   Math.round((+v || 0) / PRICE_STEP) * PRICE_STEP));
 function bizPriceMul(b) { const m = BIZ[b] && BIZ[b].priceMul; return m == null ? 1 : m; }
 function setBizPrice(b, v) { if (BIZ[b]) BIZ[b].priceMul = clampPrice(v); }
-function menuPrice(b, r) { return Math.max(1, Math.round(r.pay * bizPriceMul(b))); }   // what it says on the board
+// Catalog pay stays author-dollars (BIZ + cultureway data); the CENT is born
+// here and nowhere else. Same dollar figure as ever, times a hundred.
+function menuPrice(b, r) { return 100 * Math.max(1, Math.round(r.pay * bizPriceMul(b))); }
 // TRIM TO FIT, MEASURED. A character count is a guess about a proportional
 // budget: "FISH TACO $17  JUICE $10  GRILL FI" is 34 characters, which someone
 // sized for a 100px slot and is actually 135 - it printed 13px past the right
@@ -603,7 +605,7 @@ function creditBiz(b, amt, x, y, quiet) {   // quiet: the caller pops its own la
   }
   else {
     OWNERS[o].till += amt;
-    if (!quiet) popText("+$" + Math.floor(amt), x, y, [150, 210, 255]);
+    if (!quiet) popText("+$" + $d(amt), x, y, [150, 210, 255]);
     if (window._stats) window._stats.npcEarn = (window._stats.npcEarn || 0) + amt;
   }
 }
@@ -646,7 +648,7 @@ const bizUnlocked = (b) => b === "shack" || (!!BIZ[b] && (!!BIZ[b].bought || biz
 // "This is exactly the choice the mayor will make." So the funding mechanism
 // is not a constant somebody picked. It is the office's lever, and it is the
 // thing an election is actually about.
-const SHELTER_RENT = 10;         // Mr. Pincherton owns the shelter too, and he charges for it
+const SHELTER_RENT = 1000;   // cents         // Mr. Pincherton owns the shelter too, and he charges for it
 // ...AND HE CHARGES BY THE BED. The town RENTS this building, so a bigger
 // shelter is not something the town buys once - it is a bigger bill every
 // night, for as long as the beds stand (see ACCOMMODATION UPGRADES, where the
@@ -666,7 +668,7 @@ const SHELTER_FLOAT = 1;         // ...and the purse is struck to carry this man
                                  // made, not about variance in the takings three days later.
 const SHELTER_STRIKES = 3;       // missed nights running before the door is bolted
 const SHELTER_SHUT_NIGHTS = 4;   // ...and how many nights it stays that way
-const SOUP_MARGIN = 2;           // the shack's margin on a bowl sold to the town
+const SOUP_MARGIN = 200;   // cents           // the shack's margin on a bowl sold to the town
 const POT_MAX = 6;               // the most bowls any mayor may put on for one night
 const POLL_WEEKDAY = 6;          // SUNDAY. The town already keeps a week (WEEKDAYS, and the
                                  // staggered rota hangs off it), so polling day rides on that
@@ -752,7 +754,7 @@ function capWhy(b) {
 function floorOf(p) {
   return WAGE_FLOOR.steps[Math.max(0, Math.min(FLOOR_STEPS, (p && p.wage) | 0))] || 0;
 }
-const TIN_KEEP = 30;   // nobody drops a coin in the tin who is not this far clear themselves
+const TIN_KEEP = 3000;   // cents   // nobody drops a coin in the tin who is not this far clear themselves
 const POLL_LINES = 24; // how many written vote reasons a ballot keeps (display + save only)
 
 // ---------------------------------------------------------------- POLLING DAY
@@ -839,7 +841,7 @@ const POLL_SHUT = 19 * 60;       // ...and shut an hour before the town does. Th
                                  // tight enough that the answer is sometimes no: the D-shift owner
                                  // finishing at 18:30 has half an hour and a walk, which makes the
                                  // HOURS SIGN a lever on turnout - and that lever is the player's.
-const BALLOT_PRICE = 0.25;       // a sheet of paper, landed by the ferry like every other import
+const BALLOT_PRICE = 25;      // cents       // a sheet of paper, landed by the ferry like every other import
 const BALLOT_SPARE = 2;          // the clerk always prints a couple over
 
 const VOTE_SECS = 5;             // real seconds at the table - ~20 game minutes to queue, mark a
@@ -1014,10 +1016,10 @@ function auditFund(kind, amt, who, why, before) {
   if (!A) return;
   const want = kind === "remit" ? -amt : 0, delta = worldMoney() - before;
   A.rows = A.rows || [];
-  A.rows.push({ day, kind, amt, who, why, delta, want, ok: Math.abs(delta - want) < 1e-6 });
+  A.rows.push({ day, kind, amt, who, why, delta, want, ok: delta === want });   // cents: conservation is a THEOREM now
 }
 function fundRow(kind, amt, who, why) {
-  townFund.ledger.push({ day, kind, amt: Math.round(amt * 100) / 100, who, why });
+  townFund.ledger.push({ day, kind, amt, who, why });   // amounts ARE cents
   if (townFund.ledger.length > 48) townFund.ledger.shift();   // a running record, not an archive
 }
 // MONEY IN, out of a named payer's own balance and nowhere else. The payer is
@@ -1025,7 +1027,7 @@ function fundRow(kind, amt, who, why) {
 // write a credit into this fund without a matching debit somewhere real.
 function fundTake(a, amt, why) {
   const take = Math.min(Math.max(0, amt), acctBal(a));
-  if (take < 0.005) return 0;
+  if (take < 1) return 0;   // not a whole cent
   const before = window._auditFund ? worldMoney() : 0;
   acctMove(a, -take);
   townFund.bal += take; townFund.dayIn += take;
@@ -1043,7 +1045,7 @@ function fundTake(a, amt, why) {
 function fundPay(b, amt, why) {
   const a = bizAcct(b);
   const pay = Math.min(Math.max(0, amt), townFund.bal);
-  if (!a || pay < 0.005) return 0;
+  if (!a || pay < 1) return 0;
   const before = window._auditFund ? worldMoney() : 0;
   townFund.bal -= pay; townFund.dayOut += pay;
   if (a.k === "player") townFund.youGot += pay;
@@ -1058,7 +1060,7 @@ function fundPay(b, amt, why) {
 // makes the world poorer, it is labelled REMIT, and the audit knows it.
 function fundRemit(amt, who, why) {
   const pay = Math.min(Math.max(0, amt), townFund.bal);
-  if (pay < 0.005) return 0;
+  if (pay < 1) return 0;
   const before = window._auditFund ? worldMoney() : 0;
   townFund.bal -= pay; townFund.dayOut += pay;
   fundRow("remit", pay, who, why);
@@ -1590,7 +1592,7 @@ function pickCandidate(c, cands) {
 // the day so the same crab at the top of the alphabet is not asked every week.
 // A town where NOBODY has WHIP_KEEP in their pocket still holds no election,
 // which is the destitute case this failure was always meant to be about.
-const WHIP_KEEP = 8;                 // nobody chips in for paper who is not this far clear
+const WHIP_KEEP = 800;               // cents                 // nobody chips in for paper who is not this far clear
 const WHIP_MAX = BALLOT_PRICE * 4;   // ...and nobody is asked for more than a dollar of it
 function whipRound(short) {
   let got = 0;
@@ -4733,7 +4735,7 @@ const INGREDIENT_COST = { fish_raw: 5, fruit: 3, token: 1, soap: 1, linen: 2 };
 // local price can never exceed it); a glut sags toward the $2 floor. The
 // binary FISH_LOCAL(4)/FISH_IMPORT(7) switch is gone - trade.price is the
 // one pier price, cleared once a day at midnight (settleFishMarket).
-const FISH_FLOOR = 2, FISH_IMPORT = 7, FISH_START = 4;
+const FISH_FLOOR = 200, FISH_IMPORT = 700, FISH_START = 400;   // cents
 // ---- T1 trade ledger: the town is a NODE. Imports tracked at fixed prices;
 // only fish actually charges money today (it always did, via ingredientCost) -
 // corn/water/power are tracked flows awaiting T2/T3. Bookkeeping ONLY.
@@ -4778,8 +4780,8 @@ function settleFishMarket() {
   trade.useH.push(trade.useDay); if (trade.useH.length > 3) trade.useH.shift();
   const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
   const S = avg(trade.landH), D = avg(trade.useH);
-  if (D > S + 1) trade.price = Math.min(FISH_IMPORT, trade.price + 1);        // fish ran short: the pier price firms
-  else if (S > D + 2) trade.price = Math.max(FISH_FLOOR, trade.price - 1);    // fish piled up: the pier price sags
+  if (D > S + 1) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
+  else if (S > D + 2) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
   trade.ceilDays = trade.price >= FISH_IMPORT ? (trade.ceilDays || 0) + 1 : 0;
   trade.series.push(trade.price);
   if (trade.series.length > 60) trade.series.shift();
@@ -4787,7 +4789,7 @@ function settleFishMarket() {
 }
 function ingredientCost(raw) {
   if (raw === "fish_raw") return townCatch > 0 ? trade.price : FISH_IMPORT;
-  return INGREDIENT_COST[raw];
+  return 100 * INGREDIENT_COST[raw];   // author-dollars table; the cent is born here
 }
 function consumeIngredient(raw, recipe) {
   if (raw === "fruit") tradeImport("fruit", 1);                   // every drink counts its fruit (T1 tracking)
@@ -4821,7 +4823,7 @@ const UPS = {
   cadegear: { name: "CADE GEAR+", base: 180, mult: 1, max: 1, lvl: 0 },
 };
 for (const k in UPS) UPS[k].key = k;
-function upCost(u) { return Math.ceil(u.base * Math.pow(u.mult, u.key === "chef" ? u.lvl - 2 : u.lvl)); }
+function upCost(u) { return 100 * Math.ceil(u.base * Math.pow(u.mult, u.key === "chef" ? u.lvl - 2 : u.lvl)); }   // cents (1b bakes the table)
 
 // ------------------------------------------------------- WHAT A SHOP BUTTON DOES
 // "Go to the shop. WHAT DO THESE THINGS DO? TOOLTIP TIME!" - the first outside
@@ -4978,7 +4980,7 @@ let lastRentDay = 0, gameOver = false, newConfirmT = 0;
 // and crosses $20,000 somewhere around day 105-130. So: absurd on day one,
 // out of reach for anybody merely surviving, and a hundred good days away for
 // a town that has genuinely mastered the economy.
-const FERRY_PRICE = 20000;
+const FERRY_PRICE = 2000000;   // cents
 const FERRY_X = 1806;        // the office, on the sand between the arcade lot and the pier
 const FERRY_SIGN_X = 1148;   // the fingerpost on the promenade, where the player already looks
 const FERRY_DAY = 3;         // she works the far shore on THURSDAYS (weekdayIdx)
@@ -6046,16 +6048,18 @@ function fmt(n) {
 function popText(txt, x, y, color) {
   floaters.push({ x, y, t: 1.6, text: txt, color: color || [255, 255, 255] });
 }
+// cents state, dollar glass: the ONE display divisor
+function $d(c) { return Math.round(c / 100); }
 function earn(amt, x, y) {
   coins += amt; lifetime += amt;
   earnHist.push({ t: time, amt });
-  popText("+$" + Math.floor(amt), x, y, [255, 230, 120]);
+  popText("+$" + $d(amt), x, y, [255, 230, 120]);
   sfx.coin();
 }
 function expense(amt, x, y, label) {
   coins -= amt;
   earnHist.push({ t: time, amt: -amt });   // income rate is net
-  popText("-$" + amt + (label ? " " + label : ""), x, y, [255, 120, 120]);
+  popText("-$" + $d(amt) + (label ? " " + label : ""), x, y, [255, 120, 120]);
 }
 function incomeRate() {
   while (earnHist.length && earnHist[0].t < time - 60) earnHist.shift();
@@ -9095,27 +9099,28 @@ function bizTipShare(b) { return Math.max(0, Math.min(1, (BIZ[b] && BIZ[b].tipSh
 // baseline from a day-14 eviction to day 5; the raised table tip is what
 // brings it back, and it lands entirely on TABLE service, so it widens the
 // counter/table gap instead of papering over it.
-const TABLE_TIP = 9;
+const TABLE_TIP = 900;   // cents
 function tableTipOf(b) { return TABLE_TIP; }
 // One tip, two pockets. `payTip` is the ONLY place a tip is split, so the
 // slider means exactly the same thing for the tip at the table and the tip in
 // the jar. The crab's cut lands in their WALLET - the housing ladder's fuel.
 function payTip(bizKey, server, amt, x, y) {
-  if (!(amt >= 0.5)) return;
-  const cut = amt * bizTipShare(bizKey), till = amt - cut;
+  amt = Math.round(amt);   // THE canonical rounding point: a tip becomes cents here
+  if (!(amt >= 50)) return;
+  const cut = Math.round(amt * bizTipShare(bizKey)), till = amt - cut;   // int split; till+cut === amt
   // ONE POP PER TIP (owner report: "the tip popup appears twice, one with the
   // word tip and once without"). creditBiz already pops the money going into
   // the till, so the till's share is credited SILENTLY here and labelled once,
   // in gold, as a tip. The crab's share gets its own pop over the crab, which
   // is a different event in a different place - that one is not a duplicate.
-  if (till >= 0.5) {
+  if (till >= 50) {
     creditBiz(bizKey, till, x, y, true);
-    popText("+$" + Math.round(till) + " TIP", x - 8, y - 8, [255, 216, 96]);
+    popText("+$" + $d(till) + " TIP", x - 8, y - 8, [255, 216, 96]);
   }
   if (cut > 0 && server && server.p) {
     server.p.wallet += cut;
     if (bizOwner(bizKey) === "player") today.tipsShared = (today.tipsShared || 0) + cut;   // the day report is the PLAYER's books
-    if (cut >= 0.5) popText("+$" + Math.round(cut) + " TIP", server.x - 8, server.y - 26, [255, 216, 96]);
+    if (cut >= 50) popText("+$" + $d(cut) + " TIP", server.x - 8, server.y - 26, [255, 216, 96]);
   }
   if (window._stats) {
     window._stats.tipTill = (window._stats.tipTill || 0) + till;

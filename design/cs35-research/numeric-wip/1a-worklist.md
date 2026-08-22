@@ -1,0 +1,12 @@
+# 1a remaining (next wakes) — cents conversion worklist
+- [ ] visitor purse mint (find `newVisitor` wallet formula; cents from same draws; flush/light branches; step-4 purseMul already rounds)
+- [ ] wages: WAGE_MIN/WAGE_MAX clampWage bounds x100; BIZ wage state cents; job-board postings; p.wage migration; wage stepper displays /100
+- [ ] purse steps boundary: purseRate() x100 + floorOf() x100; ballot/hall card displays $d; policyLine string
+- [ ] rents: BIZ[b].rent read sites x100 (settlement, BILL display); house rents; harbourDues flows purseRate (auto once purseRate cents)
+- [ ] flush thresholds: wallet > 40 -> 4000 (7808, 7838, 7743 region); drifter wallet: 25 -> 2500; HOTELIER_CFG.BANKROLL x100
+- [ ] visitor pay path: `paid = menuPrice(...)` clamps + `min(tip, wallet)` (cents flow — verify)
+- [ ] credit: CREDIT_CFG values; warn thresholds; settleCreditLine minDue
+- [ ] save/load: SAVE_VER 2, s._num=1, inline largest-remainder migration (mirror tools/centmigrate.mjs), dust ledger fundRow; slotMeta /100; all money fields
+- [ ] wallet-sort tie-break at shelter sign-up (~7203 pre-slice; re-grep)
+- [ ] display sweep: report cards, manage tabs, dossier PURSE/SPENT rows, trade board, help — drive off suite failures + grep '"$"'
+- [ ] scenario tightening: audit === 0; money scenarios exact; then soak/matrices/fingerprint AFTER 1b
