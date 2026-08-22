@@ -898,8 +898,8 @@ scenario("needs bite: needy crew serve measurably fewer dishes", () => {
   // sickness cleared so only the efficiency channel differs).
   const sim0 = createSim({ seed: 1 });
   const effs = JSON.parse(sim0.G(`JSON.stringify([
-    crabEff({p:{hunger:0,dirt:0}}), crabEff({p:{hunger:1,dirt:0}}),
-    crabEff({p:{hunger:0,dirt:1}}), crabEff({p:{hunger:1,dirt:1}})])`));
+    crabEff({p:{hunger:0,dirt:0}}), crabEff({p:{hunger:Q20,dirt:0}}),
+    crabEff({p:{hunger:0,dirt:Q20}}), crabEff({p:{hunger:Q20,dirt:Q20}})])`));
   if (effs[0] !== 1) return `well-kept eff ${effs[0]}, expected 1.0`;
   if (!near(effs[1], 0.78, 0.86)) return `starving eff ${effs[1]}, expected ~0.82`;
   if (!near(effs[2], 0.90, 0.97)) return `filthy eff ${effs[2]}, expected ~0.94`;
@@ -1426,7 +1426,7 @@ scenario("tired: save migration seeds it from old sandy, strands nothing", () =>
     lv: { chef: 2 }, memorials: [], rep: 40, townCatch: 2, rate: 0, t: Date.now(),
     personas: [
       { name: "PINCHY", trait: "speedy", mode: "walk", acc: "none", color: 0, shift: "M", wallet: 30, house: 0, homeless: false, job: "shack", sandy: 0.7 },
-      { name: "CLAWDIA", trait: "tidy", mode: "bike", acc: "flower", color: 1, shift: "E", wallet: 25, house: 1, homeless: false, job: "shack", sandy: 0.2, tired: 0.55 },
+      { name: "CLAWDIA", trait: "tidy", mode: "bike", acc: "flower", color: 1, shift: "E", wallet: 25, house: 1, homeless: false, job: "shack", sandy: 0.2, tired: qn(0.55) },
     ],
     npc: { tills: { sudsy: 100 }, personas: [{ name: "SUDSY", npc: true, wallet: 12, job: "showers", sandy: 0.4 }] },
   }));
@@ -7235,7 +7235,7 @@ const DEP_BASE = `{
   waitMin: 10, worstMin: 10, worstBiz: "CRAB SHACK",
   quits: 0, quitMin: 0, quitBiz: null,
   shut: 0, full: 0, broke: 0, blocked: null, mistMin: 0, missed: 0,
-  hunger: 0.1, thirst: 0.1, dirt: 0.1, bored: 0.1, tired: 0.1 }`;
+  hunger: qn(0.1), thirst: qn(0.1), dirt: qn(0.1), bored: qn(0.1), tired: qn(0.1) }`;
 
 scenario("departures: every quote is DERIVED - one changed fact, one changed line", () => {
   const sim = createSim({ seed: 7 });
@@ -7253,11 +7253,11 @@ scenario("departures: every quote is DERIVED - one changed fact, one changed lin
     ["foreign", `{ foreign: 2 }`],
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`],
     ["idle", `{ left: 70, spent: 30 }`],
-    ["hungry", `{ hunger: 1, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
-    ["parched", `{ thirst: 1, drinks: 0 }`],
-    ["grubby", `{ dirt: 1, washes: 0 }`],
-    ["weary", `{ tired: 1, nightsBed: 0 }`],
-    ["bored", `{ bored: 1, games: 0 }`],
+    ["hungry", `{ hunger: Q20, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
+    ["parched", `{ thirst: Q20, drinks: 0 }`],
+    ["grubby", `{ dirt: Q20, washes: 0 }`],
+    ["weary", `{ tired: Q20, nightsBed: 0 }`],
+    ["bored", `{ bored: Q20, games: 0 }`],
     ["wait", `{ worstMin: 380, worstBiz: "CRAB SHACK", serves: 1 }`],
     ["dues", `{ dues: 4 }`],
     ["missed", `{ missed: 1 }`],
@@ -7322,11 +7322,11 @@ scenario("departures: the quote's mutation arms - drop the fact, lose the line",
     // THE NEED ARMS ARE TWO-CONDITION RULES ON PURPOSE. A bar at the gangway on
     // its own is a fact about the clock (VIS_RATE.hunger refills in seven
     // hours); it only becomes a finding when the town also never sold them one.
-    ["hungry", `{ hunger: 1, meals: 0 }`, `{ meals: 1 }`],
-    ["parched", `{ thirst: 1, drinks: 0 }`, `{ drinks: 1 }`],
-    ["grubby", `{ dirt: 1, washes: 0 }`, `{ washes: 1 }`],
-    ["bored", `{ bored: 1, games: 0 }`, `{ games: 1 }`],
-    ["weary", `{ tired: 1, nightsBed: 0 }`, `{ nightsBed: 1 }`],
+    ["hungry", `{ hunger: Q20, meals: 0 }`, `{ meals: 1 }`],
+    ["parched", `{ thirst: Q20, drinks: 0 }`, `{ drinks: 1 }`],
+    ["grubby", `{ dirt: Q20, washes: 0 }`, `{ washes: 1 }`],
+    ["bored", `{ bored: Q20, games: 0 }`, `{ games: 1 }`],
+    ["weary", `{ tired: Q20, nightsBed: 0 }`, `{ nightsBed: 1 }`],
     // ...and the purse's two halves are two DIFFERENT findings: a blocked door
     // is a town failure, an unblocked one is a town with nothing left to sell.
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`, `{ blocked: null, full: 0 }`],
@@ -7567,9 +7567,9 @@ scenario("departures: the card prints inside the canvas and never on top of itse
         mk({ buys: 0, blocked: "shut" }), mk({ buys: 0, blocked: "full" }),
         mk({ buys: 0, blocked: "broke" }), mk({ buys: 0 }),
         mk({ blocked: "full" }), mk({ blocked: "shut" }), mk({ blocked: "broke" }),
-        mk({ hunger: 1, meals: 0 }), mk({ thirst: 1, drinks: 0 }),
-        mk({ dirt: 1, washes: 0 }), mk({ tired: 1, nightsBed: 0 }),
-        mk({ bored: 1, games: 0 }));
+        mk({ hunger: Q20, meals: 0 }), mk({ thirst: Q20, drinks: 0 }),
+        mk({ dirt: Q20, washes: 0 }), mk({ tired: Q20, nightsBed: 0 }),
+        mk({ bored: Q20, games: 0 }));
       for (let i = 0; i < 20; i++) rows.push(mk({}));
       today.left = rows;
       depart = departBuild(); departT = 11; departPage = 0;
