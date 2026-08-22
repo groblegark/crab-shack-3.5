@@ -445,6 +445,33 @@ the same furniture planes this phase landed), the schedule chain, the
 ferry/rooms/queue-build glue, and the dispatch self. Next: schedule+kitchen
 as one unit, then the single-`tick()` hoist.
 
+## QUIET-BOX LEDGER (2026-08-22, the remeasure the phases owed)
+
+Taken at load average ≤3.3, standard bench workload (4 towns × 12 days),
+interleaved best-of-5, spreads ≤1.03, one fingerprint across all modes
+(`1337:9299:11! 4242:3203:13 909:12400:11! 31:1900:13`):
+
+| configuration | lived sim-days/s | vs vm 1× |
+|---|---|---|
+| vm realm, single core (session-start tooling) | 1.5 | 1× |
+| main realm, kernel off | 5.3 | 3.5× |
+| main realm, **kernel armed** | **9.0** | **6.0×** |
+| machine-wide, kernel armed (16×30 matrix, `--jobs 10`, 4.27s wall) | **~45** | **~30×** |
+
+Kernel on/off 1.69× quiet — consistent with every ratio taken under load,
+which retroactively validates the ratios-only discipline. The earlier
+9.4s matrix walls were neighbour load, not regression. CONVENTION NOTE,
+after a 2.5× ambiguity: throughput numbers here count LIVED sim-days
+(a town evicted day 9 did nine days of work); any figure counting
+asked-for days must say so.
+
+**The remaining rungs to 1000× leave this machine.** CPU saturation
+(~150–250×) and the batch-science 1000× need the cluster: the
+`deploy/crab-science` chart is landed and its pod flow proven from a
+bare public clone; the first sweep (4,096-town baseline histogram,
+8 pods × 512 towns) is specced in its README and blocked only on
+operator SSO to gasboat-prod.
+
 ## Sources
 
 - [Understanding the Performance of WebAssembly Applications](https://benchmarkingwasm.github.io/BenchmarkingWebAssembly/)
