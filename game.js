@@ -8606,6 +8606,76 @@ function errandDetour(c, e) {
   const stop = errandStopX(e), a = anchorX(c);
   return Math.abs(c.x - stop) + Math.abs(stop - a) - Math.abs(c.x - a);
 }
+// ---------------------------------------------------------------- the drop nudge
+// PUT DOWN BESIDE A THING, A CRAB CONSIDERS IT (owner ruling, 2026-08-22: "when
+// crabs get dragged somewhere they interact with the nearest thing as their next
+// preference"). An order is an INCENTIVE, not a puppet string: what a drop
+// changes is how far the crab has to want something before it is worth doing,
+// plus a thumb on the scale between stops - never the choice itself. A crab put
+// down at the juice bar who is broke, on the clock, or simply not thirsty walks
+// off like themselves, and every refusal is the refusal it always was.
+//
+// MEASURED BEFORE IT WAS BUILT, because half of this already worked. A crab put
+// down at the bar with thirst 0.50 ALREADY bought a drink: `errandDetour` is
+// zero at the stop you are standing on, so proximity was already winning among
+// the candidates that existed. What it could not do was make the bar a candidate
+// at all - at thirst 0.30 the same crab walked away to x=1234 and ignored the
+// counter it was standing at. So the nudge's real work is the THRESHOLD; the
+// appeal bump is the smaller half, and the detour term was always the rest.
+//
+// ONE TABLE, because a cultureway will own this: what a stop is worth to a
+// people, and how long standing near one stays with them, is culture rather
+// than physics (cs35-cultureway-substrate.md - a Layer-0 hook table in waiting).
+const NUDGE = {
+  R: 72,             // px from the stop that counts as "right there" - a quarter screen
+  TICKS: 60 * GMIN,  // one game-hour of impulse, on the monotonic tick clock
+  RELAX: qn(0.12),   // how far the bar drops - less than a day off grants (0.10-0.25)
+  AP: 130,           // and the thumb on the scale: x1.3, in appeal's own hundredths
+};
+// every stop a dropped crab can be standing next to, and the need it serves.
+// The pot and the ballot are deliberately absent: neither is gated on a need
+// threshold (the pot is gated on ILLNESS, the ballot on nothing at all), so
+// there is nothing for a relaxation to relax - and the detour term already
+// walks a dropped crab to the near table. A drop in open sand does nothing,
+// which is the feature and not the gap.
+const NUDGE_BIZ = { shack: "food", juicebar: "drink", showers: "clean", arcade: "fun" };
+// the tag is what makes a nudge and a candidate the SAME THING - one string
+// vocabulary, so a match can never drift from pickErrand's own take() calls
+function errandTag(e) {
+  if (e.vote) return "poll:" + e.poll;
+  if (e.ball) return "ball";
+  if (e.soup) return "soup";
+  if (e.tap != null) return "tap:" + e.tap;
+  return "biz:" + (e.biz || "shack");
+}
+function nudgeThingAt(x) {
+  let best = null, bestD = NUDGE.R + 1;
+  const put = (sx, tag, need) => {
+    const d = Math.abs(x - sx);
+    if (d < bestD) { bestD = d; best = { tag, need }; }
+  };
+  // the counter you queue at, not the whole footprint: standing at the far end
+  // of the arcade's wall is not standing at the arcade
+  for (const b of Object.keys(NUDGE_BIZ))
+    if (bizUnlocked(b)) put(BIZ[b].queueX, "biz:" + b, NUDGE_BIZ[b]);
+  for (let i = 0; i < WATER_TAPS.length; i++) put(WATER_TAPS[i].x, "tap:" + i, "drink");
+  put(BALL_X, "ball", "fun");
+  return best;
+}
+// Set on ARRIVAL, not at order time: the crab looks around when they get there,
+// and a preference that fired mid-walk would abandon the order just given.
+function setNudge(c) {
+  const t = nudgeThingAt(c.x);
+  c.nudgeTag = t ? t.tag : null;
+  c.nudgeNeed = t ? t.need : null;
+  c.nudgeT = t ? T + NUDGE.TICKS : 0;
+}
+function nudgeLive(c) { return !!c.nudgeTag && T < c.nudgeT; }
+// the bar drops ONLY for the need the thing they are standing beside serves
+function nudgeRelax(c, need) {
+  return nudgeLive(c) && c.nudgeNeed === need ? NUDGE.RELAX : 0;
+}
+function nudgeMatch(c, e) { return nudgeLive(c) && c.nudgeTag === errandTag(e); }
 // SLICE 5: the score is an EXACT RATIONAL {n, d} and the argmax compares by
 // cross-multiplication - the last float division in the sim's decision path
 // is gone. The value is the same score, term for term: appeal rides as
@@ -8617,8 +8687,13 @@ function errandScore(c, e) {
   // APPEAL is what keeps free water from eating the juice bar: a tap scores at
   // half a bought drink's pull, so the counter wins whenever the crab can
   // reach and afford one. It never zeroes out, so the tap is always THERE.
-  const ap = e.ap100 != null ? e.ap100 : 100;
-  if (lvl >= DIRE) return { n: ap * (99 + ERRAND_RANK[e.need]) * Q20, d: 100 };   // desperate: walk it, wherever it is
+  const ap0 = e.ap100 != null ? e.ap100 : 100;
+  if (lvl >= DIRE) return { n: ap0 * (99 + ERRAND_RANK[e.need]) * Q20, d: 100 };   // desperate: walk it, wherever it is
+  // THE THUMB ON THE SCALE, and it stops at the DIRE line above on purpose: a
+  // crab that desperate does not need a suggestion, and a nudge that reached
+  // past it could re-order two emergencies. Exact int, round-half-up at appeal's
+  // own boundary - x1.3 of a tap's 35 is 45.5, and 46 is the honest read.
+  const ap = nudgeMatch(c, e) ? idiv(ap0 * NUDGE.AP + 50, 100) : ap0;
   const dg = Math.round(errandDetour(c, e) * Q8);   // exact: a detour is a sum of Q8 images
   // the "don't backtrack the whole promenade before 9 AM" rule: on the way
   // out to a shift, a stop clear across town waits for the trip home
@@ -8646,7 +8721,9 @@ function pickErrand(c) {
   // like one: the crab who walked out because they were bored out of their
   // shell will absolutely spend it at the arcade, if the town has one.
   const off = awayToday(c) && !c.p.sick;
-  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5));
+  // THE DROP NUDGE RELAXES THE BAR (see NUDGE): standing at a counter makes a
+  // crab likelier to want what it sells - it does not make them hungry.
+  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food");
   // restaurant staff privilege: cook your own meal when the kitchen is
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
@@ -8679,7 +8756,7 @@ function pickErrand(c) {
   // would not walk out to the middle of the beach on their own will absolutely
   // wander over to a game already happening, which is both true to life and
   // the only way pairs stop being a coincidence.
-  const ballAt = ballPlayers().some(k => k.ballT > 0) ? BALL_JOIN : BALL_AT;
+  const ballAt = (ballPlayers().some(k => k.ballT > 0) ? BALL_JOIN : BALL_AT) - nudgeRelax(c, "fun");
   // NOBODY PLAYS BALL PARCHED. `boredYields` defers at 0.8, which is the right
   // bar for a 10-second chat you fall into on the way home and much too lax
   // for twelve seconds stood in the middle of the beach: measured, 447 of
@@ -8720,7 +8797,7 @@ function pickErrand(c) {
       // whole difference between 0.22 of relief and 0.08, so it should be
       // worth crossing the beach for.
       ap100: ballPlayers().length ? 84 : 35 });   // TAP_APPEAL x2.4 while the ball is out: 0.84 in hundredths
-  if ((c.p.thirst || 0) >= qn(0.45)) {
+  if ((c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink")) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
       const drinks = BIZ[drinkAt].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
@@ -8741,14 +8818,14 @@ function pickErrand(c) {
     // No staffing gate, no wallet gate, no shop hours - the whole point is
     // that this stop can never be unavailable. Both posts are offered and the
     // detour score picks the near one.
-    if ((c.p.thirst || 0) >= TAP_AT)
+    if ((c.p.thirst || 0) >= TAP_AT - nudgeRelax(c, "drink"))
       for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", ap100: 35 });
 
   }
   // dirt is serviced at the showers too (the laundromat is gone): a grubby
   // crab heads for the taps at the same 0.66 threshold that fed the sickness
   // "cared" check - a shower takes dirt down 0.5 (0.7 deluxe), well below it
-  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66))
+  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66)) - nudgeRelax(c, "clean")
     || (c.p.sick && (c.p.dirt || 0) >= qn(0.4));   // the sick drag themselves to the taps - staying clean is the cure
   // ON DUTY at the stalls, not "has ever worked a shift here": this gate used
   // to read c.workBiz, which is set at clock-in and NEVER CLEARED, so the
@@ -8816,7 +8893,7 @@ function pickErrand(c) {
   if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
   // bed rest otherwise: no arcade nights while ill
-  if (!c.p.sick && (c.p.bored || 0) >= (off ? qn(0.35) : qn(0.6)) && staffed("arcade")) {
+  if (!c.p.sick && (c.p.bored || 0) >= (off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && staffed("arcade")) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
@@ -9407,6 +9484,7 @@ function orderPop(c, ok, verdict) {
 }
 function orderGoto(c, x, y) {
   abortActivity(c);
+  c.nudgeTag = null; c.nudgeT = 0;   // a new order retires the last drop's impulse
   c.order = { kind: "goto", x: Math.max(12, Math.min(WORLD_W - 24, x)), y: clampY(y), idleT: -1 };
   c.dsC = DS.directed;
   setT(c, c.order.x, c.order.y);
@@ -9420,7 +9498,9 @@ function updateDirected(c, dt) {
     if (o.idleT <= 0) { c.order = null; c.dsC = DS.home; c.errandCd = Math.max(c.errandCd, 1 * SEC); }
     return;
   }
-  if (routedStep(c, crabMoveQ8(c), dt)) o.idleT = ORDER_IDLE;
+  // ARRIVED: the crab looks around, and what is within arm's reach becomes a
+  // preference for the next thing they choose to do (see NUDGE)
+  if (routedStep(c, crabMoveQ8(c), dt)) { o.idleT = ORDER_IDLE; setNudge(c); }
 }
 // pickErrand's recipe/pricing/staffing gates, sans the need thresholds - a
 // directed crab runs the errand NOW if the till, wallet and line allow it
