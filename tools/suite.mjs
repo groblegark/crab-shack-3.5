@@ -11712,6 +11712,24 @@ scenario("stream: the view's own stream is the session's, and a save does not to
   return s.G("_rOwned") ? true : "load left the town on the host's stream";
 });
 
+scenario("stream: a persona is minted from the TOWN's stream, not the host's", () => {
+  // A DATA pin, escalated rather than claimed. `makeCrabPersona`'s rng used to
+  // default to Math.random, which was the same cursor only while the sim
+  // stream WAS the host's; after a load it would have drawn from wherever the
+  // session left the host, so a reloaded town hired different crabs depending
+  // on what you did before loading. The trajectory scenario above cannot see
+  // it - three days after a load mints no new hire - so the mechanism is the
+  // assertion: minting must MOVE the town's cursor.
+  const env = loadEnvOf(1337, 3), lit = JSON.stringify(env);
+  const s = createSim({ seed: 1337 });
+  s.G(`load(null, JSON.parse(${lit}))`);
+  const before = s.G("simCursor()");
+  s.G("makeCrabPersona(5)");            // 5 is past the two founders: this one rolls
+  const after = s.G("simCursor()");
+  return before !== after ? true
+    : `minting a persona drew nothing from the town's stream (cursor stuck at ${before})`;
+});
+
 scenario("load: a town loaded onto a lived-in world is the town loaded clean", () => {
   const env = loadEnvOf(4242, 4), lit = JSON.stringify(env);
   const land = (lived) => {
