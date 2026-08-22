@@ -19,6 +19,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       restartPolicy: Never
+      serviceAccountName: {{ .Release.Name }}-runner
       {{- with .Values.nodeSelector }}
       nodeSelector: {{ toYaml . | nindent 8 }}
       {{- end }}
@@ -43,11 +44,16 @@ spec:
           workingDir: /work
           command: ["/bin/sh", "-ec"]
           # Pod i takes seeds [seedbase + i*townsPerPod, +townsPerPod).
-          # batch.mjs prints the JSON receipt (distributions, throughput,
-          # fingerprint context) to stdout - kubectl logs IS the result.
+          # The receipt is DURABLE: it is written back as a ConfigMap
+          # through the API before the pod exits, because on an ephemeral
+          # nodepool the node - and every log line on it - is reaped the
+          # moment the pod completes. Learned the expensive way: a 4,096-town
+          # run whose only copy of the science was kubelet logs on nodes
+          # karpenter had already deleted. Stdout is a progress feed, not a
+          # result store.
           args:
             - |
-              exec node tools/batch.mjs \
+              node tools/batch.mjs \
                 --towns {{ .Values.townsPerPod }} \
                 --seedbase $(( {{ .Values.seedbase }} + JOB_COMPLETION_INDEX * {{ .Values.townsPerPod }} )) \
                 --days {{ .Values.days }} \
@@ -55,12 +61,44 @@ spec:
                 {{- range .Values.extraArgs }}
                 {{ . }} \
                 {{- end }}
-                --json
+                --json | tee /tmp/receipt.json
+              node -e '
+                const fs = require("fs");
+                const receipt = fs.readFileSync("/tmp/receipt.json", "utf8").trim().split("\n").pop();
+                const sa = "/var/run/secrets/kubernetes.io/serviceaccount";
+                const token = fs.readFileSync(sa + "/token", "utf8");
+                const ns = fs.readFileSync(sa + "/namespace", "utf8");
+                const name = process.env.RECEIPT_NAME;
+                const body = { apiVersion: "v1", kind: "ConfigMap",
+                  metadata: { name, labels: { "crab-science/receipt": process.env.RELEASE } },
+                  data: { "receipt.json": receipt } };
+                const opts = (method, path) => ({ method,
+                  ca: fs.readFileSync(sa + "/ca.crt"),
+                  headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" } });
+                const base = `https://${process.env.KUBERNETES_SERVICE_HOST}:${process.env.KUBERNETES_SERVICE_PORT}/api/v1/namespaces/${ns}/configmaps`;
+                const https = require("https");
+                const send = (method, url) => new Promise((res, rej) => {
+                  const rq = https.request(url, opts(method), (rs) => {
+                    let d = ""; rs.on("data", (c) => d += c);
+                    rs.on("end", () => res({ code: rs.statusCode, body: d }));
+                  });
+                  rq.on("error", rej); rq.end(JSON.stringify(body));
+                });
+                send("POST", base).then(async (r) => {
+                  if (r.code === 409) r = await send("PUT", base + "/" + name);
+                  if (r.code >= 300) { console.error("receipt write failed", r.code, r.body); process.exit(1); }
+                  console.log("receipt banked:", name);
+                });
+              '
           env:
             - name: JOB_COMPLETION_INDEX
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+            - name: RELEASE
+              value: {{ .Release.Name }}
+            - name: RECEIPT_NAME
+              value: {{ .Release.Name }}-receipt-$(JOB_COMPLETION_INDEX)
           resources: {{ toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - { name: work, mountPath: /work }
