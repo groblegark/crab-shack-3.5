@@ -3881,10 +3881,11 @@ function setHotelRooms(n) {
   while (b.stalls.length > want) {
     const st = b.stalls.pop();
     if (st && st.occupant) { if (st.occupant.room === st) st.occupant.room = null; st.occupant = null; }
+    if (st) freeFurn(st);   // its fid goes back to the registry with its flags cleared
   }
   while (b.stalls.length < want) {
     const s = cabanaSpot(b.stalls.length - HOTEL_ROOMS_BASE);
-    b.stalls.push({ x: s.x, y: s.y, cabana: true, occupant: null, dirty: false, cleaning: false });
+    b.stalls.push(mkFurn({ x: s.x, y: s.y, cabana: true, occupant: null, dirty: false, cleaning: false }));
   }
   b.rent = HOTEL_RENT_BASE + (b.stalls.length - HOTEL_ROOMS_BASE) * ROOM_CFG.RENT;
   annexe.built = b.stalls.length - HOTEL_ROOMS_BASE;
@@ -6001,6 +6002,23 @@ class VisS {
   set bored(v) { VBOR[this.si] = v; }
   get tired() { return VTIR[this.si]; }
   set tired(v) { VTIR[this.si] = v; }
+  // KERNEL PHASE 5 residency: the counter machine's scalars and the two
+  // furniture holds. stall/table hand back the REGISTRY wrapper, so every
+  // identity compare (`seat.occupant === k`, `k.table === t`) still holds.
+  get patience() { return C_PAT[this.si]; }
+  set patience(v) { C_PAT[this.si] = v; }
+  get climb() { return C_CLM[this.si]; }
+  set climb(v) { C_CLM[this.si] = v; }
+  get showerT() { return C_SHW[this.si]; }
+  set showerT(v) { C_SHW[this.si] = v; }
+  get dineT() { return C_DIN[this.si]; }
+  set dineT(v) { C_DIN[this.si] = v; }
+  get waitT() { return C_WAI[this.si]; }
+  set waitT(v) { C_WAI[this.si] = v; }
+  get stall() { return C_STL[this.si] >= 0 ? FURN[C_STL[this.si]] : null; }
+  set stall(v) { C_STL[this.si] = v ? v.fid : -1; }
+  get table() { return C_TBL[this.si] >= 0 ? FURN[C_TBL[this.si]] : null; }
+  set table(v) { C_TBL[this.si] = v ? v.fid : -1; }
 }
 const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // the boundary for FOREIGN literals: the suite stages customer stubs as plain
@@ -6012,7 +6030,8 @@ const animTOf = (c) => c.animQ * 9 / 4294967296;   // exactly the old srand()*9 
 function vivifyCust(o) {
   const lift = {};
   for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
-                   "hunger", "thirst", "dirt", "bored", "tired"])
+                   "hunger", "thirst", "dirt", "bored", "tired",
+                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table"])
     if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
@@ -6085,6 +6104,61 @@ const KM_OPEN  = KERN ? new Int32Array(_kb, 31168, 8) : null,
       KM_VPOUT = KERN ? new Int32Array(_kb, 32704, 8) : null;
 if (KERN && !(KERN.exports.abi_check && KERN.exports.abi_check(VS.toBiz, VS.inRoom, VS.onSand, VS.roam)))
   throw new Error("kernel ABI mismatch: the VS codes moved under the compiled unit");
+// KERNEL PHASE 5 residency: the counter machine's per-customer scalars and
+// the furniture facts move into planes at the map's next free run (32768..),
+// so the compiled machine and the JS reference read the same bytes. All int:
+// patience is Q12, climb Q12, the three timers tick counts, STL/TBL are fids
+// (-1 none). Furniture: x in px ints, FLG bits (1 occupant, 2 dirty,
+// 4 cleaning), DSH the dishes count.
+const C_PAT = KERN ? new Int32Array(_kb, 32768, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_CLM = KERN ? new Int32Array(_kb, 33408, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_SHW = KERN ? new Int32Array(_kb, 34048, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_DIN = KERN ? new Int32Array(_kb, 34688, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_WAI = KERN ? new Int32Array(_kb, 35328, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_STL = KERN ? new Int32Array(_kb, 35968, POOL_MAX) : new Int32Array(POOL_MAX),
+      C_TBL = KERN ? new Int32Array(_kb, 36608, POOL_MAX) : new Int32Array(POOL_MAX);
+const FURN_MAX = 64;
+const FT_X   = KERN ? new Int32Array(_kb, 37248, FURN_MAX) : new Int32Array(FURN_MAX),
+      FT_FLG = KERN ? new Int32Array(_kb, 37504, FURN_MAX) : new Int32Array(FURN_MAX),
+      FT_DSH = KERN ? new Int32Array(_kb, 37760, FURN_MAX) : new Int32Array(FURN_MAX);
+// the registry: fid -> wrapper, so the ID planes can hand back the object
+// every JS reader compares by identity. Free-listed - the annexe pops rooms.
+const FURN = new Array(FURN_MAX).fill(null);
+const furnFree = []; let furnTop = 0;
+class FurnS {
+  get x() { return FT_X[this.fid]; }
+  set x(v) { FT_X[this.fid] = v; }
+  // the occupant's IDENTITY lives on the object (JS compares `occupant.room
+  // === st`), but its TRUTH is the plane bit - the kernel frees a stall by
+  // clearing the bit, and the getter goes dark without a JS write.
+  get occupant() { return (FT_FLG[this.fid] & 1) ? this._occ : null; }
+  set occupant(v) { this._occ = v; if (v) FT_FLG[this.fid] |= 1; else FT_FLG[this.fid] &= ~1; }
+  get dirty() { return !!(FT_FLG[this.fid] & 2); }
+  set dirty(v) { if (v) FT_FLG[this.fid] |= 2; else FT_FLG[this.fid] &= ~2; }
+  get cleaning() { return !!(FT_FLG[this.fid] & 4); }
+  set cleaning(v) { if (v) FT_FLG[this.fid] |= 4; else FT_FLG[this.fid] &= ~4; }
+  get dishes() { return FT_DSH[this.fid]; }
+  set dishes(v) { FT_DSH[this.fid] = v; }
+}
+function mkFurn(o) {
+  const fid = furnFree.length ? furnFree.pop() : furnTop++;
+  if (fid >= FURN_MAX) throw new Error("furniture registry overflow at " + FURN_MAX);
+  const w = Object.setPrototypeOf({ fid }, FurnS.prototype);
+  FT_X[fid] = o.x; FT_FLG[fid] = 0; FT_DSH[fid] = 0; FURN[fid] = w;
+  for (const f in o) if (f !== "x" && f !== "occupant" && f !== "dirty" && f !== "cleaning" && f !== "dishes") w[f] = o[f];
+  w._occ = null;
+  if (o.occupant) w.occupant = o.occupant;
+  if (o.dirty) w.dirty = true; if (o.cleaning) w.cleaning = true;
+  if (o.dishes) w.dishes = o.dishes;
+  return w;
+}
+function freeFurn(w) { FURN[w.fid] = null; FT_FLG[w.fid] = 0; FT_DSH[w.fid] = 0; furnFree.push(w.fid); }
+// wrap the BIZ literals once, at load - every stall and table the town opens
+// with gets its fid here; the annexe's cabanas come through mkFurn at build.
+for (const b of Object.keys(BIZ)) {
+  if (BIZ[b].tables) BIZ[b].tables = BIZ[b].tables.map(mkFurn);
+  if (BIZ[b].stalls) BIZ[b].stalls = BIZ[b].stalls.map(mkFurn);
+}
 const MNULL = -0x80000000;   // the _mx/_my "no motion target this frame" sentinel
 const POOL_LIVE = new Uint8Array(POOL_MAX), POOL_MARK = new Uint8Array(POOL_MAX);
 let poolTop = 0; const poolFree = [];
@@ -6094,6 +6168,8 @@ function poolAlloc() {
   PXQ[i] = 0; PYQ[i] = 0; PTXQ[i] = 0; PTYQ[i] = 0; PWYQ[i] = 0;
   PMXQ[i] = MNULL; PMYQ[i] = MNULL; POOL_LIVE[i] = 1;
   VHUN[i] = 0; VTHI[i] = 0; VDIRP[i] = 0; VBOR[i] = 0; VTIR[i] = 0; VSTCP[i] = 0;
+  C_PAT[i] = 0; C_CLM[i] = 0; C_SHW[i] = 0; C_DIN[i] = 0; C_WAI[i] = 0;
+  C_STL[i] = -1; C_TBL[i] = -1;   // no holds; 0 is a real fid
   return i;
 }
 // the reap: slots owned by objects no pool can reach any more go back on the
@@ -8960,8 +9036,9 @@ function updateErrand(c, dt) {
       const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
-        patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
+        maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
       cust.stC = VS.waiting;   // through the accessor - an own stC would shadow the plane
+      cust.patience = 90 * PQ;
       cust.x = c.x;
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
       customers.push(cust); noteArrival(c.errandBiz);
@@ -10060,7 +10137,7 @@ function payAndBenefit(c, cust) {
     // integer arithmetic on a price that is already cents, and the worst-case
     // numerator is about 1.2e12 - comfortably inside the exact-integer range.
     const PR = cust.patience >= cust.maxPatience ? 65536
-      : Math.max(0, idiv(131072 * cust.patience + cust.maxPatience, 2 * cust.maxPatience));   // exact round-half-up of 65536*p/maxP; the >= branch also keeps the suite's 9e9 sentinel out of the 2^53 window
+      : Math.max(0, idiv(131072 * cust.patience + cust.maxPatience, 2 * cust.maxPatience));   // exact round-half-up of 65536*p/maxP; the >= branch also keeps the suite's 0x7fffffff sentinel (patience is an i32 plane) out of the 2^53 window
     const TM = Math.max(0, Math.round(65536 * tipMult));
     const F = Math.floor(PR * TM / 65536);   // the two folded into one Q16 factor
     const counterN = (seated || window._fullCounterTip) ? 20 : 3;   // TIP_COUNTER 0.15 = 3/20 exactly
@@ -10406,8 +10483,10 @@ function newVisitor(overnightOnly, cu) {
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     si: poolAlloc(), leg: 0,
     // the shop pipeline's own fields, dormant until they join a line
-    biz: null, recipe: null, patience: VIS_PATIENCE * PQ, maxPatience: VIS_PATIENCE * PQ,
-    claimed: false, served: false, happy: false, server: null, table: null, stall: null,
+    // (patience/table/stall are PLANE fields now - set through the accessors
+    // below the attach, never in the literal: an own property shadows)
+    biz: null, recipe: null, maxPatience: VIS_PATIENCE * PQ,
+    claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
     nights, nightsHad: 0, rough: false, roughNights: 0, unhoused: 0,
@@ -10421,6 +10500,7 @@ function newVisitor(overnightOnly, cu) {
   // property in the literal above would shadow the doors (lesson #1)
   v.stC = VS.ashore;
   v.hunger = n.hunger; v.thirst = n.thirst; v.dirt = n.dirt; v.bored = n.bored; v.tired = n.tired;
+  v.patience = VIS_PATIENCE * PQ; v.table = null; v.stall = null;
   v.x = FERRY.gangway; v.y = FERRY.deckY; v.wy = FERRY.deckY;
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
@@ -11150,10 +11230,11 @@ function newCustomer(bizKey) {
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
-    si: poolAlloc(), spawnXQ: spawnX * Q8, patience: 50 * PQ, maxPatience: 50 * PQ,
+    si: poolAlloc(), spawnXQ: spawnX * Q8, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null }, VisProto);
   w.stC = VS.arriving;   // through the accessor - an own stC would shadow the plane
+  w.patience = 50 * PQ;
   w.x = spawnX;
   return w;
 }

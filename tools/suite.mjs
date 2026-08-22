@@ -757,7 +757,7 @@ scenario("queues: arrival order, even spacing, a smooth step-up and no jitter", 
     for (let i = 0; i < 4; i++) {
       const k = newCustomer("shack");
       k.state = "waiting"; k.x = BIZ.shack.queueX + 46;
-      k.patience = 9e9; k.maxPatience = 9e9;
+      k.patience = 0x7fffffff; k.maxPatience = 0x7fffffff;
       k.claimed = true;   // hold the kitchen off: this probe measures GEOMETRY, not service
       window._q.push(k);
     }
@@ -770,7 +770,7 @@ scenario("queues: arrival order, even spacing, a smooth step-up and no jitter", 
     if (!c) return "no crab free to send on an errand";
     const cust = vivifyCust({ biz: "shack", recipe: BIZ.shack.recipes[0], isCrab: true, crab: c, need: "food",
       x: BIZ.shack.queueX + 46, spawnX: BIZ.shack.queueX + 46, state: "waiting",
-      patience: 9e9, maxPatience: 9e9, claimed: true, served: false, server: null });
+      patience: 0x7fffffff, maxPatience: 0x7fffffff, claimed: true, served: false, server: null });
     queueJoin(cust); customers.push(cust);
     c.dayState = "errand"; c.errandBiz = "shack"; c.errandCust = cust; c.hidden = false;
     window._q.push(cust);
@@ -11326,7 +11326,7 @@ scenario("queues: the seat map is rank-by-ticket - the Map grouping owes nothing
       for (let i = 0; i < n; i++) {
         const k = newCustomer(biz);
         k.state = "waiting"; k.x = BIZ[biz].queueX + 46;
-        k.patience = 9e9; k.maxPatience = 9e9; k.claimed = true;
+        k.patience = 0x7fffffff; k.maxPatience = 0x7fffffff; k.claimed = true;
         built.push(k);
       }
       for (let i = built.length - 1; i >= 0; i--) customers.push(built[i]);   // array REVERSES join order
