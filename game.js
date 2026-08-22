@@ -1006,7 +1006,7 @@ function pollPapers() { return pollCalled() ? ballotBox.papers : 0; }
 // WHO IS STANDING AT THE TABLE right now - used to space voters out along it
 // so they queue rather than stand inside one another, and to draw the scene.
 function pollVoters(i) {
-  return allCrabs().filter(k => k.dayState === "atTap" && k.tapStop && k.tapStop.vote
+  return allCrabs().filter(k => k.dsC === DS.atTap && k.tapStop && k.tapStop.vote
     && (i == null || k.tapStop.poll === i));
 }
 // HOW BADLY THIS CRAB WANTS TO GO AND VOTE, on the same 0-1 scale as hunger and
@@ -1970,7 +1970,7 @@ function trackCloseQueues() {     // the moment a shop's hours end, count who wa
   for (const b of Object.keys(BIZ)) {
     const open = bizUnlocked(b) && bizOpenNow(b);
     if (_wasOpen[b] && !open) {
-      const q = customers.filter(k => k.biz === b && (k.state === "waiting" || k.state === "arriving")).length;
+      const q = customers.filter(k => k.biz === b && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
       if (q) (hoursObs[b] = hoursObs[b] || { first: 0, last: 0, closeQ: 0 }).closeQ += q;
     }
     _wasOpen[b] = open;
@@ -2368,8 +2368,8 @@ function salePrice(b) { return market[b] ? market[b].price : askingPrice(b); }
 function layOff(k) {
   logLaidOff(k);   // DIARY: read the old job BEFORE it is cleared below
   abortChef(k); abortErrand(k);
-  k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
-  k.dayState = "home"; k.cstate = "";
+  k.duty = false; k.pendingOff = false; k.ksC = KS.idle; k.carrying = null;
+  k.dsC = DS.home; k.csC = 0;
   k.p.employer = null; k.p.owner = null; k.p.ot = false;
   if (k.p.npc) {
     rosterGen++;
@@ -2464,8 +2464,8 @@ function buyBusiness(b, buyer) {
       abortChef(buyer); abortErrand(buyer);
       rosterGen++;
       buyer.p.owner = id; buyer.p.job = b; buyer.p.employer = null; buyer.p.shift = "D";
-      buyer.duty = false; buyer.pendingOff = false; buyer.kstate = "idle";
-      buyer.carrying = null; buyer.dayState = "home"; buyer.cstate = "";
+      buyer.duty = false; buyer.pendingOff = false; buyer.ksC = KS.idle;
+      buyer.carrying = null; buyer.dsC = DS.home; buyer.csC = 0;
       buyer.workBiz = b; buyer.fishSpot = null;
     }
     // THE FLOAT COMES BACK AFTER THE BUYER IS THE OWNER, and the order is the
@@ -2916,8 +2916,8 @@ function handOverBiz(b, oid) {
     if (k.p.job !== b) continue;
     if (k.p.npc) { layOff(k); continue; }
     abortChef(k); abortErrand(k);
-    k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
-    k.dayState = "home"; k.cstate = "";
+    k.duty = false; k.pendingOff = false; k.ksC = KS.idle; k.carrying = null;
+    k.dsC = DS.home; k.csC = 0;
     rosterGen++;
     k.p.job = "shack"; k.workBiz = "shack";
     crabLog(k, "work", "MOVED TO THE CRAB SHACK - THE " + BIZ[b].short + " WAS SOLD", 0);
@@ -3246,8 +3246,8 @@ function stepDownOwner(k, oid, exceptBiz) {
   const other = Object.keys(BIZ).find(b2 => b2 !== exceptBiz && bizOwner(b2) === oid);
   if (!other) { layOff(k); return; }
   abortChef(k); abortErrand(k);
-  k.duty = false; k.pendingOff = false; k.kstate = "idle"; k.carrying = null;
-  k.dayState = "home"; k.cstate = "";
+  k.duty = false; k.pendingOff = false; k.ksC = KS.idle; k.carrying = null;
+  k.dsC = DS.home; k.csC = 0;
   rosterGen++;
   k.p.job = other; k.workBiz = other; k.p.shift = "D"; k.p.employer = null;
   k.fishSpot = null;
@@ -3990,7 +3990,7 @@ function drawDormLoft() {
       wrect(wx, y + 3, 8, 5, [40, 30, 40]);
       // a lamp in the loft window when the crab in that bed is home in it
       const who = roll[DORM_CFG.BASE + r * 4 + i];
-      const occ = who && who.dayState === "home";
+      const occ = who && who.dsC === DS.home;
       wrect(wx + 1, y + 4, 6, 3, occ && darkness() > 0.4 ? [255, 216, 130] : [58, 70, 92]);
     }
   }
@@ -4052,7 +4052,7 @@ function drawRoomChip() {
 // tell the difference and neither should the player.
 function drawCabana(t, n) {
   const guest = t.occupant && t.occupant.visitor ? t.occupant : null;
-  const lit = guest && (guest.state === "inRoom" || darkness() > 0.4);
+  const lit = guest && (guest.stC === VS.inRoom || darkness() > 0.4);
   const y = t.y - 15;
   wrect(t.x, y + 3, 16, 12, [214, 198, 170]);               // the hut
   wrect(t.x, y + 3, 16, 1, [180, 164, 140]);
@@ -4064,7 +4064,7 @@ function drawCabana(t, n) {
   wrect(t.x + 1, y + 5, 3, 3, lit ? [255, 216, 130] : [58, 70, 92]);   // the little window
   const nx = t.x + 7 - camX;
   if (nx > -12 && nx < W) smallText(ctx, "" + n, nx, y - 6, [70, 60, 90]);
-  if (guest && guest.state === "inRoom") {
+  if (guest && guest.stC === VS.inRoom) {
     const ph = ((viewT * 0.7 + t.x * 0.01) % 1);
     smallText(ctx, "Z", t.x + 12 - camX, y + 2 - ph * 4, [190, 205, 255]);
   }
@@ -4360,7 +4360,7 @@ function effShift(c) {
 // on the clock, right now, in overtime? (the powerup marker + the OT tags read
 // this, so they clear the instant OT ends - nothing to reset)
 function onOvertimeNow(c) {
-  if (!c.duty || c.dayState !== "working") return false;
+  if (!c.duty || c.dsC !== DS.working) return false;
   const w = otWindow(c);
   if (!w) return false;
   const sh = dutyShift(c);
@@ -4697,8 +4697,8 @@ function quitOverPay(c, why) {
   if (to) {
     const oid = bizOwner(to);
     abortErrand(c); abortChef(c);
-    c.duty = false; c.pendingOff = false; c.kstate = "idle"; c.carrying = null;
-    c.dayState = "home"; c.cstate = "";
+    c.duty = false; c.pendingOff = false; c.ksC = KS.idle; c.carrying = null;
+    c.dsC = DS.home; c.csC = 0;
     rosterGen++;
     c.p.job = to; c.p.employer = oid; c.workBiz = to; c.p.fisher = false;
     delete c.p.wage; delete c.p.wageOwner;   // a new boss, a new rate
@@ -5616,10 +5616,10 @@ const BALL_SOLO = qn(0.08);       // ...and knocking it about on your own
 const BALL_CD = 300 * GMIN;   // game minutes: not a career
 const BALL_PX = 30;           // close enough to be in the same game
 const BALL_LINES = ["OVER HERE!", "MY CLAW!", "NICE ONE", "TOO HIGH!", "AGAIN!"];
-function ballPlayers() { return allCrabs().filter(k => k.dayState === "atBall"); }
+function ballPlayers() { return allCrabs().filter(k => k.dsC === DS.atBall); }
 function ballHasRoom(c) { return ballPlayers().filter(k => k !== c).length < 2; }
 function startBallStop(c) {
-  c.dayState = "atBall"; c.ballT = 0;
+  c.dsC = DS.atBall; c.ballT = 0;
   // NO TIRED_ERRAND HERE, and that is measured rather than sentimental. That
   // charge models a chore - the trudge out and back with the shopping - and
   // adding it to a game of catch pushed the MORNING/EVENING fatigue gap from
@@ -5661,7 +5661,7 @@ function updateBall(c, dt) {
     if (mate) window._stats.ballPairs = (window._stats.ballPairs || 0) + 1;
   }
   c.ballT = 0; c.errandCd = 4 * SEC; c.ballCd = BALL_CD;
-  c.dayState = "home";
+  c.dsC = DS.home;
   afterErrand(c, true);
 }
 // ---- CHATTER (the time-priced cure) ---------------------------------------
@@ -5681,7 +5681,7 @@ function chatReady(c) {
   if (c.slot >= 0 || c.order || (c.napT || 0) > 0 || (c.chatCd || 0) > 0) return false;
   if ((c.p.bored || 0) < CHAT_AT || boredYields(c)) return false;
   const ds = c.dayState;
-  if (ds === "working") return !c.pendingOff && (c.p.job === "fishing" || c.kstate === "idle" || c.kstate === "wander");
+  if (ds === "working") return !c.pendingOff && (c.p.job === "fishing" || c.ksC === KS.idle || c.ksC === KS.wander);
   // ...and NOBODY strikes up a conversation in their sleep. Without this a
   // pair of shelter cots 26px apart chat at 04:30, which reads as a bug even
   // though the arithmetic is fine. The walk home in the dark still counts:
@@ -5691,7 +5691,7 @@ function chatReady(c) {
 }
 function startChat(a, b) {
   for (const [c, o] of [[a, b], [b, a]]) {
-    c.chatFrom = c.dayState; c.dayState = "chat";
+    c.chatFrom = c.dayState; c.dsC = DS.chat;
     c.chatWith = o; c.chatT = CHAT_SECS + ((srand() * 6 * SEC) | 0);
     c.chatCd = CHAT_CD; c.chatLine = 0;
     c.wander = null; c.wanderT = 0;   // the conversation IS the wander now
@@ -5702,7 +5702,7 @@ function startChat(a, b) {
   if (window._stats) window._stats.chats = (window._stats.chats || 0) + 1;
 }
 function endChat(c, paid) {
-  if (c.dayState !== "chat") return;
+  if (c.dsC !== DS.chat) return;
   if (paid) {
     c.p.bored = Math.max(0, (c.p.bored || 0) - CHAT_RELIEF);
     if (window._stats) window._stats.chatRelief = (window._stats.chatRelief || 0) + CHAT_RELIEF;
@@ -5717,7 +5717,7 @@ function endChat(c, paid) {
 // samples. Both exemptions are by construction rather than by special case.
 function updateChat(c, dt) {
   const o = c.chatWith;
-  if (!o || o.dayState !== "chat" || o.chatWith !== c) { endChat(c, false); return; }
+  if (!o || o.dsC !== DS.chat || o.chatWith !== c) { endChat(c, false); return; }
   c.chatT -= dtT;
   // alternate the bubbles so it reads as a conversation, not two monologues
   const beat = Math.floor((CHAT_SECS + 6 - c.chatT) / 3.5);
@@ -5804,8 +5804,8 @@ const ROUGH_RATE = 0.012;
 // order, or simply a shorter shift.
 function sleepRough(c) {
   c.p.rough = true; c.p.roughLast = day;
-  c.hidden = false; c.cstate = ""; c.busFrom = -1; c.busTo = -1;
-  c.dayState = "home"; c.duty = false; c.pendingOff = false;
+  c.hidden = false; c.csC = 0; c.busFrom = -1; c.busTo = -1;
+  c.dsC = DS.home; c.duty = false; c.pendingOff = false;
   c.y = clampY(c.y); setT(c, c.x, c.y);
   c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 * SEC };
   popText("TOO TIRED TO GET HOME", c.x - 22, c.y - 26, [190, 160, 230]);
@@ -5907,6 +5907,50 @@ function updateHome(c, dt) {
   routedWalk(c, s.x, s.y, idiv(crabMoveQ8(c) * 7, 10), dt);
 }
 
+
+// ---------------------------------------------------------------- event codes
+// SLICE 6a. The four per-tick state machines store an INT CODE; the string
+// the suite, the save and the diary read is a prototype accessor over the
+// name table. The CODES drive logic; the strings render at the observation
+// point. Setters are STRICT - an unknown string is a thrown error, not a
+// silent NaN state - so every write site is provably in-table.
+const DS_NAMES = ["home", "toWork", "working", "toErrand", "errand", "atTap",
+  "toHome", "selfCook", "chat", "atBall", "directed"];
+const KS_NAMES = ["idle", "walk", "work", "toSlot", "waitSlot", "waitCash",
+  "busingTable", "cleaningStall", "toStallClean", "toTableClean", "nap", "wander"];
+const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
+  "walkToVehicle", "drive", "travel", "walkOff"];
+const VS_NAMES = ["", "ashore", "arriving", "waiting", "toSeat", "seatedWaiting",
+  "dining", "toStall", "waitStall", "outStall", "toTable", "showering", "toBiz",
+  "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving"];
+const DS = {}, KS = {}, CS = {}, VS = {};
+DS_NAMES.forEach((n, i) => DS[n] = i); KS_NAMES.forEach((n, i) => KS[n] = i);
+CS_NAMES.forEach((n, i) => CS[n] = i); VS_NAMES.forEach((n, i) => VS[n] = i);
+class CrabS {
+  get dayState() { return DS_NAMES[this.dsC]; }
+  set dayState(s) { const c = DS[s]; if (c === undefined) throw new Error("dayState? " + s); this.dsC = c; }
+  get kstate() { return KS_NAMES[this.ksC]; }
+  set kstate(s) { const c = KS[s]; if (c === undefined) throw new Error("kstate? " + s); this.ksC = c; }
+  get cstate() { return CS_NAMES[this.csC]; }
+  set cstate(s) { const c = CS[s]; if (c === undefined) throw new Error("cstate? " + s); this.csC = c; }
+}
+class VisS {
+  get state() { return VS_NAMES[this.stC]; }
+  set state(s) { const c = VS[s]; if (c === undefined) throw new Error("state? " + s); this.stC = c; }
+}
+const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
+// the boundary for FOREIGN literals: the suite stages customer stubs as plain
+// objects speaking strings (a cultureway runtime may one day do the same).
+// An own `state:` data property would SHADOW the accessor, so the string is
+// lifted off, the prototype attached, and the string re-enters through the
+// strict setter - arriving as a code like every other write.
+function vivifyCust(o) {
+  if (Object.prototype.hasOwnProperty.call(o, "state")) {
+    const s = o.state; delete o.state; Object.setPrototypeOf(o, VisProto); o.state = s;
+  } else Object.setPrototypeOf(o, VisProto);
+  return o;
+}
+
 function newCrab(persona) {
   if (persona.wallet == null) persona.wallet = 10;
   if (persona.job == null) persona.job = "shack";
@@ -5943,22 +5987,22 @@ function newCrab(persona) {
   if (persona.boredDays == null) persona.boredDays = 0;
   if (persona.walkout == null) persona.walkout = 0;
   if (persona.rough == null) persona.rough = false;
-  return {
+  return Object.setPrototypeOf({
     p: persona,
     x: homeX({ p: persona }), y: 160, tx: 0, ty: 160,
     flip: false, hidden: false, animT: srand() * 9,
-    dayState: "home", cstate: "", target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
+    dsC: DS.home, csC: 0, target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
     duty: false, pendingOff: false, pauseT: 0, _offIdx: 0,
     // kitchen fields
-    kstate: "idle", cust: null, carrying: null, stepIdx: 0,
+    ksC: KS.idle, cust: null, carrying: null, stepIdx: 0,
     workT: 0, workMax: 0, slot: -1, slotKind: null,
     // needs-failure fields (all transient - derived behaviour, nothing to save)
     idleT: 0, wander: null, wanderT: 0, wanderCd: 0,
     chatT: 0, chatCd: 0, chatWith: null, chatFrom: null, chatLine: 0,
     napT: 0, napFrom: null,
     quip: null, quipT: 8 + srand() * 15,
-  };
+  }, CrabProto);
 }
 // ---- THE TRUDGE: hunger and thirst fail as a SPEED PENALTY (Matt's call:
 // "dirt boredom and tiredness are good; hunger and thirst should just be a
@@ -6010,9 +6054,9 @@ const DRAG_THIRST_AT = qn(0.5);   // pitched so the ramp passes through 0.85 at
 // reach free water 100px away. It also makes the fix LEGIBLE - the moment a
 // starving crab decides to eat, it picks its feet up.)
 function selfCareNeed(c) {
-  if (c.dayState === "atTap") return c.tapStop ? c.tapStop.need : null;
-  if (c.dayState === "selfCook") return c.cookNeed || "food";
-  if ((c.dayState === "toErrand" || c.dayState === "errand") && c.errand) return c.errand.need;
+  if (c.dsC === DS.atTap) return c.tapStop ? c.tapStop.need : null;
+  if (c.dsC === DS.selfCook) return c.cookNeed || "food";
+  if ((c.dsC === DS.toErrand || c.dsC === DS.errand) && c.errand) return c.errand.need;
   return null;
 }
 // The ramp lived as a per-call closure and profiled at 1% by itself; same
@@ -7363,8 +7407,8 @@ function load(slot) {
     const ri = +v.rm;
     const rooms = hotelRooms();
     if (ri >= 0 && rooms[ri] && !rooms[ri].occupant) { k.room = rooms[ri]; rooms[ri].occupant = k; k.roomN = ri + 1; }
-    else if (k.state === "inRoom" || k.state === "toRoom") k.state = "roam";
-    if (k.state === "onSand") { k.rough = true; k.roughFlag = true; }
+    else if (k.stC === VS.inRoom || k.stC === VS.toRoom) k.stC = VS.roam;
+    if (k.stC === VS.onSand) { k.rough = true; k.roughFlag = true; }
     k.spawnX = k.x; k.y = k.wy; k.biz = null; k.recipe = null;
     customers.push(k);
   }
@@ -7495,15 +7539,15 @@ function commitImport(i) {
 
 // ---------------------------------------------------------------- quips
 function quipContext(c) {
-  if (c.dayState === "working") return "work";
-  if (c.dayState === "home") return "home";
+  if (c.dsC === DS.working) return "work";
+  if (c.dsC === DS.home) return "home";
   return "commute";
 }
 function maybeQuip(c, dt) {
   if (c.quip) { c.quip.t -= dtT; if (c.quip.t <= 0) c.quip = null; }
   c.quipT -= dtT;
   if (c.quipT <= 0 && !c.hidden) {
-    const isNight = darkness() > 0.7 && c.dayState === "home";
+    const isNight = darkness() > 0.7 && c.dsC === DS.home;
     let lines = isNight ? ["ZZZ..."] : TRAITS[c.p.trait].quips[quipContext(c)];
     if (c.p.homeless && quipContext(c) === "home" && !isNight)
       lines = ["SAVING FOR A PLACE", "SHELTER SOUP AGAIN", "I'LL BOUNCE BACK"];
@@ -7607,7 +7651,7 @@ function giveBerth(a, b, d5, dt) {
   if (r <= 0 || d5 >= 5 * (12 * Q8 + r) || window._noBerth) return;   // _noBerth: the paired-arm wedge probe
   const dirty = ra >= rb ? a : b, clean = ra >= rb ? b : a;
   if (darkness() > 0.6) return;
-  if (dirty.dayState === "home" || clean.dayState === "home") return;
+  if (dirty.dsC === DS.home || clean.dsC === DS.home) return;
   if (clean.slotKind && clean.slot >= 0) return;
   let away = clean.y - dirty.y;
   if (Math.abs(away) < 1) away = (dirty.y - FLOOR_MIN < FLOOR_MAX - dirty.y) ? 1 : -1;
@@ -7625,7 +7669,7 @@ function collide(dt) {
   const bodies = [];
   for (const c of allCrabs()) {
     c._blocked = false;   // set again below by furniture deflections; read next frame
-    if (!c.hidden && c.cstate !== "drive" && !c.errandCust) bodies.push(c);
+    if (!c.hidden && c.csC !== CS.drive && !c.errandCust) bodies.push(c);
   }
   for (let i = 0; i < bodies.length; i++)
     for (let j = i + 1; j < bodies.length; j++) {
@@ -7734,12 +7778,12 @@ function startCommute(c, toWork) {
     c.busFrom = nearestStop(c.x); c.busTo = nearestStop(dest);
     c.cstate = c.busFrom === c.busTo ? "travel" : "walkToStop";
   }
-  else if (m === "walk" || c.p.job === "fishing") c.cstate = "travel";   // no bike rack on the pier
+  else if (m === "walk" || c.p.job === "fishing") c.csC = CS.travel;   // no bike rack on the pier
   else c.cstate = toWork ? "drive" : "walkToVehicle";  // bike/buggy parked at work
 }
 
 function updateCommute(c, dt) {
-  const toWork = c.dayState === "toWork";
+  const toWork = c.dsC === DS.toWork;
   // a commute that straddles midnight into a day off turns around - long walk
   // commutes (a fisher's is ~3 game-hours) can legally start before the day
   // flips and must not deliver anyone to work on their Sunday
@@ -7761,47 +7805,47 @@ function updateCommute(c, dt) {
   if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3 * SEC;
   if (c.pauseT > 0) { c.pauseT -= dtT; return; }
 
-  if (c.cstate === "travel") {           // walking the whole way
+  if (c.csC === CS.travel) {           // walking the whole way
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, toWork);
-  } else if (c.cstate === "drive") {     // bike/buggy: ride to park spot, walk rest
+  } else if (c.csC === CS.drive) {     // bike/buggy: ride to park spot, walk rest
     const b = BIZ[c.p.job];
     const park = toWork ? (m === "buggy" ? b.park + (c.p.house % 6) * 18 : b.rack + (c.p.house % 6) * 7) : homeX(c);
     if (stepTo(c, park, vspd, dt, 150)) {   // on the road, out of collide entirely
-      if (toWork) { c.cstate = "walkFromPark"; }
+      if (toWork) { c.csC = CS.walkFromPark; }
       else arriveCommute(c, false);
     }
-  } else if (c.cstate === "walkFromPark") {
+  } else if (c.csC === CS.walkFromPark) {
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, true);
-  } else if (c.cstate === "walkToVehicle") {   // heading home: fetch parked ride
+  } else if (c.csC === CS.walkToVehicle) {   // heading home: fetch parked ride
     const b = BIZ[c.p.job];
     const park = m === "buggy" ? b.park + (c.p.house % 6) * 18 : b.rack + (c.p.house % 6) * 7;
-    if (routedWalk(c, park, 150, wspd, dt)) c.cstate = "drive";
-  } else if (c.cstate === "walkToStop") {
+    if (routedWalk(c, park, 150, wspd, dt)) c.csC = CS.drive;
+  } else if (c.csC === CS.walkToStop) {
     setT(c, BUS_STOPS[c.busFrom], 148);
-    if (routedStep(c, wspd, dt)) c.cstate = "waitBus";
-  } else if (c.cstate === "waitBus") {
+    if (routedStep(c, wspd, dt)) c.csC = CS.waitBus;
+  } else if (c.csC === CS.waitBus) {
     if (bus.state === "dwell" && Math.abs(bus.x + BUS2.w / 2 - BUS_STOPS[c.busFrom]) < 6) {
-      c.hidden = true; c.cstate = "onBus"; sfx.bus();
+      c.hidden = true; c.csC = CS.onBus; sfx.bus();
     }
-  } else if (c.cstate === "onBus") {
+  } else if (c.csC === CS.onBus) {
     c.x = bus.x + BUS2.w / 2;
     if (bus.state === "dwell" && Math.abs(bus.x + BUS2.w / 2 - BUS_STOPS[c.busTo]) < 6) {
-      c.hidden = false; c.x = BUS_STOPS[c.busTo]; c.cstate = "walkOff";
+      c.hidden = false; c.x = BUS_STOPS[c.busTo]; c.csC = CS.walkOff;
     }
-  } else if (c.cstate === "walkOff") {
+  } else if (c.csC === CS.walkOff) {
     if (routedWalk(c, dest, 167, wspd, dt)) arriveCommute(c, toWork);
   }
 }
 
 function arriveCommute(c, atWork) {
   if (atWork) {
-    c.dayState = "working"; c.duty = true; c.kstate = "idle"; c.workBiz = c.p.job;
+    c.dsC = DS.working; c.duty = true; c.ksC = KS.idle; c.workBiz = c.p.job;
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
     if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 * SEC + ((srand() * 6 * SEC) | 0); }
   }
-  else { c.dayState = "home"; }
+  else { c.dsC = DS.home; }
 }
 
 function updateBus(dt) {
@@ -7885,8 +7929,8 @@ function runJobBoard() {
       hire.p.job = j.biz; hire.p.employer = bizOwner(j.biz);
       // clock out of the old life cleanly - updateSchedule will commute them to the new job
       abortErrand(hire);
-      hire.duty = false; hire.pendingOff = false; hire.kstate = "idle";
-      hire.carrying = null; hire.dayState = "home"; hire.cstate = ""; hire.workBiz = j.biz;
+      hire.duty = false; hire.pendingOff = false; hire.ksC = KS.idle;
+      hire.carrying = null; hire.dsC = DS.home; hire.csC = 0; hire.workBiz = j.biz;
       jobBoard.splice(jobBoard.indexOf(j), 1);
       crabLog(hire, "life", "TOOK THE " + BIZ[j.biz].short + " JOB - $" + $d(j.wage) + " A DAY", 0);   // DIARY
       today.moved.push(hire.p.name + " HIRED AT " + BIZ[j.biz].name);
@@ -7948,7 +7992,7 @@ function convertTourist(k) {
   if (k.stall) { k.stall.occupant = null; k.stall.dirty = true; k.stall = null; }
   if (k.table) { k.table.occupant = null; k.table.dishes = 0; k.table = null; }
   for (const w of allCrabs()) if (w.cust === k) abortChef(w);   // unclaim a mid-prep order
-  k.done = true; k.state = "leaving"; k.claimed = false;
+  k.done = true; k.stC = VS.leaving; k.claimed = false;
   customers = customers.filter(q => q !== k);
   const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
   p2.name = freeCrewName(k.name);
@@ -7978,9 +8022,9 @@ function hireCrew() {
   // the queue or at a table. Skip locals (k.isCrab: they have their own
   // lives) and anyone already walking out; prefer someone standing in line
   // over someone mid-shower
-  const eligible = customers.filter(k => !k.isCrab && k.state !== "leaving" && k.state !== "outStall");
-  const prefer = (pool) => pool.find(k => k.state === "waiting" || k.state === "arriving")
-    || pool.find(k => k.state !== "showering" && k.state !== "toStall" && k.state !== "waitStall")
+  const eligible = customers.filter(k => !k.isCrab && k.stC !== VS.leaving && k.stC !== VS.outStall);
+  const prefer = (pool) => pool.find(k => k.stC === VS.waiting || k.stC === VS.arriving)
+    || pool.find(k => k.stC !== VS.showering && k.stC !== VS.toStall && k.stC !== VS.waitStall)
     || pool[0];
   let pick = prefer(eligible);
   // A CULTURED VISITOR DECLINES THE APRON (CS3.5): she refuses out loud and
@@ -8049,17 +8093,17 @@ function updateSchedule(c, dt) {
   // around and goes home. Without this the dossier's TAP: REST would only
   // work at dawn, and the day the illness lands mid-commute would be a
   // full shift worked while ill.
-  if (onSickDay(c) && (c.dayState === "toWork" || c.dayState === "working")) {
-    if (c.dayState === "working") { c.duty = false; c.pendingOff = false; abortChef(c); }
+  if (onSickDay(c) && (c.dsC === DS.toWork || c.dsC === DS.working)) {
+    if (c.dsC === DS.working) { c.duty = false; c.pendingOff = false; abortChef(c); }
     crabLog(c, "life", "TOOK A SICK DAY AND WENT HOME", 1200);   // DIARY
     startCommute(c, false);
   }
   if (off && tmin >= OFF_WAKE && c.logOff !== day) { c.logOff = day; crabLog(c, "life", "TOOK THEIR DAY OFF", 0); }   // DIARY
-  if (c.dayState === "home" && !off && tmin >= leaveGmin(c) && tmin < sh.end - 30 && !onSickDay(c)
+  if (c.dsC === DS.home && !off && tmin >= leaveGmin(c) && tmin < sh.end - 30 && !onSickDay(c)
       && !(c.restDay === day && c.restUntil > tmin)) {   // ordered home: a real break before the schedule re-dispatches
     startCommute(c, true);
   }
-  if (c.dayState === "working") {
+  if (c.dsC === DS.working) {
     c.workedToday = true;   // fisher or shopkeep alike: tonight's tired bump is earned, not blanket
     // overtime is measured, not assumed: minutes clocked in OUTSIDE the
     // contracted window are the ones that earn the premium, so a crab who
@@ -8086,11 +8130,11 @@ function updateSchedule(c, dt) {
     c.p.tired = Math.min(Q20, (c.p.tired || 0)
       + TIRED_SHIFT / ownStdSpan(c) * (onOT ? OT_FATIGUE : 1) * dtT / GMIN);
   }
-  if (c.dayState === "working" && tmin >= sh.end) c.pendingOff = true;
-  if (c.dayState === "working" && c.pendingOff && c.kstate === "idle") {
+  if (c.dsC === DS.working && tmin >= sh.end) c.pendingOff = true;
+  if (c.dsC === DS.working && c.pendingOff && c.ksC === KS.idle) {
     // last call: stick around while anyone's still waiting in the grace window
     const lingering = tmin < sh.end + 45 &&
-      customers.some(k => k.biz === c.workBiz && k.state === "waiting" && !k.served);
+      customers.some(k => k.biz === c.workBiz && k.stC === VS.waiting && !k.served);
     if (lingering) return;
     c.duty = false; c.pendingOff = false;
     if (c.carrying) c.carrying = null;
@@ -8138,7 +8182,7 @@ function updateSchedule(c, dt) {
   // comparison, not a utility function. Hunger and thirst always walk;
   // crabs aren't robots. The errand machinery handles the trip; the home
   // branch re-commutes them to the pier afterward.
-  if (c.p.job === "fishing" && c.dayState === "working" && !c.p.employer && c.errandCd <= 0) {
+  if (c.p.job === "fishing" && c.dsC === DS.working && !c.p.employer && c.errandCd <= 0) {
     // FULL freedom (the pressing-needs gate is gone - it was a command-economy
     // patch on a price problem). Price is what pulls them back to the rail.
     // NOTE: gated on STAFFING, not hours - the early crowd gets served while
@@ -8155,7 +8199,7 @@ function updateSchedule(c, dt) {
       c.errandCd = 8 * SEC;
     } else if (e && !e.selfCook) {
       c.duty = false; c.errandCd = 6 * SEC;
-      c.dayState = "home";
+      c.dsC = DS.home;
       beginErrand(c, e, false);   // a fisher's water stop is the pier tap, ten paces off the rail
     } else c.errandCd = 3 * SEC;
   }
@@ -8177,7 +8221,7 @@ function updateSchedule(c, dt) {
   const errandWindow = ownTime ? tmin >= OFF_WAKE   // day off (or a sick day): the whole town is yours
     : (tmin < leaveGmin(c) - 30 || tmin >= sh.end);   // workday: before leaving, or after shift
   const townAwake = townOpen() || (tmin >= 20 * 60 && tmin < 23 * 60) || (tmin >= 5.5 * 60 && tmin < 8 * 60);
-  if (c.dayState === "home" && townAwake && c.errandCd <= 0 && errandWindow) {
+  if (c.dsC === DS.home && townAwake && c.errandCd <= 0 && errandWindow) {
     const e = pickErrand(c);
     if (!beginErrand(c, e, true)) c.errandCd = 2 * SEC;
   }
@@ -8255,7 +8299,7 @@ function errandScore(c, e) {
   const dg = Math.round(errandDetour(c, e) * Q8);   // exact: a detour is a sum of Q8 images
   // the "don't backtrack the whole promenade before 9 AM" rule: on the way
   // out to a shift, a stop clear across town waits for the trip home
-  if (dg > DETOUR_MAX * Q8 && c.dayState === "home" && anchorX(c) !== homeX(c)) return { n: -1, d: 1 };
+  if (dg > DETOUR_MAX * Q8 && c.dsC === DS.home && anchorX(c) !== homeX(c)) return { n: -1, d: 1 };
   // the rank rides in NEED UNITS so it still outranks a full bar: this is
   // the pre-slice score x Q20, term for term, so the argmax is unchanged.
   return { n: ap * (ERRAND_RANK[e.need] * Q20 + lvl) * DETOUR_SCALE_G, d: 100 * (DETOUR_SCALE_G + dg) };
@@ -8343,7 +8387,7 @@ function pickErrand(c) {
   // rival's price cut stopped winning share back, because the bar kept opening
   // late). Play when your day is actually done, or on a day off.
   const shEnd = effShift(c).end;
-  const ballFree = !c.duty && c.dayState !== "working"
+  const ballFree = !c.duty && c.dsC !== DS.working
     && (awayToday(c) || tmin >= shEnd || tmin + BALL_LEAD < leaveGmin(c));
   if ((c.p.bored || 0) >= ballAt && (c.ballCd || 0) <= 0 && !boredYields(c) && !ballYields
       && ballFree && !c.p.sick && ballHasRoom(c) && !cand.some(e2 => e2.need === "fun"))
@@ -8446,7 +8490,7 @@ function pickErrand(c) {
   // shelter pot already, and a sick day is their own time.
   // Both tables are offered and the detour score picks the near one - the
   // identical shape the two standpipes use, three blocks up.
-  if (pollOpen() && !hasVoted(c) && !c.duty && c.dayState !== "working")
+  if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
   // bed rest otherwise: no arcade nights while ill
   if (!c.p.sick && (c.p.bored || 0) >= (off ? qn(0.35) : qn(0.6)) && staffed("arcade")) {
@@ -8466,7 +8510,7 @@ function pickErrand(c) {
   return best;
 }
 function startSelfCook(c, e) {
-  c.dayState = "selfCook"; c.cookStep = 0; c.cookRecipe = e.recipe;
+  c.dsC = DS.selfCook; c.cookStep = 0; c.cookRecipe = e.recipe;
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
   const s0 = sourceSpot(c.cookBiz, c); setT(c, s0.x, s0.y);   // same rule for a staff meal
 }
@@ -8511,13 +8555,13 @@ function updateSelfCook(c, dt) {
       c.quip = { text: c.cookNeed === "drink" ? "BARKEEP'S PRIVILEGE" : "CHEF'S PRIVILEGE", t: 2.4 * SEC };
       crabLog(c, "need", c.cookNeed === "drink" ? "POURED THEMSELVES A DRINK AT WORK"   // DIARY
         : "COOKED THEMSELVES A STAFF MEAL", 0);
-      c.errandCd = 25 * SEC; c.dayState = "home";
+      c.errandCd = 25 * SEC; c.dsC = DS.home;
       startCommute(c, false);
     }
   }
 }
 function startErrand(c, e) {
-  c.dayState = "toErrand"; c.errandBiz = e.biz; c.errand = e;
+  c.dsC = DS.toErrand; c.errandBiz = e.biz; c.errand = e;
   c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);   // errand legwork tires, a little
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
@@ -8538,14 +8582,14 @@ function startTapStop(c, e) {
   // ballot box is not an exception - and the slot is read BEFORE the crab
   // enters the state, so they never count themselves.
   const slot = e.vote ? POLL_PLACES[e.poll].x + 4 + VOTE_DX * Math.min(4, pollVoters(e.poll).length) : null;
-  c.dayState = "atTap"; c.tapStop = e; c.tapT = 0;
+  c.dsC = DS.atTap; c.tapStop = e; c.tapT = 0;
   c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);
   if (slot != null) setT(c, slot, VOTE_Y);
   else setT(c, e.soup ? SOUP_X : WATER_TAPS[e.tap].x + 6, 163);
 }
 function updateTap(c, dt) {
   const e = c.tapStop;
-  if (!e) { c.dayState = "home"; return; }
+  if (!e) { c.dsC = DS.home; return; }
   if (c.tapT <= 0) {                      // still walking over
     if (routedStep(c, crabMoveQ8(c), dt)) {
       // ARRIVING AFTER THE POLLS SHUT is a real way to lose your vote, and it
@@ -8558,7 +8602,7 @@ function updateTap(c, dt) {
         popText("TOO LATE TO VOTE", c.x - 18, FLOOR_Y - 30, [190, 80, 80]);
         c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 * SEC };
         c.tapStop = null; c.tapT = 0; c.errandCd = VOTE_CD;
-        c.dayState = "home"; afterErrand(c, false);
+        c.dsC = DS.home; afterErrand(c, false);
         return;
       }
       c.tapT = e.vote ? VOTE_SECS : e.soup ? SOUP_MINS : TAP_SIP;
@@ -8616,7 +8660,7 @@ function updateTap(c, dt) {
     if (window._stats) window._stats.tapDrinks = (window._stats.tapDrinks || 0) + 1;
   }
   c.tapStop = null; c.tapT = 0; c.errandCd = e.vote ? VOTE_CD : e.soup ? SOUP_CD : TAP_CD;
-  c.dayState = "home";
+  c.dsC = DS.home;
   afterErrand(c, true);   // free water is a stop like any other: chain on from it
 }
 // One door for every kind of stop pickErrand can hand back: a counter, your
@@ -8669,7 +8713,7 @@ function afterErrand(c, chain) {
   else startCommute(c, false);
 }
 function updateErrand(c, dt) {
-  if (c.dayState === "toErrand") {
+  if (c.dsC === DS.toErrand) {
     // THE LINE IS ALIVE WHILE YOU WALK TO IT. startErrand aims at the back of
     // the line as it stood when the crab set off; three guests can form up in
     // the time it takes to cross the promenade, and a fixed aim then lands the
@@ -8680,33 +8724,33 @@ function updateErrand(c, dt) {
     if (c.tx !== tail) setT(c, tail, 166);
     if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
-      const q = customers.filter(k => k.biz === c.errandBiz && (k.state === "waiting" || k.state === "arriving")).length;
+      const q = customers.filter(k => k.biz === c.errandBiz && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
       if (q >= QUEUE_MAX) {
         c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
-        c.errandCd = 12 * SEC; c.dayState = "home";
+        c.errandCd = 12 * SEC; c.dsC = DS.home;
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = { biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
-        need: c.errand.need, x: c.x, spawnX: c.x, state: "waiting",
-        patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null };   // locals will wait
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
+        need: c.errand.need, x: c.x, spawnX: c.x, stC: VS.waiting,
+        patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
       customers.push(cust); noteArrival(c.errandBiz);
-      c.errandCust = cust; c.dayState = "errand";
+      c.errandCust = cust; c.dsC = DS.errand;
     }
-  } else if (c.dayState === "errand") {
+  } else if (c.dsC === DS.errand) {
     const k = c.errandCust;
-    if (!k) { c.dayState = "home"; afterErrand(c, false); return; }
+    if (!k) { c.dsC = DS.home; afterErrand(c, false); return; }
     const open = allCrabs().some(w => w.duty && w.workBiz === k.biz &&
       (!w.pendingOff || tmin < effShift(w).end + 45));
-    if (!open && k.state === "waiting" && !k.claimed) {
-      k.state = "leaving"; k.happy = false;   // kitchen's dark - go home
+    if (!open && k.stC === VS.waiting && !k.claimed) {
+      k.stC = VS.leaving; k.happy = false;   // kitchen's dark - go home
       c.quip = { text: "CLOSED?! HMPH", t: 2.2 * SEC };
       return;
     }
-    if ((k.state === "dining" || k.state === "seatedWaiting" || k.state === "toSeat") && k.table) { c.x = k.table.x + 2; c.y = k.table.y + 1; }
-    else if (k.state === "showering" && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
-    else if ((k.state === "toStall" || k.state === "outStall") && k.climb)
+    if ((k.stC === VS.dining || k.stC === VS.seatedWaiting || k.stC === VS.toSeat) && k.table) { c.x = k.table.x + 2; c.y = k.table.y + 1; }
+    else if (k.stC === VS.showering && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
+    else if ((k.stC === VS.toStall || k.stC === VS.outStall) && k.climb)
       { c.hidden = false; c.x = k.x; c.y = (166 * Q8 - idiv(26 * Q8 * k.climb, 4096)) / Q8; }   // stepping up/down, on the grain
     else { c.hidden = false; c.x = k.x; c.y = 166; }
   }
@@ -8719,7 +8763,7 @@ function finishErrand(k) {
     c.errandCust = null; c.errandCd = 25 * SEC;
     if (!k.served) crabLog(c, "peril", "QUEUED AT THE " + BIZ[k.biz].name + " AND GAVE UP", 0);   // DIARY
     if (!k.served) c.quip = { text: "LINE WAS TOO LONG", t: 2.4 * SEC };
-    c.dayState = "home";
+    c.dsC = DS.home;
     afterErrand(c, k.served);   // a served crab may chain on; a rage-quit just leaves
   }
 }
@@ -8897,7 +8941,7 @@ function abortErrand(c) {
   // crab is guaranteed to come and clear it. Leaving plates on an unflagged
   // table would strand it - unseatable (dishes) and unbuseable (not dirty).
   if (k.table) { k.table.occupant = null; k.table.dirty = true; k.table = null; }
-  k.done = true; k.state = "leaving"; k.claimed = false;
+  k.done = true; k.stC = VS.leaving; k.claimed = false;
   customers = customers.filter(q => q !== k);
   c.errandCust = null;
 }
@@ -9001,7 +9045,7 @@ function abortChef(c) {
   // crab who died or got yanked mid-bus would stay dirty and unseatable for
   // the rest of the run - the stall wedge, one furniture type over.
   if (c.cleanTable) { c.cleanTable.cleaning = false; c.cleanTable = null; }
-  c.kstate = "idle"; c.cust = null; c.carrying = null; c.stepIdx = 0;
+  c.ksC = KS.idle; c.cust = null; c.carrying = null; c.stepIdx = 0;
 }
 
 // ---------------------------------------------------------------- player orders (right-click)
@@ -9024,11 +9068,11 @@ function abortActivity(c) {
   c.cookStep = 0; c.cookRecipe = null;
   c.tapStop = null; c.tapT = 0;   // a tap holds nothing, but don't leave the stop armed
   c.duty = false; c.pendingOff = false;
-  c.cstate = ""; c.busFrom = -1; c.busTo = -1;
+  c.csC = 0; c.busFrom = -1; c.busTo = -1;
   c.hidden = false; c.pauseT = 0;
   c.y = clampY(c.y);   // yanked off a bus/stall: back into the walk band
   c.order = null;
-  c.dayState = "home";
+  c.dsC = DS.home;
 }
 function orderPop(c, ok, verdict) {
   popText(c.p.name + ": " + verdict, c.x - 12, c.y - 26, ok ? [140, 255, 160] : [255, 150, 130]);
@@ -9037,16 +9081,16 @@ function orderPop(c, ok, verdict) {
 function orderGoto(c, x, y) {
   abortActivity(c);
   c.order = { kind: "goto", x: Math.max(12, Math.min(WORLD_W - 24, x)), y: clampY(y), idleT: -1 };
-  c.dayState = "directed";
+  c.dsC = DS.directed;
   setT(c, c.order.x, c.order.y);
   orderPop(c, true, "ON IT!");
 }
 function updateDirected(c, dt) {
   const o = c.order;
-  if (!o) { c.dayState = "home"; return; }
+  if (!o) { c.dsC = DS.home; return; }
   if (o.idleT >= 0) {   // arrived: linger a beat, then the schedule reclaims them
     o.idleT -= dtT;
-    if (o.idleT <= 0) { c.order = null; c.dayState = "home"; c.errandCd = Math.max(c.errandCd, 1 * SEC); }
+    if (o.idleT <= 0) { c.order = null; c.dsC = DS.home; c.errandCd = Math.max(c.errandCd, 1 * SEC); }
     return;
   }
   if (routedStep(c, crabMoveQ8(c), dt)) o.idleT = ORDER_IDLE;
@@ -9089,7 +9133,7 @@ function orderCrab(c, wx, wy) {
   const atWorkplace = jb ? wx >= jb.x0 && wx <= jb.x1
     : wx >= PIER_X0 - 8 && wx <= PIER_X1 + 24;
   if (atWorkplace && !c.p.sick && tmin < sh.end - 30) {
-    if (c.dayState === "working" && c.duty) return orderPop(c, false, "ALREADY ON THE CLOCK");
+    if (c.dsC === DS.working && c.duty) return orderPop(c, false, "ALREADY ON THE CLOCK");
     abortActivity(c);
     startCommute(c, true);
     return orderPop(c, true, c.p.job === "fishing" ? "GONE FISHING!" : "BACK TO WORK!");
@@ -9161,8 +9205,8 @@ function updateStuck(c, dt) {
   // light - and a crab dispatched to work before dawn kept the flag, and with
   // it a permanent exemption from this watchdog. One pinned rough sleeper then
   // stood in the road forever with nothing left to rescue him.
-  if ((c.napT || 0) > 0 || c.dayState === "chat" || c.wanderT > 0 ||
-      (c.p.rough && c.dayState === "home" && darkness() >= 0.5)) {
+  if ((c.napT || 0) > 0 || c.dsC === DS.chat || c.wanderT > 0 ||
+      (c.p.rough && c.dsC === DS.home && darkness() >= 0.5)) {
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0; c.bounceT = 0;
     return;
   }
@@ -9201,7 +9245,7 @@ function updateStuck(c, dt) {
   if (c.stuckN > STUCK_RETRIES) {
     c.stuckN = 0;
     c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 * SEC };
-    if (c.order) { c.order = null; c.dayState = "home"; }   // a directed crab abandons the order
+    if (c.order) { c.order = null; c.dsC = DS.home; }   // a directed crab abandons the order
     return;
   }
   // perpendicular sidestep: hop to whichever side of the lane has room
@@ -9323,7 +9367,7 @@ function messyTable(bizKey) {
   return ts && ts.find(t => (t.dirty || t.dishes > 0) && !t.cleaning && !t.occupant) || null;
 }
 function startBus(c, t) {
-  t.cleaning = true; c.cleanTable = t; c.kstate = "toTableClean";
+  t.cleaning = true; c.cleanTable = t; c.ksC = KS.toTableClean;
   // clampY: a front-row table sits at y=158, so its "at the table" spot is off
   // the bottom of the walkable floor. Clamped it still lands inside collide()'s
   // own exemption box for that table (|dy| < 8), so the busing crab is never
@@ -9331,7 +9375,7 @@ function startBus(c, t) {
   setT(c, t.x + 2, clampY(t.y + 10));
 }
 function updateKitchen(c, dt) {
-  if (c.cust && (c.cust.state === "leaving" || c.cust.served)) { abortChef(c); return; }
+  if (c.cust && (c.cust.stC === VS.leaving || c.cust.served)) { abortChef(c); return; }
   const bizKey = c.workBiz, biz = BIZ[bizKey];
   // ---- THE MICROSLEEP -----------------------------------------------------
   // Runs BEFORE anything else in the kitchen, and AFTER the raged-guest abort
@@ -9356,7 +9400,7 @@ function updateKitchen(c, dt) {
   }
   if ((c.p.tired || 0) >= NOD_AT && !patOff("nod") && NOD_STATES.includes(c.kstate)
       && srand() < NOD_RATE * dt) {
-    c.napFrom = c.kstate; c.kstate = "nap";
+    c.napFrom = c.kstate; c.ksC = KS.nap;
     c.napT = NOD_MIN + ((srand() * NOD_SPAN) | 0);
     if (window._stats) {
       window._stats.nods = (window._stats.nods || 0) + 1;
@@ -9373,7 +9417,7 @@ function updateKitchen(c, dt) {
   // rationals, floored per fold
   const pQ = 4096 - idiv(3 * (4096 - effQ), 10) - idiv(6 * Math.max(0, 69632 - 20 * effQ), 100);
   const spd = idiv(idiv(crabMoveQ8(c) * 31, 20) * pQ, 4096);
-  if (c.kstate === "idle") {
+  if (c.ksC === KS.idle) {
     const lastCall = c.pendingOff && tmin < effShift(c).end + 45;
     if (!c.pendingOff || lastCall) {
       // paying guests first; locals and crew get served in the lulls - but a
@@ -9389,7 +9433,7 @@ function updateKitchen(c, dt) {
       // -8% and -14%, while the queue geometry alone reads +2%/-1%. Where the
       // crabs STAND is a look; who gets served is the economy. See PLAN.
       const pending = customers.filter(k => k.biz === bizKey &&
-        (k.state === "waiting" || k.state === "seatedWaiting") && !k.claimed && !k.served);
+        (k.stC === VS.waiting || k.stC === VS.seatedWaiting) && !k.claimed && !k.served);
       const o = pending.find(k => k.isCrab && 2 * k.patience < k.maxPatience)
         || pending.find(k => !k.isCrab) || pending[0];
       // TURNING THE ROOM, when the room is what the queue is waiting for.
@@ -9408,16 +9452,16 @@ function updateKitchen(c, dt) {
       // AND then waited behind the plates. Tourists can wait; they only lose
       // patience, and a tourist who has nowhere to sit is exactly the guest a
       // cleared table is for.
-      const messyFirst = !c.pendingOff && bts0 && o && !o.isCrab && o.state === "waiting" &&
+      const messyFirst = !c.pendingOff && bts0 && o && !o.isCrab && o.stC === VS.waiting &&
         !bts0.some(t => !t.occupant && t.dishes === 0 && !t.dirty) && messyTable(bizKey);
       if (o && !messyFirst) {
         // an order lands: the wander is over, wherever they got to. The walk
         // back to the crate is the entire cost of having drifted off.
         c.wander = null; c.wanderT = 0; c.idleT = 0; c.wanderCd = WANDER_CD;
-        o.claimed = true; c.cust = o; o.server = c; c.stepIdx = -1; c.kstate = "walk";
+        o.claimed = true; c.cust = o; o.server = c; c.stepIdx = -1; c.ksC = KS.walk;
         // send dine-in guests to a table right away - the server brings it out
         const bts = bizTables(bizKey);
-        if (o.state === "waiting" && bts) {
+        if (o.stC === VS.waiting && bts) {
           const seat = pickSeat(bts, o);
           if (seat) { seat.occupant = o; o.table = seat; o.state = "toSeat"; }
         }
@@ -9427,7 +9471,7 @@ function updateKitchen(c, dt) {
       const grubby = !c.pendingOff && biz.stalls && biz.stalls.find(t => t.dirty && !t.cleaning && !t.occupant);
       if (grubby) {
         c.wander = null; c.wanderT = 0; c.idleT = 0; c.wanderCd = WANDER_CD;
-        grubby.cleaning = true; c.cleanStall = grubby; c.kstate = "toStallClean";
+        grubby.cleaning = true; c.cleanStall = grubby; c.ksC = KS.toStallClean;
         setT(c, grubby.x + 2, grubby.y + 7);
         return;
       }
@@ -9483,7 +9527,7 @@ function updateKitchen(c, dt) {
     }
     setT(c, ix, clearSpotY(ix, 146 + (Math.max(0, crabs.indexOf(c)) % 2) * 10));
     routedStep(c, spd, dt);
-  } else if (c.kstate === "walk") {
+  } else if (c.ksC === KS.walk) {
     // the crate is decided on ARRIVAL, not on claim - see sourceSpot. Only the
     // leg to the source (stepIdx -1) is re-aimed; a station slot is acquired,
     // so nobody else can be standing on one of those.
@@ -9493,49 +9537,49 @@ function updateKitchen(c, dt) {
     }
     if (routedStep(c, spd, dt)) {
       if (c.stepIdx === -1) {
-        if (ownerFunds(bizKey) < ingredientCost(c.cust.recipe.raw)) { c.kstate = "waitCash"; return; }
+        if (ownerFunds(bizKey) < ingredientCost(c.cust.recipe.raw)) { c.ksC = KS.waitCash; return; }
         debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
-        c.kstate = "work"; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
+        c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
       else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
       else {
         const [kind] = c.cust.recipe.steps[c.stepIdx];
         const s = tryAcquire(bizKey, kind);
-        if (s < 0) c.kstate = "waitSlot";
+        if (s < 0) c.ksC = KS.waitSlot;
         else {
           c.slotKind = kind; c.slot = s;
           const sp = stationSpot(bizKey, kind, s); setT(c, sp.x, sp.y);
-          c.kstate = "toSlot";
+          c.ksC = KS.toSlot;
         }
       }
     }
-  } else if (c.kstate === "toStallClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (2.5 * SEC * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.kstate = "cleaningStall"; }
-  } else if (c.kstate === "cleaningStall") {
+  } else if (c.ksC === KS.toStallClean) {
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (2.5 * SEC * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.ksC = KS.cleaningStall; }
+  } else if (c.ksC === KS.cleaningStall) {
     c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.cleanStall) { c.cleanStall.dirty = false; c.cleanStall.cleaning = false; c.cleanStall = null; }
       crabLogEvery(c, "stall", 90, "work", "SCRUBBED OUT A SHOWER STALL");   // DIARY
-      c.kstate = "idle";
+      c.ksC = KS.idle;
       if (window._stats) window._stats.stallsCleaned = (window._stats.stallsCleaned || 0) + 1;
       popText("SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
-  } else if (c.kstate === "toTableClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.kstate = "busingTable"; }
-  } else if (c.kstate === "busingTable") {
+  } else if (c.ksC === KS.toTableClean) {
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.ksC = KS.busingTable; }
+  } else if (c.ksC === KS.busingTable) {
     c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.cleanTable) {
         c.cleanTable.dirty = false; c.cleanTable.cleaning = false; c.cleanTable.dishes = 0;
         c.cleanTable = null;
       }
-      c.kstate = "idle";
+      c.ksC = KS.idle;
       if (bizOwner(bizKey) === "player") today.bused = (today.bused || 0) + 1;
       if (window._stats) window._stats.tablesBused = (window._stats.tablesBused || 0) + 1;
       popText("CLEARED", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
-  } else if (c.kstate === "waitCash") {
+  } else if (c.ksC === KS.waitCash) {
     // step into the clear lane while waiting - squatting on the source spot
     // blocks a selfCook crab heading for the same bin (hold-and-wait deadlock)
     { const st0 = biz.stations[biz.source][0];
@@ -9544,9 +9588,9 @@ function updateKitchen(c, dt) {
     if (ownerFunds(bizKey) >= ingredientCost(c.cust.recipe.raw)) {
       debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
       consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
-      c.kstate = "work"; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
+      c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
     }
-  } else if (c.kstate === "waitSlot") {
+  } else if (c.ksC === KS.waitSlot) {
     const kind = c.cust.recipe.steps[c.stepIdx][0];
     // wait in the clear lane, not on the station spot: the crab HOLDING the
     // slot may be walking to this exact spot (a night pour made this jam
@@ -9558,16 +9602,16 @@ function updateKitchen(c, dt) {
     if (s >= 0) {
       c.slotKind = kind; c.slot = s;
       const sp = stationSpot(bizKey, kind, s); setT(c, sp.x, sp.y);
-      c.kstate = "toSlot";
+      c.ksC = KS.toSlot;
     }
-  } else if (c.kstate === "toSlot") {
+  } else if (c.ksC === KS.toSlot) {
     if (routedStep(c, spd, dt)) {
       const [, secs] = c.cust.recipe.steps[c.stepIdx];
       const mult = masteryMult(c, c.cust.recipe.id) * 4096 / (crabWork(c) * crabEffQ12(c));
       c.workMax = c.workT = (secs * SEC * mult) | 0;
-      c.kstate = "work";
+      c.ksC = KS.work;
     }
-  } else if (c.kstate === "work") {
+  } else if (c.ksC === KS.work) {
     c.workT -= dtT;
     if (c.workT <= 0) {
       if (c.stepIdx === -1) {
@@ -9579,12 +9623,12 @@ function updateKitchen(c, dt) {
       if (c.stepIdx >= c.cust.recipe.steps.length) {
         if (c.cust.table) setT(c, c.cust.table.x + 2, c.cust.table.y + 10);   // bring it out
         else { const so = stationSpot(bizKey, biz.out, 0); setT(c, so.x, so.y); }
-        c.kstate = "walk";
+        c.ksC = KS.walk;
       }
       else {
         const st0 = biz.stations[c.cust.recipe.steps[c.stepIdx][0]][0];
         setT(c, st0.x + 2, st0.y + 7);
-        c.kstate = "walk";
+        c.ksC = KS.walk;
       }
     }
   }
@@ -9779,7 +9823,7 @@ function payAndBenefit(c, cust) {
     // TABLE SERVICE KEEPS THE WHOLE TIP; the counter keeps a token of it.
     // `seatedWaiting` is exactly "this plate is going out to a seated guest" -
     // serve() calls us before it flips them to dining.
-    const seated = cust.state === "seatedWaiting";
+    const seated = cust.stC === VS.seatedWaiting;
     // THE TIP PRODUCT, IN MILLI-CENTS. The two float-derived factors - the
     // patience ratio and the charm multiplier - cross into Q16 here and NOWHERE
     // downstream; they are the last floats in this pipeline and they leave with
@@ -9852,19 +9896,19 @@ function visBenefit(k) {
 }
 function serve(c) {
   const cust = c.cust;
-  if (cust && cust.state === "toSeat") return;   // guest still walking to the table: wait a beat, retry next frame
-  if (cust && cust.state === "seatedWaiting") {
+  if (cust && cust.stC === VS.toSeat) return;   // guest still walking to the table: wait a beat, retry next frame
+  if (cust && cust.stC === VS.seatedWaiting) {
     // table delivery: payment + benefits as usual, then straight to dining
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) rep = Math.min(100000, rep + 800);   // table service impresses
-    cust.state = "dining"; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
+    cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
     if (window._stats && bizOwner(cust.biz) !== "player")
       window._stats.npcServes = (window._stats.npcServes || 0) + 1;
-    c.cust = null; c.carrying = null; c.kstate = "idle"; c.stepIdx = 0;
+    c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
     // CLEAR THE NEXT TABLE ON THE WAY BACK. The server is standing IN the
     // dining room with an empty tray - the one moment in the day when busing
     // costs a few steps instead of a lap of the shack. Measured: with busing
@@ -9875,7 +9919,7 @@ function serve(c) {
     if (!c.pendingOff) { const nxt = messyTable(cust.biz); if (nxt) startBus(c, nxt); }
     return;
   }
-  if (cust && cust.state === "waiting") {
+  if (cust && cust.stC === VS.waiting) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) rep = Math.min(100000, rep + 400);
@@ -9886,18 +9930,18 @@ function serve(c) {
     // The room was reserved before they joined the line (nobody sells the last
     // room twice), so there is nothing to find here - `leaving` sends them
     // through visAfterCounter, which checks them in.
-    if (BIZ[cust.biz].lodging) { cust.state = "leaving"; }
+    if (BIZ[cust.biz].lodging) { cust.stC = VS.leaving; }
     else if (stalls) {
-      if (stall) { stall.occupant = cust; cust.state = "toStall"; cust.stall = stall; }
-      else { cust.state = "waitStall"; cust.waitT = 30 * SEC; }
+      if (stall) { stall.occupant = cust; cust.stC = VS.toStall; cust.stall = stall; }
+      else { cust.stC = VS.waitStall; cust.waitT = 30 * SEC; }
     }
-    else if (seat) { seat.occupant = cust; cust.state = "toTable"; cust.table = seat; }
-    else cust.state = "leaving";
+    else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
+    else cust.stC = VS.leaving;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
     if (window._stats && bizOwner(cust.biz) !== "player")
       window._stats.npcServes = (window._stats.npcServes || 0) + 1;
   }
-  c.cust = null; c.carrying = null; c.kstate = "idle"; c.stepIdx = 0;
+  c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
 }
 
 // ===========================================================================
@@ -10132,7 +10176,7 @@ function newVisitor(overnightOnly, cu) {
     animT: srand() * 9,
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
-    state: "ashore",
+    stC: VS.ashore,
     // the shop pipeline's own fields, dormant until they join a line
     biz: null, recipe: null, patience: VIS_PATIENCE * PQ, maxPatience: VIS_PATIENCE * PQ,
     claimed: false, served: false, happy: false, server: null, table: null, stall: null,
@@ -10145,6 +10189,7 @@ function newVisitor(overnightOnly, cu) {
     stay: newStay(), qJoin: null,
     hunger: n.hunger, thirst: n.thirst, dirt: n.dirt, bored: n.bored, tired: n.tired,
   };
+  Object.setPrototypeOf(v, VisProto);
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
   // than bare-headed clerks, because pig society is not so egalitarian. One
@@ -10180,7 +10225,7 @@ function seedVisitors() {
     // still has a population on DAY 2 (measured: seeding day-trippers only left
     // day 2 thirty percent down on takings while the first boats rebuilt one)
     const v = newVisitor(srand() < 0.45);
-    v.state = "roam"; v.leg = 1;
+    v.stC = VS.roam; v.leg = 1;
     v.x = Math.round(VIS_ROAM[0] + srand() * (VIS_ROAM[1] - VIS_ROAM[0]));
     v.wy = FLOOR_Y; v.y = FLOOR_Y;
     v.wallet = Math.round(v.wallet * (0.55 + srand() * 0.45));   // part-way through the money
@@ -10288,8 +10333,8 @@ function visWalkMins(k) {
 // the far end of the promenade.
 function ferryDepartCall(sailAbs, minsLeft) {
   for (const k of visitorsInTown()) {
-    if (k.state === "toPier" || k.leaveT > sailAbs) continue;
-    if (!VIS_STATES[k.state] || k.state === "toBiz") continue;   // finish what you're queueing for
+    if (k.stC === VS.toPier || k.leaveT > sailAbs) continue;
+    if (!VIS_STATES[k.state] || k.stC === VS.toBiz) continue;   // finish what you're queueing for
     if (minsLeft != null && minsLeft > visWalkMins(k)) continue;
     visLeave(k);
   }
@@ -10299,7 +10344,7 @@ function visLeave(k) {
   // there: check them out properly so the night is credited and the room goes
   // back to housekeeping, then send them down the pier
   if (k.room) checkOut(k);
-  k.state = "toPier"; k.leg = 0; k.target = null;
+  k.stC = VS.toPier; k.leg = 0; k.target = null;
   visLog(k, "life", vline(k, "leaving", "HEADING BACK TO THE FERRY"));
 }
 // SHE HAS SAILED. Anybody who made it aboard goes home with whatever is left
@@ -10309,7 +10354,7 @@ function ferryGo() {
   ferryT = 0;
   const last = ferrySail >= FERRY_TIMES.length - 1;
   for (const k of visitorsInTown()) {
-    if (k.state !== "toPier" || k.x < FERRY.gangway - 12) continue;
+    if (k.stC !== VS.toPier || k.x < FERRY.gangway - 12) continue;
     visBoard(k);
   }
   // MISSED THE LAST BOAT. A day-tripper who dawdled is an overnighter now,
@@ -10387,7 +10432,7 @@ function runFerry(dtTicks) {
     ferryT -= dtTicks;
     // board anybody standing on the plank while she is alongside
     for (const k of visitorsInTown())
-      if (k.state === "toPier" && k.leg === 1 && k.x >= FERRY.gangway - 12) visBoard(k);
+      if (k.stC === VS.toPier && k.leg === 1 && k.x >= FERRY.gangway - 12) visBoard(k);
     if (ferryT <= 0) ferryGo();
   }
 }
@@ -10426,7 +10471,7 @@ function checkIn(k) {
 function checkOut(k) {
   if (k.room) { k.room.occupant = null; k.room.dirty = true; k.room = null; }
   k.nightsHad++;
-  k.state = "roam"; k.biz = null; k.target = null;
+  k.stC = VS.roam; k.biz = null; k.target = null;
   k.wy = FLOOR_Y; k.y = FLOOR_Y;
   visLog(k, "home", vline(k, "checkout", "CHECKED OUT - SLEPT WELL"));
 }
@@ -10442,7 +10487,7 @@ function checkOut(k) {
 function sleepOnSand(k) {
   let best = SAND_SPOTS[0];
   for (const s of SAND_SPOTS) if (Math.abs(s - k.x) < Math.abs(best - k.x)) best = s;
-  k.state = "onSand"; k.target = best + ((srand() * 18) | 0) - 9;
+  k.stC = VS.onSand; k.target = best + ((srand() * 18) | 0) - 9;
   k.rough = true;
   if (!k.roughFlag) {
     k.roughFlag = true; k.roughNights++;
@@ -10503,10 +10548,10 @@ function visOpen(b) {
   return bizUnlocked(b) && !bizDark(b) && bizOpenNow(b) && bizStaffed(b);
 }
 function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
-  const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.state !== "leaving"
-    && (c.state === "arriving" || c.state === "waiting" || c.state === "toBiz")).length;
+  const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
+    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
   const allQ = customers.filter(c => c.biz === b && c !== k
-    && (c.state === "arriving" || c.state === "waiting" || c.state === "toBiz")).length;
+    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
   return tourQ < TOURIST_QUEUE_MAX && allQ < QUEUE_MAX;
 }
 function visPick(k) {
@@ -10622,7 +10667,7 @@ function visGo(k, e) {
   // last room twice, and a held room is not a room housekeeping can strip
   if (e.biz === "hotel" && !k.room) { const r = freeRoom(); if (!r) return; r.occupant = k; k.room = r; }
   k.biz = e.biz; k.recipe = e.recipe; k.need = e.need;
-  k.state = "toBiz"; k.target = BIZ[e.biz].queueX + 46;
+  k.stC = VS.toBiz; k.target = BIZ[e.biz].queueX + 46;
   k.claimed = false; k.served = false; k.happy = false; k.server = null;
 }
 // ---- MOVEMENT + THE DAY ----------------------------------------------------
@@ -10643,19 +10688,19 @@ function visTick(k, dt) {
   // guest who spent their evening out in a thick one is a guest whose stay the
   // player can go back and check. Indoors does not count - a paid bed is
   // exactly what buys you out of it, which is the whole point of saying so.
-  if (k.state !== "inRoom" && tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536)
+  if (k.stC !== VS.inRoom && tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536)
     stayOf(k).mistMin += dtT;
-  if (k.state === "inRoom") {
+  if (k.stC === VS.inRoom) {
     k.tired = Math.max(0, k.tired - ((Q20 * 3 * dtT / 10 - (Q20 * 3 * dtT / 10) % TICKS_PER_GH) / TICKS_PER_GH));
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) checkOut(k);
     return;
   }
-  if (k.state === "onSand") {
+  if (k.stC === VS.onSand) {
     // THE SAND BANKS NOTHING (sleepRough's rule, verbatim): exhaustion
     // prevents its own cure, and a night out here is a night of it.
     k.dirt = Math.min(Q20, k.dirt + ((VIS_RATE.dirt * dtT * 3) >> 1));   // 1.5x, exactly 3/2
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) {
-      k.state = "roam"; k.rough = false; k.roughFlag = false; k.target = null;
+      k.stC = VS.roam; k.rough = false; k.roughFlag = false; k.target = null;
       visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
     }
     return;
@@ -10664,13 +10709,13 @@ function visTick(k, dt) {
     k[n] = Math.min(Q20, (k[n] || 0) + VIS_RATE[n] * dtT);
 }
 function updateVisitor(k, dt) {
-  if (k.state === "ashore") {
+  if (k.stC === VS.ashore) {
     // down the planks and into town: along the deck, then onto the promenade
     if (k.leg === 0) { if (visStep(k, FERRY.shore, FERRY.deckY, dt)) k.leg = 1; return; }
-    if (visStep(k, FERRY.shore - 18, FLOOR_Y, dt)) { k.state = "roam"; k.target = null; k.y = FLOOR_Y; }
+    if (visStep(k, FERRY.shore - 18, FLOOR_Y, dt)) { k.stC = VS.roam; k.target = null; k.y = FLOOR_Y; }
     return;
   }
-  if (k.state === "toPier") {
+  if (k.stC === VS.toPier) {
     if (k.leg === 0) {
       if (visStep(k, FERRY.shore, FLOOR_Y, dt)) { k.leg = 1; }
       return;
@@ -10678,13 +10723,13 @@ function updateVisitor(k, dt) {
     visStep(k, FERRY.gangway + 4, FERRY.deckY, dt);
     return;
   }
-  if (k.state === "toRoom") {
+  if (k.stC === VS.toRoom) {
     const r = k.room;
-    if (!r) { k.state = "roam"; return; }
+    if (!r) { k.stC = VS.roam; return; }
     // ...and they stand at the door, wherever the door is: 148 for the back
     // wall's rooms (unchanged, to the pixel) and the boardwalk line for a
     // cabana in the forecourt (ACCOMMODATION UPGRADES).
-    if (visStep(k, r.x + 2, Math.min(FLOOR_MAX, r.y + 12), dt)) { k.state = "inRoom"; visLog(k, "home", vline(k, "turnin", "TURNED IN FOR THE NIGHT")); }
+    if (visStep(k, r.x + 2, Math.min(FLOOR_MAX, r.y + 12), dt)) { k.stC = VS.inRoom; visLog(k, "home", vline(k, "turnin", "TURNED IN FOR THE NIGHT")); }
     return;
   }
   // ASLEEP, AND THERE IS NOWHERE TO WALK. This guard is not decoration: with
@@ -10699,16 +10744,16 @@ function updateVisitor(k, dt) {
   // hunger, thirst, dirt and boredom overnight and drained tiredness at half
   // rate. visTick owns the night - the bed drain and the morning checkout -
   // so there is nothing for the mover to do here.
-  if (k.state === "inRoom") return;
-  if (k.state === "onSand") { visStep(k, k.target == null ? k.x : k.target, FLOOR_Y, dt); return; }
-  if (k.state === "toBiz") {
-    if (!visOpen(k.biz)) { k.state = "roam"; k.biz = null; k.target = null; return; }
+  if (k.stC === VS.inRoom) return;
+  if (k.stC === VS.onSand) { visStep(k, k.target == null ? k.x : k.target, FLOOR_Y, dt); return; }
+  if (k.stC === VS.toBiz) {
+    if (!visOpen(k.biz)) { k.stC = VS.roam; k.biz = null; k.target = null; return; }
     if (!visStep(k, k.target, FLOOR_Y, dt)) return;
     if (!visRoomFor(k, k.biz)) {   // the line filled while they walked: come back later
-      k.state = "roam"; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
+      k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
       return;
     }
-    k.state = "arriving"; k.spawnX = k.x; k.y = FLOOR_Y;
+    k.stC = VS.arriving; k.spawnX = k.x; k.y = FLOOR_Y;
     // visStep settles within a pixel of its target y, and a line standing on
     // five different y values reads as a huddle however even the spacing is.
     // Everybody in a line stands ON the boardwalk line.
@@ -10724,7 +10769,7 @@ function updateVisitor(k, dt) {
   // TURNING IN. A visitor with a key walks to their door; one without takes
   // the beach, because the desk has shut and there is nowhere else to go.
   if (tmin >= BED_HOUR || tmin < WAKE_HOUR) {
-    if (k.room) { k.state = "toRoom"; return; }
+    if (k.room) { k.stC = VS.toRoom; return; }
     // ...and a visitor only beds down on the sand at ACTUAL BEDTIME. The town
     // opens at 07:00, which is on the wrong side of WAKE_HOUR: without this
     // clause the boat-load a new town starts with was filed as sleeping rough
@@ -10761,7 +10806,7 @@ function visAfterCounter(k) {
     stayQuit(k);   // the loudest thing in a stay: they will say so on the boat
     k.bored = Math.min(Q20, k.bored + qn(0.05));
   }
-  k.state = "roam"; k.biz = null; k.recipe = null; k.need = null;
+  k.stC = VS.roam; k.biz = null; k.recipe = null; k.need = null;
   k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
   k.target = null; k.thinkT = VIS_THINK;
   k.y = FLOOR_Y; k.wy = FLOOR_Y;
@@ -10782,7 +10827,7 @@ function visAfterCounter(k) {
 // counter - a single counter is one comparison and the numbers never collide.
 let qSeqN = 0;
 function queueJoin(k) { k.qSeq = ++qSeqN; }
-function inLine(k) { return k.state === "arriving" || k.state === "waiting"; }
+function inLine(k) { return k.stC === VS.arriving || k.stC === VS.waiting; }
 // Everyone standing in one business's line, nearest the counter first. It
 // stamps a ticket on anything that got into a line without one (a suite
 // fixture setting `state` by hand, a save that predates this) so the order is
@@ -10804,14 +10849,14 @@ function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
   const r = biz.recipes[(srand() * biz.recipes.length) | 0];
   const spawnX = biz.queueX + 150;
-  return { biz: bizKey, recipe: r,
+  return Object.setPrototypeOf({ biz: bizKey, recipe: r,
     name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animT: srand() * 9,
-    x: spawnX, spawnX, state: "arriving", patience: 50 * PQ, maxPatience: 50 * PQ,
+    x: spawnX, spawnX, stC: VS.arriving, patience: 50 * PQ, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
-    claimed: false, served: false, server: null };
+    claimed: false, served: false, server: null }, VisProto);
 }
 function updateCustomers(dt) {
   trackCloseQueues();   // hours-policy signal: who was still in line when a shop shut
@@ -10827,7 +10872,7 @@ function updateCustomers(dt) {
       visTick(k, dt);                                        // needs run wherever they are
       if (VIS_STATES[k.state]) { updateVisitor(k, dt); continue; }
     }
-    if (k.state === "arriving" || k.state === "waiting") {
+    if (k.stC === VS.arriving || k.stC === VS.waiting) {
       // joined DURING this pass (a visitor whose walk ended a few lines up):
       // stand still, take a place next frame. One frame, and it is the frame
       // they stopped walking on.
@@ -10840,31 +10885,31 @@ function updateCustomers(dt) {
       const stepq = idiv(QUEUE_STEP * Q8 * dtT, TICK_HZ);   // 45px/s = exactly 576 Q8/tick
       if (Math.abs(dq8) <= stepq) { k.x = slot; k.qWalk = false; k.face = -1; }
       else { k.x = (k.x * Q8 + Math.sign(dq8) * stepq) / Q8; k.qWalk = true; k.face = Math.sign(dq8); }
-      if (k.state === "arriving") {
+      if (k.stC === VS.arriving) {
         if (k.x === slot) {
-          k.state = "waiting";
+          k.stC = VS.waiting;
           popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
         }
       } else {
         k.patience -= idiv(dtT * (bizStaffed(k.biz) ? 1 : 6) * serverFilthQ12(k) + 10, 20);   // nobody home? give up quick. ROUND-half-up at the drain boundary: floor ran every drain slow, same direction (slice 3's accrual lesson - the seated form was 0.95% slow)
         if (k.patience <= 0) {
-          k.state = "leaving"; k.happy = false; k.claimed = false;
+          k.stC = VS.leaving; k.happy = false; k.claimed = false;
           if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
           popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
         }
       }
-    } else if (k.state === "toStall") {
+    } else if (k.stC === VS.toStall) {
       const st = k.stall;
       const dxs = st.x + 3 - k.x;
       if (Math.abs(dxs) > 2) k.x = (k.x * Q8 + Math.sign(dxs) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs) * Q8))) / Q8;
       else {
         k.climb = Math.min(4096, (k.climb || 0) + idiv(4096 * 9 * dtT, 5 * TICK_HZ));   // step up into the stall (Q12, 1.8/s = 9/5)
-        if (k.climb >= 4096) { k.state = "showering"; k.showerT = (k.recipe.showerT || 5) * SEC; }
+        if (k.climb >= 4096) { k.stC = VS.showering; k.showerT = (k.recipe.showerT || 5) * SEC; }
       }
-    } else if (k.state === "outStall") {   // hop back down to the floor, towel-fresh
+    } else if (k.stC === VS.outStall) {   // hop back down to the floor, towel-fresh
       k.climb = Math.max(0, (k.climb || 0) - idiv(4096 * 11 * dtT, 5 * TICK_HZ));   // 2.2/s = 11/5, Q12
-      if (k.climb <= 0) k.state = "leaving";
-    } else if (k.state === "showering") {
+      if (k.climb <= 0) k.stC = VS.leaving;
+    } else if (k.stC === VS.showering) {
       k.showerT -= dtT;
       if (k.showerT <= 0) {
         const st = k.stall;
@@ -10883,33 +10928,33 @@ function updateCustomers(dt) {
         }
         tradeImport("water", k.recipe.deep ? 14 : 8);
         popText("AHHH", k.x, 126, [140, 220, 255]);
-        k.state = "outStall";
+        k.stC = VS.outStall;
       }
-    } else if (k.state === "waitStall") {
+    } else if (k.stC === VS.waitStall) {
       k.waitT -= dtT;
       const st = BIZ[k.biz].stalls.find(t => !t.occupant && !t.dirty);
-      if (st) { st.occupant = k; k.stall = st; k.state = "toStall"; }
-      else if (k.waitT <= 0) { k.state = "leaving"; k.happy = false; }
-    } else if (k.state === "toSeat") {
+      if (st) { st.occupant = k; k.stall = st; k.stC = VS.toStall; }
+      else if (k.waitT <= 0) { k.stC = VS.leaving; k.happy = false; }
+    } else if (k.stC === VS.toSeat) {
       const t = k.table;
       const dxs2 = t.x + 10 - k.x;
       if (Math.abs(dxs2) > 2) k.x = (k.x * Q8 + Math.sign(dxs2) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs2) * Q8))) / Q8;
-      else k.state = "seatedWaiting";
-    } else if (k.state === "seatedWaiting") {
+      else k.stC = VS.seatedWaiting;
+    } else if (k.stC === VS.seatedWaiting) {
       k.patience -= idiv(7 * dtT * serverFilthQ12(k) + 200, 400);   // seated guests relax (0.35 = 7/20 over 20 ticks/s, round-half-up)
       if (k.patience <= 0) {
-        k.state = "leaving"; k.happy = false; k.claimed = false;
+        k.stC = VS.leaving; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }
         if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
         if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
         popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
       }
-    } else if (k.state === "toTable") {
+    } else if (k.stC === VS.toTable) {
       const t = k.table;
       const dxt = t.x + 10 - k.x;
       if (Math.abs(dxt) > 2) k.x = (k.x * Q8 + Math.sign(dxt) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxt) * Q8))) / Q8;
-      else { k.state = "dining"; k.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0); k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
-    } else if (k.state === "dining") {
+      else { k.stC = VS.dining; k.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0); k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
+    } else if (k.stC === VS.dining) {
       k.dineT -= dtT;
       if (k.dineT <= 0) {
         // THE FANCIER TIER ARRIVED (owner directive: "add table cleanup").
@@ -10935,9 +10980,9 @@ function updateCustomers(dt) {
           // (payTip pops the gold "+$N TIP" - a second label here was the
           //  third pop on one tip)
         }
-        k.state = "leaving";
+        k.stC = VS.leaving;
       }
-    } else if (k.state === "leaving") {
+    } else if (k.stC === VS.leaving) {
       k.x = (k.x * Q8 + idiv((k.happy ? 50 : 75) * Q8 * dtT, TICK_HZ)) / Q8;
       if (k.isCrab) { finishErrand(k); continue; }
       // A VISITOR IS NOT LEAVING TOWN, they are leaving a COUNTER. A few paces
@@ -10971,66 +11016,66 @@ function crabStatus(c) {
   if ((c.napT || 0) > 0)
     return "NODDED OFF " + (c.napFrom === "cleaningStall" || c.napFrom === "toStallClean"
       ? "OVER A STALL" : NAP_WHERE[c.slotKind] || "ON THE JOB");
-  if (c.dayState === "chat")
+  if (c.dsC === DS.chat)
     return "CHEWING THE FAT" + (c.chatWith ? " WITH " + c.chatWith.p.name : "");
   if (c.p.rough) return darkness() > 0.6 ? "ASLEEP WHERE THEY DROPPED" : "SLEPT ROUGH LAST NIGHT";
   if (c.p.sick) return (gravelyIll(c) ? "GRAVELY ILL - DAY " : "SICK - DAY ") + ((c.p.sick.days || 0) + 1)
     + (onSickDay(c) ? " - RESTING UP" : " - WORKING THROUGH IT");
   if (walkoutToday(c)) {   // an unauthorised day: same beach, no wage, nobody covering
     const why = c.p.walkoutWhy === "pay" ? " OVER THE PAY" : "";
-    if (c.dayState === "toErrand") return "WALKED OUT - OFF TO " + BIZ[c.errandBiz].short;
-    if (c.dayState === "errand") return "WALKED OUT - AT " + BIZ[c.errandBiz].name;
-    if (c.dayState === "home" && darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
-    if (c.dayState === "home") return tmin < OFF_WAKE ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
+    if (c.dsC === DS.toErrand) return "WALKED OUT - OFF TO " + BIZ[c.errandBiz].short;
+    if (c.dsC === DS.errand) return "WALKED OUT - AT " + BIZ[c.errandBiz].name;
+    if (c.dsC === DS.home && darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
+    if (c.dsC === DS.home) return tmin < OFF_WAKE ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
   }
 
   if (offToday(c)) {   // sick beats off; off beats everything but the commute home
-    if (c.dayState === "toErrand") return "DAY OFF - OFF TO " + BIZ[c.errandBiz].short;
-    if (c.dayState === "errand") return "DAY OFF - AT " + BIZ[c.errandBiz].name;
-    if (c.dayState === "selfCook") return "DAY OFF - RAIDING THE PANTRY";
-    if (c.dayState === "atBall") return "DAY OFF - BEACH BALL";
-    if (c.dayState === "atTap") return "DAY OFF - " + tapStatus(c);
-    if (c.dayState === "toHome") return "DAY OFF - STROLLING HOME";
-    if (c.dayState === "home") {
+    if (c.dsC === DS.toErrand) return "DAY OFF - OFF TO " + BIZ[c.errandBiz].short;
+    if (c.dsC === DS.errand) return "DAY OFF - AT " + BIZ[c.errandBiz].name;
+    if (c.dsC === DS.selfCook) return "DAY OFF - RAIDING THE PANTRY";
+    if (c.dsC === DS.atBall) return "DAY OFF - BEACH BALL";
+    if (c.dsC === DS.atTap) return "DAY OFF - " + tapStatus(c);
+    if (c.dsC === DS.toHome) return "DAY OFF - STROLLING HOME";
+    if (c.dsC === DS.home) {
       if (darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
       if (tmin < OFF_WAKE) return "DAY OFF - SLEEPING IN";
       return "DAY OFF - BEACHCOMBING";
     }
   }
-  if (c.p.job === "fishing" && c.dayState === "working") return "FISHING OFF THE PIER";
-  if (c.dayState === "home") {
+  if (c.p.job === "fishing" && c.dsC === DS.working) return "FISHING OFF THE PIER";
+  if (c.dsC === DS.home) {
     if (darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
     return c.p.homeless ? "AT THE SHELTER" : "CHILLING AT HOME";
   }
-  if (c.dayState === "working") {
+  if (c.dsC === DS.working) {
     // IDLE HANDS: still clocked in, just not standing where you left them
     // the rival's stakeout reads as what it is, not as a stroll
     if (c.wanderT > 0 && c.wander) return (c.wander.eyeing ? "SIZING UP " : "WATCHING ") + c.wander.label;
     if (c.wander) return (c.wander.eyeing ? "WALKING OVER TO " : "WANDERED OFF TO ") + c.wander.label;
-    if (c.kstate === "work" && c.slotKind === "board") return "CHOPPING";
-    if (c.kstate === "work" && c.slotKind === "grill") return "GRILLING";
-    if (c.kstate === "toStallClean" || c.kstate === "cleaningStall") return "SCRUBBING A STALL";
-    if (c.kstate === "toTableClean" || c.kstate === "busingTable") return "BUSING A TABLE";
-    if (c.kstate === "work") return "GRABBING FOOD";
+    if (c.ksC === KS.work && c.slotKind === "board") return "CHOPPING";
+    if (c.ksC === KS.work && c.slotKind === "grill") return "GRILLING";
+    if (c.ksC === KS.toStallClean || c.ksC === KS.cleaningStall) return "SCRUBBING A STALL";
+    if (c.ksC === KS.toTableClean || c.ksC === KS.busingTable) return "BUSING A TABLE";
+    if (c.ksC === KS.work) return "GRABBING FOOD";
     if (c.carrying) return "CARRYING " + ITEM_NAMES[c.carrying];
-    if (c.kstate === "waitCash") return "SHORT ON CASH!";
-    if (c.kstate === "waitSlot") return "WAITING FOR A SPOT";
+    if (c.ksC === KS.waitCash) return "SHORT ON CASH!";
+    if (c.ksC === KS.waitSlot) return "WAITING FOR A SPOT";
     return coveringToday(c) ? "COVERING A COWORKER'S SHIFT" : "ON SHIFT";
   }
-  if (c.dayState === "directed") return c.order && c.order.idleT >= 0 ? "TAKING A BREATHER" : "AS ORDERED";
-  if (c.dayState === "selfCook") {
+  if (c.dsC === DS.directed) return c.order && c.order.idleT >= 0 ? "TAKING A BREATHER" : "AS ORDERED";
+  if (c.dsC === DS.selfCook) {
     if (c.cookNeed === "drink") return c.cookStep >= 3 ? "POURING A DRINK" : "RAIDING THE FRUIT BIN";
     return c.cookStep >= 3 ? "COOKING A STAFF MEAL" : "RAIDING THE PANTRY";
   }
-  if (c.dayState === "toErrand") return "OFF TO " + BIZ[c.errandBiz].name;
-  if (c.dayState === "errand") return "IN LINE AT " + BIZ[c.errandBiz].name;
-  if (c.dayState === "atBall") return c.ballT > 0 ? "PLAYING BEACH BALL" : "OFF TO THE BEACH BALL";
-  if (c.dayState === "atTap") return tapStatus(c);
-  const toWork = c.dayState === "toWork";
-  if (c.cstate === "waitBus") return "WAITING FOR THE BUS";
-  if (c.cstate === "onBus") return "RIDING THE BUS";
-  if (c.cstate === "walkToStop") return "WALKING TO THE BUS";
-  if (c.cstate === "drive") return (c.p.mode === "bike" ? "BIKING" : "DRIVING") + (toWork ? " TO WORK" : " HOME");
+  if (c.dsC === DS.toErrand) return "OFF TO " + BIZ[c.errandBiz].name;
+  if (c.dsC === DS.errand) return "IN LINE AT " + BIZ[c.errandBiz].name;
+  if (c.dsC === DS.atBall) return c.ballT > 0 ? "PLAYING BEACH BALL" : "OFF TO THE BEACH BALL";
+  if (c.dsC === DS.atTap) return tapStatus(c);
+  const toWork = c.dsC === DS.toWork;
+  if (c.csC === CS.waitBus) return "WAITING FOR THE BUS";
+  if (c.csC === CS.onBus) return "RIDING THE BUS";
+  if (c.csC === CS.walkToStop) return "WALKING TO THE BUS";
+  if (c.csC === CS.drive) return (c.p.mode === "bike" ? "BIKING" : "DRIVING") + (toWork ? " TO WORK" : " HOME");
   return (toWork ? "WALKING TO WORK" : "HEADING HOME");
 }
 
@@ -11879,7 +11924,7 @@ cv.addEventListener("click", (ev) => {
   }
   // tourists are people too: click to follow them around their visit
   for (const k of customers) {
-    if (k.isCrab || k.state === "showering" || k.state === "inRoom") continue;
+    if (k.isCrab || k.stC === VS.showering || k.stC === VS.inRoom) continue;
     const ky = custY(k) - 4 - 26 * ((k.climb || 0) / 4096);   // climb is Q12
     if (Math.abs(wx - (k.x + 8)) < 12 && Math.abs(p.y - ky) < 14) {
       sel = k; followCust = k; followIdx = -1; followNpc = null;
@@ -12420,7 +12465,7 @@ function drawTown() {
       smallText(ctx, "WATER", lx + 1, HOME_BOTTOM - STANDPIPE2.h - 8, [30, 20, 36]);
       smallText(ctx, "WATER", lx, HOME_BOTTOM - STANDPIPE2.h - 9, [235, 248, 255]);
     }
-    if (allCrabs().some(c => c.dayState === "atTap" && c.tapStop && !c.tapStop.soup && c.tapStop.tap === i && c.tapT > 0))
+    if (allCrabs().some(c => c.dsC === DS.atTap && c.tapStop && !c.tapStop.soup && c.tapStop.tap === i && c.tapT > 0))
       wblit(TAP_FLOW[((viewT * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
   }
   drawPollingPlaces();
@@ -12553,7 +12598,7 @@ function drawPollingPlaces() {
   drawFerryOffice();
   // parked vehicles: buggies pull off on the shoulder, bikes rack on the apron
   for (const c of crabs) {
-    if (c.dayState !== "working") continue;
+    if (c.dsC !== DS.working) continue;
     const b = BIZ[c.p.job];
     if (c.p.mode === "buggy") wblit(BUGGIES2[c.p.color], b.park + c.p.house * 18, ROAD_Y1 - BUGGIES2[0].h + 2);
     if (c.p.mode === "bike") wblit(BIKE, b.rack + c.p.house * 7 - 4, FLOOR_Y - 10);
@@ -12810,7 +12855,7 @@ function drawSwoop() {
 function drawBus() {
   const by = ROAD_Y1 - BUS2.h - 1;
   wblit(BUS2, bus.x, by, bus.dir < 0);
-  const riders = crabs.filter(c => c.cstate === "onBus");
+  const riders = crabs.filter(c => c.csC === CS.onBus);
   for (let i = 0; i < Math.min(riders.length, 5); i++) {
     const wx2 = bus.x + 8 + i * 12;
     wrect(wx2, by + 6, 2, 2, [30, 20, 36]);
@@ -12829,7 +12874,7 @@ function crabHat(c) { return isMayor(c) ? "tophat" : c.duty && !c.p.fisher ? "to
 function drawCrab(c) {
   if (c.hidden) return;
   const arts = CRAB_ARTS[c.p.color];
-  const riding = c.cstate === "drive" && (c.dayState === "toWork" || c.dayState === "toHome");
+  const riding = c.csC === CS.drive && (c.dsC === DS.toWork || c.dsC === DS.toHome);
   if (riding && c.p.mode === "buggy") {
     wblit(BUGGIES2[c.p.color], c.x - 16, ROAD_Y1 - BUGGIES2[0].h, c.flip);
     return;
@@ -12837,13 +12882,13 @@ function drawCrab(c) {
   // (both features touched these three: the nap/chat/rough poses from the
   //  needs work, and busing as a working pose from the table work)
   const napping = (c.napT || 0) > 0;
-  const chatting = c.dayState === "chat";
+  const chatting = c.dsC === DS.chat;
   const working = !napping &&
-    (c.kstate === "work" || c.kstate === "cleaningStall" || c.kstate === "busingTable") &&
-    c.dayState === "working";
+    (c.ksC === KS.work || c.ksC === KS.cleaningStall || c.ksC === KS.busingTable) &&
+    c.dsC === DS.working;
   const moving = !napping && !chatting &&
-    (c.dayState !== "home" || Math.hypot((c.tx || c.x) - c.x, (c.ty || c.y) - c.y) > 2);
-  const sleeping = napping || (!moving && c.dayState === "home" && (darkness() > 0.7 || c.p.rough));
+    (c.dsC !== DS.home || Math.hypot((c.tx || c.x) - c.x, (c.ty || c.y) - c.y) > 2);
+  const sleeping = napping || (!moving && c.dsC === DS.home && (darkness() > 0.7 || c.p.rough));
   let art;
   if (sleeping) art = arts.s;
   else if (working) art = ((c.animT * 6) | 0) % 2 ? arts.w : arts.a;
@@ -12869,7 +12914,7 @@ function drawCrab(c) {
   if ((c.p.dirt || 0) >= qn(0.66)) wblit(DIRT, c.x, y, c.flip);
   // THE WIDE BERTH's badge: the bubble of empty boardwalk needs a visible
   // cause, so a crab whose personal space has inflated wears stink lines.
-  if (crabBerthQ8(c) > 0 && darkness() <= 0.6 && c.dayState !== "home")
+  if (crabBerthQ8(c) > 0 && darkness() <= 0.6 && c.dsC !== DS.home)
     wblit(STINK_MARK[((viewT * 3.1) | 0) % 2], c.x + 12, y - 7);
   if (sleeping) {   // a little Z drifts up from the shell
     const ph = (viewT * 0.45 + c.animT * 0.37) % 1;
@@ -12886,7 +12931,7 @@ function drawCrab(c) {
     const bobb = Math.sin(viewT * 3 + c.animT) > 0 ? 0 : 1;
     wblit(OT_MARK[((viewT * 2.2) | 0) % 2], c.x + 5, y - 18 - bobb);   // clear of the toque AND the work-progress bar
   }
-  if (c.p.job === "fishing" && c.dayState === "working") wblit(ROD[((c.animT * 2) | 0) % 2], c.x + 12, y - 3, c.flip);
+  if (c.p.job === "fishing" && c.dsC === DS.working) wblit(ROD[((c.animT * 2) | 0) % 2], c.x + 12, y - 3, c.flip);
   if (c.carrying) wblit(ITEMS[c.carrying], c.x + 4, y - 7);
   if ((working || (napping && (c.napFrom === "work" || c.napFrom === "cleaningStall"))) && c.workMax > 0.7) {
     const frac = 1 - c.workT / c.workMax;
@@ -12915,18 +12960,18 @@ function drawCustomer(k) {
       k.animT += 0.016;
       const cul = visCulture(k);   // null = crab: every expression below keeps its old value
       const arts = cul ? cul.arts[k.color] : CRAB_ARTS[k.color];
-      if (k.state === "showering") return;   // behind the curtain (stall draws the bather)
-      if (k.state === "inRoom") return;      // upstairs with the lamp on (the door draws them)
+      if (k.stC === VS.showering) return;   // behind the curtain (stall draws the bather)
+      if (k.stC === VS.inRoom) return;      // upstairs with the lamp on (the door draws them)
       // a crab shuffling up the line is WALKING, and legs sell it. Without this
       // the whole line slid up the boardwalk on its belly when the front left.
-      const moving = (k.state !== "waiting" && k.state !== "onSand") || (k.state === "waiting" && k.qWalk);
+      const moving = (k.stC !== VS.waiting && k.stC !== VS.onSand) || (k.stC === VS.waiting && k.qWalk);
       // a save-defined culture brings its own sleep pose: a pig on the sand
       // lies down on her side. The crab keeps standing, exactly as shipped.
-      const sleeping = !!cul && k.state === "onSand";
+      const sleeping = !!cul && k.stC === VS.onSand;
       const art = sleeping ? arts.s : moving && ((k.animT * 8) | 0) % 2 ? arts.b : arts.a;
       // a visitor faces the way they are walking; the old anonymous tourist
       // only ever walked one way, which is why this used to be a state test
-      const flip = k.visitor ? (k.face == null ? true : k.face < 0) : k.state !== "leaving";
+      const flip = k.visitor ? (k.face == null ? true : k.face < 0) : k.stC !== VS.leaving;
       const base = custY(k);
       const bodyW = cul ? cul.body.w : 16, bodyH = cul ? cul.body.h : 12;
       const cy = base - bodyH - 26 * ((k.climb || 0) / 4096);   // climb is Q12
@@ -12936,20 +12981,20 @@ function drawCustomer(k) {
         const ax = flip ? bodyW - acc.dx - acc.art.w : acc.dx;
         wblit(acc.art, k.x + ax, cy + acc.dy, flip);
       }
-      if (k.state === "onSand") {   // a night on the beach, and it shows
+      if (k.stC === VS.onSand) {   // a night on the beach, and it shows
         const ph = ((viewT * 0.7 + k.x * 0.01) % 1);
         // the Z rises off the culture's mark anchor; the crab's 11 is its own
         smallText(ctx, "Z", k.x + (cul ? cul.body.anchors.mark.x : 11) - camX, cy - 4 - ph * 5, [200, 210, 255]);
       }
-      if (k.state === "waiting" || (k.visitor && k.state === "roam" && k.idleT > 0)) {
+      if (k.stC === VS.waiting || (k.visitor && k.stC === VS.roam && k.idleT > 0)) {
         // a NAME on the boardwalk is the whole point of making them real: you
         // are meant to recognise MISTY on her second day in town
-        const nm = k.name.split(" ")[0].slice(0, k.state === "waiting" ? 4 : 8);
+        const nm = k.name.split(" ")[0].slice(0, k.stC === VS.waiting ? 4 : 8);
         const nx = k.x + (cul ? cul.body.w >> 1 : 8) - smallTextWidth(nm) / 2 - camX;
         if (nx > -30 && nx < W) smallText(ctx, nm, nx, base + 2, [100, 80, 55]);
       }
     }
-    if ((k.state === "waiting" || k.state === "seatedWaiting") && !k.served) {
+    if ((k.stC === VS.waiting || k.stC === VS.seatedWaiting) && !k.served) {
       const bx = k.x - camX - 1, by = FLOOR_Y - 36;
       if (bx > -16 && bx < W) {
         rect(ctx, bx, by, 14, 13, [30, 20, 36]);
@@ -12975,13 +13020,13 @@ function drawNight() {
     // house stays dark all night (crew and townsfolk light up alike; boat
     // dwellers get their cabin lamp below instead)
     for (const c of allCrabs()) {
-      if (c.dayState !== "home" || c.hidden || c.p.boat != null) continue;
+      if (c.dsC !== DS.home || c.hidden || c.p.boat != null) continue;
       if (c.p.homeless) { wrect(SHELTER_X + 8, 130, 8, 6, [255, 216, 96]); wrect(SHELTER_X + 50, 130, 8, 6, [255, 216, 96]); }
       else wrect(HOUSE_XS[c.p.house] + 38, 132, 10, 8, [255, 216, 96]);
     }
     // a cabin lamp burns on each occupied live-aboard
     for (const c of allCrabs())
-      if (c.p.boat != null && c.dayState === "home" && !c.hidden)
+      if (c.p.boat != null && c.dsC === DS.home && !c.hidden)
         wrect(BOAT_BERTHS[c.p.boat].x + 7, BOAT_Y + 11, 3, 3, [255, 216, 96]);
     if (dark > 0.65) {
       for (let i = 0; i < 6; i++) {
@@ -13016,29 +13061,29 @@ function crabMood(c) {
   // who has genuinely had enough outranks the clock, the merely restless one
   // does not outrank actually being mid-task
   if ((c.p.bored || 0) >= WALKOUT_AT) return ["AT A LOOSE END", [110, 120, 175]];
-  if (darkness() > 0.7 && c.dayState !== "home") return ["UP LATE", [120, 120, 140]];
-  if (darkness() > 0.7 && c.dayState === "home") return ["COZY", [180, 120, 60]];
-  if (c.dayState === "working" && c.kstate === "work") return ["BUSY", [40, 110, 190]];
+  if (darkness() > 0.7 && c.dsC !== DS.home) return ["UP LATE", [120, 120, 140]];
+  if (darkness() > 0.7 && c.dsC === DS.home) return ["COZY", [180, 120, 60]];
+  if (c.dsC === DS.working && c.ksC === KS.work) return ["BUSY", [40, 110, 190]];
   if ((c.p.bored || 0) >= WANDER_AT) return ["RESTLESS", [125, 135, 180]];
   return ["SUNNY", [40, 150, 70]];
 }
 function custStatus(k) {
   const b = BIZ[k.biz] ? BIZ[k.biz].name : "TOWN";
-  if (k.state === "ashore") return "WALKING DOWN THE PIER";
-  if (k.state === "toPier") return ferryHere() ? "BOARDING THE FERRY" : "WAITING FOR THE FERRY";
-  if (k.state === "toBiz") return "ON THEIR WAY TO THE " + BIZ[k.biz].short;
-  if (k.state === "toRoom") return "OFF TO ROOM " + (k.roomN || "?");
-  if (k.state === "inRoom") return "ASLEEP IN ROOM " + (k.roomN || "?");
-  if (k.state === "onSand") return "NO ROOM - OUT ON THE SAND";
-  if (k.state === "roam") return k.wallet < 600 ? "OUT OF MONEY, TAKING IT IN"
+  if (k.stC === VS.ashore) return "WALKING DOWN THE PIER";
+  if (k.stC === VS.toPier) return ferryHere() ? "BOARDING THE FERRY" : "WAITING FOR THE FERRY";
+  if (k.stC === VS.toBiz) return "ON THEIR WAY TO THE " + BIZ[k.biz].short;
+  if (k.stC === VS.toRoom) return "OFF TO ROOM " + (k.roomN || "?");
+  if (k.stC === VS.inRoom) return "ASLEEP IN ROOM " + (k.roomN || "?");
+  if (k.stC === VS.onSand) return "NO ROOM - OUT ON THE SAND";
+  if (k.stC === VS.roam) return k.wallet < 600 ? "OUT OF MONEY, TAKING IT IN"
     : k.idleT > 0 ? "WATCHING THE TOWN GO BY" : "STROLLING THE PROMENADE";
-  if (k.state === "arriving") return "HEADING TO THE " + b;
-  if (k.state === "waiting") return "IN LINE AT THE " + b;
-  if (k.state === "toSeat") return "FINDING A SEAT";
-  if (k.state === "seatedWaiting") return "WAITING ON THEIR ORDER";
-  if (k.state === "dining") return "EATING " + (ITEM_NAMES[k.recipe.icon] || "LUNCH");
-  if (k.state === "waitStall" || k.state === "toStall" || k.state === "outStall") return "AT THE SHOWERS";
-  if (k.state === "leaving") return k.happy ? "HEADING HOME HAPPY" : k.served ? "HEADING HOME" : "LEAVING IN A HUFF";
+  if (k.stC === VS.arriving) return "HEADING TO THE " + b;
+  if (k.stC === VS.waiting) return "IN LINE AT THE " + b;
+  if (k.stC === VS.toSeat) return "FINDING A SEAT";
+  if (k.stC === VS.seatedWaiting) return "WAITING ON THEIR ORDER";
+  if (k.stC === VS.dining) return "EATING " + (ITEM_NAMES[k.recipe.icon] || "LUNCH");
+  if (k.stC === VS.waitStall || k.stC === VS.toStall || k.stC === VS.outStall) return "AT THE SHOWERS";
+  if (k.stC === VS.leaving) return k.happy ? "HEADING HOME HAPPY" : k.served ? "HEADING HOME" : "LEAVING IN A HUFF";
   return "ENJOYING THE BEACH";
 }
 // how long they have been here, in the words a player would use
@@ -13048,7 +13093,7 @@ function visStayLabel(k) {
 }
 // the one thing about this visitor you would say first
 function visCondition(k) {
-  if (k.roughNights > 0 && k.state !== "inRoom") return ["SLEPT ROUGH", [190, 80, 80]];
+  if (k.roughNights > 0 && k.stC !== VS.inRoom) return ["SLEPT ROUGH", [190, 80, 80]];
   if (k.wallet < 600) return ["SPENT UP", [150, 120, 90]];
   if (k.hunger > qn(0.75)) return ["STARVING", [200, 110, 40]];
   if (k.thirst > qn(0.75)) return ["PARCHED", [200, 110, 40]];
@@ -15483,7 +15528,7 @@ function stayBought(k, paid) {
   const s = stayOf(k);
   stayWait(k);
   s.serves++;
-  if (k.state === "seatedWaiting") s.tables++;
+  if (k.stC === VS.seatedWaiting) s.tables++;
   if (k.need === "room") { s.rooms++; return; }
   if (!k.recipe) return;
   if (k.need === "clean") s.washes++;
@@ -16633,7 +16678,7 @@ function simClock(dt, rawMs) {
         // three rules that were measured against each other - see illRisk.
         let risk = illRisk(k);
         for (const s2 of sickNow) {
-          const coworkers = s2.workBiz === k.workBiz && k.dayState !== "home" && !s2.p.npc;
+          const coworkers = s2.workBiz === k.workBiz && k.dsC !== DS.home && !s2.p.npc;
           const shelterMates = k.p.homeless && s2.p.homeless;
           if (coworkers || shelterMates) risk += 0.08;
         }
@@ -16816,17 +16861,17 @@ function simTown(dt) {
     // not the schedule, not the kitchen, not the commute. That is the price of
     // boredom's only free cure, and it is the whole reason the cure is allowed
     // to exist at all (PLAN, THE SELF-HEALING RULE: it costs time, never money).
-    if (c.dayState === "chat") { updateChat(c, dt); maybeQuip(c, dt); continue; }
+    if (c.dsC === DS.chat) { updateChat(c, dt); maybeQuip(c, dt); continue; }
     updateSchedule(c, dt);
-    if (c.dayState === "toWork" || c.dayState === "toHome") updateCommute(c, dt);
-    else if (c.dayState === "toErrand" || c.dayState === "errand") updateErrand(c, dt);
-    else if (c.dayState === "atTap") updateTap(c, dt);
-    else if (c.dayState === "atBall") updateBall(c, dt);
-    else if (c.dayState === "selfCook") updateSelfCook(c, dt);
-    else if (c.dayState === "working" && c.p.job === "fishing") updateFishing(c, dt);
-    else if (c.dayState === "working") updateKitchen(c, dt);
-    else if (c.dayState === "directed") updateDirected(c, dt);
-    else if (c.dayState === "home") updateHome(c, dt);
+    if (c.dsC === DS.toWork || c.dsC === DS.toHome) updateCommute(c, dt);
+    else if (c.dsC === DS.toErrand || c.dsC === DS.errand) updateErrand(c, dt);
+    else if (c.dsC === DS.atTap) updateTap(c, dt);
+    else if (c.dsC === DS.atBall) updateBall(c, dt);
+    else if (c.dsC === DS.selfCook) updateSelfCook(c, dt);
+    else if (c.dsC === DS.working && c.p.job === "fishing") updateFishing(c, dt);
+    else if (c.dsC === DS.working) updateKitchen(c, dt);
+    else if (c.dsC === DS.directed) updateDirected(c, dt);
+    else if (c.dsC === DS.home) updateHome(c, dt);
     updateStuck(c, dt);
     maybeQuip(c, dt);
   }
@@ -16938,7 +16983,7 @@ function viewFrame(dt) {
       // same list, same cycle, their own silhouette.
       if (t.cabana) { drawCabana(t, stalls.indexOf(t) + 1); return; }
       const guest = t.occupant && t.occupant.visitor ? t.occupant : null;
-      const lit = guest && (guest.state === "inRoom" || darkness() > 0.4);
+      const lit = guest && (guest.stC === VS.inRoom || darkness() > 0.4);
       wblit(HOTEL_DOOR[lit ? 1 : 0], t.x, t.y - HOTEL_DOOR[0].h);
       // the room number on the transom, and a Z over the door of an occupied
       // one. Both sit in the 4px of wall between the awning and the door head -
@@ -16946,7 +16991,7 @@ function viewFrame(dt) {
       const n = stalls.indexOf(t) + 1;
       const nx = t.x + 7 - camX;
       if (nx > -12 && nx < W) smallText(ctx, "" + n, nx, t.y - HOTEL_DOOR[0].h - 5, [70, 60, 90]);
-      if (guest && guest.state === "inRoom") {
+      if (guest && guest.stC === VS.inRoom) {
         const ph = ((viewT * 0.7 + t.x * 0.01) % 1);
         smallText(ctx, "Z", t.x + 12 - camX, t.y - HOTEL_DOOR[0].h + 3 - ph * 4, [190, 205, 255]);
       }
@@ -16957,7 +17002,7 @@ function viewFrame(dt) {
       }
     } }); continue; }
     if (stalls) for (const t of stalls) paint.push({ base: t.y, f: () => {
-      const bathing = t.occupant && t.occupant.state === "showering";
+      const bathing = t.occupant && t.occupant.stC === VS.showering;
       wblit(STALL[bathing ? 1 : 0], t.x, t.y - STALL[0].h);
       if (bathing) {   // feet peeking under the curtain
         const oc = t.occupant, cul = !oc.isCrab && visCulture(oc);
@@ -16998,11 +17043,11 @@ function viewFrame(dt) {
       if (t.dirty) { px(ctx, t.x + 3 - camX, t.y - 2, [130, 220, 110]); px(ctx, t.x + 7 - camX, t.y - 1, [110, 190, 110]); px(ctx, t.x + 11 - camX, t.y - 2, [130, 220, 110]); }
     } });
   }
-  for (const k of customers) paint.push({ base: (k.state === "dining" || k.state === "seatedWaiting") && k.table ? (k.table.y + 1) : (k.isCrab ? 165 : custY(k)), f: () => drawCustomer(k) });
+  for (const k of customers) paint.push({ base: (k.stC === VS.dining || k.stC === VS.seatedWaiting) && k.table ? (k.table.y + 1) : (k.isCrab ? 165 : custY(k)), f: () => drawCustomer(k) });
   // ...and the ring goes wherever the body goes. drawCustomer hands a bathing
   // or sleeping guest over to the stall and the hotel door and draws nothing
   // itself, so without these two the ring blinks on bare wall.
-  if (sel && !sel.hidden && sel.state !== "showering" && sel.state !== "inRoom") paint.push({ base: sel.y - 0.1, f: () => {
+  if (sel && !sel.hidden && sel.stC !== VS.showering && sel.stC !== VS.inRoom) paint.push({ base: sel.y - 0.1, f: () => {
     // a soft ring under whoever you've picked: it stays put while you pan
     const bx = sel.x + 8 - camX, by = (sel.p ? sel.y : custY(sel) - 4 - 26 * ((sel.climb || 0) / 4096)) + 2;
     const blink = 0.55 + 0.45 * Math.sin(viewT * 4);
@@ -17012,7 +17057,7 @@ function viewFrame(dt) {
       px(ctx, bx + i, by - dy, col); px(ctx, bx + i, by + dy, col);
     }
   } });
-  for (const c of allCrabs()) paint.push({ base: c.cstate === "drive" && (c.dayState === "toWork" || c.dayState === "toHome") ? ROAD_Y1 : c.y, f: () => drawCrab(c) });
+  for (const c of allCrabs()) paint.push({ base: c.csC === CS.drive && (c.dsC === DS.toWork || c.dsC === DS.toHome) ? ROAD_Y1 : c.y, f: () => drawCrab(c) });
   paint.push({ base: FLOOR_Y, f: drawLandlord });
   // THE BALL IS A THING ON THE SAND, so it belongs in the paint list with the
   // crabs rather than in the terrain pass. (Matt: "the beach ball needs
@@ -17033,7 +17078,7 @@ function viewFrame(dt) {
   drawFloaters(dt);
   {  // directed-crab marker: a bouncing flag where the followed crab was sent
     const fc = followIdx >= 0 && crabs[followIdx];
-    if (fc && fc.order && fc.dayState === "directed" && fc.order.idleT < 0) {
+    if (fc && fc.order && fc.dsC === DS.directed && fc.order.idleT < 0) {
       const mx = fc.order.x + 6 - camX;
       if (mx > -8 && mx < W + 8) {
         const my = fc.order.y - 16 - Math.abs(Math.sin(viewT * 5)) * 3;

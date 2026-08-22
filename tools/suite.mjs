@@ -768,9 +768,9 @@ scenario("queues: arrival order, even spacing, a smooth step-up and no jitter", 
     const c = allCrabs().find(c2 => !c2.errandCust && !c2.cust && !c2.slotKind
       && (c2.dayState === "home" || c2.dayState === "toHome"));
     if (!c) return "no crab free to send on an errand";
-    const cust = { biz: "shack", recipe: BIZ.shack.recipes[0], isCrab: true, crab: c, need: "food",
+    const cust = vivifyCust({ biz: "shack", recipe: BIZ.shack.recipes[0], isCrab: true, crab: c, need: "food",
       x: BIZ.shack.queueX + 46, spawnX: BIZ.shack.queueX + 46, state: "waiting",
-      patience: 9e9, maxPatience: 9e9, claimed: true, served: false, server: null };
+      patience: 9e9, maxPatience: 9e9, claimed: true, served: false, server: null });
     queueJoin(cust); customers.push(cust);
     c.dayState = "errand"; c.errandBiz = "shack"; c.errandCust = cust; c.hidden = false;
     window._q.push(cust);
@@ -955,8 +955,8 @@ scenario("stalls can never wedge: abort frees them, and a soak stays clean", () 
     // the fixture on top of them makes the innocent tourist look like a ghost
     const st = BIZ.showers.stalls.find(t => !t.occupant) || BIZ.showers.stalls[0];
     window._st = BIZ.showers.stalls.indexOf(st);
-    const k = { biz: "showers", isCrab: true, crab: crabs[0], state: "showering", showerT: 9,
-      stall: st, x: st.x, spawnX: st.x, claimed: true, served: false, recipe: BIZ.showers.recipes[0] };
+    const k = vivifyCust({ biz: "showers", isCrab: true, crab: crabs[0], state: "showering", showerT: 9,
+      stall: st, x: st.x, spawnX: st.x, claimed: true, served: false, recipe: BIZ.showers.recipes[0] });
     st.occupant = k; customers.push(k); crabs[0].errandCust = k; crabs[0].dayState = "errand";
     abortErrand(crabs[0]);
   }`);
@@ -4520,7 +4520,7 @@ scenario("tips: the counter gets a token, the table gets the lot", () => {
     c.p.dirt = 0; c.p.tired = 0;              // no fumble multipliers in play
     BIZ.shack.tipShare = 0;                    // the whole tip to the till
     const r = BIZ.shack.recipes.find(x => x.id === "taco");
-    const mk = (state) => ({ biz: "shack", recipe: r, state, patience: 40 * PQ, maxPatience: 50 * PQ,
+    const mk = (state) => vivifyCust({ biz: "shack", recipe: r, state, patience: 40 * PQ, maxPatience: 50 * PQ,
       x: 1500, isCrab: false, server: c, claimed: true, served: false });
     const t0 = coins; payAndBenefit(c, mk("seatedWaiting")); const table = coins - t0;
     const t1 = coins; payAndBenefit(c, mk("waiting"));       const counter = coins - t1;
@@ -4562,8 +4562,8 @@ scenario("tips: the sharing slider pays the crab's wallet and the till, exactly"
       setTipShare("shack", share);
       c.p.wallet = 0;
       const t0 = coins;
-      payAndBenefit(c, { biz: "shack", recipe: r, state: "seatedWaiting", patience: 50 * PQ,
-        maxPatience: 50 * PQ, x: 1500, isCrab: false, server: c, claimed: true, served: false });
+      payAndBenefit(c, vivifyCust({ biz: "shack", recipe: r, state: "seatedWaiting", patience: 50 * PQ,
+        maxPatience: 50 * PQ, x: 1500, isCrab: false, server: c, claimed: true, served: false }));
       out.push({ share: bizTipShare("shack"), n: bizTipTwentieths("shack"), till: coins - t0, wallet: c.p.wallet,
         tip: r.pay * 0.5 * TRAITS[c.p.trait].tip, pay: r.pay });
     }
@@ -4638,8 +4638,8 @@ scenario("tables can never wedge: both abort paths free them, and a soak stays c
     const t = BIZ.shack.tables.find(t2 => !t2.occupant) || BIZ.shack.tables[0];
     window._t = BIZ.shack.tables.indexOf(t);
     t.dirty = false; t.cleaning = false; t.dishes = 1;
-    const k = { biz: "shack", isCrab: true, crab: crabs[0], state: "dining", dineT: 9,
-      table: t, x: t.x, spawnX: t.x, claimed: true, served: true, recipe: BIZ.shack.recipes[0] };
+    const k = vivifyCust({ biz: "shack", isCrab: true, crab: crabs[0], state: "dining", dineT: 9,
+      table: t, x: t.x, spawnX: t.x, claimed: true, served: true, recipe: BIZ.shack.recipes[0] });
     t.occupant = k; customers.push(k); crabs[0].errandCust = k; crabs[0].dayState = "errand";
     abortErrand(crabs[0]);
   }`);
@@ -10786,7 +10786,7 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
     // ...and a faked pig mid-shower drives the bather branch on a real stall
     const stall = BIZ.showers.stalls[0];
     const oldOcc = stall.occupant;
-    stall.occupant = { state: "showering", culture: "pig", color: 5 };
+    stall.occupant = vivifyCust({ state: "showering", culture: "pig", color: 5 });
     const sleepArts = new Set(), bodyArts = new Set();
     for (const cw of CULTURES.pig.arts) { sleepArts.add(cw.s); for (const p of ["a","b","w"]) bodyArts.add(cw[p]); }
     const hatArt = CULTURES.pig.acc.strawhat.art;
