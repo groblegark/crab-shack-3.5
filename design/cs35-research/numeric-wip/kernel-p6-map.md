@@ -66,3 +66,16 @@ Nothing in game.js — by the map's own verdict. The map, the profile
 receipt (`/tmp` profile summarized above; conditions recorded), and the
 inversion are the deliverable, per the phase-3 precedent that a map which
 says "stop" is worth as much as one that says "go".
+
+## Batch instrument: first science (addendum, same day)
+
+`tools/batch.mjs` landed (headless's own workers, kernel armed, receipts
+with load stamped). First results, 128 towns each, deterministic seeds:
+- **Baseline floor holds at 8x the sample**: 0/128 survive the no-buy
+  floor; eviction median day 12, range 6-24 (`batch-128x30-baseline.json`).
+- **The growth escape rate finally has an error bar**: 37/128 = **28.9%
+  +/- 7.9%** (95% CI) on `--buy chef,table --days 40` — consistent with
+  the 48-seed matrix's 13-14/48 and with every noisy 8-seed block back to
+  the "8 seeds is a coin" lesson, which this measurement retires properly
+  (`batch-128x40-growth.json`). Throughput during: ~18-19.5 lived
+  sim-days/s machine-wide on a thermally-degraded box.
