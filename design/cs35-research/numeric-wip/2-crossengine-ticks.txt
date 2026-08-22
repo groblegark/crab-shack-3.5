@@ -1,0 +1,18 @@
+CROSS-ENGINE RECEIPT - numeric slice 2 (clock -> master integer tick)
+protocol numeric-protocol.md par.9, re-run on the slice-2 landing tree.
+
+engine A: V8 / node v26.5.1 (tools/simlib.mjs)
+engine B: JavaScriptCore (macOS system framework), same two days, same seeds
+
+seed 1337
+  V8  : {"day":3,"tmin":0,"coins":15606,"rep":53.9907,"catch":3,"serves":39,"crabServes":4,"rage":4,"till":17500,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17500],["REEF",20927],["SALTY",100],["DRIFT",1300],["KELP",800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[646,163]]}
+  JSC : {"day":3,"tmin":0,"coins":15606,"rep":53.9907,"catch":3,"serves":39,"crabServes":4,"rage":4,"till":17500,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17500],["REEF",20927],["SALTY",100],["DRIFT",1300],["KELP",800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[646,163]]}
+seed 4242
+  V8  : {"day":3,"tmin":0,"coins":19152,"rep":53.8816,"catch":4,"serves":45,"crabServes":4,"rage":5,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",23316],["SALTY",0],["DRIFT",400],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}
+  JSC : {"day":3,"tmin":0,"coins":19152,"rep":53.8816,"catch":4,"serves":45,"crabServes":4,"rage":5,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",23316],["SALTY",0],["DRIFT",400],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}
+
+Both seeds BIT-IDENTICAL, whole fingerprint - money, rep, catch, serves,
+rage, tills, all seven wallets and every position. The tick did not cost
+the engine independence slice 1 bought; the sim's durations are integers
+now, so the only floats left in a trajectory are positions, and slice 4
+takes those.

@@ -2101,9 +2101,40 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
   // this two-day window works a minute of overtime.
   // No threshold crossings anywhere - a crab whose wallet crossed a rent gate
   // would have moved, and nobody moved.
+  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 2 (the master tick), and this
+  // one is TRAJECTORY-shaped rather than rounding-shaped - which the protocol
+  // anticipated for this slice and which the matrix, not this fixture, is the
+  // referee for. What moved and why:
+  //   * THE CLOCK IS EXACT NOW. A float tmin advanced by 0.2 a tick overshot
+  //     1440 by 1.9e-10 every day and carried the residue across every
+  //     midnight forever; tmin is floored from an integer tick of day, so
+  //     midnight lands on 0 exactly and every shop-hours gate is an int
+  //     compare. Measured on the landing tree: day 3 opens at tick 12300 on
+  //     the nose (2100 + two 7200-tick days).
+  //   * EVERY DURATION IS A WHOLE TICK. The 42 timers, the random durations
+  //     minted from the same draws, and the work steps all quantize, and each
+  //     floors - so a task is up to one tick (0.05s) shorter than its float
+  //     twin. That is a sub-1% bias on a 20s cast and a ~1% bias on a 2.5s
+  //     work step, and in a chaotic town it re-rolls WHICH crab is where at
+  //     7am. That is the whole of the drift below.
+  //   * SO THE ECONOMY MOVED, both seeds upward: 1337's coins 14821 -> 15606,
+  //     4242's 11191 -> 19152, with serves 42 -> 39 and 44 -> 45. Different
+  //     towns, not richer arithmetic - and the FLOOR PROVES IT: the 30-day
+  //     16-seed baseline reads 0/16 exact with a median eviction of 12 on
+  //     BOTH sides of this slice, the eviction spread barely shifting
+  //     (8,10,10,11,... -> 9,10,11,11,...). A slice that made the game easier
+  //     would have moved that number and it did not.
+  //   * NOT A THRESHOLD CROSSING ANYWHERE THAT SURVIVES INSPECTION: every
+  //     wallet that moved moved with its owner's day, and the two crabs whose
+  //     positions changed most (DRIFT and KELP) are standing at different
+  //     stops, not at impossible ones.
+  // Cross-engine, on this exact tree: BOTH seeds are bit-identical under
+  // JavaScriptCore, whole fingerprint (design/cs35-research/numeric-wip/
+  // 2-crossengine-ticks.txt). The tick did not cost the engine independence
+  // slice 1 bought - it is the reason positions are landing on whole pixels.
   const want = {
-    1337: '{"day":3,"tmin":0,"coins":14821,"rep":53.609,"catch":4,"serves":42,"crabServes":4,"rage":4,"till":22046,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22046],["REEF",19636],["SALTY",100],["DRIFT",1600],["KELP",100]],"pos":[[520,154],[108,154],[974.7,166.9],[2136,154],[2072,154],[894.7,167.8],[443.2,167.4]]}',
-    4242: '{"day":3,"tmin":0,"coins":11191,"rep":54.2896,"catch":4,"serves":44,"crabServes":3,"rage":5,"till":22599,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22599],["REEF",24595],["SALTY",100],["DRIFT",100],["KELP",800]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,154],[450,155]]}',
+    1337: '{"day":3,"tmin":0,"coins":15606,"rep":53.9907,"catch":3,"serves":39,"crabServes":4,"rage":4,"till":17500,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17500],["REEF",20927],["SALTY",100],["DRIFT",1300],["KELP",800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[646,163]]}',
+    4242: '{"day":3,"tmin":0,"coins":19152,"rep":53.8816,"catch":4,"serves":45,"crabServes":4,"rage":5,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",23316],["SALTY",0],["DRIFT",400],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -10405,13 +10436,16 @@ scenario("cultureways: a save without cultures changes nothing", () => {
     vis: customers.filter(k => k.visitor && !k.gone).length,
     catch: townCatch
   })`);
-  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 1a (cents), provisionally -
-  // fpdiff-receipted re-baseline after 1b. rep IDENTICAL (5429), every
-  // position and the visitor count identical; coins -74c and both owner
-  // tills -1c, which is per-sale cent rounding and nothing else.
-  const want = '{"day":3,"coins":11191,"rep":5429,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,22599],["REEF",646,24595],["SALTY",2072,100],'
-    + '["DRIFT",318,100],["KELP",450,800]],"vis":10,"catch":4}';
+  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 2 (the master tick). This is
+  // seed 4242's two-day town and it moves for exactly the reason the day-2
+  // fingerprint above moves - every duration is a whole tick now, each one
+  // floors, and a chaotic town re-rolls who is standing where. rep 5429 ->
+  // 5388, coins 11191 -> 19152, and the visitor count 10 -> 7. The floor is
+  // the referee and it did not move: 0/16 exact, median eviction 12, on both
+  // sides of the slice. Bit-identical under JavaScriptCore on this tree.
+  const want = '{"day":3,"coins":19152,"rep":5388,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,21443],["REEF",2136,23316],["SALTY",2072,0],'
+    + '["DRIFT",318,400],["KELP",248,0]],"vis":7,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
   if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
