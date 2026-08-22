@@ -3182,6 +3182,54 @@ them, rep is 5 points lower, and the player's till is $64/$105 down at the end
 of day two. Two fixtures that used to CLEAR the opening crowd are now no-ops
 and are kept as belts, with their comments re-pointed to say so.
 
+## PUT DOWN BESIDE A THING, A CRAB CONSIDERS IT (Matt, 2026-08-22) — a ruling
+
+> "we should make it so when crabs get dragged somewhere they interact with
+> the nearest thing as their next preference"
+
+**THE DROP NUDGE.** A crab set down within 72px of a counter, a standpipe or
+the beach ball takes that place as a preference for a game-hour: the need it
+serves has its bar lowered by 0.12, and the stop itself gets a ×1.3 thumb on
+the appeal scale. Constants live in one `NUDGE` table, because what a stop is
+worth to a people is culture rather than physics — a Layer-0 hook table in
+waiting (`cs35-cultureway-substrate.md`).
+
+**IT IS AN INCENTIVE, NOT A PUPPET STRING**, which is the whole ruling and the
+reason the middle scenario exists: a crab put down at the juice bar at thirst
+0.20 has the nudge live on its back and walks away anyway. Dropped broke, on
+the clock, or at a shut shop, it refuses in its own words, in the vocabulary
+the refusals always used. The player tilts the scales; the crab still decides.
+
+**HALF OF IT ALREADY WORKED, AND THAT WAS MEASURED BEFORE ANYTHING WAS BUILT.**
+`errandDetour` is zero at the stop you are standing on, so a dropped crab at
+thirst 0.50 already bought a drink — proximity was already winning among the
+candidates that existed. What it could not do was make the bar a candidate at
+all: at 0.30 the same crab walked away from the counter it was standing at. The
+nudge's real work is the THRESHOLD; the appeal bump is the smaller half.
+
+**IT COSTS THE REFEREES NOTHING.** The nudge fires only on a player's order,
+and no headless run issues one — so the 16-seed matrix is byte-identical to the
+tree before it (same eviction list, same `lifetime $53892`) and not one frozen
+fingerprint moved. A player lever that the regression detectors cannot see is
+the cheapest kind of feature there is.
+
+## SEND: ORDERING A CRAB IS ONE SENTENCE ON BOTH DEVICES (Matt, 2026-08-22)
+
+> "also needs to be drivable via the phone"
+
+Ordering was a RIGHT-CLICK, which is a gesture no phone can make: the whole
+feature was desktop-only — not a mode the mouse earned, just one touch never
+got. The sentence is now **select, SEND, place**: tap a crab, tap the SEND chip
+on its card, tap where they should go. The mouse keeps right-click as its
+shortcut over the same two steps, exactly as hover arms the shop tooltip for
+free — the shop button's own doctrine, applied to the town.
+
+**AND THE DRAG STAYS THE CAMERA'S.** Because the sentence is two taps and never
+a drag, a finger that moves is unambiguously a pan and a finger that does not is
+a tap; there was no gesture to arbitrate. Verified on a 390×844 portrait
+viewport with real touch events: SEND arms, a pan while armed pans and does NOT
+dispatch the crab, and the next tap dispatches and disarms.
+
 ## ON DUTY IS NOT A REFUSAL (Matt, 2026-08-21) — a ruling
 
 An owner's business order to their own staffer fires MID-SHIFT: the boss can
