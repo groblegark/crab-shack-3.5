@@ -1,0 +1,89 @@
+seed 1000: day 13 frames 84299 trans/crabTick 0.01069
+seed 1017: day 13 frames 84299 trans/crabTick 0.01011
+seed 1034: day 13 frames 84299 trans/crabTick 0.01002
+seed 1051: day 11! frames 75899 trans/crabTick 0.00955
+seed 1068: day 12! frames 83099 trans/crabTick 0.00950
+seed 1085: day 13 frames 84299 trans/crabTick 0.01056
+seed 1102: day 10! frames 68699 trans/crabTick 0.00963
+seed 1119: day 12! frames 83099 trans/crabTick 0.01001
+seed 1136: day 12! frames 83099 trans/crabTick 0.01026
+seed 1153: day 12! frames 83099 trans/crabTick 0.01013
+seed 1170: day 13 frames 84299 trans/crabTick 0.01062
+seed 1187: day 12! frames 83099 trans/crabTick 0.01028
+seed 1204: day 13 frames 84299 trans/crabTick 0.01015
+seed 1221: day 13 frames 84299 trans/crabTick 0.01018
+seed 1238: day 12! frames 83099 trans/crabTick 0.01007
+seed 1255: day 12! frames 83099 trans/crabTick 0.00997
+
+== BRANCHLESS COHERENCE REPORT  (16 seeds x 12 days, 1316384 town-frames, 2632768 crab-ticks)
+
+-- CPU: dispatch stability (the branch predictor's view)
+state transitions per crab-tick: 0.01012  (dispatch branch holds 99 ticks between changes)
+crab-tick share by state:
+   home:idle:showers 29.8%  (transitions into: 522)
+   home:idle:   12.0%  (transitions into: 125)
+   working:walk:showers 9.2%  (transitions into: 4602)
+   toHome:idle:showers 5.6%  (transitions into: 529)
+   working:work:showers 5.3%  (transitions into: 3192)
+   working:walk: 4.4%  (transitions into: 2650)
+   home:idle:shack 3.5%  (transitions into: 76)
+   working:work: 3.1%  (transitions into: 1850)
+   atBall:idle:showers 2.7%  (transitions into: 110)
+   selfCook:idle:showers 2.7%  (transitions into: 166)
+   atTap:idle:showers 1.7%  (transitions into: 95)
+   toHome:idle: 1.7%  (transitions into: 126)
+   toWork:idle:showers 1.7%  (transitions into: 201)
+   chat:idle:showers 1.4%  (transitions into: 154)
+   working:busingTable:showers 1.1%  (transitions into: 1183)
+   toWork:idle: 1.1%  (transitions into: 85)
+   selfCook:idle: 1.1%  (transitions into: 85)
+   errand:idle:showers 1.1%  (transitions into: 75)
+   working:walk:shack 1.0%  (transitions into: 667)
+   working:idle: 1.0%  (transitions into: 1076)
+   working:toTableClean:showers 1.0%  (transitions into: 1183)
+   working:work:shack 0.9%  (transitions into: 473)
+   toHome:idle:shack 0.9%  (transitions into: 72)
+   toErrand:idle:showers 0.8%  (transitions into: 77)
+   working:idle:showers 0.7%  (transitions into: 1929)
+   working:busingTable: 0.6%  (transitions into: 663)
+   errand:idle:shack 0.5%  (transitions into: 17)
+   working:toTableClean: 0.5%  (transitions into: 663)
+   atBall:idle:shack 0.4%  (transitions into: 18)
+   selfCook:idle:shack 0.3%  (transitions into: 23)
+   toWork:idle:shack 0.3%  (transitions into: 26)
+   toErrand:idle:shack 0.2%  (transitions into: 20)
+   working:nap:showers 0.2%  (transitions into: 74)
+   chat:idle:shack 0.2%  (transitions into: 22)
+   working:idle:shack 0.2%  (transitions into: 281)
+   working:busingTable:shack 0.2%  (transitions into: 173)
+   atTap:idle:shack 0.2%  (transitions into: 11)
+   working:waitCash:showers 0.2%  (transitions into: 3)
+   atTap:idle:  0.1%  (transitions into: 7)
+   working:toTableClean:shack 0.1%  (transitions into: 173)
+   working:nap: 0.1%  (transitions into: 36)
+   working:toSlot:showers 0.1%  (transitions into: 1789)
+   working:nap:shack 0.1%  (transitions into: 20)
+   working:toSlot: 0.0%  (transitions into: 1021)
+   atBall:idle: 0.0%  (transitions into: 1)
+   chat:idle:   0.0%  (transitions into: 3)
+   working:waitSlot: 0.0%  (transitions into: 12)
+   working:toSlot:shack 0.0%  (transitions into: 269)
+   working:waitSlot:showers 0.0%  (transitions into: 5)
+   working:waitSlot:shack 0.0%  (transitions into: 3)
+
+-- within-town: state-sorted bucket structure
+distinct states live per tick: mean 1.78, hist {"1":294402,"2":1021982}
+mean customers per tick 9.89, mean actors 17.09
+
+-- GPU: cross-seed warp coherence (one town per lane, 16-wide)
+modal-state share per crab slot, overall mean: 71.3%
+   night(0-7h)      mean 67.8%  min 34.4%
+   morning(7-10h)   mean 55.9%  min 40.6%
+   midday(10-15h)   mean 64.5%  min 34.4%
+   evening(15-21h)  mean 82.0%  min 46.9%
+   late(21-24h)     mean 88.3%  min 68.8%
+
+-- rare events per town-day
+illness 0.238, polls 0.085, closures 0.101, walkouts 0.381
+towns ended early: 9/16
+EXIT:0
