@@ -69,14 +69,19 @@ static int32_t *const B_BLK = (int32_t *)25984;   /* out: _blocked this frame */
    exact. Seeded per sim by rng_seed - same seed, same sequence as the
    closure it replaces, which is why the fingerprint gate covers it. */
 static uint32_t *const RNG_STATE = (uint32_t *)26624;
+/* ...and the DRAW COUNTER rides the word after it (kernel phase 4): every
+   advance of the shared cursor bumps it, JS-routed and kernel-internal
+   alike, so the draw-count pin counts CURSOR MOVES rather than JS calls -
+   the only definition that survives draws moving into the kernel. */
+static uint32_t *const RNG_COUNT = (uint32_t *)26628;
 
 __attribute__((export_name("rng_seed")))
-void rng_seed(uint32_t s) { *RNG_STATE = s; }
+void rng_seed(uint32_t s) { *RNG_STATE = s; *RNG_COUNT = 0; }
 
 __attribute__((export_name("rng_u32")))
 uint32_t rng_u32(void) {
   uint32_t a = *RNG_STATE + 0x6D2B79F5u;
-  *RNG_STATE = a;
+  *RNG_STATE = a; (*RNG_COUNT)++;
   uint32_t t = (a ^ (a >> 15)) * (1u | a);
   t = (t + ((t ^ (t >> 7)) * (61u | t))) ^ t;
   return t ^ (t >> 14);

@@ -11161,11 +11161,18 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // the same commit, or it is a bug.
   const PIN = { 1: 1861, 2: 2399 };   // day 2 re-pointed at the 3a re-baseline: +5 conditional draws behind the traced tired-grain head (SUDSY's drink-errand arrival, day 1 tmin 1182); day 1 held exactly, again
   const sim = createSim({ seed: 1337 });
+  // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
+  // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
+  // them; counting cursor ADVANCES is the only definition of "a draw" that
+  // survives the port, and it reads the same 1861/2399 the JS wrap always
+  // did, which is itself a receipt that the stream never forked.
   sim.G(`{ const real = srand; window._dayDraws = 0; srand = () => (window._dayDraws++, real()); }`);
+  const count = "window._wasmKernel ? new Uint32Array(window._wasmKernel.memory.buffer, 26628, 1)[0] : window._dayDraws";
   for (const d of [1, 2]) {
     sim.G("window._dayDraws = 0");
+    const c0 = sim.G(count);
     sim.runUntil(`day === ${d + 1}`, { maxSteps: 200000 });
-    const n = sim.G("window._dayDraws");
+    const n = sim.G(count) - (sim.G("window._wasmKernel") ? c0 : 0);
     if (n !== PIN[d]) return `day ${d} drew ${n} from the sim stream, the pin says ${PIN[d]}`;
   }
   return true;
