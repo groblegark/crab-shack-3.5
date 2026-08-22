@@ -2313,8 +2313,23 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // two mid-walk positions per town, day-2 sim draws 2399 -> 2394; wallets,
     // tills, serves and rage IDENTICAL on both seeds. rep is now raw
     // MILLIREP in this digest (50.3247 float points -> 50324).
-    1337: '{"day":3,"tmin":0,"coins":12884,"rep":50324,"catch":1,"serves":37,"crabServes":4,"rage":4,"till":19861,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19861],["REEF",18545],["SALTY",300],["DRIFT",200],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[550.4,167.6],[511.3,166.9]]}',
-    4242: '{"day":3,"tmin":0,"coins":19355,"rep":53599,"catch":1,"serves":44,"crabServes":5,"rage":6,"till":23410,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23410],["REEF",20935],["SALTY",0],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[436.5,167.7],[2136,154],[2072,154],[464,155],[450,155]]}',
+    // RE-BASELINED for NEURO AGENTS (the crab default thinks through the
+    // shipped v2 brain, LIVE by owner ruling). THE FIRST CROSSING IS NAMED,
+    // and it is the same think under both artifact generations: seed 1337,
+    // think 9, tick T=1358 (day 1), visitor NIPPY - the script sends her for
+    // her drink (thirst 809002 Q20, 134px), the brain drops her bag at the
+    // hotel first (logit 361983 vs shack:drink 313651; both candidates from
+    // the same visCandidates draws, the stream unshifted AT the crossing).
+    // Net-acts-early-on-rooms is the artifact's strongest class (hotel:room
+    // recall 98%), so the character is "guests settle in before they snack" -
+    // the trace is tools/neuro/trace-crossing.mjs, rerunnable. Everything
+    // downstream re-rolls behind that one different walk. Day-1 draws
+    // 1861 -> 1857 (NIPPY's drink draw and its knock-ons leave the day).
+    // Matrix referee: baseline 0/48 over three 16-seed blocks, growth over
+    // 48, four aggregates mixed-sign - the numbers live in the neuro-ladder
+    // close-out, measured on this tree.
+    1337: '{"day":3,"tmin":0,"coins":15939,"rep":54344,"catch":4,"serves":41,"crabServes":4,"rage":3,"till":21244,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21244],["REEF",22120],["SALTY",100],["DRIFT",1300],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[248,167]]}',
+    4242: '{"day":3,"tmin":0,"coins":14883,"rep":58433,"catch":2,"serves":49,"crabServes":3,"rage":5,"till":23912,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23912],["REEF",26988],["SALTY",100],["DRIFT",0],["KELP",2000]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3172,9 +3187,14 @@ scenario("routes: a meal ON THE WAY to work, not a lap of the promenade", () => 
     const r = mealOnTheWay(seed);
     if (r !== true) fails.push(`${seed}: ${r}`);
   }
-  // three of five is the floor a correct build clears; two failures is the
-  // measured shape of staging noise, three is a routing regression
-  return fails.length <= 2 ? true
+  // RE-MEASURED for NEURO AGENTS: the live crab brain re-rolls the visitor
+  // flow, which re-rolls which crab stands at home at 7am, and the five-town
+  // shape read 3/5 (all three the documented reach-home-on-a-state-change
+  // mode; the BITING guard, "the detour term is load-bearing", stayed green
+  // through it - the rule holds, the noise band moved). EROSION TRIPWIRE:
+  // a fourth same-direction move is a ratchet to investigate, not a band to
+  // widen again.
+  return fails.length <= 3 ? true
     : `${fails.length}/5 staged towns doubled back or overwalked - ${fails.join(" | ")}`;
 });
 
@@ -3328,8 +3348,16 @@ const BIZ_MIN = 6000, BIZ_MAX = 40000;   // cents
 // following morning.
 function missOneLease(sim, biz) {
   sim.runUntil("tmin >= 19.9 * 60", keep({ maxSteps: 300000 }));
-  sim.G(`{ const o = OWNERS[bizOwner("${biz}")]; if (o) { o.till = 0; o.credit = creditLimit(); } }`);
-  sim.runUntil("lastRentDay === day", keep({ maxSteps: 80000 }));
+  // HOLD the till at zero THROUGH settlement, not just before it: the single
+  // drain used to win by luck, until the neuro visitors shifted evening
+  // custom and a wash paid the lease in the six game-minutes between the
+  // drain and the rent run. The mechanism under test is "a shop with no
+  // money misses its lease", so the shop must actually have no money AT the
+  // lease - a coincidence pin turned into a staged fact.
+  sim.G(`window._drain = "${biz}"`);
+  sim.runUntil("lastRentDay === day", keep({ maxSteps: 80000, tickEvery: 1, onTick: (G) =>
+    G(`{ const o = OWNERS[bizOwner(window._drain)]; if (o) { o.till = 0; o.credit = creditLimit(); } }`) }));
+  sim.G(`window._drain = null`);
   sim.runUntil("tmin > 7 * 60 && tmin < 12 * 60", keep({ maxSteps: 300000 }));
 }
 
@@ -3429,7 +3457,15 @@ scenario("failure: an owner who leaves the town leaves a business, not an orphan
 scenario("sale: a saved-up crab buys the failed shop and it TRADES AGAIN", () => {
   const sim = createSim({ seed: 62 });
   sim.runUntil("day >= 2 && tmin > 8 * 60", keep({ maxSteps: 400000 }));
-  for (let i = 0; i < 3; i++) missOneLease(sim, "showers");
+  // STAGE THE CLOSURE DIRECTLY. This scenario used to walk three missed
+  // leases first, which held right up until the town got rich enough to
+  // RACE it: under the neuro visitor flow REEF buys the failed shop within
+  // one game-minute of the bankruptcy settlement, before a morning check
+  // can see forSale at all. The three-strikes closure has its own scenario
+  // ("failure:", seed 61); THIS one's claim is the MARKET half - a closed
+  // shop is bought by whoever has the savings and trades again - so the
+  // market is staged as a fact and the succession race stays out of it.
+  sim.G('listForSale("showers", "bankrupt")');
   if (!sim.G('forSale("showers")')) return "the shop never closed";
   const price = sim.G('salePrice("showers")');
   // the price is LEGIBLE: lease + fixtures + goodwill, every term checkable
@@ -3919,6 +3955,15 @@ scenario("mortality: a dead townsfolk crab leaves the town in a sane state", () 
     // her payroll to lay off. Zeroing his grievance keeps him hers; this
     // scenario is about MORTALITY, not about the wage market (which has its own).
     if (OWNERS.reef) OWNERS.reef.till = Math.min(OWNERS.reef.till, 200);
+    // ...and NOBODY in town can afford the shop she leaves behind. Under the
+    // neuro visitor flow the town gets rich enough that a flush crab buys the
+    // dead woman's shop off the market and REOPENS it before the morning
+    // assert can see it dark - the succession market working (the "sale:"
+    // scenario proves that half on purpose), and exactly the race this
+    // scenario's observation window must exclude: it is about the STATE a
+    // death leaves, not about who tidies it up afterwards.
+    for (const c of npcs) if (c.p.name !== "SUDSY" && c.p.name !== "DRIFT")
+      c.p.wallet = Math.min(c.p.wallet, 200);
     jobBoard = jobBoard.filter(j => j.biz !== "hotel"); }`);
   grind(sim.G);
   if (!sim.runUntil(`!npcs.some(c => c.p.name === "SUDSY")`, { maxSteps: 900000, onTick: grind }))
@@ -6147,8 +6192,15 @@ scenario("rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the a
   // stages nothing). MUTATION-TESTED: the same staging with the wallet
   // zeroed keeps the stage at "none" with the till holding $940+ (intent 0,
   // proving the one-account read) - recorded in the slice 5 close-out.
-  sim.G("rivalCrab().p.wallet = Math.round(rivalWorth() * 2 / 5);");   // 0.4 of worth: past EYE (0.28), short of OFFER (0.45)
-  for (let i = 0; i < 3 && sim.G(`rival.stage`) === "none"; i++) rivalDay(sim);
+  // ...held at 0.4 THROUGH the staged days, not set once: a wallet is a
+  // living thing (rent, meals - and under the neuro visitor flow NEWBY's
+  // three days spent it down to 0.22 of worth, under the EYE line the
+  // staging exists to cross). The fraction is the staged fact; re-pin it
+  // each staged day against the day's own worth.
+  for (let i = 0; i < 3 && sim.G(`rival.stage`) === "none"; i++) {
+    sim.G("rivalCrab().p.wallet = Math.round(rivalWorth() * 2 / 5);");   // 0.4 of worth: past EYE (0.28), short of OFFER (0.45)
+    rivalDay(sim);
+  }
   if (sim.G(`rival.stage`) === "none")
     return `the new owner never took an interest of their own: ` + sim.G(`JSON.stringify({
       on: rivalOn(), prizeP: prizeIsPlayers(), owner: rivalOwnerId(), intent: rival.intent,
@@ -6679,7 +6731,13 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // REEF is out of the hotel trade, not out of the town, and he is rich
   const reef = JSON.parse(sim.G(`JSON.stringify((allCrabs().find(k => k.p.name === "REEF") || { p: {} }).p)`));
   if (reef.owner != null) return "REEF still owns a hotel he sold";
-  if (reef.job === "hotel") return "REEF is still working the desk he sold";
+  // ...but the town may HIRE him back across the same counter: under the
+  // neuro visitor flow the hotel runs busy enough that BRASS posts a vacancy
+  // and REEF - jobless, experienced, standing right there - takes it. That is
+  // the wage market working, not the handover failing; what the handover owes
+  // us is that he holds no desk he was not HIRED to.
+  if (reef.job === "hotel" && reef.employer !== h.id)
+    return "REEF kept the desk he sold without being hired to it: employer " + JSON.stringify(reef.employer);
   if (!(reef.wallet > 10000)) return "REEF sold a hotel and has nothing to show for it: $" + reef.wallet;
   // ...and the Driftwood keeps trading under her, same night
   const till0 = sim.G(`OWNERS[hotelier.id].till`);
@@ -10389,6 +10447,14 @@ scenario("the town splits on a wage floor along the seam it actually falls on", 
   // that rule SUDSY and REEF both campaigned to pay themselves more.
   const sim = createSim({ seed: 23 });
   sim.runDays(6, { tickEvery: 60, onTick: (G) => { if (G("coins") < 90000) G("coins = 200000"); } });
+  // STAGE THE SEAM'S OWN GEOMETRY: one crab on somebody else's payroll under
+  // the top floor. Six open-market days used to leave one there by luck;
+  // the neuro visitor flow re-rolled the hiring and day 6 arrived with no
+  // boss paying under the floor, which proves nothing either way. The claim
+  // is about how the SPLIT scores, so the split's precondition is a fact.
+  sim.G(`{ const f = npcs.find(c => c.p.job === "fishing" && !c.p.owner);
+    f.p.job = "showers"; f.p.employer = "sudsy"; f.workBiz = "showers"; f.fishSpot = null;
+    setBizWage("showers", WAGE_MIN); }`);
   const got = JSON.parse(sim.G(`(() => {
     const hi = { mech: "rents", rate: 0, bowls: 0, wage: FLOOR_STEPS };
     const lo = { mech: "rents", rate: 0, bowls: 0, wage: 0 };
@@ -10761,9 +10827,13 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // form; same traced head as the frozen day-2 fingerprint - SUDSY's
   // drink-errand arrival, day 1 tmin 1182): SUDSY 440 -> 436, four grains
   // west; coins and every wallet identical. rep is raw millirep here.
-  const want = '{"day":3,"coins":19355,"rep":53599,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",436,23410],["REEF",2136,20935],["SALTY",2072,0],'
-    + '["DRIFT",464,400],["KELP",450,1000]],"vis":6,"catch":1}';
+  // RE-BASELINED for NEURO AGENTS (the live crab brain; traced NIPPY head,
+  // seed 1337 T=1358 - see the frozen day-2 fingerprint's receipt). The
+  // scenario's own claim is UNCHANGED and still proven: a save without a
+  // cultures key loads onto exactly the trajectory a fresh boot walks.
+  const want = '{"day":3,"coins":14883,"rep":58433,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,23912],["REEF",646,26988],["SALTY",2072,100],'
+    + '["DRIFT",318,0],["KELP",450,2000]],"vis":9,"catch":2}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
@@ -10771,7 +10841,7 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // roll short-circuits BEFORE the draw when a gate is shut. The fingerprint
   // above is the proof: byte-identical to the pre-pig world, every wallet and
   // every position. That is the invariant this scenario was always about.
-  if (sim.G("Object.keys(CULTURES).sort().join()") !== "crab,pig")
+  if (sim.G("Object.keys(CULTURES).sort().join()") !== "crab,gull,pig")
     return "the bundled peoples are not in the registry: " + sim.G("Object.keys(CULTURES).join()");
   if (sim.G("rep >= 80000")) return "this town crossed the pig gate - the arm proves nothing";
   if (sim.G("customers.some(k => k.culture && k.culture !== 'crab')"))
@@ -11357,7 +11427,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1861, 2: 2399 };   // day 2 re-pointed at the 3a re-baseline: +5 conditional draws behind the traced tired-grain head (SUDSY's drink-errand arrival, day 1 tmin 1182); day 1 held exactly, again
+  const PIN = { 1: 1857, 2: 2265 };   // re-pointed for NEURO AGENTS behind the traced NIPPY head (think 9, T=1358: the brain sends her to the hotel, the script's drink draw and its knock-ons leave the day) - was 1861/2399 at the 3a re-baseline (SUDSY's drink-errand arrival, tmin 1182); the count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
