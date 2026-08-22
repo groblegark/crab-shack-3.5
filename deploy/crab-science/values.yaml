@@ -1,0 +1,44 @@
+# The experiment IS these values. A result quoted from a run should cite:
+# gitRef, towns x days, the flags, and the receipt's own fingerprint line.
+
+repo: https://github.com/groblegark/crab-shack-3.5.git
+# Pin the exact commit the science runs on - never a branch name, so the
+# receipt stays reproducible after the branch moves.
+gitRef: c059220000000000000000000000000000000000  # <- set at install; see README
+
+# Sharding: pods x townsPerPod towns total. Pod i simulates seeds
+# [seedbase + i*townsPerPod, ...). Towns are deterministic per seed, so
+# any shard shape gives the same science - shape only changes wall time.
+pods: 8
+townsPerPod: 64
+seedbase: 0
+
+# Per-town workload (passed to batch.mjs / headless verbatim)
+days: 30
+# Extra worker flags, e.g. ["--buy", "chef,table"] for the growth sweep,
+# or hatches like ["--norival"] for attribution science.
+extraArgs: []
+
+# Workers per pod - match resources.cpu. batch.mjs forks one headless
+# worker per core; the kernel and main realm are armed by default.
+jobsPerPod: 7
+
+image:
+  node: node:26-slim
+  git: alpine/git:2.45.2
+
+resources:
+  requests:
+    cpu: "7"
+    memory: 2Gi
+  limits:
+    cpu: "8"
+    memory: 4Gi
+
+# Job housekeeping
+backoffLimit: 2
+ttlSecondsAfterFinished: 86400
+activeDeadlineSeconds: 3600
+
+nodeSelector: {}
+tolerations: []

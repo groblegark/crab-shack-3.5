@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: crab-science
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  completions: {{ .Values.pods }}
+  parallelism: {{ .Values.pods }}
+  completionMode: Indexed
+  backoffLimit: {{ .Values.backoffLimit }}
+  ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
+  activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: crab-science
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      restartPolicy: Never
+      {{- with .Values.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: clone
+          image: {{ .Values.image.git }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              git clone --no-checkout --filter=blob:none {{ .Values.repo }} /work
+              cd /work
+              git checkout --detach {{ .Values.gitRef }}
+              echo "science tree: $(git rev-parse HEAD)"
+          volumeMounts:
+            - { name: work, mountPath: /work }
+      containers:
+        - name: batch
+          image: {{ .Values.image.node }}
+          workingDir: /work
+          command: ["/bin/sh", "-ec"]
+          # Pod i takes seeds [seedbase + i*townsPerPod, +townsPerPod).
+          # batch.mjs prints the JSON receipt (distributions, throughput,
+          # fingerprint context) to stdout - kubectl logs IS the result.
+          args:
+            - |
+              exec node tools/batch.mjs \
+                --towns {{ .Values.townsPerPod }} \
+                --seedbase $(( {{ .Values.seedbase }} + JOB_COMPLETION_INDEX * {{ .Values.townsPerPod }} )) \
+                --days {{ .Values.days }} \
+                --jobs {{ .Values.jobsPerPod }} \
+                {{- range .Values.extraArgs }}
+                {{ . }} \
+                {{- end }}
+                --json
+          env:
+            - name: JOB_COMPLETION_INDEX
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - { name: work, mountPath: /work }
+      volumes:
+        - name: work
+          emptyDir: {}

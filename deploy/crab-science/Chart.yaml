@@ -1,0 +1,11 @@
+apiVersion: v2
+name: crab-science
+description: >-
+  Crab Shack batch science on a cluster - N deterministic towns sharded
+  across indexed Job pods, each running tools/batch.mjs from a pinned
+  commit of the public repo. No custom image: a stock node container
+  plus a git-clone initContainer, so the experiment is reproducible
+  from the chart values alone (ref + seeds + days + flags).
+type: application
+version: 0.1.0
+appVersion: "cs35-numeric"
