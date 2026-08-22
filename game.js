@@ -10307,8 +10307,12 @@ function visPick(k) {
     const d = Math.abs(k.x - BIZ[e.biz].queueX);
     let s;
     if (e.need === "room") {
-      if (tmin >= ROOM_HOUR) s = 99;   // the desk shuts before the town does: go now, wherever you are
-      else s = (ROOM_RANK + ROOM_URGE * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60))))
+      // IN NEED UNITS, like every other candidate below (slice 3): the room
+      // is scored against needs, so it rides the same Q20 scale or a bed can
+      // never outrank a taco again.
+      if (tmin >= ROOM_HOUR) s = 99 * Q20;   // the desk shuts before the town does: go now, wherever you are
+      else s = (ROOM_RANK * Q20 + Math.floor(ROOM_URGE * Q20
+        * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60)))))
         / (1 + d / DETOUR_SCALE);
     } else {
       // THE BOARD PRICE MOVES THE SHARE. The retired spawn timer carried the
