@@ -8,6 +8,168 @@ Play it: **[groblegark.github.io/crab-shack-3](https://groblegark.github.io/crab
 
 ---
 
+## 2026-08-22, late — Tales from the sim: THE ONE WHO STAYED
+
+We rented time on a real cluster and simulated **four thousand and
+ninety-six islands**, each with an owner who buys *nothing*. No chef, no
+table, no juice bar. Just the starting shack, two crew, and the rent
+falling due every night at eight.
+
+Four thousand and ninety-five of them died. Median: day twelve. The
+saddest went under on day five; the stubbornest starved through to day
+twenty-nine. We have the full histogram now, and it looks like a
+mountain with a long, thin eastern slope where the doomed towns crawl.
+
+One island is not on the mountain.
+
+On island 723 — that's its catalog number; it never got a name, none of
+them do — the books close on day thirty **$302.25 in the till, rent paid,
+nobody evicted, still open**. Lifetime takings $9,431.25, roughly triple
+what a dying town manages before the end.
+
+We went and looked, because a one-in-four-thousand town deserves a
+visit. Here is how they did it: **everyone fished.** Not "the fishers
+fished" — everyone. DRIFT hauled 114 catches in thirty days. SALTY beat
+her with 127 and, in keeping with long tradition, never mentioned it.
+KELP landed 111. SUDSY — SUDSY, who runs the showers, who does not
+fish — put up 70. Even REEF, who once owned a hotel, stood in the surf
+and pulled out 34. Four hundred and fifty-six catches, $972 of fish,
+every dollar of it walking back through town past two crab-crew — PINCHY
+and CLAWDIA — who kept the shack's tables turning well enough to bank
+$2,571 in table tips from 337 seated tourists.
+
+It was not a gentle month. Eight infections. A hundred and seventy-three
+unhoused nights. A hundred and twenty-eight tourists gave up on the
+queue and left. The town held four elections and voted in its shower
+attendant. And on the thirty-first morning the island was still there,
+which none of its four thousand and ninety-five siblings can say.
+
+No one is calling it a strategy. We are calling it a town that refused.
+
+*(A production note, because this is that kind of devlog: the cluster
+found island 723 on rented Intel machines, and the laptop reproduced its
+every cent on Apple silicon. Same integers, same island, to the last
+tick. That is new, and it is the point of everything below.)*
+
+---
+
+## 2026-08-22 — The engine room
+
+The island now runs, in part, on a very small engine made of compiled
+code — the kind of program that gets translated all the way down to the
+metal before it runs, instead of being read line by line while it runs.
+
+The rule we set for it is simple and merciless: **it must agree with the
+original game, byte for byte, every frame, or it does not ship.** There
+is a test that runs the same town twice — once on each engine — and
+compares every last grain of the world. When we deliberately broke the
+engine's rounding by one part in a million, the test named the exact
+crab, the exact field, and the exact tick where the two worlds first
+disagreed. Then we fixed it and the worlds snapped back together.
+
+What this buys, besides speed: the full test suite — every scenario,
+every story-with-assertions we have written since the beginning — used
+to take **46 minutes**. It now takes **about half a minute**. The
+30-day, 16-town measurement matrix that used to be a coffee break is
+now four seconds. When checking your work costs nothing, you check it
+constantly, and everything downstream of that gets better.
+
+And the speed is why four thousand islands was an afternoon instead of
+a season. The one who stayed was always out there in the space of
+possible towns. We just finally built the boat fast enough to find her.
+
+---
+
+## 2026-08-21/22 — The Great Reckoning
+
+The island's money has been counted again. All of it. Every till, every
+wallet, every tip jar, every debt. The books now balance **to the
+cent** — not "to within a rounding error", not "close enough for a
+beach town". Exactly. There is a line in the town ledger that reads
+SETTLED TO THE CENT, and it is not a metaphor; it is an accounting
+entry, and the fraction of a cent it swept up is recorded next to it.
+
+It turns out the old books had been leaking, very slightly, forever.
+Every time the town was saved and loaded, fractions of a cent winked in
+and out of existence. Nobody ever saw it. The crabs certainly never saw
+it. But it was there, a tide going in and out under the floorboards,
+and now it is gone.
+
+The clock got the same treatment. The old midnight arrived a
+millionth-of-a-millionth of a minute late, every night, and carried the
+lateness forward forever — an error so small it could never matter and
+so wrong it could never be forgiven. Day three now begins at tick
+12,300 exactly. The tide chart and the till agree on what "tonight"
+means.
+
+### Timelines that never shipped (lab stories division)
+
+The reckoning was done carefully, in a parallel timeline, with
+instruments watching. The instruments earned their keep. Stories from
+towns that only ever existed in the lab:
+
+- For a few hours, **SUDSY and REEF opened their shops a hundred times
+  poorer than intended** — their founding tills had been read in the
+  new money as if they were the old. A whole test-town ran its first
+  days in grinding poverty before the fingerprint check caught the two
+  of them holding two dollars where two hundred should have been.
+- **The fish went mad.** A timeline where casting a line took nine
+  *ticks* instead of nine *seconds* produced 493 fish in a single day
+  against a normal town's 34. DRIFT, in that timeline, was briefly the
+  most productive fisher in the history of the species. The books did
+  not survive contact with the fish.
+- **SANDY spent 25 game-minutes being politely pushed off her own pier
+  spot.** The collision rule said "make way for a walking crab" —
+  including, it turned out, making way for a crab walking to exactly
+  where you are standing. She would arrive; the rule would evict her;
+  she would arrive again. She fishes in peace now.
+- One lab town's medical charts diagnosed **every sick crab with
+  starvation** regardless of what ailed them, because the sickness
+  checklist was still written in the old arithmetic. It stayed unnoticed
+  for two whole eras because, in those eras, nobody happened to get
+  sick — which the auditors have asked us to note is not the same thing
+  as the hospital working.
+- And a scoring bug demoted **every hotel bed on the island** to a
+  millionth of the value of a taco, because the beds were still scored
+  in old units after everything else moved. Room lettings halved and
+  the hotelier stopped bothering to arrive. If you have ever wondered
+  what a hotel is worth in tacos: more than that.
+
+Every one of these was caught by the measurements before it ever
+touched the real island. The crabs you play with never lived them. But
+we keep the stories, because each one is now also a test with teeth.
+
+---
+
+## 2026-08-21 — A pig gets off the boat
+
+The Thursday ferry has been crossing the horizon since day one. This
+week, for the first time, something got off that wasn't a tourist crab.
+
+![A pig steps onto the pier](devlog/img/2026-08-21-pig-off-the-boat.png)
+
+The pigs are from the mainland. They arrive once the island has a
+reputation worth the crossing, they wear enormous straw hats or no hats
+at all — and which one turns out to matter, because pig society is not
+so egalitarian: the bare-headed ones hold clerkships, carry heavier
+purses, and say things like **"AN APRON? I HOLD A CLERKSHIP, MADAM."**
+when offered honest work. The strawhats tip better than they can
+afford.
+
+They will not eat fish — that is a mainland taboo, and no discount will
+move it — and they are loudly disappointed in the local bakery
+situation (**"NOT A PORK BUN IN TOWN"**), which the island's kitchens
+should probably take personally. They love a good soak.
+
+![Three registers of goodbye](devlog/img/2026-08-21-three-registers-departing.png)
+
+Under the hood, a pig is not a special case in the engine. A pig is a
+*document* — body, hat, palate, purse, manner of speaking — and the
+engine reads the document. That is the beginning of something much
+bigger than pigs.
+
+---
+
 ## 2026-08-20, last thing — The sale that had never once worked
 
 The owner sat down to play his own game and reported a small usability
