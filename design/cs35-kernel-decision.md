@@ -357,6 +357,30 @@ would land a compiled kernel on top of a harness that is still giving away
 4x, and every speedup number taken along the way would be measured against
 the wrong baseline.
 
+## PHASE 3 ADDENDUM (2026-08-22) — the float audit lands; the port unit is mapped
+
+Landing 3a closed the float audit (kernel-p3-closeout.md): tired
+accrues by remainder accumulator, the election surface is integer end
+to end with the four 1e-9 comparators gone, and the integer-ness
+tripwire scenario now ENFORCES the amended no-float claim (float STATE
+included — the class slice 5's grep missed). Measured after 3a: kernel
+on/off **1.49x** (up from 1.31x with no kernel change — the audit
+replaced float dances on the JS side, growing the kernel's share of
+the remaining bill), single-core **14.7 sim-days/s** kernel-armed main
+realm, all-cores **50.7 sim-days/s** machine-wide (3.69s for a 16-town
+30-day baseline at --jobs 10). Session chain 2.5 → 14.7 ≈ 5.9x.
+
+Landing 3b did NOT land: the customers+visitors closure measures
+~620 sim lines before the serve/pay half (est. 900-1,400 lines of C)
+with three named port-blocking semantics — JS sort stability, Map
+iteration order, and **visPick as the cultureway surface** (the first
+binding of the Layer-0 hook tables to the kernel; a design decision
+for the owner/orchestrator, not a port detail). The full map, with
+the recommended landing order and the paired-order scenarios to write
+BEFORE porting, is in kernel-p3-closeout.md §3b. The inline-draw
+blocker is cleared (the shared cursor); the float blocker is cleared
+(3a); what remains is size and the three semantics, all enumerated.
+
 ## Sources
 
 - [Understanding the Performance of WebAssembly Applications](https://benchmarkingwasm.github.io/BenchmarkingWebAssembly/)
