@@ -381,6 +381,42 @@ BEFORE porting, is in kernel-p3-closeout.md §3b. The inline-draw
 blocker is cleared (the shared cursor); the float blocker is cleared
 (3a); what remains is size and the three semantics, all enumerated.
 
+## PHASE 4 ADDENDUM (2026-08-22) — the first subsystem half compiles; the hook table binds
+
+The customers+visitors unit's first half runs in the kernel, byte-identical
+at every gate: visitor residency (state code + needs as plane grains),
+`vis_tick` (integer-pure; the one float dance arrives as a per-frame
+finished argument), and `vis_pick` — the scorer transcribed with f64 (wasm
+f64 is IEEE, bit-for-bit JS's), drawing through the shared cursor.
+
+**§4's Layer-0 hook table is no longer a design — it is bound.** The taste
+row crosses the boundary as pure f64 data (`MR_TASTE`); the kernel never
+learns a culture's name, authoring stays in the cultureway document, and a
+future culture swaps values without touching kernel.c. The shape correction
+against §4's sketch: the table is per-THINK (the row depends on the
+thinker), not arm-time — semantics chose, the cost is noise.
+
+**Two of the port map's three blockers dissolved under measurement** (the
+branchless study's pattern repeating at small scale): queue tickets are
+unique so sort stability is never consulted, and menus carry no pay ties so
+the cheap pick's stable-[0] is the first strict minimum — both now PINNED
+loudly rather than trusted silently. The third (visPick-as-cultureway-
+surface) became the hook table above.
+
+**Measured**: kernel on/off **1.67–1.71×** interleaved best-of-5 (phase 3:
+1.49×). Absolutes were machine-degraded this session (neighbour load; the
+kernel-off number fell the same fraction), so the ratio is the phase's
+figure and absolutes want a quiet-box remeasure. The draw-count pin now
+counts CURSOR ADVANCES in the kernel (`RNG_COUNT`) — the only definition
+of a draw that survives draws moving into the module; it reads the same
+1861/2399, the receipt the stream never forked.
+
+**Remaining**: the unit's second half (the line/seat/stall machine + the
+serve/pay half) is object-referential — tables/stalls/rooms/servers need
+ID-izing into planes as their own layout landing, with the event ring
+landing WITH that machine (VP_OUT + the vis_tick mask demonstrate the
+out-plane pattern). Phase 5, one fork, nothing else in the directive.
+
 ## Sources
 
 - [Understanding the Performance of WebAssembly Applications](https://benchmarkingwasm.github.io/BenchmarkingWebAssembly/)
