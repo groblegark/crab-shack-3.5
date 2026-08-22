@@ -132,9 +132,9 @@ for (const kv of SET) {
 }
 
 if (WAGE != null)
-  G(`for (const b of Object.keys(BIZ)) if (bizOwner(b) === "player") setBizWage(b, ${WAGE});`);
+  G(`for (const b of Object.keys(BIZ)) if (bizOwner(b) === "player") setBizWage(b, ${WAGE} * 100);`);   // the CLI speaks dollars
 if (STAR != null)
-  G(`if (crabs.length) setCrabWage(crabs[0], ${STAR});`);
+  G(`if (crabs.length) setCrabWage(crabs[0], ${STAR} * 100);`);
 
 // ---- run ----------------------------------------------------------------
 G('soundOn = false; musicOn = false; screen = "play"; window._headless = true; window._stats = { tourServes: 0, crabServes: 0, tourRage: 0, crabRage: 0, bused: 0 };');
@@ -155,18 +155,18 @@ const buyScript = BUY.length ? new vm.Script(`
     // (private deals included) plus a notional wage for the crab being hired
     const playerBill = (extraHire) =>
       crabs.reduce((s, c) => s + Math.round(wageRate(c)), 0) + (extraHire ? bizWage("shack") : 0) +
-      totalRent() + 40;   // conservative: keep a real cushion past tonight
+      totalRent() + 4000;   // conservative: keep a real cushion past tonight (cents)
     for (const k of ${JSON.stringify(BUY)}) {
       const u = UPS[k];
       if (!u || u.lvl >= u.max) continue;
-      const reserve = upCost(u) + playerBill(k === "chef") + 30;
+      const reserve = upCost(u) + playerBill(k === "chef") + 3000;
       if (coins >= reserve) tryBuy(k);
       else if (k === "arcade" || k === "juicebar") break;   // save for the big unlocks
     }
     // rehire after a death so a plague doesn't permanently shrink the crew
     window._peakCrew = Math.max(window._peakCrew || 0, crabs.length);
     if (crabs.length < window._peakCrew && UPS.chef.lvl < UPS.chef.max &&
-        coins >= upCost(UPS.chef) + playerBill(true) + 30) tryBuy("chef");
+        coins >= upCost(UPS.chef) + playerBill(true) + 3000) tryBuy("chef");
     // staff side businesses only if the shack keeps coverage on that crab's
     // shift - and cover BOTH shifts once the crew is deep enough
     for (const biz2 of ["arcade", "juicebar"]) {
@@ -196,7 +196,7 @@ while (G("day") <= DAYS && !G("gameOver")) {
   walletScript.runInContext(C);
   const d = G("day");
   if (d !== lastDay) {
-    dayRows.push({ day: lastDay, endBalance: G("Math.round(coins)"), lifetime: G("Math.round(lifetime)") });
+    dayRows.push({ day: lastDay, endBalance: G("$d(coins)"), lifetime: G("$d(lifetime)") });   // dollars on the wire: the report reads like the pre-cents floors
     lastDay = d;
   }
 }
@@ -204,19 +204,19 @@ const wall = Date.now() - t0;
 // the labour-market picture this run ended on: who ended up where on the
 // housing ladder, and what the wage lever actually did to the town
 const labour = G(`JSON.stringify({
-  rates: Object.keys(BIZ).map(b => b + ":" + bizWage(b)).join(" "),
-  crew: crabs.map(c => c.p.name + "$" + Math.round(wageRate(c))).join(" "),
+  rates: Object.keys(BIZ).map(b => b + ":" + $d(bizWage(b))).join(" "),
+  crew: crabs.map(c => c.p.name + "$" + $d(wageRate(c))).join(" "),
   boat: allCrabs().filter(c => c.p.boat != null).length,
   housed: allCrabs().filter(c => !c.p.homeless && c.p.boat == null).length,
   cot: allCrabs().filter(c => c.p.homeless).length,
   crewHoused: crabs.filter(c => !c.p.homeless).length, crewN: crabs.length,
-  purse: Math.round(allCrabs().reduce((s, c) => s + Math.max(0, c.p.wallet), 0)),
+  purse: $d(allCrabs().reduce((s, c) => s + Math.max(0, c.p.wallet), 0)),
   walkouts: (window._stats.walkouts || []).length,
   quits: (window._stats.wageQuits || []).length,
   wageMoves: (window._stats.wageMoves || []).map(m => "d" + m.day + ":" + m.rate).join(","),
   hotelier: window._stats.hotelier
-    ? "d" + window._stats.hotelier.day + " $" + window._stats.hotelier.price
-      + " room$" + roomPrice() + " wage$" + bizWage("hotel")
+    ? "d" + window._stats.hotelier.day + " $" + $d(window._stats.hotelier.price)
+      + " room$" + $d(roomPrice()) + " wage$" + $d(bizWage("hotel"))
       + " x" + window._stats.hotelier.moves.length : "-",
   roomLets: window._stats.roomLets || 0, unhoused: window._stats.unhoused || 0,
   // ACCOMMODATION UPGRADES: what the town BUILT, and the two shortages that
@@ -228,9 +228,9 @@ const labour = G(`JSON.stringify({
   bunks: window._stats.bunks || 0, roughNights: window._stats.roughNights || 0,
   roomShort: window._stats.roomShort || 0,
 })`);
-return { dayRows, wall, labour, lifetime: G("Math.round(lifetime)"), stats: G("JSON.stringify(window._stats)"),
-  over: G("gameOver"), bankrupt: G("bankrupt"), debt: G("Math.round(credit.bal)"), day: G("day"), rent: G("rentAmount()"), rep: G("Math.round(rep)"), wal: G("JSON.stringify(window._wal)"),
-  coins: G("Math.round(coins)"), ups: G(`Object.keys(UPS).map(k => k + ":" + UPS[k].lvl).join(" ")`) };
+return { dayRows, wall, labour, lifetime: G("$d(lifetime)"), stats: G("JSON.stringify(window._stats)"),
+  over: G("gameOver"), bankrupt: G("bankrupt"), debt: G("$d(credit.bal)"), day: G("day"), rent: G("$d(rentAmount())"), rep: G("Math.round(rep)"), wal: G("JSON.stringify(window._wal)"),
+  coins: G("$d(coins)"), ups: G(`Object.keys(UPS).map(k => k + ":" + UPS[k].lvl).join(" ")`) };
 }
 
 // ---- worker mode: this file is its own worker entry (fork + IPC) ---------

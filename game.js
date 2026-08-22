@@ -31,7 +31,7 @@ const BUS_STOPS = [163, 660, 1180];
 const BUS_TERMINUS = [100, 1240];
 const STATION_BOTTOM = 152;
 const QUEUE_DX = 13, QUEUE_MAX = 5, TOURIST_QUEUE_MAX = 4;   // tourists keep 4; the 5th slot is reserved for locals
-const SHELTER_X = 444, MOVE_IN_COST = 35;
+const SHELTER_X = 444, MOVE_IN_COST = 3500;   // cents
 const JOB_BOARD_X = 716;   // the town labor market
 // NPC_WAGE (a flat 20 for anybody an NPC employed, against the crew's 23 for
 // the same work) is RETIRED. Wages are per-business data now, and a business
@@ -48,7 +48,7 @@ function fishSpotFor(i) {
 // live-aboard boats moor off the seaward rail - a fisher's top housing rung
 const BOAT_BERTHS = [{ x: 1862 }, { x: 1910 }, { x: 1958 }];
 const BOAT_Y = 62;                          // hull rides the surf band above the pier
-const BOAT_COST = 75, MOORING_FEE = 2;      // vs $35 house move-in + $10/night rent
+const BOAT_COST = 7500, MOORING_FEE = 200;   // cents      // vs $35 house move-in + $10/night rent
 const BOAT_NAMES = ["PEARL", "GULLWING", "SQUALL"];   // one per berth
 function boatSpot(i) { return { x: BOAT_BERTHS[i].x + 10, y: 76 }; }   // on deck by the mast
 function freeBerth() {
@@ -141,7 +141,7 @@ const HOME_BOTTOM = 160;   // house/shelter interiors reach the floor
 // ---------------------------------------------------------------- businesses
 const BIZ = {
   shack: {
-    name: "CRAB SHACK", short: "SHACK", sign: "CRAB SHACK 3", kind: "palapa", rent: 230, owner: "player",
+    name: "CRAB SHACK", short: "SHACK", sign: "CRAB SHACK 3", kind: "palapa", rent: 23000, owner: "player",
     x0: 1220, x1: 1560, door: 1247,
     stations: {
       crate: [{ x: 1232, y: 136 }],
@@ -177,7 +177,7 @@ const BIZ = {
     ],
   },
   arcade: {
-    name: "CLAWCADE", short: "CADE", sign: "THE CLAWCADE", kind: "shopfront", rent: 80, owner: "player",
+    name: "CLAWCADE", short: "CADE", sign: "THE CLAWCADE", kind: "shopfront", rent: 8000, owner: "player",
     x0: 1620, x1: 1800, door: 1636,
     stations: {
       booth: [{ x: 1630, y: 136 }],
@@ -198,7 +198,7 @@ const BIZ = {
   },
   juicebar: {
     // the vacated cleaners lot: a squeeze-and-go stand east of the job board
-    name: "JUICE BAR", short: "JUICE", sign: "JUICE BAR", kind: "shopfront", rent: 55, owner: "player",
+    name: "JUICE BAR", short: "JUICE", sign: "JUICE BAR", kind: "shopfront", rent: 5500, owner: "player",
     x0: 752, x1: 880, door: 766,
     stations: {
       fruitbin: [{ x: 758, y: 136 }],
@@ -239,7 +239,7 @@ const BIZ = {
     // player's kitchen ~$30 a day at exactly the wrong moment. At rent 60 and
     // an opening float of $140 he reaches the hiring line around day six, by
     // which time the ceiling posting has pulled a drifter in to replace them.
-    rent: 35, owner: "reef", lodging: true,
+    rent: 3500, owner: "reef", lodging: true,
     // REEF has no heir and a fair price will always tempt him: this is the
     // "mechanism for owning it" the directive asked for, and it is DATA - any
     // business that carries `sellable` grows an OFFER chip on its shopfront.
@@ -274,13 +274,13 @@ const BIZ = {
     ],
   },
   showers: {
-    name: "SUDS SHOWERS", short: "SHWR", sign: "SUDS SHOWERS", kind: "shopfront", rent: 35, owner: "sudsy",
+    name: "SUDS SHOWERS", short: "SHWR", sign: "SUDS SHOWERS", kind: "shopfront", rent: 3500, owner: "sudsy",
     // SUDSY OPENS BELOW THE MARKET, at the old flat NPC_WAGE. That is the ONLY
     // place the retired 20 survives, and it is now a fact about her SHOP, not
     // about the crabs in it - anybody who works there gets $20, crew included,
     // and any crab she hires can grumble, get poached, or watch her wage policy
     // walk her up to the town rate. See WAGE_STD.
-    wage: 20,
+    wage: 2000,   // cents
     x0: 940, x1: 1120, door: 954,
     stations: {
       taps:  [{ x: 946, y: 136 }],
@@ -349,9 +349,9 @@ const HOURS_MIN = 6 * 60, HOURS_MAX = 24 * 60, HOURS_SPAN_MIN = 4 * 60;
 // never silent. The alternative - a private rate that survives a change of
 // employer - would let a $50 crew crab wander onto SUDSY's payroll and bankrupt
 // her with a deal she never made.
-const WAGE_STD = 23;
-const WAGE_MIN = 8, WAGE_MAX = 60;   // the stepper's band: below the pier's worst day, above its best
-const clampWage = (n) => Math.max(WAGE_MIN, Math.min(WAGE_MAX, Math.round(+n || 0)));
+const WAGE_STD = 2300;   // cents (numeric slice 1a)
+const WAGE_MIN = 800, WAGE_MAX = 6000;   // cents   // the stepper's band: below the pier's worst day, above its best
+const clampWage = (n) => Math.max(WAGE_MIN, Math.min(WAGE_MAX, 100 * Math.round((+n || 0) / 100)));   // the stepper's whole-dollar grain, kept
 function bizWage(b) { return BIZ[b] && BIZ[b].wage != null ? BIZ[b].wage : WAGE_STD; }
 function setBizWage(b, n) { if (BIZ[b]) BIZ[b].wage = clampWage(n); }
 // the deal, if it is still THIS boss's deal (see the note above)
@@ -425,12 +425,28 @@ function fmtClock(m) { const h = (m / 60) | 0, mm = m % 60 | 0; return h + ":" +
 // rather than conjuring guests out of the sea) and LOCALS can suddenly afford
 // a shop that was out of reach, because every affordability check in
 // pickErrand runs through localPrice.
+// THE BOARD IS A GRID OF THIRTEEN, so the setting is stored as the grid
+// INDEX n (14..26, m = n/20) rather than as a float multiplier. 0.05 is not a
+// binary number: the old float walk needed a snap on every write and a 1e-9
+// slack on both end-stop compares, and both of those retire here - an index
+// hits its end stops exactly. PRICE_MIN/MAX/STEP stay as the outward-facing
+// multipliers (tools, saves and the rival's own arithmetic speak them).
 const PRICE_MIN = 0.7, PRICE_MAX = 1.3, PRICE_STEP = 0.05;
-const clampPrice = (v) => Math.max(PRICE_MIN, Math.min(PRICE_MAX,
-  Math.round((+v || 0) / PRICE_STEP) * PRICE_STEP));
-function bizPriceMul(b) { const m = BIZ[b] && BIZ[b].priceMul; return m == null ? 1 : m; }
-function setBizPrice(b, v) { if (BIZ[b]) BIZ[b].priceMul = clampPrice(v); }
-function menuPrice(b, r) { return Math.max(1, Math.round(r.pay * bizPriceMul(b))); }   // what it says on the board
+const PRICE_IDX_MIN = 14, PRICE_IDX_MAX = 26, PRICE_IDX_DEF = 20;   // m = n/20
+const clampPriceIdx = (n) => Math.max(PRICE_IDX_MIN, Math.min(PRICE_IDX_MAX, Math.round(+n || 0)));
+const clampPrice = (v) => clampPriceIdx((+v || 0) * 20) / 20;   // the multiplier, snapped through the grid
+function bizPriceIdx(b) { const n = BIZ[b] && BIZ[b].priceMul; return n == null ? PRICE_IDX_DEF : n; }
+function bizPriceMul(b) { return bizPriceIdx(b) / 20; }   // exact: a power-of-two-free but exact quotient of small ints
+function bizPricePct(b) { return bizPriceIdx(b) * 5; }    // n/20 x 100 - the display percent, exact
+function setBizPriceIdx(b, n) { if (BIZ[b]) BIZ[b].priceMul = clampPriceIdx(n); }
+function setBizPrice(b, v) { setBizPriceIdx(b, (+v || 0) * 20); }
+// Catalog pay stays author-dollars (BIZ + cultureway data); the CENT is born
+// here and nowhere else. Same dollar figure as ever, times a hundred - and the
+// board multiple is applied as the exact rational n/20, round-half-up.
+function menuPrice(b, r) {
+  const pay = Math.round(+r.pay || 0);   // catalog pay is author-DOLLARS and integral by contract
+  return 100 * Math.max(1, Math.floor((pay * bizPriceIdx(b) + 10) / 20));
+}
 // TRIM TO FIT, MEASURED. A character count is a guess about a proportional
 // budget: "FISH TACO $17  JUICE $10  GRILL FI" is 34 characters, which someone
 // sized for a 100px slot and is actually 135 - it printed 13px past the right
@@ -454,22 +470,48 @@ function fitText(str, maxW, spacing) {
   while (out.length && textWidth(out + "..", spacing) > maxW) out = out.slice(0, -1);
   return out.replace(/[\s,]+$/, "") + "..";
 }
-function localPrice(b, r) { return Math.ceil(menuPrice(b, r) * 1.25); }                // ...and locals pay +25% of that
+function localPrice(b, r) { return 100 * Math.ceil(menuPrice(b, r) * 1.25 / 100); }   // ...and locals pay +25% of that,
+// ROUNDED UP TO THE DOLLAR: the old ceil worked at the dollar grain ($6 juice -> $7.50 -> $8),
+// and a cent-grain ceil would have quietly cut every local price by up to 99c
 // How attractive this shop's board looks to somebody walking past. Cheap pulls,
 // dear pushes, and the curve is flat enough that a 30% cut is worth about a
 // third more footfall rather than the whole promenade. Exactly 1 at the default
 // price by construction (Math.pow(1, x) === 1), so an untouched town is untouched.
 const PRICE_ELAST = 1.2;
+// PRICE APPEAL, BAKED (numeric core slice 1b). The board walks 0.70..1.30 in
+// 0.05 steps - thirteen values, indexed by priceIdx n = 14..26 (m = n/20) -
+// so pow(1/m, 1.2) is a table, not a transcendental. Q16: 65536 = x1.0.
+// Generated by tools/gen-luts.mjs; regenerate THERE, never recompute here -
+// Math.pow is implementation-approximated and is banned from the sim (see
+// design/cs35-numeric-core.md, the arithmetic contract). n = 20 is exactly
+// 65536, so a town at the default price is bit-identical to the float build.
+const PRICE_APPEAL_Q16 = {
+  14: 100545, // m 0.70  -> x1.5342
+  15: 92556,  // m 0.75  -> x1.4123
+  16: 85659,  // m 0.80  -> x1.3071
+  17: 79648,  // m 0.85  -> x1.2153
+  18: 74368,  // m 0.90  -> x1.1348
+  19: 69697,  // m 0.95  -> x1.0635
+  20: 65536,  // m 1.00  -> x1.0000
+  21: 61809,  // m 1.05  -> x0.9431
+  22: 58453,  // m 1.10  -> x0.8919
+  23: 55417,  // m 1.15  -> x0.8456
+  24: 52658,  // m 1.20  -> x0.8035
+  25: 50140,  // m 1.25  -> x0.7651
+  26: 47835,  // m 1.30  -> x0.7299
+};
 // what share of the passing trade a shop pulls before its board is read. These
 // are the weights the spawn block has always used; naming them is what lets
 // `bizPull` be a function rather than a literal in the middle of a loop.
 const TOURIST_PULL = { shack: 0.5, arcade: 0.22, juicebar: 0.3 };
 function bizPullBase(b) { return TOURIST_PULL[b] == null ? 0.1 : TOURIST_PULL[b]; }
 function bizPull(b) { return bizPullBase(b) * priceAppeal(b); }
-function priceAppeal(b) {
-  const m = bizPriceMul(b);
-  return Math.max(0.6, Math.min(1.6, Math.pow(1 / m, PRICE_ELAST)));
-}
+function priceAppealQ16(b) { return PRICE_APPEAL_Q16[bizPriceIdx(b)] || 65536; }
+// The Q16 table read back as a multiplier. The DIVISION is exact (65536 is a
+// power of two, so the quotient is representable and every engine agrees on
+// it) - what left the sim is the pow. `bizPull`'s weights stay float for now;
+// they turn integer when errandScore quantizes and takes its tie-break.
+function priceAppeal(b) { return priceAppealQ16(b) / 65536; }
 function staffMealCharge(b, r) {   // what a selfCooking staffer rings up
   const pol = BIZ[b].mealPol || "retail";
   return pol === "free" ? 0 : pol === "atcost" ? ingredientCost(r.raw) : menuPrice(b, r);
@@ -555,7 +597,7 @@ function defineTill(o) {
   return o;
 }
 const OWNERS = {
-  sudsy: { id: "sudsy", name: "SUDSY", till: 200, credit: 0, darkT: 0 },
+  sudsy: { id: "sudsy", name: "SUDSY", till: 20000, credit: 0, darkT: 0 },   // cents
   // REEF keeps the DRIFTWOOD HOTEL. A second peer owner, on exactly the same
   // terms SUDSY is on - his own till, his own lease, his own wage and hours
   // policy - because the owner layer is a registry, not a fixture.
@@ -566,7 +608,7 @@ const OWNERS = {
   // reasoning THE RIVALRY uses in reverse: the ambition keys on the lease
   // because anybody holding it would want the shop next door; a willing
   // seller keys on the crab because not everybody is one.)
-  reef: { id: "reef", name: "REEF", till: 140, credit: 0, darkT: 0, soft: true },
+  reef: { id: "reef", name: "REEF", till: 14000, credit: 0, darkT: 0, soft: true },   // cents
 };
 for (const k in OWNERS) defineTill(OWNERS[k]);
 const bizOwner = (b) => BIZ[b].owner === null ? null : (BIZ[b].owner || "player");
@@ -603,7 +645,7 @@ function creditBiz(b, amt, x, y, quiet) {   // quiet: the caller pops its own la
   }
   else {
     OWNERS[o].till += amt;
-    if (!quiet) popText("+$" + Math.floor(amt), x, y, [150, 210, 255]);
+    if (!quiet) popText("+$" + $d(amt), x, y, [150, 210, 255]);
     if (window._stats) window._stats.npcEarn = (window._stats.npcEarn || 0) + amt;
   }
 }
@@ -646,7 +688,7 @@ const bizUnlocked = (b) => b === "shack" || (!!BIZ[b] && (!!BIZ[b].bought || biz
 // "This is exactly the choice the mayor will make." So the funding mechanism
 // is not a constant somebody picked. It is the office's lever, and it is the
 // thing an election is actually about.
-const SHELTER_RENT = 10;         // Mr. Pincherton owns the shelter too, and he charges for it
+const SHELTER_RENT = 1000;   // cents         // Mr. Pincherton owns the shelter too, and he charges for it
 // ...AND HE CHARGES BY THE BED. The town RENTS this building, so a bigger
 // shelter is not something the town buys once - it is a bigger bill every
 // night, for as long as the beds stand (see ACCOMMODATION UPGRADES, where the
@@ -666,7 +708,7 @@ const SHELTER_FLOAT = 1;         // ...and the purse is struck to carry this man
                                  // made, not about variance in the takings three days later.
 const SHELTER_STRIKES = 3;       // missed nights running before the door is bolted
 const SHELTER_SHUT_NIGHTS = 4;   // ...and how many nights it stays that way
-const SOUP_MARGIN = 2;           // the shack's margin on a bowl sold to the town
+const SOUP_MARGIN = 200;   // cents           // the shack's margin on a bowl sold to the town
 const POT_MAX = 6;               // the most bowls any mayor may put on for one night
 const POLL_WEEKDAY = 6;          // SUNDAY. The town already keeps a week (WEEKDAYS, and the
                                  // staggered rota hangs off it), so polling day rides on that
@@ -697,11 +739,11 @@ const PURSES = {
   levy:  { name: "THE LEVY", short: "LEVY", unit: "% OF TAKINGS",
     who: "EVERY BUSINESS - YOURS TOO", steps: [0, 2, 4, 6, 8] },
   dues:  { name: "HARBOUR DUES", short: "DUES", unit: "$ A HEAD",
-    who: "EVERY VISITOR THE FERRY LANDS", steps: [0, 1, 2, 3, 4] },
+    who: "EVERY VISITOR THE FERRY LANDS", steps: [0, 100, 200, 300, 400] },   // cents
   rents: { name: "A CUT OF THE RENTS", short: "RENTS", unit: "% OF THE HOUSE RENTS",
     who: "MR. PINCHERTON, OFF HIS OWN BOOK", steps: [0, 10, 20, 30, 40] },
   tin:   { name: "THE COLLECTION TIN", short: "TIN", unit: "$ ASKED OF EACH",
-    who: "WHOEVER CAN SPARE IT", steps: [0, 1, 2, 3, 4] },
+    who: "WHOEVER CAN SPARE IT", steps: [0, 100, 200, 300, 400] },   // cents
 };
 const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
 // THE FIFTH DIAL, and the only one on the ballot that is not about the
@@ -717,7 +759,7 @@ const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
 // 23, so the steps straddle it - two below, two above - which is what makes
 // the vote a real argument instead of a ratchet.
 const WAGE_FLOOR = { name: "THE WAGE FLOOR", short: "FLOOR", unit: "$ A DAY, LOWEST PAID",
-  who: "EVERY TILL THAT MEETS A PAYROLL", steps: [0, 18, 23, 27, 32] };
+  who: "EVERY TILL THAT MEETS A PAYROLL", steps: [0, 1800, 2300, 2700, 3200] };   // cents
 const FLOOR_STEPS = WAGE_FLOOR.steps.length - 1;
 // ...AND THE SIXTH (Matt, 2026-08-20: "another policy to vote on: maximum
 // employees per business"). The floor says what a day is worth; the house
@@ -752,7 +794,7 @@ function capWhy(b) {
 function floorOf(p) {
   return WAGE_FLOOR.steps[Math.max(0, Math.min(FLOOR_STEPS, (p && p.wage) | 0))] || 0;
 }
-const TIN_KEEP = 30;   // nobody drops a coin in the tin who is not this far clear themselves
+const TIN_KEEP = 3000;   // cents   // nobody drops a coin in the tin who is not this far clear themselves
 const POLL_LINES = 24; // how many written vote reasons a ballot keeps (display + save only)
 
 // ---------------------------------------------------------------- POLLING DAY
@@ -839,7 +881,7 @@ const POLL_SHUT = 19 * 60;       // ...and shut an hour before the town does. Th
                                  // tight enough that the answer is sometimes no: the D-shift owner
                                  // finishing at 18:30 has half an hour and a walk, which makes the
                                  // HOURS SIGN a lever on turnout - and that lever is the player's.
-const BALLOT_PRICE = 0.25;       // a sheet of paper, landed by the ferry like every other import
+const BALLOT_PRICE = 25;      // cents       // a sheet of paper, landed by the ferry like every other import
 const BALLOT_SPARE = 2;          // the clerk always prints a couple over
 
 const VOTE_SECS = 5;             // real seconds at the table - ~20 game minutes to queue, mark a
@@ -952,8 +994,8 @@ function policyLine(p) {
   // two platforms that differ only in the floor have to read differently here
   // or one of them silently vanishes off the paper.
   const cp = capOf(p);
-  return P.short + " " + (p.mech === "rents" || p.mech === "levy" ? r + "%" : "$" + r)
-    + " / " + b + " BOWL" + (b === 1 ? "" : "S") + (f > 0 ? " / MIN $" + f : "")
+  return P.short + " " + (p.mech === "rents" || p.mech === "levy" ? r + "%" : "$" + $d(r))
+    + " / " + b + " BOWL" + (b === 1 ? "" : "S") + (f > 0 ? " / MIN $" + $d(f) : "")
     + (cp > 0 ? " / " + cp + " STAFF" : "");
 }
 
@@ -1014,18 +1056,18 @@ function auditFund(kind, amt, who, why, before) {
   if (!A) return;
   const want = kind === "remit" ? -amt : 0, delta = worldMoney() - before;
   A.rows = A.rows || [];
-  A.rows.push({ day, kind, amt, who, why, delta, want, ok: Math.abs(delta - want) < 1e-6 });
+  A.rows.push({ day, kind, amt, who, why, delta, want, ok: delta === want });   // cents: conservation is a THEOREM now
 }
 function fundRow(kind, amt, who, why) {
-  townFund.ledger.push({ day, kind, amt: Math.round(amt * 100) / 100, who, why });
+  townFund.ledger.push({ day, kind, amt, who, why });   // amounts ARE cents
   if (townFund.ledger.length > 48) townFund.ledger.shift();   // a running record, not an archive
 }
 // MONEY IN, out of a named payer's own balance and nowhere else. The payer is
 // handed over as a live ACCOUNT rather than a label, so there is no way to
 // write a credit into this fund without a matching debit somewhere real.
 function fundTake(a, amt, why) {
-  const take = Math.min(Math.max(0, amt), acctBal(a));
-  if (take < 0.005) return 0;
+  const take = Math.min(Math.floor(Math.max(0, amt)), acctBal(a));   // whole cents through the door
+  if (take < 1) return 0;   // not a whole cent
   const before = window._auditFund ? worldMoney() : 0;
   acctMove(a, -take);
   townFund.bal += take; townFund.dayIn += take;
@@ -1042,8 +1084,8 @@ function fundTake(a, amt, why) {
 // till with no sale behind it. That owner is very often the player.
 function fundPay(b, amt, why) {
   const a = bizAcct(b);
-  const pay = Math.min(Math.max(0, amt), townFund.bal);
-  if (!a || pay < 0.005) return 0;
+  const pay = Math.min(Math.floor(Math.max(0, amt)), townFund.bal);
+  if (!a || pay < 1) return 0;
   const before = window._auditFund ? worldMoney() : 0;
   townFund.bal -= pay; townFund.dayOut += pay;
   if (a.k === "player") townFund.youGot += pay;
@@ -1057,8 +1099,8 @@ function fundPay(b, amt, why) {
 // every crab's house rent already leave it. This is the ONE place the fund
 // makes the world poorer, it is labelled REMIT, and the audit knows it.
 function fundRemit(amt, who, why) {
-  const pay = Math.min(Math.max(0, amt), townFund.bal);
-  if (pay < 0.005) return 0;
+  const pay = Math.min(Math.floor(Math.max(0, amt)), townFund.bal);
+  if (pay < 1) return 0;
   const before = window._auditFund ? worldMoney() : 0;
   townFund.bal -= pay; townFund.dayOut += pay;
   fundRow("remit", pay, who, why);
@@ -1400,7 +1442,7 @@ function wageStake(c, p) {
   // a day's raise, as a fraction of a standard day - so "the floor is worth a
   // third of my wage to me" is literally what the number says
   return floorRaise(c, floor) / WAGE_STD
-    - floorBill(c, floor) / 45;   // 45 = a heavy morning's lift on one till
+    - floorBill(c, floor) / 4500;   // 4500c = a heavy morning's lift on one till
 }
 // The purse half of a platform does not depend on the floor, so allPlatforms()
 // prices it once per (mech, rate, bowls) and hands the same three numbers to
@@ -1415,7 +1457,7 @@ function platValue(c, p) {
   return potStake(c) * (pBowls(p) / POT_MAX)
     + roofWeight(c) * roof
     + wageStake(c, p) + capStake(c, p)
-    - purseCost(c, p.mech) * (pTake(p) / 60);   // 60 = a big night for this fund
+    - purseCost(c, p.mech) * (pTake(p) / 6000);   // 6000c = a big night for this fund
 }
 // every platform on the grid, scored once an election and shared by every
 // voter (the yields depend on the town, never on who is reading them)
@@ -1472,8 +1514,8 @@ function voteReason(c, p) {
   // that binds on nobody is not mentioned, because it did not decide anything.
   const f = floorOf(p), raise = floorRaise(c, f);
   const bill = Math.round(floorBill(c, f));
-  if (raise > 0) bits.push("$" + Math.round(raise) + " MORE A DAY");
-  if (bill > 0) bits.push("$" + bill + " MORE ON THE PAYROLL");
+  if (raise > 0) bits.push("$" + $d(raise) + " MORE A DAY");
+  if (bill > 0) bits.push("$" + $d(bill) + " MORE ON THE PAYROLL");
   const cp = capOf(p);
   if (cp > 0) {
     const mine = c.p.owner && Object.keys(BIZ).some(b => bizUnlocked(b)
@@ -1590,13 +1632,13 @@ function pickCandidate(c, cands) {
 // the day so the same crab at the top of the alphabet is not asked every week.
 // A town where NOBODY has WHIP_KEEP in their pocket still holds no election,
 // which is the destitute case this failure was always meant to be about.
-const WHIP_KEEP = 8;                 // nobody chips in for paper who is not this far clear
+const WHIP_KEEP = 800;               // cents                 // nobody chips in for paper who is not this far clear
 const WHIP_MAX = BALLOT_PRICE * 4;   // ...and nobody is asked for more than a dollar of it
 function whipRound(short) {
   let got = 0;
   const givers = allCrabs().filter(c => (c.p.wallet || 0) >= WHIP_KEEP)
     .sort((a, b) => (a.p.name < b.p.name ? -1 : 1));
-  for (let i = 0; i < givers.length && got < short - 0.005; i++) {
+  for (let i = 0; i < givers.length && got < short; i++) {   // cents: exact
     const c = givers[(i + day) % givers.length];
     got += fundTake({ k: "crab", c }, Math.min(short - got, WHIP_MAX), "PAPER WHIP-ROUND");
   }
@@ -1620,7 +1662,7 @@ function printBallots() {
     const raised = whipRound(full - spare);
     if (raised > 0.005) {
       spare += raised;
-      today.moved.push("THE TOWN PASSED THE HAT FOR BALLOT PAPER - $" + (Math.round(raised * 100) / 100));
+      today.moved.push("THE TOWN PASSED THE HAT FOR BALLOT PAPER - $" + (raised / 100));   // pennies: 2dp is exact
     }
   }
   const n = Math.max(0, Math.min(want, Math.floor(spare / BALLOT_PRICE + 1e-9)));
@@ -1792,11 +1834,11 @@ function runTownHall() {
   //    mayor for very long.
   const owed = shelterRent() + townFund.arrears;
   const paid = fundRemit(owed, "MR. PINCHERTON", "SHELTER RENT");
-  if (paid >= owed - 0.005) { townFund.arrears = 0; townFund.strikes = 0; }
+  if (paid >= owed) { townFund.arrears = 0; townFund.strikes = 0; }   // cents: exact
   else {
-    townFund.arrears = Math.round((owed - paid) * 100) / 100;
+    townFund.arrears = owed - paid;   // cents
     townFund.strikes++;
-    today.moved.push("THE SHELTER'S RENT WENT SHORT - $" + Math.ceil(townFund.arrears) + " OWED");
+    today.moved.push("THE SHELTER'S RENT WENT SHORT - $" + Math.ceil(townFund.arrears / 100) + " OWED");
     if (townFund.strikes >= SHELTER_STRIKES && townFund.shut <= 0) {
       townFund.shut = SHELTER_SHUT_NIGHTS; townFund.strikes = 0; townFund.bowls = 0;
       toast = { text: "THE SHELTER IS BOLTED - THE TOWN FUND MISSED THE RENT", t: 8 };
@@ -1933,11 +1975,11 @@ function runHoursPolicy(b) {      // one NPC owner reads the day's signals at se
 // documented no-credit baseline (PLAN.md). Loosen stepwise, one knob at a
 // time, with a fresh headless matrix per step - eviction-day is THE stat.
 const CREDIT_CFG = {
-  LIMIT: 90,           // base line (tightened from 120 when T2 landed - runways compound)
-  LIMIT_PER_CREW: 70,  // the bank lends against payroll: extra headroom per crew beyond the founders
+  LIMIT: 9000,         // cents. base line (tightened when T2 landed - runways compound)
+  LIMIT_PER_CREW: 7000,   // cents. the bank lends against payroll: extra headroom per crew beyond the founders
   RATE: 0.25,          // nightly compounding interest on the drawn balance
   MIN_FRAC: 0.35,      // minimum payment: interest + this share of principal...
-  MIN_BASE: 12,        // ...plus a floor - proportional, so small debts don't crush a growing town
+  MIN_BASE: 1200,      // cents ...plus a floor - proportional, so small debts don't crush a growing town
   WARN_DAYS: 4,        // forecast horizon that fires the bankruptcy toast
   CHIP_DAYS: 6,        // forecast horizon that shows the warning chip
   DEBT_WARN: 0.6,      // share of the line drawn that warns on its own, run rate or not
@@ -1958,8 +2000,8 @@ let bankrupt = false;                     // gameOver flavor: the bank, not the 
 function creditLimit() { return CREDIT_CFG.LIMIT + CREDIT_CFG.LIMIT_PER_CREW * Math.max(0, crabs.length - 2); }
 function settleCreditLine(bal, funds, due) {
   const r = { bal, funds, drew: 0, interest: 0, paid: 0, ok: true, missedMin: false };
-  if (r.bal > 0) { r.interest = Math.ceil(r.bal * CREDIT_CFG.RATE); r.bal += r.interest; }
-  const minDue = r.bal > 0 ? Math.min(r.bal, r.interest + Math.ceil((r.bal - r.interest) * CREDIT_CFG.MIN_FRAC) + CREDIT_CFG.MIN_BASE) : 0;
+  if (r.bal > 0) { r.interest = Math.ceil(r.bal / 4); r.bal += r.interest; }   // RATE 0.25 as the exact int idiom
+  const minDue = r.bal > 0 ? Math.min(r.bal, r.interest + Math.ceil((r.bal - r.interest) * 35 / 100) + CREDIT_CFG.MIN_BASE) : 0;   // MIN_FRAC 0.35 exact: x35 is an exact int, /100 never lands within an ulp of a boundary
   if (r.funds < due) {
     const need = Math.ceil(due - r.funds);
     if (need <= creditLimit() - r.bal) { r.bal += need; r.funds += need; r.drew = need; }
@@ -2030,7 +2072,7 @@ function takeWageLoan() {
     // has now been paid in full has nothing left to walk out about, and making
     // them sulk through a shift the player already bought would be a bug.
     if (c.p.walkoutWhy === "pay") { c.p.walkout = null; c.p.walkoutWhy = null; }
-    crabLog(c, "money", "GOT $" + owed + " IN BACK PAY", 0);   // DIARY
+    crabLog(c, "money", "GOT $" + $d(owed) + " IN BACK PAY", 0);   // DIARY
     popText("PAID!", c.x - 4, FLOOR_Y - 40, [140, 255, 160]);
   }
   today.moved.push("BORROWED $" + fmt(due) + " TO MAKE PAYDAY - " + n + " CRAB" + (n === 1 ? "" : "S") + " PAID");
@@ -2044,8 +2086,8 @@ function takeWageLoan() {
 }
 function creditDueTonight() {   // cash the bank will auto-collect at 20:00
   if (credit.bal <= 0) return 0;
-  const int2 = Math.ceil(credit.bal * CREDIT_CFG.RATE);
-  return Math.min(credit.bal + int2, int2 + Math.ceil(credit.bal * CREDIT_CFG.MIN_FRAC) + CREDIT_CFG.MIN_BASE);
+  const int2 = Math.ceil(credit.bal / 4);
+  return Math.min(credit.bal + int2, int2 + Math.ceil(credit.bal * 35 / 100) + CREDIT_CFG.MIN_BASE);   // MIN_FRAC 0.35 as the exact int idiom
 }
 function bizDark(b) {   // shut: nobody owns it, the owner died, or (legacy saves) a dark-night timer runs
   if (forSale(b)) return true;
@@ -2133,10 +2175,10 @@ function updateBankWarning() {
 const SALE_CFG = {
   STRIKES: 3,          // missed settlements in a row before the shutters go up
   RENT_NIGHTS: 3,      // asking price: the landlord wants this many nights up front...
-  FIXTURE: 15,         // ...plus this per fixture (every station spot, stall and table)...
+  FIXTURE: 1500,       // cents ...plus this per fixture (every station spot, stall and table)...
   GOODWILL_DAYS: 2,    // ...plus this many days of what the place has been taking
   FLOAT_FRAC: 0.5,     // half the price becomes the new owner's opening till
-  RESERVE: 30,         // ...and a buyer keeps 3 nights of house rent back: nobody buys their way onto a cot
+  RESERVE: 3000,       // cents ...and a buyer keeps 3 nights of house rent back: nobody buys their way onto a cot
 };
 let market = {};       // bizKey -> { price, day, why } - the live FOR SALE listings (persisted)
 let bizTake = {};      // bizKey -> the last 3 days' takings (persisted; the goodwill half of a price)
@@ -2240,9 +2282,9 @@ function buyOutOwner(b, buyer) {
   const banked = price - Math.floor(price * SALE_CFG.FLOAT_FRAC);
   if (seller) {
     seller.p.wallet += banked;                   // conserved: exactly what left the player's pocket
-    crabLog(seller, "money", "SOLD THE " + BIZ[b].name + " FOR $" + price, 0);
+    crabLog(seller, "money", "SOLD THE " + BIZ[b].name + " FOR $" + $d(price), 0);
     crabLog(seller, "life", "OUT OF THE HOTEL TRADE - BACK TO THE WATER", 0);
-    today.moved.push(seller.p.name + " SOLD UP - $" + banked + " IN THE BANK");
+    today.moved.push(seller.p.name + " SOLD UP - $" + $d(banked) + " IN THE BANK");
   }
   if (window._stats) (window._stats.buyouts = window._stats.buyouts || [])
     .push({ day, biz: b, price, seller: seller ? seller.p.name : null,
@@ -2316,10 +2358,10 @@ function listForSale(b, why) {
   // "soldup" is a WILLING seller, not a failure: same machinery, different news
   const sold = why === "soldup";
   toast = { text: sold ? who + " IS SELLING UP - " + BIZ[b].name + " CHANGES HANDS"
-    : BIZ[b].name + " HAS CLOSED - FOR SALE, $" + price, t: 8 };
-  today.moved.push(sold ? who + " SOLD " + BIZ[b].short : BIZ[b].short + " CLOSED - FOR SALE $" + price);
+    : BIZ[b].name + " HAS CLOSED - FOR SALE, $" + $d(price), t: 8 };
+  today.moved.push(sold ? who + " SOLD " + BIZ[b].short : BIZ[b].short + " CLOSED - FOR SALE $" + $d(price));
   if (laid.length) today.moved.push(laid.join(", ") + " LAID OFF - BACK TO THE PIER");
-  if (!sold) popText("FOR SALE $" + price, (BIZ[b].x0 + BIZ[b].x1) / 2 - 20, 100, [255, 190, 90]);
+  if (!sold) popText("FOR SALE $" + $d(price), (BIZ[b].x0 + BIZ[b].x1) / 2 - 20, 100, [255, 190, 90]);
   if (!sold && typeof sfx !== "undefined" && sfx.angry) sfx.angry();
   if (window._stats) (window._stats.closures = window._stats.closures || [])
     .push({ day, biz: b, price, why: why || "bankrupt", owner: who, laid: laid.slice() });
@@ -2387,13 +2429,13 @@ function buyBusiness(b, buyer) {
     // "she paid $677 net, REEF banked $339".
     OWNERS[id].till += float;
     who = buyer.p.name;
-    crabLog(buyer, "money", "BOUGHT THE " + BIZ[b].name + " FOR $" + price, 0);   // DIARY
+    crabLog(buyer, "money", "BOUGHT THE " + BIZ[b].name + " FOR $" + $d(price), 0);   // DIARY
     crabLog(buyer, "life", "THEIR OWN BOSS NOW - RUNS THE " + BIZ[b].short, 0);
   }
   delete market[b];
   bizStrike[b] = 0;
-  toast = { text: who + " BOUGHT " + BIZ[b].name + " FOR $" + price + "!", t: 8 };
-  today.moved.push(who + " BOUGHT " + BIZ[b].short + " ($" + price + ")");
+  toast = { text: who + " BOUGHT " + BIZ[b].name + " FOR $" + $d(price) + "!", t: 8 };
+  today.moved.push(who + " BOUGHT " + BIZ[b].short + " ($" + $d(price) + ")");
   popText("UNDER NEW OWNERSHIP", (BIZ[b].x0 + BIZ[b].x1) / 2 - 30, 100, [140, 255, 160]);
   if (typeof sfx !== "undefined" && sfx.ding) sfx.ding();
   if (window._stats) (window._stats.sales = window._stats.sales || [])
@@ -2504,8 +2546,8 @@ const RIVAL_CFG = {
   // A price cut and a longer day cost NOTHING up front - they cost margin, and
   // the margin shows up as a missed rent, which is the retreat trigger. Only
   // the wage costs cash on the night. See runRivalCompete.
-  CUT: 0.1,              // how much she takes off her own board each cut
-  WAGE_OVER: 2,          // a wage push lands this far over the best rate in town
+  CUT_IDX: 2,            // how much she takes off her own board each cut: two grid steps (0.10)
+  WAGE_OVER: 200,        // cents: a wage push lands this far over the best rate in town
   HOLD: 0.35,            // what SHE wants for HER shop, on top, while her blood is up
   ONLY: 0.4,             // ...and what anybody wants for the ONLY shop they have. An
                          // owner-operator is not selling their livelihood at the price
@@ -2712,7 +2754,7 @@ function rivalManageLines() {
   const who = rivalName(), shop = RIVAL_CFG.SHOP, prize = BIZ[RIVAL_CFG.PRIZE].short;
   // 40 characters of 3x5 is what fits left of the management card's DONE chip,
   // so the hours use the shift-label clock (8-21, not 8:00-21:00)
-  const nums = "HER " + BIZ[shop].short + ": " + Math.round(bizPriceMul(shop) * 100) + "%  "
+  const nums = "HER " + BIZ[shop].short + ": " + bizPricePct(shop) + "%  "
     + fmtHr(BIZ[shop].hours.open) + "-" + fmtHr(BIZ[shop].hours.close)
     + "  $" + bizWage(shop) + "/DAY  TILL $" + fmt(Math.round(ownerFunds(shop)))
     + " +$" + fmt(Math.round(rivalCrab() ? rivalCrab().p.wallet : 0));
@@ -2777,7 +2819,7 @@ function makeRivalOffer() {
   today.rival.push(who + " OFFERS $" + fmt(q.price) + " FOR THE " + BIZ[b].short
     + (q.price < q.worth ? " (WORTH $" + fmt(q.worth) + ")" : ""));
   const c = rivalCrab();
-  if (c) crabLog(c, "money", "OFFERED $" + q.price + " FOR THE " + BIZ[b].short, 0);
+  if (c) crabLog(c, "money", "OFFERED $" + $d(q.price) + " FOR THE " + BIZ[b].short, 0);
   popText("OFFER $" + fmt(q.price), (BIZ[b].x0 + BIZ[b].x1) / 2 - 24, 100, [255, 216, 96]);
   if (typeof sfx !== "undefined" && sfx.ding) sfx.ding();
   if (window._stats) (window._stats.rivalOffers = window._stats.rivalOffers || [])
@@ -2807,7 +2849,7 @@ function acceptRivalOffer() {
   toast = { text: "SOLD - " + who + " OWNS THE " + BIZ[b].name + " NOW. +$" + fmt(price), t: 9 };
   today.rival.push("SOLD THE " + BIZ[b].short + " TO " + who + " FOR $" + fmt(price));
   const c = rivalCrab();
-  if (c) { crabLog(c, "money", "BOUGHT THE " + BIZ[b].name + " FOR $" + price, 0);
+  if (c) { crabLog(c, "money", "BOUGHT THE " + BIZ[b].name + " FOR $" + $d(price), 0);
     crabLog(c, "life", "TWO SHOPS ON THE PROMENADE NOW", 0); }
   if (typeof sfx !== "undefined" && sfx.buy) sfx.buy();
   if (window._stats) (window._stats.rivalSales = window._stats.rivalSales || [])
@@ -2881,15 +2923,15 @@ function runRivalCompete() {
   // strike counter the succession layer already keeps.
   if ((bizStrike[shop] || 0) > 0) {
     let line = null;
-    if (bizPriceMul(shop) < 1) {
-      setBizPrice(shop, bizPriceMul(shop) + RIVAL_CFG.CUT);
-      line = "PUTS THE " + BIZ[shop].short + " PRICE BACK TO " + Math.round(bizPriceMul(shop) * 100) + "%";
+    if (bizPriceIdx(shop) < PRICE_IDX_DEF) {
+      setBizPriceIdx(shop, bizPriceIdx(shop) + RIVAL_CFG.CUT_IDX);
+      line = "PUTS THE " + BIZ[shop].short + " PRICE BACK TO " + bizPricePct(shop) + "%";
     } else if (BIZ[shop].hours.close > 20 * 60) {
       setBizHours(shop, BIZ[shop].hours.open, BIZ[shop].hours.close - 60);
       line = "SHUTS THE " + BIZ[shop].short + " AT " + fmtClock(BIZ[shop].hours.close);
     } else if (bizWage(shop) > WAGE_STD) {
-      setBizWage(shop, bizWage(shop) - 1);
-      line = "TRIMS THE " + BIZ[shop].short + " WAGE TO $" + bizWage(shop);
+      setBizWage(shop, bizWage(shop) - 100);
+      line = "TRIMS THE " + BIZ[shop].short + " WAGE TO $" + $d(bizWage(shop));
     }
     if (line) {
       toast = { text: who + " " + line + " - SHE CAN'T CARRY THE FIGHT", t: 7 };
@@ -2904,10 +2946,10 @@ function runRivalCompete() {
     const move = RIVAL_MOVES[rival.step % RIVAL_MOVES.length];
     rival.step++;
     let line = null;
-    if (move === "price" && bizPriceMul(shop) - RIVAL_CFG.CUT >= PRICE_MIN - 1e-9) {
-      setBizPrice(shop, bizPriceMul(shop) - RIVAL_CFG.CUT);
-      line = "CUTS THE " + BIZ[shop].short + " PRICE TO " + Math.round(bizPriceMul(shop) * 100) + "%"
-        + " (" + BIZ[shop].recipes.map(r0 => "$" + menuPrice(shop, r0)).join("/") + ")";
+    if (move === "price" && bizPriceIdx(shop) - RIVAL_CFG.CUT_IDX >= PRICE_IDX_MIN) {
+      setBizPriceIdx(shop, bizPriceIdx(shop) - RIVAL_CFG.CUT_IDX);
+      line = "CUTS THE " + BIZ[shop].short + " PRICE TO " + bizPricePct(shop) + "%"
+        + " (" + BIZ[shop].recipes.map(r0 => "$" + $d(menuPrice(shop, r0))).join("/") + ")";
     } else if (move === "hours") {
       const h = BIZ[shop].hours;
       if (h.close + 60 <= HOURS_MAX) {
@@ -2921,14 +2963,14 @@ function runRivalCompete() {
       // ...and never under the town's floor: a "raise" that the law already
       // pays is not a raise, and would poach nobody while reading as one.
       const best = Math.max(WAGE_STD, minWage(), townWage(shop), bizWage(shop));
-      const want = Math.min(WAGE_MAX, Math.max(bizWage(shop) + 1, best + RIVAL_CFG.WAGE_OVER));
+      const want = Math.min(WAGE_MAX, Math.max(bizWage(shop) + 100, best + RIVAL_CFG.WAGE_OVER));
       const staffN = Math.max(1, allCrabs().filter(k => k.p.job === shop && !k.p.owner).length);
       // ...and only the WAGE costs cash on the night: a price cut and a longer
       // day are paid for out of margin, which is what the retreat rule reads
       if (want > bizWage(shop) && o.till >= want * staffN) {   // one account: the till
         setBizWage(shop, want);
         for (const j of jobBoard) if (j.biz === shop) j.wage = bizWage(shop);
-        line = "POSTS $" + bizWage(shop) + " AT THE " + BIZ[shop].short;
+        line = "POSTS $" + $d(bizWage(shop)) + " AT THE " + BIZ[shop].short;
       }
     }
     if (!line) continue;
@@ -3201,7 +3243,7 @@ const HOTELIER_CFG = {
   SHOP: "hotel",         // the lease she comes for, and the only one she runs
   NAME: "BRASS",
   MIN_DAY: 5,            // nobody buys a seafront hotel in a town they landed in yesterday
-  WORTH: 60,             // ...and she only comes for a house that is TAKING money: the
+  WORTH: 6000,           // cents ...and she only comes for a house that is TAKING money: the
                          // three-day book the asking price already reads. A town whose
                          // hotel never gets going never meets her, which is most of why
                          // the do-nothing baseline is untouched by her (measured: PLAN).
@@ -3209,7 +3251,7 @@ const HOTELIER_CFG = {
                          // interest, with the price on it, for this many settlements
                          // before she lands - the rivalry's rule that the warning is
                          // guaranteed by the CLOCK and not by money crossing a line.
-  BANKROLL: 800,         // what she brings. A fixed number, not "whatever it costs": a
+  BANKROLL: 80000,       // cents. what she brings. A fixed number, not "whatever it costs": a
                          // hotel trading well enough is genuinely out of her reach, and
                          // the report says so rather than quietly inventing the money.
   FULL: 0.70,            // rooms LET tonight against rooms on the hook: a full house...
@@ -3222,8 +3264,8 @@ const HOTELIER_CFG = {
   STEP_DAYS: 2,          // one move every this many nights, the rivalry's own pacing: a
                          // board that moved every single settlement walked the full
                          // 1.00 -> 1.30 band inside a week and stopped being readable
-  WAGE_OVER: 2,          // a wage push lands this far over the best rate in town
-  TILL_FLOOR: 40,        // ...and only if the till can carry the night after it
+  WAGE_OVER: 200,        // cents: a wage push lands this far over the best rate in town
+  TILL_FLOOR: 4000,        // ...and only if the till can carry the night after it
 };
 // heard: the day the town first heard of her. day: the day she signed.
 // id: her owner-registry key, which is how every surface finds her.
@@ -3308,13 +3350,13 @@ function hotelierArrive() {
   const lot = freeLotFor(BIZ[b].door);
   if (lot >= 0 && c.p.wallet >= MOVE_IN_COST + HOUSE_RENT) {
     c.p.wallet -= MOVE_IN_COST; c.p.house = lot; c.p.homeless = false;
-    logHome(c, "MOVED INTO " + placeName(c.p) + " - $" + MOVE_IN_COST);
+    logHome(c, "MOVED INTO " + placeName(c.p) + " - $" + $d(MOVE_IN_COST));
   }
   c.x = BIZ[b].door - 40;   // ...and she is behind the desk the same evening
   toast = { text: c.p.name + " HAS BOUGHT THE " + BIZ[b].name + " - $" + fmt(price), t: 9 };
   today.rival.push(c.p.name + " BOUGHT THE " + BIZ[b].short + " OFF " + sold + " - $" + fmt(price));
   crabLog(c, "life", "CAME TO TOWN AND BOUGHT THE " + BIZ[b].short, 0);
-  crabLog(c, "money", "PAID $" + price + " FOR " + hotelRooms().length + " ROOMS", 0);
+  crabLog(c, "money", "PAID $" + $d(price) + " FOR " + hotelRooms().length + " ROOMS", 0);
   popText("UNDER NEW MANAGEMENT", (BIZ[b].x0 + BIZ[b].x1) / 2 - 34, 96, [255, 216, 96]);
   if (typeof sfx !== "undefined" && sfx.ding) sfx.ding();
   if (window._stats) window._stats.hotelier = { day, price, name: c.p.name, from: sold, moves: [] };
@@ -3350,12 +3392,12 @@ function runHotelierPolicy() {
   if ((bizStrike[b] || 0) > 0) {
     hotelier.missed++;
     if (bizWage(b) > WAGE_STD) {
-      setBizWage(b, bizWage(b) - 1);
+      setBizWage(b, bizWage(b) - 100);
       for (const j of jobBoard) if (j.biz === b) j.wage = bizWage(b);
-      say("CUTS THE WAGE TO $" + bizWage(b) + " - MISSED RENT", "life");
-    } else if (bizPriceMul(b) > 1) {
-      setBizPrice(b, bizPriceMul(b) - PRICE_STEP);
-      say("DROPS THE ROOM TO $" + roomPrice() + " - MISSED RENT", "life");
+      say("CUTS THE WAGE TO $" + $d(bizWage(b)) + " - MISSED RENT", "life");
+    } else if (bizPriceIdx(b) > PRICE_IDX_DEF) {
+      setBizPriceIdx(b, bizPriceIdx(b) - 1);
+      say("DROPS THE ROOM TO $" + $d(roomPrice()) + " - MISSED RENT", "life");
     }
     return;
   }
@@ -3367,19 +3409,19 @@ function runHotelierPolicy() {
   // against it, the player's crew included.
   if (day - hotelier.moveDay < HOTELIER_CFG.STEP_DAYS) {
     today.rival.push(c.p.name + ": " + lets + "/" + rooms.length + " BEDS AT $"
-      + roomPrice() + ", $" + bizWage(b) + "/DAY");
+      + $d(roomPrice()) + ", $" + $d(bizWage(b)) + "/DAY");
     return;
   }
   const post = jobBoard.find(j => j.biz === b);
   const staff = allCrabs().filter(k => k.p.job === b && !k.p.owner);
   if (lost > 0 || (post && day - post.day >= 1)) {
     const best = Math.max(WAGE_STD, townWage(b), bizWage(b));
-    const want = Math.min(WAGE_MAX, Math.max(bizWage(b) + 1, best + HOTELIER_CFG.WAGE_OVER));
+    const want = Math.min(WAGE_MAX, Math.max(bizWage(b) + 100, best + HOTELIER_CFG.WAGE_OVER));
     const n = Math.max(1, staff.length);
     if (want > bizWage(b) && o.till >= HOTELIER_CFG.TILL_FLOOR + want * n) {
       setBizWage(b, want);
       for (const j of jobBoard) if (j.biz === b) j.wage = bizWage(b);
-      say("POSTS $" + bizWage(b)
+      say("POSTS $" + $d(bizWage(b))
         + (lost > 0 ? " - " + lost + " BEDS WENT UNMADE" : " - NOBODY ANSWERED"));
       return;
     }
@@ -3394,15 +3436,15 @@ function runHotelierPolicy() {
   // signal. The day book is the honest test: no takings, no reading.
   const traded = bizDayBook(b).take > 0;
   if (traded && lets >= HOTELIER_CFG.FULL * rooms.length
-      && bizPriceMul(b) + PRICE_STEP <= PRICE_MAX + 1e-9) {
-    setBizPrice(b, bizPriceMul(b) + PRICE_STEP);
-    say("PUTS THE ROOM UP TO $" + roomPrice() + " - " + lets + "/" + rooms.length + " SOLD");
+      && bizPriceIdx(b) < PRICE_IDX_MAX) {
+    setBizPriceIdx(b, bizPriceIdx(b) + 1);
+    say("PUTS THE ROOM UP TO $" + $d(roomPrice()) + " - " + lets + "/" + rooms.length + " SOLD");
     return;
   }
   if (traded && lets <= HOTELIER_CFG.SLACK * rooms.length
-      && bizPriceMul(b) - PRICE_STEP >= PRICE_MIN - 1e-9) {
-    setBizPrice(b, bizPriceMul(b) - PRICE_STEP);
-    say("DROPS THE ROOM TO $" + roomPrice() + " - "
+      && bizPriceIdx(b) > PRICE_IDX_MIN) {
+    setBizPriceIdx(b, bizPriceIdx(b) - 1);
+    say("DROPS THE ROOM TO $" + $d(roomPrice()) + " - "
       + (lets ? lets + "/" + rooms.length + " SOLD" : "NONE SOLD"));
     return;
   }
@@ -3412,7 +3454,7 @@ function runHotelierPolicy() {
   // first, so on the rare night both are talking, the rarer event - a peer
   // owner coming for the player's bar - keeps the room.)
   today.rival.push(c.p.name + ": " + lets + "/" + rooms.length + " BEDS AT $"
-    + roomPrice() + ", $" + bizWage(b) + "/DAY");
+    + $d(roomPrice()) + ", $" + $d(bizWage(b)) + "/DAY");
 }
 // ---- ONE PASS AT SETTLEMENT, after the market has cleared: she is either on
 // her way here, or she is running seven rooms.
@@ -3502,7 +3544,7 @@ const DORM_CFG = {
                   // cannot get wider: house 5 ends four pixels west of it and house 6
                   // starts flush against its east wall, so it gets DEEPER and it gets
                   // a storey).
-  RENT: 3,        // a night, per bed past the base. The base is $10 for four, which
+  RENT: 300,      // cents a night, per bed past the base. The base is $10 for four, which
                   // is $2.50 a bed: the landlord does not do a bulk discount, and a
                   // twelve-bed dormitory is $34 a night against a $10 one. That is
                   // the number the election has to answer for.
@@ -3608,9 +3650,9 @@ function bunkWhy() {
   if (dormFull()) return "THE SHELTER IS AS BIG AS IT GETS";
   if (shelterShut()) return "THE SHELTER IS BOLTED";
   if (townFund.arrears > 0 || townFund.strikes > 0) return "THE SHELTER'S RENT IS IN ARREARS";
-  if (townFund.bal < bunkKey()) return "THE FUND HASN'T GOT THE $" + bunkKey() + " KEY MONEY";
+  if (townFund.bal < bunkKey()) return "THE FUND HASN'T GOT THE $" + $d(bunkKey()) + " KEY MONEY";
   if (dormTake() < shelterRent() + DORM_CFG.RENT + potWant() * bowlCost())
-    return "THE " + purseOf(hall.policy).short + " WON'T CARRY $" + (shelterRent() + DORM_CFG.RENT) + " A NIGHT";
+    return "THE " + purseOf(hall.policy).short + " WON'T CARRY $" + $d(shelterRent() + DORM_CFG.RENT) + " A NIGHT";
   return null;
 }
 function canBunk() { return bunkWhy() === null; }
@@ -3622,11 +3664,11 @@ function buildBunk(who) {
   fundRemit(bunkKey(), "PINCHERTON", "BED " + (shelterBeds() + 1) + " KEY MONEY");
   dorm.beds = dormExtra() + 1; dorm.day = day; dorm.short = 0; _cotKey = "";
   const name = who || hall.mayor || "THE TOWN";
-  today.moved.push(name + " TOOK ANOTHER BED - SHELTER $" + shelterRent() + "/NIGHT");
-  toast = { text: "THE SHELTER TAKES BED " + shelterBeds() + " - RENT $" + shelterRent() + " A NIGHT", t: 7 };
+  today.moved.push(name + " TOOK ANOTHER BED - SHELTER $" + $d(shelterRent()) + "/NIGHT");
+  toast = { text: "THE SHELTER TAKES BED " + shelterBeds() + " - RENT $" + $d(shelterRent()) + " A NIGHT", t: 7 };
   popText("BED " + shelterBeds(), SHELTER_X + 20, 120, [190, 220, 255]);
   const m = mayorCrab();
-  if (m) crabLog(m, "life", "TOOK BED " + shelterBeds() + " AT THE SHELTER - $" + shelterRent() + "/NIGHT", 0);
+  if (m) crabLog(m, "life", "TOOK BED " + shelterBeds() + " AT THE SHELTER - $" + $d(shelterRent()) + "/NIGHT", 0);
   if (typeof sfx !== "undefined" && sfx.buy) sfx.buy();
   if (window._stats) window._stats.bunks = (window._stats.bunks || 0) + 1;
   return true;
@@ -3657,8 +3699,8 @@ function tapBunkChip() {
   }
   if (upArm !== "bunk") {
     upArm = "bunk"; upArmT = 3.5;
-    toast = { text: "TAP AGAIN: $" + DORM_CFG.RENT + " A NIGHT FOREVER - RENT $"
-      + shelterRent() + ">$" + (shelterRent() + DORM_CFG.RENT), t: 5 };
+    toast = { text: "TAP AGAIN: $" + $d(DORM_CFG.RENT) + " A NIGHT FOREVER - RENT $"
+      + $d(shelterRent()) + ">$" + $d(shelterRent() + DORM_CFG.RENT), t: 5 };
     if (typeof sfx !== "undefined" && sfx.ding) sfx.ding();
     return false;
   }
@@ -3675,7 +3717,7 @@ function tapBunkChip() {
 // thing the office exists to answer.
 function runDormPolicy() {
   if (!hallOn() || !hall.mayor) return;
-  dorm.take = Math.round(purseYield(hall.policy) * 100) / 100;   // a whole day's purse, recorded once
+  dorm.take = purseYield(hall.policy);   // a whole day's purse in cents, recorded once
   const short = cotShort();
   dorm.short = short > 0 ? dorm.short + 1 : 0;
   if (playerMayor()) return;                       // the player's office, the player's call
@@ -3729,11 +3771,11 @@ const ROOM_CFG = {
                    // last one ends at 2412 - clear of the queue slot at 2432. Seven rooms
                    // become thirteen, which is "pretty big" for a town whose ferry lands
                    // four sailings a day.
-  BUILD: 80,       // paid once, to the landlord. Priced off the shop's own book: the
+  BUILD: 8000,     // cents. paid once, to the landlord. Priced off the shop's own book: the
                    // Driftwood takes ~$63 a night of room money, so a hut is a bit over a
                    // night's takings - a real decision at a $150 opening float and an easy
                    // one for a house that has been full for a week.
-  RENT: 4,         // ...and a night, for good. The base lease is $35 for seven rooms ($5 a
+  RENT: 400,       // cents ...and a night, for good. The base lease is $35 for seven rooms ($5 a
                    // room), so the annexe is cheaper per bed than the house and still dear
                    // enough that an empty hut hurts.
   SHORT: 3,        // GUESTS turned away for want of a room - bedded down on the sand with
@@ -3744,12 +3786,12 @@ const ROOM_CFG = {
                    // a guest beds down at 21:00 and the books close at 20:00: today.roomsLost
                    // is cleared at midnight, so a night's count would be read a day late or
                    // not at all.
-  FLOOR: 60,       // ...and only with this left in the till afterwards. A hotel that builds
+  FLOOR: 6000,     // cents ...and only with this left in the till afterwards. A hotel that builds
                    // itself out of tomorrow's payroll goes on strike and loses the lease,
                    // which is a worse outcome than a guest on the beach.
   COOL: 4,         // one hut at a time, the hotelier's own pacing
 };
-const HOTEL_ROOMS_BASE = 7, HOTEL_RENT_BASE = 35;
+const HOTEL_ROOMS_BASE = 7, HOTEL_RENT_BASE = 3500;   // cents
 function newAnnexe() { return { built: 0, day: 0, short: 0 }; }
 let annexe = newAnnexe();
 function loadAnnexe(a) {
@@ -3794,7 +3836,7 @@ function roomWhy(oid) {
   if (annexeFull()) return "THE FORECOURT IS FULL";
   if (forSale("hotel")) return "THE DRIFTWOOD IS ON THE MARKET";
   const till = oid === "player" ? coins : (OWNERS[oid] ? OWNERS[oid].till : 0);
-  if (till < roomBuildCost()) return "THAT'S $" + roomBuildCost() + " AND THE TILL HASN'T GOT IT";
+  if (till < roomBuildCost()) return "THAT'S $" + $d(roomBuildCost()) + " AND THE TILL HASN'T GOT IT";
   return null;
 }
 function buildRoom(oid) {
@@ -3804,11 +3846,11 @@ function buildRoom(oid) {
   setHotelRooms(hotelRooms().length + 1);
   annexe.day = day; annexe.short = 0;
   const who = oid === "player" ? "THE DRIFTWOOD" : (OWNERS[oid] ? OWNERS[oid].name : "THE DRIFTWOOD");
-  today.moved.push(who + " PUT UP CABANA " + annexe.built + " - RENT $" + BIZ.hotel.rent);
-  toast = { text: who + " PUTS UP CABANA " + annexe.built + " - RENT $" + BIZ.hotel.rent, t: 7 };
+  today.moved.push(who + " PUT UP CABANA " + annexe.built + " - RENT $" + $d(BIZ.hotel.rent));
+  toast = { text: who + " PUTS UP CABANA " + annexe.built + " - RENT $" + $d(BIZ.hotel.rent), t: 7 };
   popText("CABANA " + annexe.built, cabanaSpot(annexe.built - 1).x - 4, 128, [255, 216, 96]);
   const c = allCrabs().find(k => k.p.owner === oid);
-  if (c) crabLog(c, "money", "BUILT CABANA " + annexe.built + " - $" + roomBuildCost(), 0);
+  if (c) crabLog(c, "money", "BUILT CABANA " + annexe.built + " - $" + $d(roomBuildCost()), 0);
   if (typeof sfx !== "undefined" && sfx.buy) sfx.buy();
   if (window._stats) window._stats.cabanas = (window._stats.cabanas || 0) + 1;
   return true;
@@ -3832,7 +3874,7 @@ function tapRoomChip() {
   }
   if (upArm !== "room") {
     upArm = "room"; upArmT = 3.5;
-    toast = { text: "TAP AGAIN: $" + roomBuildCost() + " NOW, $" + ROOM_CFG.RENT
+    toast = { text: "TAP AGAIN: $" + $d(roomBuildCost()) + " NOW, $" + $d(ROOM_CFG.RENT)
       + " A NIGHT - ROOMS " + hotelRooms().length + ">" + (hotelRooms().length + 1), t: 5 };
     if (typeof sfx !== "undefined" && sfx.ding) sfx.ding();
     return false;
@@ -3933,7 +3975,7 @@ function dormLine() {
 function drawBunkChip() {
   if (!bunkChipLive()) return;
   const r = bunkChipRect(), ok = canBunk();
-  const lbl = upArm === "bunk" ? "TAP AGAIN" : "BED+ $" + DORM_CFG.RENT + "/NIGHT";
+  const lbl = upArm === "bunk" ? "TAP AGAIN" : "BED+ $" + $d(DORM_CFG.RENT) + "/NIGHT";
   wrect(r.x, r.y, r.w, r.h, [30, 20, 36]);
   wrect(r.x + 1, r.y + 1, r.w - 2, r.h - 2,
     ok ? (upArm === "bunk" ? [255, 200, 90] : [96, 200, 120]) : [150, 140, 140]);
@@ -3944,7 +3986,7 @@ function drawBunkChip() {
 function drawRoomChip() {
   if (!roomChipLive()) return;
   const r = roomChipRect(), ok = !roomWhy("player");
-  const lbl = upArm === "room" ? "TAP AGAIN" : "ROOM+ $" + roomBuildCost();
+  const lbl = upArm === "room" ? "TAP AGAIN" : "ROOM+ $" + $d(roomBuildCost());
   wrect(r.x, r.y, r.w, r.h, [30, 20, 36]);
   wrect(r.x + 1, r.y + 1, r.w - 2, r.h - 2,
     ok ? (upArm === "room" ? [255, 200, 90] : [96, 200, 120]) : [150, 140, 140]);
@@ -4251,7 +4293,7 @@ function onOvertimeNow(c) {
 }
 // what THIS crab is paid for a standard day: their private deal, else their
 // shop's rate. One function, and every pay path in the game already runs
-// through it - basePayToday, contractPay, hourlyRate and otPremium all read
+// through it - basePayToday, contractPay and otPremium all read
 // it, so the settlement, the BILL chip, the MENU column and the bankruptcy
 // forecaster total per-crab rates without any of them learning a new rule.
 // THE TOWN'S FLOOR, under all three layers (Matt, 2026-08-20: "minimum wage
@@ -4285,7 +4327,7 @@ function floorBinds(c) { return BIZ[c.p.job] && minWage() > rawWage(c); }
 // Everything is then priced off the hourly rate they imply, so ordinary hours
 // and overtime hours are quoted in the same currency:
 //   ordinary  wage x (today's contracted span / that standard)   basePayToday
-//   overtime  hourlyRate x OT_RATE x minutes worked              otPremium
+//   overtime  wage x 3 x minutes worked / (2 x standard span)     otPremium
 // Labour is bought by the hour: shorten the trading day and the shifts inside
 // it shorten, and the wage bill shortens with them. Lengthen it and the shift
 // CAP (bizShiftWindow) holds a working day to a working day - you buy extra
@@ -4303,7 +4345,6 @@ function dutyStdSpan(c) { return coveringToday(c) ? SHIFT_SPAN.cover : ownStdSpa
 // filled a coworker's day off for free) but it is TWO shifts of work, and the
 // end-of-shift accrual says so.
 function workLoad(c) { const s = dutyShift(c); return Math.max(0, s.end - s.start) / ownStdSpan(c); }
-function hourlyRate(c) { return wageRate(c) / ownStdSpan(c); }
 // today's contracted hours as a share of a standard day of that shift: 1.0 on
 // any trading day long enough to hold it, less when the shop's hours squeeze it.
 function shiftLoad(c, sh) {
@@ -4324,7 +4365,17 @@ function contractPay(c) { return wageRate(c) * shiftLoad(c, baseShift(c)); }
 // STANDARD span rather than today's, so a squeezed shift cannot quietly make
 // overtime cheaper than straight time. Byte-for-byte the old formula on a
 // default trading day.
-function otPremium(c, mins) { return hourlyRate(c) * OT_RATE * mins; }
+// ONE RATIONAL, ONE FLOOR. The old form evaluated an hourly rate as its own
+// float and then multiplied twice, so the premium carried three roundings and
+// no named unit. OT_RATE 1.5 is exactly 3/2, so the whole thing is
+// wage_c x 3 x mins / (2 x span) with a single floor at the end - the hourly
+// rate stops existing as a number and becomes the shape of the fraction.
+// `mins` is still a float until slice 2 makes it whole deci-game-minutes;
+// that is the one approximate input left, and the floor below contains it.
+function otPremium(c, mins) {
+  const span = Math.max(1, ownStdSpan(c));
+  return Math.floor(wageRate(c) * 3 * Math.max(0, mins) / (2 * span));
+}
 function otPayToday(c) { return otPremium(c, c.otMin || 0); }        // truthful: minutes actually worked
 // tonight's forecast: scheduled while they're still on OT, else what they worked
 function otPayForecast(c) { return otEligible(c) ? otPremium(c, otMinutes(c)) : otPayToday(c); }
@@ -4576,7 +4627,7 @@ function quitOverPay(c, why) {
     rosterGen++;
     c.p.job = to; c.p.employer = oid; c.workBiz = to; c.p.fisher = false;
     delete c.p.wage; delete c.p.wageOwner;   // a new boss, a new rate
-    toast = { text: c.p.name + " LEFT FOR " + BIZ[to].name + " - $" + bizWage(to) + " BEATS $" + Math.round(wageRate(c)), t: 8 };
+    toast = { text: c.p.name + " LEFT FOR " + BIZ[to].name + " - $" + $d(bizWage(to)) + " BEATS $" + $d(wageRate(c)), t: 8 };
     today.moved.push(c.p.name + " POACHED BY " + BIZ[to].short + " OVER PAY");   // DIARY HOOK: poached
   } else {
     layOff(c);
@@ -4595,7 +4646,7 @@ function runWageRelations() {
     // signs the cheque, and it says so rather than quietly evaporating
     if (c.p.wage != null && c.p.wageOwner !== bizOwner(c.p.job)) {
       delete c.p.wage; delete c.p.wageOwner;
-      today.moved.push(c.p.name + " IS BACK ON THE SHOP RATE - $" + bizWage(c.p.job));   // DIARY HOOK: deal lapsed
+      today.moved.push(c.p.name + " IS BACK ON THE SHOP RATE - $" + $d(bizWage(c.p.job)));   // DIARY HOOK: deal lapsed
     }
     if (!onPayroll(c)) { c.p.gripe = 0; c.p.wageJob = null; continue; }
     if (c.p.wageJob !== c.p.job) {   // a new job restarts the clock: nobody resents a boss they met yesterday
@@ -4622,10 +4673,10 @@ function runWageRelations() {
     const g = c.p.gripe;
     // ---- the warnings, in order, each fired once on the way up
     if (was < WAGE_CFG.GRUMBLE && g >= WAGE_CFG.GRUMBLE) {
-      c.quip = { text: "$" + rate + "? THE PIER PAYS BETTER", t: 6 };
-      today.moved.push(c.p.name + " IS GRUMBLING ABOUT $" + rate);   // DIARY HOOK: first grumble
+      c.quip = { text: "$" + $d(rate) + "? THE PIER PAYS BETTER", t: 6 };
+      today.moved.push(c.p.name + " IS GRUMBLING ABOUT $" + $d(rate));   // DIARY HOOK: first grumble
     } else if (was < WAGE_CFG.WARN && g >= WAGE_CFG.WARN) {
-      toast = { text: c.p.name + " IS ASKING AROUND - $" + rate + " ISN'T ENOUGH", t: 8 };
+      toast = { text: c.p.name + " IS ASKING AROUND - $" + $d(rate) + " ISN'T ENOUGH", t: 8 };
       today.moved.push(c.p.name + " IS ASKING AROUND ABOUT PAY");   // DIARY HOOK: second warning
       popText("ASKING AROUND", c.x - 14, FLOOR_Y - 34, [255, 190, 90]);
     }
@@ -4636,8 +4687,8 @@ function runWageRelations() {
       // pay is right. Announced tonight, so there is a whole evening to fix it.
       if (c.p.walkout !== day + 1) {
         c.p.walkout = day + 1; c.p.walkoutWhy = "pay";
-        toast = { text: c.p.name + " WON'T WORK TOMORROW AT $" + rate, t: 8 };
-        today.moved.push(c.p.name + " REFUSES TOMORROW'S SHIFT OVER $" + rate);   // DIARY HOOK: walkout
+        toast = { text: c.p.name + " WON'T WORK TOMORROW AT $" + $d(rate), t: 8 };
+        today.moved.push(c.p.name + " REFUSES TOMORROW'S SHIFT OVER $" + $d(rate));   // DIARY HOOK: walkout
         if (typeof sfx !== "undefined" && sfx.angry) sfx.angry();
         if (window._stats) (window._stats.walkouts = window._stats.walkouts || [])
           .push({ day: day + 1, name: c.p.name, rate, why: "pay" });
@@ -4702,12 +4753,12 @@ function runWagePolicy(b) {
   let line = null;
   if ((stale || aggrieved || lostRecently) && rate < WAGE_MAX
       && o.till >= cfg.tillFloor + (rate + 1) * Math.max(1, staff.length)) {
-    setBizWage(b, rate + 1);
-    line = "RAISES THE WAGE TO $" + bizWage(b);
+    setBizWage(b, rate + 100);
+    line = "RAISES THE WAGE TO $" + $d(bizWage(b));
   } else if (!post && staff.length >= 2 && !staff.some(k => wageGripe(k) > 0.1)
-      && rate > going * cfg.trimOver && rate - 1 >= WAGE_MIN) {
-    setBizWage(b, rate - 1);
-    line = "TRIMS THE WAGE TO $" + bizWage(b);
+      && rate > going * cfg.trimOver && rate - 100 >= WAGE_MIN) {
+    setBizWage(b, rate - 100);
+    line = "TRIMS THE WAGE TO $" + $d(bizWage(b));
   }
   if (!line) return;
   st.cd = 1;
@@ -4733,16 +4784,16 @@ const INGREDIENT_COST = { fish_raw: 5, fruit: 3, token: 1, soap: 1, linen: 2 };
 // local price can never exceed it); a glut sags toward the $2 floor. The
 // binary FISH_LOCAL(4)/FISH_IMPORT(7) switch is gone - trade.price is the
 // one pier price, cleared once a day at midnight (settleFishMarket).
-const FISH_FLOOR = 2, FISH_IMPORT = 7, FISH_START = 4;
+const FISH_FLOOR = 200, FISH_IMPORT = 700, FISH_START = 400;   // cents
 // ---- T1 trade ledger: the town is a NODE. Imports tracked at fixed prices;
 // only fish actually charges money today (it always did, via ingredientCost) -
 // corn/water/power are tracked flows awaiting T2/T3. Bookkeeping ONLY.
 const IMPORTS = {
-  fish:  { name: "FISH",  unit: "EA",  price: FISH_IMPORT },
-  corn:  { name: "CORN",  unit: "EA",  price: 3 },
-  water: { name: "WATER", unit: "GAL", price: 1 },
-  power: { name: "POWER", unit: "KWH", price: 2 },
-  fruit: { name: "FRUIT", unit: "EA",  price: 2 },
+  fish:  { name: "FISH",  unit: "EA",  price: FISH_IMPORT },   // cents, all of them
+  corn:  { name: "CORN",  unit: "EA",  price: 300 },
+  water: { name: "WATER", unit: "GAL", price: 100 },
+  power: { name: "POWER", unit: "KWH", price: 200 },
+  fruit: { name: "FRUIT", unit: "EA",  price: 200 },
   // BALLOT PAPER. The only import in this table the TOWN buys rather than a
   // shop - the office orders it the night before a poll and the ferry lands
   // it, which is the whole reason an election has a price at all.
@@ -4778,8 +4829,8 @@ function settleFishMarket() {
   trade.useH.push(trade.useDay); if (trade.useH.length > 3) trade.useH.shift();
   const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
   const S = avg(trade.landH), D = avg(trade.useH);
-  if (D > S + 1) trade.price = Math.min(FISH_IMPORT, trade.price + 1);        // fish ran short: the pier price firms
-  else if (S > D + 2) trade.price = Math.max(FISH_FLOOR, trade.price - 1);    // fish piled up: the pier price sags
+  if (D > S + 1) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
+  else if (S > D + 2) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
   trade.ceilDays = trade.price >= FISH_IMPORT ? (trade.ceilDays || 0) + 1 : 0;
   trade.series.push(trade.price);
   if (trade.series.length > 60) trade.series.shift();
@@ -4787,7 +4838,7 @@ function settleFishMarket() {
 }
 function ingredientCost(raw) {
   if (raw === "fish_raw") return townCatch > 0 ? trade.price : FISH_IMPORT;
-  return INGREDIENT_COST[raw];
+  return 100 * INGREDIENT_COST[raw];   // author-dollars table; the cent is born here
 }
 function consumeIngredient(raw, recipe) {
   if (raw === "fruit") tradeImport("fruit", 1);                   // every drink counts its fruit (T1 tracking)
@@ -4821,7 +4872,32 @@ const UPS = {
   cadegear: { name: "CADE GEAR+", base: 180, mult: 1, max: 1, lvl: 0 },
 };
 for (const k in UPS) UPS[k].key = k;
-function upCost(u) { return Math.ceil(u.base * Math.pow(u.mult, u.key === "chef" ? u.lvl - 2 : u.lvl)); }
+// UPGRADE COSTS, BAKED: ceil(base * mult^(lvl - offset)) in CENTS, indexed by
+// LEVEL rather than by exponent. Generated by tools/gen-luts.mjs, which --tests
+// every rung against the float formula, against the documented $60/90/135/203
+// table ladder, and against the chef's two WIPEOUT rungs. The last Math.pow in
+// the money orbit retires with it; a price the player reads off a button
+// should not be the output of an implementation-approximated function.
+//
+// THE CHEF'S FIRST TWO RUNGS ARE THE WHOLE REASON THIS IS INDEXED BY LEVEL:
+// the chef exponent is `lvl - 2` and it goes NEGATIVE when a town's crew dies,
+// pricing the climb back out at $15 and $30. Baking by exponent quietly priced
+// that rehire at Infinity, and a town that had lost everybody could never hire
+// again - caught by "all crew dead: town survives, rehire recovers", which is
+// exactly the scenario that exists to hold this door open.
+const UP_COST_C = {
+  chef: [1500, 3000, 6000, 12000, 24000, 48000, 96000],
+  grill: [12000, 19200, 30800],
+  board: [9000, 14400, 23100],
+  table: [6000, 9000, 13500, 20300, 30400],
+  juicebar: [40000, 40000],
+  arcade: [65000, 65000],
+  cadegear: [18000, 18000],
+};
+function upCost(u) {
+  const row = UP_COST_C[u.key], lvl = u.lvl | 0;
+  return row && row[lvl] != null ? row[lvl] : Infinity;
+}
 
 // ------------------------------------------------------- WHAT A SHOP BUTTON DOES
 // "Go to the shop. WHAT DO THESE THINGS DO? TOOLTIP TIME!" - the first outside
@@ -4884,8 +4960,8 @@ function upEffect(key) {
 // dropping the shack's wage on the management card changes what the HIRE CRAB
 // button promises, because it changes what a hire actually costs.
 function upOngoing(key) {
-  if (key === "chef") return "+$" + bizWage("shack") + " A SHIFT ON TONIGHT'S BILL";
-  if (key === "arcade" || key === "juicebar") return "+$" + BIZ[key].rent + " RENT EVERY NIGHT, FOREVER";
+  if (key === "chef") return "+$" + $d(bizWage("shack")) + " A SHIFT ON TONIGHT'S BILL";
+  if (key === "arcade" || key === "juicebar") return "+$" + $d(BIZ[key].rent) + " RENT EVERY NIGHT, FOREVER";
   return "NOTHING MORE TO PAY AT 20:00";
 }
 
@@ -4978,7 +5054,7 @@ let lastRentDay = 0, gameOver = false, newConfirmT = 0;
 // and crosses $20,000 somewhere around day 105-130. So: absurd on day one,
 // out of reach for anybody merely surviving, and a hundred good days away for
 // a town that has genuinely mastered the economy.
-const FERRY_PRICE = 20000;
+const FERRY_PRICE = 2000000;   // cents
 const FERRY_X = 1806;        // the office, on the sand between the arcade lot and the pier
 const FERRY_SIGN_X = 1148;   // the fingerpost on the promenade, where the player already looks
 const FERRY_DAY = 3;         // she works the far shore on THURSDAYS (weekdayIdx)
@@ -4987,7 +5063,7 @@ let won = false, winT = 0, ferryArm = 0;
 // reload as it did the night it happened (personas churn; an ending must not)
 let winRec = null;
 function commas(n) { return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
-function ferryFare() { return commas(FERRY_PRICE); }
+function ferryFare() { return commas($d(FERRY_PRICE)); }
 // YOU DO NOT GET TO SEE THE WAY OUT UNTIL YOU HAVE BUILT SOMETHING. The boat
 // herself crosses the far channel every Thursday from the first morning - the
 // world is bigger than the town and always was. But the OFFICE, the fingerpost,
@@ -5045,7 +5121,7 @@ function loadSlot(i) {
 // CRAB_WAGE is now the STANDARD rate a business opens on, not the rate anybody
 // is stuck with - see WAGE_STD / bizWage / wageRate. Kept as the name the rest
 // of the file (and the tools) already say when they mean "the town's wage".
-const CRAB_WAGE = WAGE_STD, HOUSE_RENT = 10;   // wage raised 22 -> 23 with T2 thirst: crews drink at retail, the wage keeps their wallets liquid
+const CRAB_WAGE = WAGE_STD, HOUSE_RENT = 1000;   // cents   // wage raised 22 -> 23 with T2 thirst: crews drink at retail, the wage keeps their wallets liquid
 // RENT IS DUE FROM NIGHT ONE, and the question was re-opened and re-closed
 // with a number on 2026-08-19. CS3 shipped its first commit with a rent-free
 // opening night (`day <= 1 ? 0 : rent`); e6e3476 deleted it - "no more
@@ -5121,7 +5197,7 @@ function allCrabs() {
 function initNpcs() {
   const p = { name: "SUDSY", npc: true, owner: "sudsy", trait: "cheery", mode: "walk",
     acc: "showercap", color: CRAB_COLORS.length - 1, shift: "D", house: 0, homeless: true,
-    wallet: 25, job: "showers", hunger: 0, dirt: 0, bored: 0, tired: 0 };
+    wallet: 2500, job: "showers", hunger: 0, dirt: 0, bored: 0, tired: 0 };
   const c = newCrab(p);
   c.workBiz = "showers"; c.x = 1148; c.y = 158;
   // REEF keeps the DRIFTWOOD HOTEL, and LIVES IN THE COTTAGE NEXT DOOR - the
@@ -5132,7 +5208,7 @@ function initNpcs() {
   // front door is a fact about his starting assets, not a rule about him.
   const rp = { name: "REEF", npc: true, owner: "reef", trait: "tidy", mode: "walk",
     acc: "cap", color: 3, shift: "D", house: 8, homeless: false,
-    wallet: 30, job: "hotel", hunger: 0.1, dirt: 0.1, bored: 0, tired: 0.2 };
+    wallet: 3000, job: "hotel", hunger: 0.1, dirt: 0.1, bored: 0, tired: 0.2 };
   const rc = newCrab(rp);
   rc.workBiz = "hotel"; rc.x = 2210; rc.y = 158;
   // THE RAIL HOLDS THREE NOW, and that is the hotel's doing rather than a
@@ -5152,7 +5228,7 @@ function initNpcs() {
   ].map((f, i) => {
     const fp = { name: f.name, npc: true, fisher: true, trait: f.trait, mode: "walk",
       acc: f.acc, color: f.color, shift: "D", house: 0, homeless: true,
-      wallet: 18, job: "fishing", hunger: 0.3, dirt: 0.2, bored: 0, tired: 0.3 };
+      wallet: 1800, job: "fishing", hunger: 0.3, dirt: 0.2, bored: 0, tired: 0.3 };
     const fc = newCrab(fp);
     fc.fishSpot = fishSpotFor(f.spot);
     fc.x = f.x0; fc.y = 158;
@@ -5379,14 +5455,14 @@ function wanderSpot(c, post) {
   // A RIVAL EYEING A SHOP GOES AND STANDS OUTSIDE IT. Not a new behaviour -
   // the same idle-hands trip every bored crab takes, aimed on purpose. This is
   // the tell on the boardwalk, days before anything reaches a report.
-  if (rivalEyeing(c) && Math.random() < RIVAL_CFG.STAKEOUT) {
+  if (rivalEyeing(c) && srand() < RIVAL_CFG.STAKEOUT) {
     const z = BIZ[RIVAL_CFG.PRIZE];
     return { x: z.queueX + 10, y: clearSpotY(z.queueX + 10, 156), label: "THE " + z.name, eyeing: true };
   }
   const near = WANDER_SPOTS.filter(s => Math.abs(s.x - post) <= WANDER_PX);
   if (!near.length) return null;
-  const s = near[(Math.random() * near.length) | 0];
-  return { x: s.x, y: clearSpotY(s.x, 150 + ((Math.random() * 3) | 0) * 6), label: s.label };
+  const s = near[(srand() * near.length) | 0];
+  return { x: s.x, y: clearSpotY(s.x, 150 + ((srand() * 3) | 0) * 6), label: s.label };
 }
 const WANDER_QUIPS = ["NOTHING DOING", "JUST STRETCHING MY LEGS",
   "WONDER IF THEY'RE BITING", "BACK IN A TICK"];
@@ -5485,14 +5561,14 @@ function startBallStop(c) {
 function updateBall(c, dt) {
   if (c.ballT <= 0) {                       // still walking out to it
     if (routedStep(c, crabMove(c), dt)) {
-      c.ballT = BALL_SECS + Math.random() * 4;
-      c.quip = { text: BALL_LINES[(Math.random() * BALL_LINES.length) | 0], t: 2.4 };
+      c.ballT = BALL_SECS + srand() * 4;
+      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 };
     }
     return;
   }
   c.ballT -= dt;
-  if (((c.ballT * 2) | 0) % 7 === 0 && Math.random() < 0.02)
-    c.quip = { text: BALL_LINES[(Math.random() * BALL_LINES.length) | 0], t: 2.0 };
+  if (((c.ballT * 2) | 0) % 7 === 0 && srand() < 0.02)
+    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 };
   if (c.ballT > 0) return;
   // WHO ELSE IS OUT HERE decides what it was worth
   const mate = ballPlayers().find(k => k !== c && k.ballT > 0 && Math.abs(k.x - c.x) <= BALL_PX);
@@ -5537,13 +5613,13 @@ function chatReady(c) {
 function startChat(a, b) {
   for (const [c, o] of [[a, b], [b, a]]) {
     c.chatFrom = c.dayState; c.dayState = "chat";
-    c.chatWith = o; c.chatT = CHAT_SECS + Math.random() * 6;
+    c.chatWith = o; c.chatT = CHAT_SECS + srand() * 6;
     c.chatCd = CHAT_CD; c.chatLine = 0;
     c.wander = null; c.wanderT = 0;   // the conversation IS the wander now
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0;
     setT(c, c.x, c.y);
   }
-  a.quip = { text: CHAT_LINES[(Math.random() * CHAT_LINES.length) | 0], t: 2.6 };
+  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 };
   if (window._stats) window._stats.chats = (window._stats.chats || 0) + 1;
 }
 function endChat(c, paid) {
@@ -5690,7 +5766,7 @@ function updateHome(c, dt) {
   if (c.p.rough) {
     if (darkness() >= 0.5) { setT(c, c.x, c.y); return; }
     c.p.rough = false;   // up with the light, stiff, and none the better for it
-    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(Math.random() * 3) | 0], t: 3 };
+    c.quip = { text: ["SLEPT WHERE I FELL", "MY SHELL ACHES", "THAT WAS NO BED"][(srand() * 3) | 0], t: 3 };
   }
   // a day off is for the beach: after the lie-in, amble the sand near home
   // between errands instead of pacing the porch. A WALK-OUT spends the day
@@ -5698,12 +5774,12 @@ function updateHome(c, dt) {
   if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
     if (c._offPause > 0) { c._offPause -= dt; return; }
     if (c._offWt == null) {
-      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + Math.random() * 240 - 120));
-      c._offWy = clearSpotY(c._offWt, 150 + Math.random() * 16);   // amble on the sand, not through the picnic tables
+      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + srand() * 240 - 120));
+      c._offWy = clearSpotY(c._offWt, 150 + srand() * 16);   // amble on the sand, not through the picnic tables
       setT(c, c._offWt, c._offWy);
     }
     if (routedStep(c, crabMove(c) * 0.55, dt)) {
-      c._offWt = null; c._offPause = 2 + Math.random() * 5;
+      c._offWt = null; c._offPause = 2 + srand() * 5;
     }
     return;
   }
@@ -5785,7 +5861,7 @@ function newCrab(persona) {
   return {
     p: persona,
     x: homeX({ p: persona }), y: 160, tx: 0, ty: 160,
-    flip: false, hidden: false, animT: Math.random() * 9,
+    flip: false, hidden: false, animT: srand() * 9,
     dayState: "home", cstate: "", target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
     duty: false, pendingOff: false, pauseT: 0, _offIdx: 0,
@@ -5796,7 +5872,7 @@ function newCrab(persona) {
     idleT: 0, wander: null, wanderT: 0, wanderCd: 0,
     chatT: 0, chatCd: 0, chatWith: null, chatFrom: null, chatLine: 0,
     napT: 0, napFrom: null,
-    quip: null, quipT: 8 + Math.random() * 15,
+    quip: null, quipT: 8 + srand() * 15,
   };
 }
 // ---- THE TRUDGE: hunger and thirst fail as a SPEED PENALTY (Matt's call:
@@ -5972,7 +6048,7 @@ function pickTrack() {
       if (t.role || i === trackIdx) continue;
       if (Math.abs((t.e == null ? 1 : t.e) - want) === d) pool.push(i);
     }
-    if (pool.length) return pool[(Math.random() * pool.length) | 0];
+    if (pool.length) return pool[(srand() * pool.length) | 0];
   }
   return trackIdx;
 }
@@ -5987,7 +6063,7 @@ function toggleMute() {
   if (muted) { if (music) music.pause(); }
   else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
 }
-let trackIdx = (Math.random() * PLAYLIST.length) | 0;
+let trackIdx = (srand() * PLAYLIST.length) | 0;
 function playTrack(i) {
   if (music) { music.pause(); music = null; }
   trackIdx = ((i % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
@@ -6037,8 +6113,8 @@ const sfx = {
 };
 
 // ---------------------------------------------------------------- economy
-function fmt(n) {
-  n = Math.floor(n);
+function fmt(c) {   // cents in, whole dollars out - every caller is money
+  let n = $d(c);
   if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
   if (n >= 1e4) return (n / 1e3).toFixed(1) + "K";
   return String(n);
@@ -6046,16 +6122,18 @@ function fmt(n) {
 function popText(txt, x, y, color) {
   floaters.push({ x, y, t: 1.6, text: txt, color: color || [255, 255, 255] });
 }
+// cents state, dollar glass: the ONE display divisor
+function $d(c) { return Math.round(c / 100); }
 function earn(amt, x, y) {
   coins += amt; lifetime += amt;
   earnHist.push({ t: time, amt });
-  popText("+$" + Math.floor(amt), x, y, [255, 230, 120]);
+  popText("+$" + $d(amt), x, y, [255, 230, 120]);
   sfx.coin();
 }
 function expense(amt, x, y, label) {
   coins -= amt;
   earnHist.push({ t: time, amt: -amt });   // income rate is net
-  popText("-$" + amt + (label ? " " + label : ""), x, y, [255, 120, 120]);
+  popText("-$" + $d(amt) + (label ? " " + label : ""), x, y, [255, 120, 120]);
 }
 function incomeRate() {
   while (earnHist.length && earnHist[0].t < time - 60) earnHist.shift();
@@ -6073,12 +6151,24 @@ function incomeRate() {
 // _meta is always derivable from the envelope alone (slotMeta), so migrated and
 // imported saves get one for free and a stale one can never lie.
 const SAVE_KEY = "crabshack3_v1";        // the legacy single-slot key: migration source only
-const SAVE_VER = 1;
+// 2 = the cents era (numeric slice 1). A cents save read by a pre-cents build
+// would inflate every balance a hundredfold; that build's own "FROM A NEWER
+// CRAB SHACK" gate is exactly the refusal needed, so the bump IS the guard.
+const SAVE_VER = 2;
 const SLOTS = 5;
 const ACTIVE_KEY = SAVE_KEY + "_active";
 function slotKey(i) { return SAVE_KEY + "_s" + i; }
 function nowMs() { try { return Date.now(); } catch (e) { return 0; } }   // headless sandboxes may not have a clock
 let activeSlot = 1;                      // autosave goes here; persisted in ACTIVE_KEY
+// ============================================================== THE RNG SEAM
+// CS3.5 numeric-core slice 0: every sim draw goes through this ONE function -
+// the same stream, the same order, byte-identical to calling Math.random()
+// directly (the harness seeds the context's Math, which this delegates to).
+// It exists so slice 5 can split browser-only draws to a view stream without
+// hunting 93 call sites twice, and so a future backend can inject its own
+// integer generator at exactly one door. Do not add a second tap.
+function srand() { return Math.random(); }
+
 const FRESH = location.search.includes("fresh");
 const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 1])[1]) || 1);
 
@@ -6328,13 +6418,16 @@ function slotMeta(s) {
   const shackH = s.hours && Array.isArray(s.hours.shack) ? s.hours.shack : null;
   const span = shackH ? Math.max(0, (+shackH[1] || 0) - (+shackH[0] || 0)) : 2 * STD_SHIFT;
   const shiftLen = Math.min(STD_SHIFT, Math.round(span / 2) || STD_SHIFT);
+  // THE CARD SPEAKS CENTS whatever era the envelope is from: a pre-cents
+  // envelope's dollars are scaled here so one renderer serves both.
+  const cx = s._num ? 1 : 100;
   // ...and at whatever rate that town pays: the preview card totals each
   // saved crab's own deal, falling back to the shack's rate then WAGE_STD.
-  const savedWage = (p) => clampWage(p && p.wage != null ? p.wage
-    : (s.wage && s.wage.shack != null ? s.wage.shack : WAGE_STD));
+  const savedWage = (p) => clampWage(cx * (p && p.wage != null ? p.wage
+    : (s.wage && s.wage.shack != null ? s.wage.shack : WAGE_STD / cx)));
   const crewWages = Math.round((Array.isArray(s.personas) ? s.personas : [])
     .reduce((n, p) => n + savedWage(p), 0) * shiftLen / STD_SHIFT);
-  const purse = (Array.isArray(s.personas) ? s.personas : [])
+  const purse = cx * (Array.isArray(s.personas) ? s.personas : [])
     .reduce((n, p) => n + Math.max(0, (p && p.wallet) || 0), 0);
   const boats = (Array.isArray(s.personas) ? s.personas : [])
     .concat(s.npc && Array.isArray(s.npc.personas) ? s.npc.personas : [])
@@ -6342,9 +6435,9 @@ function slotMeta(s) {
   const housed = (Array.isArray(s.personas) ? s.personas : [])
     .filter(p => p && !p.homeless).length;
   return { ver: SAVE_VER, day: d, weekday: WEEKDAYS[weekdayIdx(d)], won: !!s.won,
-    coins: Math.round(s.coins || 0), rep: Math.round(s.rep != null ? s.rep : 30),
+    coins: Math.round(cx * (s.coins || 0)), rep: Math.round(s.rep != null ? s.rep : 30),
     pop: crew.length + npcN, crew, t: s.t || 0,
-    debt: Math.round((s.credit && s.credit.bal) || 0),
+    debt: Math.round(cx * ((s.credit && s.credit.bal) || 0)),
     owned: owned.map(b => BIZ[b].short), nightly: rentDue + crewWages,
     purse: Math.round(purse), boats, housed,
     ups: Object.keys(lv).filter(k => (lv[k] || 0) > 0 && UPS[k] && UPS[k].max > 1)
@@ -6368,7 +6461,9 @@ function slotCard(i) {
   let s = null;
   try { s = JSON.parse(raw); } catch (e) {}
   if (s && saveProblem(s)) s = null;
-  const card = s ? (s._meta && Array.isArray(s._meta.crew) ? s._meta : slotMeta(s)) : null;
+  // a pre-cents envelope's STORED card is dollars: re-derive it (slotMeta
+  // normalizes to cents) rather than trust a stale unit
+  const card = s ? (s._meta && Array.isArray(s._meta.crew) && s._num ? s._meta : slotMeta(s)) : null;
   _cardCache[i] = { raw, card };
   return card;
 }
@@ -6406,6 +6501,16 @@ function save() {
     // has one number in two places. The loader must tell them apart or it
     // either destroys a till or doubles it, so the world stamps itself.
     _oneWallet: 1,
+    // THE CENTS ERA (numeric slice 1). Every money field in this envelope is
+    // integer cents; an envelope without this flag is float dollars and gets
+    // the one-shot migration in load(). Staged counter, per the protocol:
+    // 2 will be ticks, 3 Q-needs, 4 Q-positions.
+    _num: 1,
+    // THE GRIDS (slice 1b): tipShare rides as int TWENTIETHS and price as the
+    // int board INDEX. Both used to be float fractions whose ranges overlap
+    // the new integers (a tipShare of 1 is 100% in the old units and 5% in the
+    // new), so the era cannot be sniffed from the values - it needs this flag.
+    _grid: 1,
     dayLog: (window.dayLog || []).slice(-6),   // keeps the forecaster warm across reloads
     personas: crabs.map(c => c.p),
     npc: { tills: { sudsy: OWNERS.sudsy.till },
@@ -6425,9 +6530,9 @@ function save() {
     // "who paid for that" losing its answer on a reload would be the one bug
     // this whole feature exists to prevent. The election record comes along so
     // a reloaded town can still show you why the crab in the hat is in it.
-    fund: { bal: Math.round(townFund.bal * 100) / 100, bowls: townFund.bowls,
+    fund: { bal: townFund.bal, bowls: townFund.bowls,   // cents: already whole
       strikes: townFund.strikes, shut: townFund.shut,
-      arrears: Math.round(townFund.arrears * 100) / 100,
+      arrears: townFund.arrears,
       served: townFund.served, cold: townFund.cold, wasted: townFund.wasted,
       ledger: townFund.ledger.slice(-24) },
     hall: { mayor: hall.mayor, policy: hall.policy, termDay: hall.termDay, poll: hall.poll,
@@ -6457,7 +6562,7 @@ function save() {
     tipShare: (() => { const m = {}; for (const k in BIZ) m[k] = BIZ[k].tipShare || 0; return m; })(),
     // THE PRICE: one multiplier per shop (1 = the board price in the recipe
     // table), plus the rivalry's whole state machine - see RIVAL_CFG
-    price: (() => { const m = {}; for (const k in BIZ) m[k] = bizPriceMul(k); return m; })(),
+    price: (() => { const m = {}; for (const k in BIZ) m[k] = bizPriceIdx(k); return m; })(),   // the GRID INDEX (see _grid)
     rival: rival,   // ...including her war chest, which is real money
     hotelier,       // ...and the hotelier: who she is, when she landed, what she has moved
     hoursPol: hoursPolicyState,
@@ -6519,11 +6624,67 @@ function save() {
 }
 let sudsRefunded = false;   // laundromat-removal migration: refund paid out (persisted)
 let firstPour = false;      // the juice bar's first-ever drink (persisted: one headline per town)
+// NUMERIC SLICE 1 (cents), stage one of two. An envelope without `_num` is a
+// float-dollar town: every money field is scaled to cents HERE, on the parsed
+// envelope, BEFORE hydration - so every clamp downstream reads the unit it
+// was rewritten for. Balances stay float through this pass; the largest-
+// remainder settle at the end of load() squares them to whole cents once the
+// world is standing. Same crash-safe staging as migrateLegacy: the envelope
+// is converted in memory and persists only on the next save().
+function centsEnvelope(s) {
+  const m = (v) => (typeof v === "number" && isFinite(v) ? v * 100 : v);
+  s.coins = m(s.coins); s.lifetime = m(s.lifetime); s.dayOpen = m(s.dayOpen);
+  if (s.credit) s.credit.bal = m(s.credit.bal);
+  if (Array.isArray(s.dayLog)) for (const r of s.dayLog) if (r) {
+    r.close = m(r.close);
+    if (r.after != null) r.after = m(r.after);
+  }
+  if (s.winRec) s.winRec.lifetime = m(s.winRec.lifetime);
+  const persona = (p) => {
+    if (!p) return;
+    p.wallet = m(p.wallet);
+    if (p.owed != null) p.owed = m(p.owed);
+    if (p.wage != null) p.wage = m(p.wage);          // the private deal
+    if (p.walletPrev != null) p.walletPrev = m(p.walletPrev);
+  };
+  if (Array.isArray(s.personas)) s.personas.forEach(persona);
+  if (s.npc) {
+    if (Array.isArray(s.npc.personas)) s.npc.personas.forEach(persona);
+    if (s.npc.tills) for (const k in s.npc.tills) s.npc.tills[k] = m(s.npc.tills[k]);
+    if (s.npc.credit) for (const k in s.npc.credit) if (s.npc.credit[k]) s.npc.credit[k].bal = m(s.npc.credit[k].bal);
+  }
+  if (s.owners) for (const k in s.owners) if (s.owners[k] && typeof s.owners[k] === "object") {
+    s.owners[k].till = m(s.owners[k].till); s.owners[k].credit = m(s.owners[k].credit);
+  }
+  if (s.market) for (const b in s.market) if (s.market[b]) s.market[b].price = m(s.market[b].price);
+  if (s.bizTake) for (const b in s.bizTake) if (Array.isArray(s.bizTake[b])) s.bizTake[b] = s.bizTake[b].map(m);
+  if (s.fund && typeof s.fund === "object") {
+    s.fund.bal = m(s.fund.bal); s.fund.arrears = m(s.fund.arrears);
+    if (Array.isArray(s.fund.ledger)) for (const r of s.fund.ledger) if (r) r.amt = m(r.amt);
+  }
+  if (s.trade && typeof s.trade === "object") {
+    s.trade.price = m(s.trade.price); s.trade.spent = m(s.trade.spent);
+    if (s.trade.spentBy) for (const k in s.trade.spentBy) s.trade.spentBy[k] = m(s.trade.spentBy[k]);
+    if (Array.isArray(s.trade.series)) s.trade.series = s.trade.series.map(m);
+  }
+  if (Array.isArray(s.board)) for (const j of s.board) if (j) j.wage = m(j.wage);
+  if (s.wage) for (const b in s.wage) s.wage[b] = m(s.wage[b]);
+  if (s.rival && typeof s.rival === "object") {
+    s.rival.val = m(s.rival.val); s.rival.lastOffer = m(s.rival.lastOffer);
+    if (s.rival.offer) { s.rival.offer.price = m(s.rival.offer.price); s.rival.offer.worth = m(s.rival.offer.worth); }
+  }
+  if (Array.isArray(s.visitors)) for (const v of s.visitors) if (v) {
+    v.w = m(v.w); v.p = m(v.p); v.sp = m(v.sp);
+    if (v.st && typeof v.st === "object") { v.st.tp = m(v.st.tp); v.st.tp2 = m(v.st.tp2); v.st.du = m(v.st.du); }
+  }
+}
 function load(slot) {
   if (FRESH) return false;
   const s = readSlotEnv(slot == null ? activeSlot : slot);
   if (!s) return false;
   if (!Array.isArray(s.personas) || !s.personas.length) return false;   // reject before touching state
+  const preCents = !s._num;
+  if (preCents) centsEnvelope(s);
   coins = s.coins || 0; lifetime = s.lifetime || 0;
   day = s.day || 1; tmin = s.tmin != null ? s.tmin : 7 * 60;
   // an old save has no midnight mark: open the day here rather than pretend
@@ -6559,10 +6720,10 @@ function load(slot) {
   // its purchase price ONCE (flag persists so a reload can't re-pay it).
   sudsRefunded = !!s.sudsRefund;
   if (!sudsRefunded && s.lv && s.lv.cleaners > 0) {
-    let refund = 400;                            // the old CLEANERS rung
-    if (s.lv.sudsgear > 0) refund += 150;        // and its SUDS GEAR+ upgrade
+    let refund = 40000;                          // cents: the old CLEANERS rung
+    if (s.lv.sudsgear > 0) refund += 15000;      // and its SUDS GEAR+ upgrade
     coins += refund;
-    toast = { text: "LAUNDROMAT CLOSED - SHOWERS TOOK OVER. +$" + refund, t: 9 };
+    toast = { text: "LAUNDROMAT CLOSED - SHOWERS TOOK OVER. +$" + $d(refund), t: 9 };
     sudsRefunded = true;
   }
   rosterGen++;
@@ -6696,7 +6857,7 @@ function load(slot) {
       .slice(-24)
       .map(r => ({ day: Math.max(1, Math.round(+r.day || 1)),
         kind: r.kind === "pay" || r.kind === "remit" ? r.kind : "take",
-        amt: Math.round((+r.amt || 0) * 100) / 100,
+        amt: Math.round(+r.amt || 0),   // cents
         who: String(r.who || "?").slice(0, 16), why: String(r.why || "").slice(0, 24) }));
   }
   if (s.hall && typeof s.hall === "object") {
@@ -6799,16 +6960,27 @@ function load(slot) {
     if (BIZ[b] && s.wage[b] != null) setBizWage(b, s.wage[b]);
   if (s.wagePol) for (const b in s.wagePol)
     if (BIZ[b] && s.wagePol[b]) wagePolicyState[b] = { cd: s.wagePol[b].cd || 0, lost: s.wagePol[b].lost || 0 };
+  // THE TWO GRIDS, and which era they are written in. A save from before
+  // slice 1b carries FRACTIONS (tipShare 0..1, price 0.70..1.30); from 1b on
+  // it carries the integers themselves (twentieths 0..20, board index 14..26).
+  // The ranges overlap - a stored tipShare of 1 is 100% in the old units and
+  // 5% in the new - so `_grid` is what says which, and there is no sniffing.
+  const preGrid = !s._grid;
   // tip sharing: an old save has none, and 0 is the old behavior. Clamped and
   // quantized on the way in, so a hand-edited 7.5 can't hand a crab 750%.
   if (s.tipShare) for (const b in s.tipShare)
-    if (BIZ[b]) BIZ[b].tipShare = setTipShare(b, +s.tipShare[b] || 0);
-  // THE PRICE: an old save has no key at all, and 1 is the old board price.
-  // Clamped and 5%-snapped on the way in, so a hand-edited 9 can't charge $153
-  // for a taco. The rivalry rides in beside it - see loadRival().
-  for (const b in BIZ) BIZ[b].priceMul = 1;
+    if (BIZ[b]) {
+      if (preGrid) setTipShare(b, +s.tipShare[b] || 0);            // a fraction, through the one write path
+      else BIZ[b].tipShare = clampTipTwentieths(s.tipShare[b]);    // already twentieths
+    }
+  // THE PRICE: an old save has no key at all, and the default board is 1.
+  // Clamped and snapped to the grid on the way in, so a hand-edited 9 can't
+  // charge $153 for a taco. The rivalry rides in beside it - see loadRival().
+  for (const b in BIZ) BIZ[b].priceMul = PRICE_IDX_DEF;
   if (s.price) for (const b in s.price)
-    if (BIZ[b] && s.price[b] != null) setBizPrice(b, +s.price[b]);
+    if (BIZ[b] && s.price[b] != null) {
+      if (preGrid) setBizPrice(b, +s.price[b]); else setBizPriceIdx(b, +s.price[b]);
+    }
   loadRival(s.rival);
   loadHotelier(s.hotelier);
   if (s.hoursPol) for (const b in s.hoursPol)
@@ -6878,8 +7050,8 @@ function load(slot) {
       s.serves = num(st.sv, 99); s.tables = num(st.tb, 99);
       s.meals = num(st.me, 99); s.drinks = num(st.dr, 99); s.washes = num(st.wa, 99);
       s.games = num(st.ga, 99); s.rooms = num(st.ro, 99);
-      s.topItem = nm(st.ti); s.topBiz = nm(st.tz); s.topPaid = num(st.tp, 9999);
-      s.tips = num(st.tp2, 9999); s.dues = num(st.du, 9999);
+      s.topItem = nm(st.ti); s.topBiz = nm(st.tz); s.topPaid = num(st.tp, 999900);   // cents caps
+      s.tips = num(st.tp2, 999900); s.dues = num(st.du, 999900);
       s.shut = num(st.sh, 9999); s.full = num(st.fu, 9999); s.broke = num(st.br, 9999);
       if (st.fo) s.foreign = num(st.fo, 9999);
       s.mistMin = num(st.mi, 99999); s.missed = num(st.ms, 99);
@@ -6912,6 +7084,46 @@ function load(slot) {
   // whose mayor has since left town, gets the founding arrangement seated now
   // that the crab list is real again.
   seatFoundingMayor();
+  // NUMERIC SLICE 1, stage two: a pre-cents town settles to whole cents ONCE,
+  // by largest remainder, so rounding N wallets creates and destroys NOTHING
+  // (numeric-protocol.md par.3; the method mirrors tools/centmigrate.mjs). Only
+  // the accounts that could still hold fractions after hydration are in the
+  // pool - coins and the crab wallets were saved as raw floats (the census
+  // bug this migration retires), the rest were rounded at save and scaled
+  // exactly. Debts and tallies round alone: they are liabilities, not
+  // balances, and no remainder needs sharing.
+  if (preCents) {
+    const accts = [{ n: " COINS", get: () => coins, set: (v) => { coins = v; } }];
+    for (const c of allCrabs()) {
+      const cc = c;
+      accts.push({ n: "W" + cc.p.name, get: () => cc.p.wallet || 0, set: (v) => { cc.p.wallet = v; } });
+    }
+    for (const k of customers) if (k.visitor && !k.gone) {
+      const kk = k;
+      accts.push({ n: "V" + kk.name, get: () => kk.wallet || 0, set: (v) => { kk.wallet = v; } });
+    }
+    for (const k in OWNERS) if (!ownerCrabOf(k)) {
+      const ok = OWNERS[k];
+      accts.push({ n: "O" + k, get: () => ok._held || 0, set: (v) => { ok._held = v; } });
+    }
+    accts.push({ n: " FUND", get: () => townFund.bal, set: (v) => { townFund.bal = v; } });
+    const target = Math.round(accts.reduce((t, a) => t + a.get(), 0));
+    const rows = accts.map(a => { const raw = a.get(), base = Math.floor(raw); return { a, base, frac: raw - base }; });
+    let left = target - rows.reduce((t, r) => t + r.base, 0);
+    if (left) {
+      const dir = left > 0 ? 1 : -1;
+      const order = rows.slice().sort((x, y) =>
+        dir * (y.frac - x.frac) || (x.a.n < y.a.n ? -1 : x.a.n > y.a.n ? 1 : 0));
+      for (const r of order) { if (!left) break; r.base += dir; left -= dir; }
+    }
+    for (const r of rows) r.a.set(r.base);
+    credit.bal = Math.round(credit.bal || 0);
+    townFund.arrears = Math.round(townFund.arrears || 0);
+    for (const c of allCrabs()) if (c.p.owed) c.p.owed = Math.round(c.p.owed);
+    for (const k in OWNERS) OWNERS[k].credit = Math.round(OWNERS[k].credit || 0);
+    lifetime = Math.round(lifetime || 0); dayOpen = Math.round(dayOpen || 0);
+    fundRow("take", 0, "THE TOWN", "SETTLED TO THE CENT");   // the migration, on the record
+  }
   return true;
 }
 
@@ -7007,8 +7219,8 @@ function maybeQuip(c, dt) {
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
     if ((c.p.thirst || 0) >= 0.8 && !isNight)
       lines = ["PARCHED...", "SO DRY", "JUICE. PLEASE."];
-    c.quip = { text: lines[(Math.random() * lines.length) | 0], t: 2.6 };
-    c.quipT = 14 + Math.random() * 18;
+    c.quip = { text: lines[(srand() * lines.length) | 0], t: 2.6 };
+    c.quipT = 14 + srand() * 18;
   }
 }
 
@@ -7203,14 +7415,14 @@ function updateCommute(c, dt) {
   // after dark: nobody keels over on the morning commute.
   if (!toWork && !c.p.rough && !patOff("rough") && (c.p.tired || 0) >= ROUGH_AT
       && darkness() >= 0.5 && Math.abs(c.x - dest) > ROUGH_PX && !c.hidden
-      && Math.random() < ROUGH_RATE * dt) {
+      && srand() < ROUGH_RATE * dt) {
     sleepRough(c);
     return;
   }
   const m = c.p.mode, tr = TRAITS[c.p.trait];
   const wspd = crabMove(c), vspd = MODES[m].speed * tr.move;
 
-  if (tr.pauses && c.pauseT <= 0 && Math.random() < dt * 0.06) c.pauseT = 1.3;
+  if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3;
   if (c.pauseT > 0) { c.pauseT -= dt; return; }
 
   if (c.cstate === "travel") {           // walking the whole way
@@ -7251,7 +7463,7 @@ function arriveCommute(c, atWork) {
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
-    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 + Math.random() * 6; }
+    if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 + srand() * 6; }
   }
   else { c.dayState = "home"; }
 }
@@ -7293,7 +7505,7 @@ function runJobBoard() {
     const staff = allCrabs().filter(k => k.p.job === b).length;
     // THE POSTING ADVERTISES THE SHOP'S OWN RATE - it is the wage setting made
     // public, and it is what the fisher weighs against the water below.
-    if ((o.till >= 260 && staff < 2) || (staff === 0 && o.till >= bizWage(b) * 2))
+    if ((o.till >= 26000 && staff < 2) || (staff === 0 && o.till >= bizWage(b) * 2))
       jobBoard.push({ biz: b, wage: bizWage(b), day });
   }
   // the macro response: a fish price pinned at the ceiling for a full day is
@@ -7322,7 +7534,8 @@ function runJobBoard() {
       npcs.filter(k => k.p.fisher && k.p.job === "fishing" && !k.p.sick && !k.p.employer);
     let hire = null;
     if (cands.length) {
-      cands.sort((a, b2) => a.p.wallet - b2.p.wallet);   // the broke sign up first
+      cands.sort((a, b2) => a.p.wallet - b2.p.wallet
+        || (a.p.name < b2.p.name ? -1 : 1));   // the broke sign up first; cents can tie, the name cannot
       hire = cands[0];
     } else if (j.day < day && npcs.length < 8) {
       hire = spawnDrifter();
@@ -7339,7 +7552,7 @@ function runJobBoard() {
       hire.duty = false; hire.pendingOff = false; hire.kstate = "idle";
       hire.carrying = null; hire.dayState = "home"; hire.cstate = ""; hire.workBiz = j.biz;
       jobBoard.splice(jobBoard.indexOf(j), 1);
-      crabLog(hire, "life", "TOOK THE " + BIZ[j.biz].short + " JOB - $" + j.wage + " A DAY", 0);   // DIARY
+      crabLog(hire, "life", "TOOK THE " + BIZ[j.biz].short + " JOB - $" + $d(j.wage) + " A DAY", 0);   // DIARY
       today.moved.push(hire.p.name + " HIRED AT " + BIZ[j.biz].name);
       toast = { text: hire.p.name + " TOOK THE " + BIZ[j.biz].name + " JOB", t: 5 };
       popText("HIRED!", hire.x - 6, FLOOR_Y - 34, [140, 255, 160]);
@@ -7348,9 +7561,9 @@ function runJobBoard() {
   }
 }
 function spawnDrifter() {
-  const p2 = makeCrabPersona((Math.random() * 12) | 0);
+  const p2 = makeCrabPersona((srand() * 12) | 0);
   p2.name = freeCrewName(p2.name);   // deduped across BOTH name pools (converted tourists live here too)
-  Object.assign(p2, { npc: true, fisher: true, homeless: true, wallet: 12, job: "fishing", shift: "D", mode: "walk" });
+  Object.assign(p2, { npc: true, fisher: true, homeless: true, wallet: 1200, job: "fishing", shift: "D", mode: "walk" });
   const c = newCrab(p2);
   c.fishSpot = freeFishSpot();   // a hole on the rail (somebody died, somebody took a job) gets filled first
   c.x = BUS_STOPS[0]; c.y = 158;   // stepped off the morning bus with one bag
@@ -7401,7 +7614,7 @@ function convertTourist(k) {
   for (const w of allCrabs()) if (w.cust === k) abortChef(w);   // unclaim a mid-prep order
   k.done = true; k.state = "leaving"; k.claimed = false;
   customers = customers.filter(q => q !== k);
-  const p2 = makeCrabPersona(2 + ((Math.random() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
+  const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
   p2.name = freeCrewName(k.name);
   p2.color = k.color; p2.acc = k.acc;
   p2.shift = hireShift(); p2.homeless = true; p2.house = null;
@@ -7450,7 +7663,7 @@ function hireCrew() {
     // nobody's visiting: the ad goes out and a new face answers, riding the
     // morning bus in - mechanically the hire completes now, so they walk
     // straight off the bus and into today's shift
-    const p2 = makeCrabPersona(2 + ((Math.random() * 10) | 0));
+    const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));
     p2.name = freeCrewName(null);
     p2.shift = hireShift(); p2.homeless = true; p2.house = null; p2.mode = "walk";
     c = newCrab(p2);
@@ -7597,7 +7810,7 @@ function updateSchedule(c, dt) {
     const e = pickErrand(c);
     if (e && e.need === "food" && townCatch > 2) {
       c.errandCd = 3;   // lunch is in the crate - updateFishing roasts it at 0.55
-    } else if (e && e.need === "fun" && trade.price >= FISH_IMPORT - 1) {
+    } else if (e && e.need === "fun" && trade.price >= FISH_IMPORT - 100) {   // within a dollar of the ceiling
       // opportunity cost: skip the fun break while the water's paying
       if (c.priceQuipDay !== day) {
         c.priceQuipDay = day;
@@ -7719,19 +7932,19 @@ function pickErrand(c) {
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
   if (wantFood && !staffed("shack") && c.p.job === "shack" && !c.p.npc) {
-    const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 2);
+    const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
-      const r = c.p.wallet > 40 ? affordable[(Math.random() * affordable.length) | 0] : affordable[0];
+      const r = c.p.wallet > 4000 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
       take({ selfCook: true, recipe: r, need: "food" });
     }
   }
   if (wantFood && staffed("shack")) {
-    const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 2);
+    const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 200);
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
       affordable.sort((a, b) => a.pay - b.pay);
-      const r = c.p.wallet > 40 ? affordable[(Math.random() * affordable.length) | 0] : affordable[0];
+      const r = c.p.wallet > 4000 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
       take({ biz: "shack", recipe: r, need: "food" });
     }
   }
@@ -7791,15 +8004,15 @@ function pickErrand(c) {
   if ((c.p.thirst || 0) >= 0.45) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
-      const drinks = BIZ[drinkAt].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 2);
+      const drinks = BIZ[drinkAt].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
-        const r = c.p.wallet > 40 ? drinks[drinks.length - 1] : drinks[0];   // a COOLER when flush
+        const r = c.p.wallet > 4000 ? drinks[drinks.length - 1] : drinks[0];   // a COOLER when flush
         take({ biz: drinkAt, recipe: r, need: "drink" });
       }
     } else if (!c.p.npc && (c.p.job === "shack" || c.p.job === "juicebar")
         && bizUnlocked(c.p.job) && !staffed(c.p.job)) {
-      const drinks = BIZ[c.p.job].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= staffMealCharge(c.p.job, r) + 2);
+      const drinks = BIZ[c.p.job].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= staffMealCharge(c.p.job, r) + 200);
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         take({ selfCook: true, biz: c.p.job, recipe: drinks[0], need: "drink" });
@@ -7824,9 +8037,9 @@ function pickErrand(c) {
   // pinned at 1.00 every seed - a -6% crabEff, -30% on every tip and +0.06
   // sickness a night, forever. The gate only ever meant "don't take a stall
   // while you're the one handing out the kits".
-  const rinseR = BIZ.showers.recipes[c.p.wallet > 40 ? 1 : 0];   // deluxe soak when flush
+  const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
   const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
-  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 2;
+  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
   if (needsBath && canShower) take({ biz: "showers", recipe: rinseR, need: "clean" });
   // THE STANDPIPE RINSE - the SAFETY NET, not a free shower. Cold water, no
   // soap, no towel: -0.35 against a $5 rinse's -0.5, pitched far above the
@@ -7885,8 +8098,8 @@ function pickErrand(c) {
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
   // bed rest otherwise: no arcade nights while ill
   if (!c.p.sick && (c.p.bored || 0) >= (off ? 0.35 : 0.6) && staffed("arcade")) {
-    const r = BIZ.arcade.recipes[c.p.wallet > 40 ? 2 : 1];   // splurge on game night when flush
-    if (c.p.wallet >= localPrice("arcade", r) + 2) take({ biz: "arcade", recipe: r, need: "fun" });
+    const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
+    if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
   let best = null, bestScore = 0;   // the chaining pick: best urgency per unit of detour
   for (const e of cand) {
@@ -7912,8 +8125,8 @@ function updateSelfCook(c, dt) {
       consumeIngredient(r.raw, r);
       if (window._stats) {
         window._stats.staffMealPaid = (window._stats.staffMealPaid || 0) + pay;
-        window._stats.staffMealCost = (window._stats.staffMealCost || 0) + INGREDIENT_COST[r.raw];
-        window._stats.lastStaffMeal = { id: r.id, pay, cost: INGREDIENT_COST[r.raw] };
+        window._stats.staffMealCost = (window._stats.staffMealCost || 0) + ingredientCost(r.raw);   // cents, like the paid column
+        window._stats.lastStaffMeal = { id: r.id, pay, cost: ingredientCost(r.raw) };
       }
       c.carrying = r.raw; c.cookStep = 1; c.workT = 0.6;
     }
@@ -7986,7 +8199,7 @@ function updateTap(c, dt) {
         if (pollCalled()) ballotBox.late.push(c.p.name);
         crabLog(c, "peril", "GOT TO THE POLLS AND THEY HAD SHUT", 0);   // DIARY
         popText("TOO LATE TO VOTE", c.x - 18, FLOOR_Y - 30, [190, 80, 80]);
-        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(Math.random() * 3) | 0], t: 2.8 };
+        c.quip = { text: ["SHUT? ALREADY?", "I HAD THE WHOLE DAY", "NEXT WEEK, THEN"][(srand() * 3) | 0], t: 2.8 };
         c.tapStop = null; c.tapT = 0; c.errandCd = VOTE_CD;
         c.dayState = "home"; afterErrand(c, false);
         return;
@@ -8006,7 +8219,7 @@ function updateTap(c, dt) {
     if (r === "cast") {
       crabLog(c, "life", "VOTED", 0);   // DIARY
       popText("VOTED", c.x - 6, FLOOR_Y - 30, [255, 216, 96]);
-      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THAT'S MY LOT", "MARKED AND IN", "WE'LL SEE TONIGHT"][(srand() * 3) | 0], t: 2.4 };
       if (window._stats) window._stats.votesCast = (window._stats.votesCast || 0) + 1;
     } else if (r === "nopaper") {
       // THE PILE RAN OUT. A crab walked the promenade to exercise the one
@@ -8015,7 +8228,7 @@ function updateTap(c, dt) {
       // happen to somebody by name - the same shape as a cold pot.
       crabLog(c, "peril", "CAME TO VOTE AND THE PAPER HAD RUN OUT", 0);   // DIARY
       popText("NO PAPER LEFT", c.x - 14, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(Math.random() * 3) | 0], t: 2.8 };
+      c.quip = { text: ["NO PAPER?", "WHAT KIND OF ELECTION IS THIS", "TYPICAL"][(srand() * 3) | 0], t: 2.8 };
       if (window._stats) window._stats.votesRefused = (window._stats.votesRefused || 0) + 1;
     }
   } else if (e.soup) {
@@ -8025,12 +8238,12 @@ function updateTap(c, dt) {
     if (!takeBowl(c)) {
       crabLog(c, "peril", "THE SHELTER POT WAS COLD", 0);   // DIARY
       popText("THE POT IS COLD", c.x - 16, FLOOR_Y - 30, [190, 80, 80]);
-      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(Math.random() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["NOTHING LEFT", "NOT A DROP", "MAYBE TOMORROW"][(srand() * 3) | 0], t: 2.6 };
     } else {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - SOUP_FILL);
       crabLog(c, "need", "ATE AT THE SHELTER POT", 0);   // DIARY
       popText("SHELTER POT", c.x - 14, FLOOR_Y - 30, [255, 210, 140]);
-      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["THIN, BUT HOT", "BEATS NOTHING", "MUCH OBLIGED"][(srand() * 3) | 0], t: 2.4 };
     }
   } else if (e.need === "clean") {
     c.p.dirt = Math.max(0, (c.p.dirt || 0) - TAP_RINSE);
@@ -8042,7 +8255,7 @@ function updateTap(c, dt) {
     c.p.thirst = Math.max(0, (c.p.thirst || 0) - TAP_QUENCH);
     crabLog(c, "need", "DRANK AT " + WATER_TAPS[e.tap].name, 0);   // DIARY
     popText("FREE WATER", c.x - 12, FLOOR_Y - 30, [150, 210, 255]);
-    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(Math.random() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["GLUG GLUG", "THAT'LL DO", "STRAIGHT FROM THE TAP"][(srand() * 3) | 0], t: 2.4 };
     if (window._stats) window._stats.tapDrinks = (window._stats.tapDrinks || 0) + 1;
   }
   c.tapStop = null; c.tapT = 0; c.errandCd = e.vote ? VOTE_CD : e.soup ? SOUP_CD : TAP_CD;
@@ -8488,25 +8701,25 @@ function forcedErrand(c, b) {
   if (b === "shack") {
     if (!bizStaffed("shack")) {
       if (c.p.job === "shack" && !c.p.npc) {   // staff privilege: cook your own, at the shop's meal policy
-        const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 2);
+        const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
         if (aff.length) { aff.sort((a, b2) => a.pay - b2.pay); return { selfCook: true, recipe: aff[0] }; }
       }
       return null;
     }
-    const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 2);
+    const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 200);
     if (!aff.length) return null;
     aff.sort((a, b2) => a.pay - b2.pay);
-    return { biz: "shack", recipe: c.p.wallet > 40 ? aff[(Math.random() * aff.length) | 0] : aff[0], need: "food" };
+    return { biz: "shack", recipe: c.p.wallet > 4000 ? aff[(srand() * aff.length) | 0] : aff[0], need: "food" };
   }
   if (!bizStaffed(b)) return null;
   if (b === "showers") {
-    const r = BIZ.showers.recipes[c.p.wallet > 40 ? 1 : 0];
-    return c.p.wallet >= localPrice(b, r) + 2 ? { biz: b, recipe: r, need: "spa" } : null;
+    const r = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];
+    return c.p.wallet >= localPrice(b, r) + 200 ? { biz: b, recipe: r, need: "spa" } : null;
   }
   if (b === "arcade") {
     if (c.p.sick) return null;   // bed rest: no game nights while ill
-    const r = BIZ.arcade.recipes[c.p.wallet > 40 ? 2 : 1];
-    return c.p.wallet >= localPrice(b, r) + 2 ? { biz: b, recipe: r, need: "fun" } : null;
+    const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];
+    return c.p.wallet >= localPrice(b, r) + 200 ? { biz: b, recipe: r, need: "fun" } : null;
   }
   return null;
 }
@@ -8627,7 +8840,7 @@ function updateStuck(c, dt) {
   c.stuckT = 0; c.stuckRef = null;
   if (c.stuckN > STUCK_RETRIES) {
     c.stuckN = 0;
-    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(Math.random() * 3) | 0], t: 2.4 };
+    c.quip = { text: ["DANG TRAFFIC", "I GIVE UP", "WHO PARKED THERE?!"][(srand() * 3) | 0], t: 2.4 };
     if (c.order) { c.order = null; c.dayState = "home"; }   // a directed crab abandons the order
     return;
   }
@@ -8648,7 +8861,7 @@ function updateFishing(c, dt) {
       c.p.hunger = Math.max(0, (c.p.hunger || 0) - 0.65);
       crabLog(c, "need", "ROASTED A FRESH CATCH ON THE BEACH", 0);   // DIARY
       popText("FRESH CATCH LUNCH", c.x - 12, c.y - 24, [140, 255, 160]);
-      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["CAN'T BEAT FRESH", "SEA PROVIDES", "STRAIGHT OFF THE LINE"][(srand() * 3) | 0], t: 2.4 };
       if (window._stats) window._stats.roasts = (window._stats.roasts || 0) + 1;
     }
     return;
@@ -8669,16 +8882,16 @@ function updateFishing(c, dt) {
     // and now and then the net comes up double
     const aboard = c.p.boat != null;
     const tier = fishTier(c);   // experience: quicker casts, better hauls
-    c.castT = (aboard ? 9 + Math.random() * 13 : 14 + Math.random() * 18) * tier.cast;
-    let haul = Math.random() < (aboard ? 0.2 : 0) + tier.dbl ? 2 : 1;
-    if (tier.big && Math.random() < tier.big) haul = 4;   // THE BIG ONE
+    c.castT = (aboard ? 9 + srand() * 13 : 14 + srand() * 18) * tier.cast;
+    let haul = srand() < (aboard ? 0.2 : 0) + tier.dbl ? 2 : 1;
+    if (tier.big && srand() < tier.big) haul = 4;   // THE BIG ONE
     townCatch += haul; trade.landed += haul; trade.landedDay += haul;
     creditCatch(c, haul);
     logCatch(c, haul);   // DIARY: tallied all day, filed as ONE line at dusk (the BIG ONE gets its own)
     // free agents: no wage anywhere - the catch sold at the pier's market
     // price IS the income. A scarce-fish day is a lucrative day.
     c.p.wallet += trade.price * haul;
-    popText((haul >= 4 ? "THE BIG ONE!! +$" : haul > 1 ? "DOUBLE HAUL! +$" : "CATCH! +$") + trade.price * haul,
+    popText((haul >= 4 ? "THE BIG ONE!! +$" : haul > 1 ? "DOUBLE HAUL! +$" : "CATCH! +$") + $d(trade.price * haul),
       c.x - 8, c.y - 24, haul >= 4 ? [255, 230, 120] : [140, 220, 255]);
     sfx.splash();
     if (window._stats) {
@@ -8687,10 +8900,10 @@ function updateFishing(c, dt) {
       const by = window._stats.catchesBy = window._stats.catchesBy || {};
       by[c.p.name] = (by[c.p.name] || 0) + haul;
     }
-    if (Math.random() < 0.25) c.quip = {
+    if (srand() < 0.25) c.quip = {
       text: trade.price >= FISH_IMPORT
-        ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(Math.random() * 3) | 0]
-        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(Math.random() * 3) | 0], t: 2.2 };
+        ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(srand() * 3) | 0]
+        : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 };
   }
 }
 // A tourist will not sit at the table beside a visibly filthy crab: they take
@@ -8769,14 +8982,14 @@ function updateKitchen(c, dt) {
     c.napT -= dt;
     if (c.napT <= 0) {
       c.kstate = c.napFrom || "idle"; c.napFrom = null;
-      c.quip = { text: NOD_WAKE[(Math.random() * NOD_WAKE.length) | 0], t: 2.2 };
+      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 };
     }
     return;
   }
   if ((c.p.tired || 0) >= NOD_AT && !patOff("nod") && NOD_STATES.includes(c.kstate)
-      && Math.random() < NOD_RATE * dt) {
+      && srand() < NOD_RATE * dt) {
     c.napFrom = c.kstate; c.kstate = "nap";
-    c.napT = NOD_MIN + Math.random() * NOD_SPAN;
+    c.napT = NOD_MIN + srand() * NOD_SPAN;
     if (window._stats) {
       window._stats.nods = (window._stats.nods || 0) + 1;
       window._stats.nodSecs = (window._stats.nodSecs || 0) + c.napT;
@@ -8878,8 +9091,8 @@ function updateKitchen(c, dt) {
     if (c.wander) {                         // walking out to it (kstate stays
       setT(c, c.wander.x, c.wander.y);      // "idle": the claim scan above runs
       if (routedStep(c, spd, dt)) {         // every frame, wander or no wander)
-        c.wanderT = WANDER_DWELL + Math.random() * 10;
-        c.quip = { text: WANDER_QUIPS[(Math.random() * WANDER_QUIPS.length) | 0], t: 2.6 };
+        c.wanderT = WANDER_DWELL + srand() * 10;
+        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 };
       }
       return;
     }
@@ -9038,7 +9251,7 @@ function creditCatch(c, haul) {
       crabLog(c, "life", t.label + " FISHING - " + c.p.made.caught + " LANDED", 0);   // DIARY
       toast = { text: c.p.name + " " + t.label + " FISHING! " + c.p.made.caught + " LANDED", t: 6 };
       popText(t.label + " FISHING", c.x - 26, c.y - 32, [255, 230, 120]);
-      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(Math.random() * 3) | 0], t: 2.6 };
+      c.quip = { text: ["I KNOW THIS WATER", "THEY COME TO ME NOW", "READ THE TIDE"][(srand() * 3) | 0], t: 2.6 };
       sfx.ding();
       break;
     }
@@ -9055,7 +9268,7 @@ function creditAccomplishment(c, cust) {
       crabLog(c, "life", label + " " + dish + " (X" + n + ")", 0);   // DIARY
       toast = { text: c.p.name + " " + label + " " + dish + "! " + n + " SERVED", t: 6 };
       popText(label + " " + dish, c.x - 24, FLOOR_Y - 36, [255, 230, 120]);
-      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(Math.random() * 3) | 0], t: 2.4 };
+      c.quip = { text: ["I'VE GOT THIS", "MY SPECIALTY", "EASY NOW"][(srand() * 3) | 0], t: 2.4 };
       sfx.ding();
       break;
     }
@@ -9080,8 +9293,15 @@ const TIP_COUNTER = 0.15;
 // the engine of the housing ladder - so a generous split costs the till and
 // buys you crew who can afford food, water and rent. Default 0 = how the game
 // has always paid, so an untouched town is untouched.
-const TIP_SHARE_STEP = 0.05;   // the slider's grain
-function bizTipShare(b) { return Math.max(0, Math.min(1, (BIZ[b] && BIZ[b].tipShare) || 0)); }
+const TIP_SHARE_STEP = 0.05;   // the slider's grain, as the card still speaks it
+// ...and the grain IS the unit: the share rides as int TWENTIETHS, 0..20. The
+// slider always walked twenty steps; storing where it stands rather than the
+// fraction it implies is what retires the double-round snap below (7 x 0.05 is
+// 0.35000000000000003 in binary, and that number used to reach the save file).
+const TIP_TWENTIETHS_MAX = 20;
+const clampTipTwentieths = (n) => Math.max(0, Math.min(TIP_TWENTIETHS_MAX, Math.round(+n || 0)));
+function bizTipTwentieths(b) { return clampTipTwentieths(BIZ[b] && BIZ[b].tipShare); }
+function bizTipShare(b) { return bizTipTwentieths(b) / TIP_TWENTIETHS_MAX; }   // the fraction, for the card
 // THE TABLE TIP - what a guest leaves on the table on their way out - is now
 // the headline difference between being waited on and being handed a plate.
 // It went $5 -> $9 with staff busing (2026-08-19), and it is the paid-for
@@ -9091,41 +9311,50 @@ function bizTipShare(b) { return Math.max(0, Math.min(1, (BIZ[b] && BIZ[b].tipSh
 // baseline from a day-14 eviction to day 5; the raised table tip is what
 // brings it back, and it lands entirely on TABLE service, so it widens the
 // counter/table gap instead of papering over it.
-const TABLE_TIP = 9;
+const TABLE_TIP = 900;   // cents
 function tableTipOf(b) { return TABLE_TIP; }
 // One tip, two pockets. `payTip` is the ONLY place a tip is split, so the
 // slider means exactly the same thing for the tip at the table and the tip in
 // the jar. The crab's cut lands in their WALLET - the housing ladder's fuel.
-function payTip(bizKey, server, amt, x, y) {
-  if (!(amt >= 0.5)) return;
-  const cut = amt * bizTipShare(bizKey), till = amt - cut;
+// MILLI-CENTS IN, CENTS OUT. `amtMc` is the tip as an exact integer count of
+// thousandths of a cent, and this door is THE canonical rounding point of the
+// whole tip pipeline: one round-half-up, here, and never another.
+const MC_PER_CENT = 1000;
+const tipCentsOf = (mc) => Math.floor((Math.max(0, mc) + MC_PER_CENT / 2) / MC_PER_CENT);
+function payTip(bizKey, server, amtMc, x, y) {
+  const amt = tipCentsOf(amtMc);
+  if (!(amt >= 50)) return;
+  // THE SPLIT IS EXACT, in the unit the setting is stored in: n twentieths to
+  // the crab, the remainder to the till. Floor, per the arithmetic contract -
+  // a rescale floors, and only the door above rounds. till + cut === amt by
+  // construction rather than by a rounding that happens to agree.
+  const cut = Math.floor(amt * bizTipTwentieths(bizKey) / TIP_TWENTIETHS_MAX), till = amt - cut;
   // ONE POP PER TIP (owner report: "the tip popup appears twice, one with the
   // word tip and once without"). creditBiz already pops the money going into
   // the till, so the till's share is credited SILENTLY here and labelled once,
   // in gold, as a tip. The crab's share gets its own pop over the crab, which
   // is a different event in a different place - that one is not a duplicate.
-  if (till >= 0.5) {
+  if (till >= 50) {
     creditBiz(bizKey, till, x, y, true);
-    popText("+$" + Math.round(till) + " TIP", x - 8, y - 8, [255, 216, 96]);
+    popText("+$" + $d(till) + " TIP", x - 8, y - 8, [255, 216, 96]);
   }
   if (cut > 0 && server && server.p) {
     server.p.wallet += cut;
     if (bizOwner(bizKey) === "player") today.tipsShared = (today.tipsShared || 0) + cut;   // the day report is the PLAYER's books
-    if (cut >= 0.5) popText("+$" + Math.round(cut) + " TIP", server.x - 8, server.y - 26, [255, 216, 96]);
+    if (cut >= 50) popText("+$" + $d(cut) + " TIP", server.x - 8, server.y - 26, [255, 216, 96]);
   }
   if (window._stats) {
     window._stats.tipTill = (window._stats.tipTill || 0) + till;
     window._stats.tipCrab = (window._stats.tipCrab || 0) + cut;
   }
 }
-// the one write path: clamp to 0..1 and snap to the slider's grain, so the
-// number on the card is always the number the till is paying out
+// the one write path: takes the FRACTION the card speaks and stores the step
+// the slider stands on. The old double-round is gone with the float - there is
+// no product left to snap, because twenty steps is what the setting IS.
 function setTipShare(b, v) {
-  // round the product too: 7 x 0.05 is 0.35000000000000003 in binary floating
-  // point, and that number would go into the save file and onto the card
-  const q = Math.max(0, Math.min(1, Math.round(Math.round((+v || 0) / TIP_SHARE_STEP) * TIP_SHARE_STEP * 100) / 100));
-  if (BIZ[b]) BIZ[b].tipShare = q;
-  return q;
+  const n = clampTipTwentieths((+v || 0) * TIP_TWENTIETHS_MAX);
+  if (BIZ[b]) BIZ[b].tipShare = n;
+  return n / TIP_TWENTIETHS_MAX;   // the caller asked in fractions; answer in fractions
 }
 function payAndBenefit(c, cust) {
   today.served++;
@@ -9166,7 +9395,7 @@ function payAndBenefit(c, cust) {
       window._stats.npcSpendAtPlayer = (window._stats.npcSpendAtPlayer || 0) + price;
     if (cust.need === "food") cust.crab.p.hunger = 0;
     if (cust.need === "drink") {
-      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(Math.random() * 3) | 0], t: 2.4 };
+      cust.crab.quip = { text: ["AHH, THE GOOD STUFF", "QUENCHED!", "COLD AND SWEET"][(srand() * 3) | 0], t: 2.4 };
       if (window._stats) window._stats.crabDrinks = (window._stats.crabDrinks || 0) + 1;
     }
     if (cust.need === "drink" || DRINKS[cust.recipe.id]) cust.crab.p.thirst = 0;   // any juice quenches, even one bought as lunch
@@ -9179,8 +9408,17 @@ function payAndBenefit(c, cust) {
     // `seatedWaiting` is exactly "this plate is going out to a seated guest" -
     // serve() calls us before it flips them to dining.
     const seated = cust.state === "seatedWaiting";
-    let tip = menuPrice(cust.biz, cust.recipe) * 0.5 * (cust.patience / cust.maxPatience) * tipMult
-      * (seated || window._fullCounterTip ? 1 : TIP_COUNTER);   // the flag is the paired-arm probe
+    // THE TIP PRODUCT, IN MILLI-CENTS. The two float-derived factors - the
+    // patience ratio and the charm multiplier - cross into Q16 here and NOWHERE
+    // downstream; they are the last floats in this pipeline and they leave with
+    // slice 3, when needs become Q20. Everything after this line is exact
+    // integer arithmetic on a price that is already cents, and the worst-case
+    // numerator is about 1.2e12 - comfortably inside the exact-integer range.
+    const PR = Math.max(0, Math.min(65536, Math.round(65536 * (cust.patience / cust.maxPatience))));
+    const TM = Math.max(0, Math.round(65536 * tipMult));
+    const F = Math.floor(PR * TM / 65536);   // the two folded into one Q16 factor
+    const counterN = (seated || window._fullCounterTip) ? 20 : 3;   // TIP_COUNTER 0.15 = 3/20 exactly
+    let tipMc = Math.floor(menuPrice(cust.biz, cust.recipe) * F * counterN * (MC_PER_CENT / 2) / (65536 * 20));
     // A VISITOR PAYS OUT OF THEIR OWN POCKET. The wallet was checked before
     // they ever joined the line (visPick), so the price always clears; the TIP
     // is whatever is left of it, which is why a nearly-broke guest tips
@@ -9190,7 +9428,16 @@ function payAndBenefit(c, cust) {
       const paid = menuPrice(cust.biz, cust.recipe);   // the board price, not the base
       cust.wallet = Math.max(0, cust.wallet - paid);
       cust.spent += paid;
-      tip = Math.max(0, Math.min(tip, cust.wallet));
+      // The purse is the ceiling, and it is applied in MILLI-CENTS so the one
+      // round below cannot round a guest past the bottom of their own pocket
+      // (the clamp is a whole number of cents, so rounding it is identity).
+      tipMc = Math.max(0, Math.min(tipMc, cust.wallet * MC_PER_CENT));
+    }
+    // ...and the tip in whole cents, through the SAME door payTip rounds at,
+    // so the guest's purse, the day's books and the two pockets can never
+    // disagree about what was left on the counter.
+    const tip = tipCentsOf(tipMc);
+    if (cust.visitor) {
       cust.wallet -= tip; cust.spent += tip;
       visBenefit(cust);
       stayOf(cust).tips += tip;   // what they left on top, on their own ledger
@@ -9205,7 +9452,7 @@ function payAndBenefit(c, cust) {
       const gk = seated ? "tipGrossTable" : "tipGrossCounter";
       window._stats[gk] = (window._stats[gk] || 0) + tip;
     }
-    payTip(cust.biz, c, tip, cust.x, 108);   // credited separately, popped separately
+    payTip(cust.biz, c, tipMc, cust.x, 108);   // credited separately, popped separately
     popText(ITEM_NAMES[cust.recipe.icon], cust.x - 14, 116, [140, 255, 160]);
   }
 }
@@ -9227,7 +9474,7 @@ function visBenefit(k) {
   if (k.need === "fun" || k.biz === "arcade") k.bored = 0;
   visLog(k, "need", vline(k, "bought",
     "BOUGHT " + (ITEM_NAMES[r.icon] || "SOMETHING")
-    + " AT THE " + BIZ[k.biz].short + " - $" + menuPrice(k.biz, r),
+    + " AT THE " + BIZ[k.biz].short + " - $" + $d(menuPrice(k.biz, r)),
     { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short }));
 }
 function serve(c) {
@@ -9238,7 +9485,7 @@ function serve(c) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) rep = Math.min(100, rep + 0.8);   // table service impresses
-    cust.state = "dining"; cust.dineT = 6 + Math.random() * 4;
+    cust.state = "dining"; cust.dineT = 6 + srand() * 4;
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
@@ -9369,7 +9616,7 @@ function ferryNotify(kind) {
 }
 function gnow() { return day * 1440 + tmin; }
 function ferryBatch() {
-  const n = FERRY_BASE + rep * FERRY_REP + (Math.random() - 0.5);
+  const n = FERRY_BASE + rep * FERRY_REP + (srand() - 0.5);
   return Math.max(1, Math.min(FERRY_MAX, Math.round(n)));
 }
 // ---- THE VISITOR -----------------------------------------------------------
@@ -9417,7 +9664,7 @@ const VIS_ROAM = [700, 1900];    // the stretch of promenade a visitor will stro
 const VIS_STROLL = 340;          // ...and how far from here one stroll takes them
 // the room rate is the hotel's menu price, read off the recipe so the price on
 // the sign and the money a visitor holds back can never disagree
-const ROOM_RATE = BIZ.hotel.recipes[0].pay;
+const ROOM_RATE = 100 * BIZ.hotel.recipes[0].pay;   // cents (the recipe table stays author-dollars)
 const ROOM_HOUR = 15 * 60;       // past this the bed outranks everything - the desk
                                  // shuts with REEF's shift, and the sand is the alternative
 // ...and BEFORE it, a bed is the LAST thing on a holidaymaker's mind, which is
@@ -9455,8 +9702,8 @@ function freeVisitorName(pool) {
   const used = new Set(allCrabs().map(c => c.p.name));
   for (const k of customers) if (k.visitor) used.add(k.name);
   const free = pool.filter(n => !used.has(n));
-  if (!free.length) return pool[(Math.random() * pool.length) | 0];
-  return free[(Math.random() * free.length) | 0];
+  if (!free.length) return pool[(srand() * pool.length) | 0];
+  return free[(srand() * free.length) | 0];
 }
 // STATUS BARS IN VARIOUS CONDITIONS (the directive's own words). Everybody
 // comes off the boat with a low baseline and ONE OR TWO needs genuinely
@@ -9465,21 +9712,21 @@ function freeVisitorName(pool) {
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
-  for (const key of keys) n[key] = 0.08 + Math.random() * 0.32;
-  const loaded = 1 + ((Math.random() * 2) | 0);
+  for (const key of keys) n[key] = 0.08 + srand() * 0.32;
+  const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
-    const key = keys[(Math.random() * keys.length) | 0];
-    n[key] = 0.55 + Math.random() * 0.40;
+    const key = keys[(srand() * keys.length) | 0];
+    n[key] = 0.55 + srand() * 0.40;
   }
   return n;
 }
 function newVisitor(overnightOnly, cu) {
   // CS3.5 step 3: a culture on the manifest mints from its own tables. The
   // crab path below is byte-for-byte the pre-cultures code, and either branch
-  // consumes the SAME number of Math.random() draws in the same order.
+  // consumes the SAME number of srand() draws in the same order.
   const cul = cu && cu !== "crab" && CULTURES[cu] ? CULTURES[cu] : null;
-  const nights = overnightOnly ? (Math.random() < 0.80 ? 1 : 2)
-    : Math.random() < VIS_DAYTRIP ? 0 : Math.random() < 0.78 ? 1 : 2;
+  const nights = overnightOnly ? (srand() < 0.80 ? 1 : 2)
+    : srand() < VIS_DAYTRIP ? 0 : srand() < 0.78 ? 1 : 2;
   const n = visNeeds();
   // THE PURSE. A day-tripper brings lunch money; somebody staying two nights
   // brings two nights' worth plus the room. A third of the boat is FLUSH and a
@@ -9489,18 +9736,18 @@ function newVisitor(overnightOnly, cu) {
   // The floor matters more than the mean, and it is measured: at 20 the broke
   // tail of every boat ran out mid-meal and the $9 TABLE TIP was clipped to
   // whatever was left, so a fifth of the shack's table money quietly vanished.
-  let wallet = 32 + Math.random() * 44 + nights * (ROOM_RATE + 24);
-  if (Math.random() < 0.30) wallet += 24 + Math.random() * 30;    // a flush third of the boat
-  if (Math.random() < 0.12) wallet *= 0.6;                        // ...and a few travelling light
-  const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + Math.random() * 90
-    : nights * 1440 - 60 - Math.random() * 60));
+  let wallet = 3200 + srand() * 4400 + nights * (ROOM_RATE + 2400);   // cents; every draw is the pre-cents draw
+  if (srand() < 0.30) wallet += 2400 + srand() * 3000;    // a flush third of the boat
+  if (srand() < 0.12) wallet *= 0.6;                        // ...and a few travelling light
+  const leaveT = nearestSail(gnow() + (nights === 0 ? 300 + srand() * 90
+    : nights * 1440 - 60 - srand() * 60));
   const v = {
     visitor: true, gone: false, culture: cul ? cu : "crab",
     name: cul ? freeVisitorName(cul.def.people.names) : freeVisitorName(),
-    color: cul ? (Math.random() * cul.colorways) | 0 : (Math.random() * CRAB_COLORS.length) | 0,
-    acc: cul ? cul.accKeys[(Math.random() * cul.accKeys.length) | 0]
-      : ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
-    animT: Math.random() * 9,
+    color: cul ? (srand() * cul.colorways) | 0 : (srand() * CRAB_COLORS.length) | 0,
+    acc: cul ? cul.accKeys[(srand() * cul.accKeys.length) | 0]
+      : ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
+    animT: srand() * 9,
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     x: FERRY.gangway, y: FERRY.deckY, wy: FERRY.deckY, leg: 0,
     state: "ashore",
@@ -9510,7 +9757,7 @@ function newVisitor(overnightOnly, cu) {
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
     nights, nightsHad: 0, rough: false, roughNights: 0, unhoused: 0,
-    arrived: day, leaveT, room: null, buys: 0, thinkT: Math.random() * VIS_THINK,
+    arrived: day, leaveT, room: null, buys: 0, thinkT: srand() * VIS_THINK,
     idleT: 0, target: null, log: [],
     // the visit's own ledger, minted with the purse - see THE DEPARTURE CARD
     stay: newStay(), qJoin: null,
@@ -9524,7 +9771,7 @@ function newVisitor(overnightOnly, cu) {
   if (cul) {
     const reg = visRegister(v);
     const mul = reg && typeof reg.purseMul === "number" ? reg.purseMul : 1;
-    if (mul !== 1) { v.wallet = Math.max(1, Math.round(v.wallet * mul)); v.purse = v.wallet; }
+    if (mul !== 1) { v.wallet = Math.max(100, Math.round(v.wallet * mul)); v.purse = v.wallet; }   // the old $1 floor, in cents
   }
   return v;
 }
@@ -9550,11 +9797,11 @@ function seedVisitors() {
     // about half of them are mid-stay rather than day-tripping, so the town
     // still has a population on DAY 2 (measured: seeding day-trippers only left
     // day 2 thirty percent down on takings while the first boats rebuilt one)
-    const v = newVisitor(Math.random() < 0.45);
+    const v = newVisitor(srand() < 0.45);
     v.state = "roam"; v.leg = 1;
-    v.x = Math.round(VIS_ROAM[0] + Math.random() * (VIS_ROAM[1] - VIS_ROAM[0]));
+    v.x = Math.round(VIS_ROAM[0] + srand() * (VIS_ROAM[1] - VIS_ROAM[0]));
     v.wy = FLOOR_Y; v.y = FLOOR_Y;
-    v.wallet = Math.round(v.wallet * (0.55 + Math.random() * 0.45));   // part-way through the money
+    v.wallet = Math.round(v.wallet * (0.55 + srand() * 0.45));   // part-way through the money
     v.spent = Math.max(0, v.purse - v.wallet);
     customers.push(v);
     visLog(v, "life", "CAME OVER ON AN EARLIER FERRY");
@@ -9564,7 +9811,7 @@ function seedVisitors() {
 // starts sending tourists once the town's reputation crosses its arrival
 // gate - word has to reach the mainland before anybody boards. THE
 // FINGERPRINT RULE: with no cultures registered, or every gate shut, this
-// consumes ZERO Math.random() draws - a pre-cultures town sails
+// consumes ZERO srand() draws - a pre-cultures town sails
 // byte-identical forever, so the roll is short-circuited BEFORE the draw.
 function cultureShare(cul) {
   const ar = cul.def.arrival || {};
@@ -9578,7 +9825,7 @@ function ferryCulture() {
     const cul = CULTURES[id];
     if (!cul) continue;   // the crab entry is null: the default, never a roll
     const share = cultureShare(cul);
-    if (share > 0 && Math.random() < share) return id;
+    if (share > 0 && srand() < share) return id;
   }
   return "crab";
 }
@@ -9596,7 +9843,7 @@ function ferryDock(n, idx) {
   for (let i = 0; i < count; i++) {
     const v = newVisitor(last, ferryCulture());
     v.x = FERRY.gangway - 4 - i * 7;   // down the plank and along the deck, in a line
-    v.thinkT = i * 3 + Math.random() * 8;   // ...and they do not all want lunch at 9:01
+    v.thinkT = i * 3 + srand() * 8;   // ...and they do not all want lunch at 9:01
     customers.push(v);
     visLog(v, "life", vline(v, "ashore", "CAME ASHORE OFF THE FERRY"));
     // HARBOUR DUES, if that is the purse the town voted for. Charged at the
@@ -9606,7 +9853,7 @@ function ferryDock(n, idx) {
     today.heads = (today.heads || 0) + 1;
     const due = harbourDues(v);
     if (due > 0) {
-      visLog(v, "money", vline(v, "dues", "PAID $" + Math.round(due) + " HARBOUR DUE", { N: Math.round(due) }));
+      visLog(v, "money", vline(v, "dues", "PAID $" + $d(due) + " HARBOUR DUE", { N: $d(due) }));
       stayOf(v).dues += due;   // ...and they will mention it on the way out
     }
     landed.push(v.name);
@@ -9807,7 +10054,7 @@ function checkOut(k) {
 function sleepOnSand(k) {
   let best = SAND_SPOTS[0];
   for (const s of SAND_SPOTS) if (Math.abs(s - k.x) < Math.abs(best - k.x)) best = s;
-  k.state = "onSand"; k.target = best + ((Math.random() * 18) | 0) - 9;
+  k.state = "onSand"; k.target = best + ((srand() * 18) | 0) - 9;
   k.rough = true;
   if (!k.roughFlag) {
     k.roughFlag = true; k.roughNights++;
@@ -9912,15 +10159,15 @@ function visPick(k) {
   // crab fancies (CS3.5 tastes). EQUAL WEIGHTS TAKE THE OLD DRAW VERBATIM:
   // for a crab every weight is 1, the legacy expression runs, and the frozen
   // fingerprints hold because the draw maps to the same recipe. A cultured
-  // guest's weights tilt the same single draw - one Math.random() either way.
+  // guest's weights tilt the same single draw - one srand() either way.
   const treat = (rs) => {
     const ws = rs.map(r => tasteW(k, r));
     let equal = true;
     for (let i = 1; i < ws.length; i++) if (ws[i] !== ws[0]) { equal = false; break; }
-    if (equal) return rs[(Math.random() * rs.length) | 0];
+    if (equal) return rs[(srand() * rs.length) | 0];
     let total = 0;
     for (const w of ws) total += w;
-    let roll = Math.random() * total;
+    let roll = srand() * total;
     for (let i = 0; i < rs.length; i++) { roll -= ws[i]; if (roll < 0) return rs[i]; }
     return rs[rs.length - 1];
   };
@@ -10103,10 +10350,10 @@ function updateVisitor(k, dt) {
   if (k.target == null || Math.abs(k.x - k.target) < 4) {
     if (k.idleT > 0) { k.idleT -= dt; return; }
     k.target = Math.round(Math.max(VIS_ROAM[0], Math.min(VIS_ROAM[1],
-      k.x + (Math.random() - 0.5) * 2 * VIS_STROLL)));
+      k.x + (srand() - 0.5) * 2 * VIS_STROLL)));
     k.idleT = 0;
   }
-  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 + Math.random() * 5;
+  if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 + srand() * 5;
 }
 // A VISIT DOES NOT END AT THE COUNTER. The shop pipeline's `leaving` state
 // means "walk away from this counter" for a visitor, not "walk out of the
@@ -10162,13 +10409,13 @@ const QUEUE_STEP = 45;   // px/s of shuffle: the speed the one-way clamp used
 // ---------------------------------------------------------------- customers
 function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
-  const r = biz.recipes[(Math.random() * biz.recipes.length) | 0];
+  const r = biz.recipes[(srand() * biz.recipes.length) | 0];
   const spawnX = biz.queueX + 150;
   return { biz: bizKey, recipe: r,
-    name: CUSTOMER_NAMES[(Math.random() * CUSTOMER_NAMES.length) | 0],
-    color: (Math.random() * CRAB_COLORS.length) | 0,
-    acc: ACC_KEYS[(Math.random() * ACC_KEYS.length) | 0],
-    animT: Math.random() * 9,
+    name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
+    color: (srand() * CRAB_COLORS.length) | 0,
+    acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
+    animT: srand() * 9,
     x: spawnX, spawnX, state: "arriving", patience: 50, maxPatience: 50,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null };
@@ -10267,7 +10514,7 @@ function updateCustomers(dt) {
       const t = k.table;
       const dxt = t.x + 10 - k.x;
       if (Math.abs(dxt) > 2) k.x += Math.sign(dxt) * Math.min(45 * dt, Math.abs(dxt));
-      else { k.state = "dining"; k.dineT = 6 + Math.random() * 4; k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
+      else { k.state = "dining"; k.dineT = 6 + srand() * 4; k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
     } else if (k.state === "dining") {
       k.dineT -= dt;
       if (k.dineT <= 0) {
@@ -10289,7 +10536,7 @@ function updateCustomers(dt) {
           // who has spent down to their last dollar leaves what they have
           const tt = k.visitor ? Math.max(0, Math.min(tableTipOf(k.biz), k.wallet)) : tableTipOf(k.biz);
           if (k.visitor) { k.wallet -= tt; k.spent += tt; stayOf(k).tips += tt; }
-          payTip(k.biz, k.server, tt, k.x, 130);   // table tip on the way out (tourists), split like any other
+          payTip(k.biz, k.server, tt * MC_PER_CENT, k.x, 130);   // table tip on the way out (tourists), split like any other; a whole-cent tip crosses the door unchanged
           if (window._stats) window._stats.tableTip = (window._stats.tableTip || 0) + tt;
           // (payTip pops the gold "+$N TIP" - a second label here was the
           //  third pop on one tip)
@@ -10526,7 +10773,7 @@ function logTreat(cust) {   // the crab on the OTHER side of the counter
 }
 function logCatch(c, haul) {
   c.caughtToday = (c.caughtToday || 0) + haul;                 // tallied, filed once at dusk
-  if (haul >= 4) crabLog(c, "work", "LANDED THE BIG ONE - $" + trade.price * haul, 0);
+  if (haul >= 4) crabLog(c, "work", "LANDED THE BIG ONE - $" + $d(trade.price * haul), 0);
 }
 function logLaidOff(k) {   // called from layOff BEFORE the job fields are cleared
   const b = k.p.owner ? Object.keys(BIZ).find(b2 => bizOwner(b2) === k.p.owner) : null;
@@ -10585,7 +10832,7 @@ function tryBuy(key) {
     return;
   }
   if (key === "chef" && !recruitBites("shack")) {   // refused BEFORE the money moves
-    toast = { text: "NOBODY'S BITING AT $" + bizWage("shack") + " - THE FISH ARE PAYING $"
+    toast = { text: "NOBODY'S BITING AT $" + $d(bizWage("shack")) + " - THE FISH ARE PAYING $"
       + Math.round(pierDay()) + " A DAY", t: 8 };
     if (typeof sfx !== "undefined" && sfx.angry) sfx.angry();
     return;
@@ -10880,8 +11127,8 @@ cv.addEventListener("click", (ev) => {
       if (hit(R.op)) { setBizHours(manage, Math.min(h.open + 30, h.close - HOURS_SPAN_MIN), h.close); sfx.buy(); save(); return; }
       if (hit(R.cm)) { setBizHours(manage, h.open, Math.max(h.close - 30, h.open + HOURS_SPAN_MIN)); sfx.buy(); save(); return; }
       if (hit(R.cp)) { setBizHours(manage, h.open, h.close + 30); sfx.buy(); save(); return; }
-      if (hit(R.pm)) { setBizPrice(manage, bizPriceMul(manage) - PRICE_STEP); sfx.buy(); save(); return; }
-      if (hit(R.pp)) { setBizPrice(manage, bizPriceMul(manage) + PRICE_STEP); sfx.buy(); save(); return; }
+      if (hit(R.pm)) { setBizPriceIdx(manage, bizPriceIdx(manage) - 1); sfx.buy(); save(); return; }
+      if (hit(R.pp)) { setBizPriceIdx(manage, bizPriceIdx(manage) + 1); sfx.buy(); save(); return; }
       if ((manage === "shack" || manage === "juicebar") && hit(R.meal)) {
         b.mealPol = MEAL_POLS[(MEAL_POLS.indexOf(b.mealPol) + 1) % MEAL_POLS.length];
         sfx.ding(); save(); return;
@@ -10901,8 +11148,8 @@ cv.addEventListener("click", (ev) => {
       }
       // the shop rate: what the board advertises, what a new hire starts on,
       // and the default every crab falls back to
-      if (hit(R.wm)) { setBizWage(manage, bizWage(manage) - 1); sfx.buy(); save(); return; }
-      if (hit(R.wp)) { setBizWage(manage, bizWage(manage) + 1); sfx.buy(); save(); return; }
+      if (hit(R.wm)) { setBizWage(manage, bizWage(manage) - 100); sfx.buy(); save(); return; }
+      if (hit(R.wp)) { setBizWage(manage, bizWage(manage) + 100); sfx.buy(); save(); return; }
       if (hit(R.wall)) {   // APPLY TO ALL: tear up every private deal at this shop
         const n = applyShopWage(manage);
         toast = { text: n ? BIZ[manage].short + ": " + n + " BACK ON $" + bizWage(manage)
@@ -12334,7 +12581,7 @@ function crabMood(c) {
   if (gravelyIll(c)) return ["FADING", [220, 60, 60]];   // the town SEES it: the death roll is armed
   if (wageGripe(c) >= WAGE_CFG.WARN) return ["SORE ABOUT PAY", [200, 60, 60]];   // one warning short of the door
   if (c.p.homeless) return ["DOWN", [190, 80, 80]];
-  if (c.p.wallet < 10) return ["BROKE", [190, 80, 80]];
+  if (c.p.wallet < 1000) return ["BROKE", [190, 80, 80]];
   if (c.p.wallet > 120) return ["FLUSH", [180, 140, 30]];
   if ((c.p.hunger || 0) > 0.7) return ["HUNGRY", [200, 110, 40]];
   if ((c.p.thirst || 0) > 0.8) return ["PARCHED", [200, 110, 40]];
@@ -12358,7 +12605,7 @@ function custStatus(k) {
   if (k.state === "toRoom") return "OFF TO ROOM " + (k.roomN || "?");
   if (k.state === "inRoom") return "ASLEEP IN ROOM " + (k.roomN || "?");
   if (k.state === "onSand") return "NO ROOM - OUT ON THE SAND";
-  if (k.state === "roam") return k.wallet < 6 ? "OUT OF MONEY, TAKING IT IN"
+  if (k.state === "roam") return k.wallet < 600 ? "OUT OF MONEY, TAKING IT IN"
     : k.idleT > 0 ? "WATCHING THE TOWN GO BY" : "STROLLING THE PROMENADE";
   if (k.state === "arriving") return "HEADING TO THE " + b;
   if (k.state === "waiting") return "IN LINE AT THE " + b;
@@ -12377,7 +12624,7 @@ function visStayLabel(k) {
 // the one thing about this visitor you would say first
 function visCondition(k) {
   if (k.roughNights > 0 && k.state !== "inRoom") return ["SLEPT ROUGH", [190, 80, 80]];
-  if (k.wallet < 6) return ["SPENT UP", [150, 120, 90]];
+  if (k.wallet < 600) return ["SPENT UP", [150, 120, 90]];
   if (k.hunger > 0.75) return ["STARVING", [200, 110, 40]];
   if (k.thirst > 0.75) return ["PARCHED", [200, 110, 40]];
   if (k.dirt > 0.75) return ["GRUBBY", [150, 110, 60]];
@@ -12431,7 +12678,7 @@ function drawCustCard(k) {
   if (k.visitor) {
     smallText(ctx, "VISITOR - " + visStayLabel(k), 29, 13, [120, 90, 60]);
     smallText(ctx, custStatus(k).slice(0, 26), 29, 21, [30, 110, 60]);
-    smallText(ctx, "$" + Math.round(k.wallet) + " LEFT OF $" + k.purse
+    smallText(ctx, "$" + $d(k.wallet) + " LEFT OF $" + $d(k.purse)
       + (k.room ? "  ROOM " + k.roomN : ""), 29, 28, [140, 110, 40]);
     visBars(k, 6, 37, 118);
     smallText(ctx, "MORE>", 126 - smallTextWidth("MORE>"), 52, [150, 140, 160]);
@@ -12439,7 +12686,7 @@ function drawCustCard(k) {
   }
   smallText(ctx, "TOURIST - IN TOWN FOR THE DAY", 29, 13, [120, 90, 60]);
   smallText(ctx, custStatus(k).slice(0, 26), 29, 21, [30, 110, 60]);
-  smallText(ctx, "WANTS: " + (ITEM_NAMES[k.recipe.icon] || "?") + " $" + menuPrice(k.biz, k.recipe), 29, 28, [140, 110, 40]);
+  smallText(ctx, "WANTS: " + (ITEM_NAMES[k.recipe.icon] || "?") + " $" + $d(menuPrice(k.biz, k.recipe)), 29, 28, [140, 110, 40]);
   smallText(ctx, "PATIENCE", 6, 44, [110, 110, 130]);
   rect(ctx, 40, 45, 60, 4, [30, 20, 36]);
   const pf = Math.max(0, Math.min(1, k.patience / (k.maxPatience || 50)));
@@ -12890,8 +13137,8 @@ function drawPanel() {
       if (!bizUnlocked(key) || bizOwner(key) !== "player") continue;   // your menu, your books
       for (const r of BIZ[key].recipes) {
         smallText(ctx, ITEM_NAMES[r.icon], 4, my, [190, 175, 160]);
-        smallText(ctx, "$" + menuPrice(key, r) + " / $" + INGREDIENT_COST[r.raw], 72, my,
-          bizPriceMul(key) === 1 ? [140, 200, 150] : [255, 190, 90]);
+        smallText(ctx, "$" + $d(menuPrice(key, r)) + " / $" + INGREDIENT_COST[r.raw], 72, my,
+          bizPriceIdx(key) === PRICE_IDX_DEF ? [140, 200, 150] : [255, 190, 90]);
         my += MROW;
       }
     }
@@ -12909,30 +13156,30 @@ function drawPanel() {
     // MIXED the moment somebody is on a private deal - the column below is
     // always the exact per-crab total either way
     const rates = Array.from(new Set(owed.map(c => Math.round(wageRate(c)))));
-    const rateTxt = rates.length === 1 ? "$" + rates[0] : "MIXED";
+    const rateTxt = rates.length === 1 ? "$" + $d(rates[0]) : "MIXED";
     smallText(ctx, "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H" + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : ""), 132, by, [190, 175, 160]);
-    smallText(ctx, "$" + baseBill, 224, by, [235, 160, 130]); by += MROW;
+    smallText(ctx, "$" + $d(baseBill), 224, by, [235, 160, 130]); by += MROW;
     const otBill = owed.reduce((s, c) => s + Math.round(otPayForecast(c)), 0);
     if (otBill > 0) {
       const otN = owed.filter(c => otPayForecast(c) > 0).length;
       smallText(ctx, "OVERTIME " + otN + "X AT " + OT_RATE + "X", 132, by, [190, 175, 160]);
-      smallText(ctx, "$" + otBill, 224, by, [235, 160, 130]); by += MROW;
+      smallText(ctx, "$" + $d(otBill), 224, by, [235, 160, 130]); by += MROW;
     }
     for (const key of Object.keys(BIZ)) {
       if (!bizUnlocked(key) || bizOwner(key) !== "player") continue;   // only rents YOU pay tonight
       smallText(ctx, BIZ[key].short + " RENT", 132, by, [190, 175, 160]);
-      smallText(ctx, "$" + BIZ[key].rent, 224, by, [235, 160, 130]); by += MROW;
+      smallText(ctx, "$" + $d(BIZ[key].rent), 224, by, [235, 160, 130]); by += MROW;
     }
     if (credit.bal > 0) {
       smallText(ctx, "LOAN PAYMENT", 132, by, [190, 175, 160]);
-      smallText(ctx, "$" + creditDueTonight(), 224, by, [235, 160, 130]); by += MROW;
+      smallText(ctx, "$" + $d(creditDueTonight()), 224, by, [235, 160, 130]); by += MROW;
       smallText(ctx, "DEBT AT " + Math.round(CREDIT_CFG.RATE * 100) + "%/NT", 132, by, [190, 175, 160]);
       smallText(ctx, "$" + fmt(Math.round(credit.bal)), 224, by, [235, 130, 130]); by += MROW;
     }
     smallText(ctx, "TOTAL", 132, by, [230, 215, 195]);
     smallText(ctx, "$" + fmt(due), 224, by, coins < due ? [255, 140, 140] : [255, 230, 120]);
     smallText(ctx, "CRABS PAY THEIR OWN", 132, by + MROW + 2, [150, 135, 125]);
-    smallText(ctx, "$" + HOUSE_RENT + " HOUSE RENT", 132, by + 2 * MROW + 2, [150, 135, 125]);
+    smallText(ctx, "$" + $d(HOUSE_RENT) + " HOUSE RENT", 132, by + 2 * MROW + 2, [150, 135, 125]);
   } else if (tab === "shop") {
     for (const b of BUTTONS) {
       const key = buttonKey(b);
@@ -12998,10 +13245,10 @@ const LEASE_SIGNOFF = "GOOD LUCK. I'LL COME COLLECT.";
 function leaseTerms() {
   return [
     ["THE SHACK IS YOURS TO RUN", [70, 70, 90]],
-    ["RENT $" + BIZ.shack.rent + ", NIGHTLY AT 20:00", [170, 50, 50]],
+    ["RENT $" + $d(BIZ.shack.rent) + ", NIGHTLY AT 20:00", [170, 50, 50]],
     ["IT IS DUE TONIGHT. GOOD LUCK.", [170, 50, 50]],
-    ["WAGES $" + bizWage("shack") + " A SHIFT, YOUR CALL", [70, 70, 90]],
-    ["CREW PAY $" + HOUSE_RENT + " HOME RENT EACH", [70, 70, 90]],
+    ["WAGES $" + $d(bizWage("shack")) + " A SHIFT, YOUR CALL", [70, 70, 90]],
+    ["CREW PAY $" + $d(HOUSE_RENT) + " HOME RENT EACH", [70, 70, 90]],
     ["MISS RENT AND I TAKE IT BACK", [170, 50, 50]],
   ];
 }
@@ -13160,7 +13407,7 @@ function drawEnding() {
   rect(ctx, x + 4, ly + 1, w2 - 8, 1, [222, 212, 196]);
   ly += 6;
   smallText(ctx, "ABOARD  " + crew, x + 6, ly, [40, 110, 190]); ly += 8;
-  smallText(ctx, "DAY " + R.day + " - $" + commas(R.lifetime) + " TAKEN - "
+  smallText(ctx, "DAY " + R.day + " - $" + commas($d(R.lifetime)) + " TAKEN - "
     + R.pop + " CRABS, " + R.housed + " HOUSED", x + 6, ly, [140, 110, 40]); ly += 10;
   const tag = "CRABALINA IS ON THE MAP";
   smallText(ctx, tag, x + ((w2 - smallTextWidth(tag)) >> 1), ly, [40, 130, 70]);
@@ -13415,9 +13662,9 @@ function drawVisDossier(k) {
     smallText(ctx, val, x + 56, ly, col || [40, 30, 40]);
     ly += 9;
   };
-  row("PURSE", "$" + Math.round(k.wallet) + " LEFT OF THE $" + k.purse + " THEY BROUGHT",
-    k.wallet < 6 ? [190, 80, 80] : [140, 110, 40]);
-  row("SPENT", "$" + Math.round(k.spent) + " IN TOWN OVER " + k.buys + " VISIT" + (k.buys === 1 ? "" : "S"),
+  row("PURSE", "$" + $d(k.wallet) + " LEFT OF THE $" + $d(k.purse) + " THEY BROUGHT",
+    k.wallet < 600 ? [190, 80, 80] : [140, 110, 40]);
+  row("SPENT", "$" + $d(k.spent) + " IN TOWN OVER " + k.buys + " VISIT" + (k.buys === 1 ? "" : "S"),
     [40, 150, 70]);
   row("SLEEPS", k.room ? "ROOM " + k.roomN + " AT THE DRIFTWOOD"
     : k.roughNights ? "ON THE BEACH - THE HOTEL WAS FULL"
@@ -13466,7 +13713,7 @@ function drawCustDossier(k) {
     ly += 9;
   };
   row("NOW", custStatus(k).slice(0, 32), [70, 90, 130]);
-  row("ORDER", (ITEM_NAMES[k.recipe.icon] || "?") + " - $" + menuPrice(k.biz, k.recipe) + (k.served ? " - PAID" : ""), [140, 110, 40]);
+  row("ORDER", (ITEM_NAMES[k.recipe.icon] || "?") + " - $" + $d(menuPrice(k.biz, k.recipe)) + (k.served ? " - PAID" : ""), [140, 110, 40]);
   row("MOOD", !k.served && k.patience < 15 ? "ABOUT TO WALK OUT" : k.happy || k.served ? "HAVING A GREAT TIME" : "WAITING PATIENTLY",
     !k.served && k.patience < 15 ? [190, 80, 80] : [40, 150, 70]);
   ly += 2;
@@ -13539,12 +13786,12 @@ function drawDossier() {
   // PAY: the rate, whose rate it is, and what the crab makes of it
   if (onPayroll(c)) {
     const mood = wageMoodLabel(c), gr = wageGripe(c);
-    row("PAY", "$" + Math.round(wageRate(c)) + "/SHIFT " + (onShopRate(c) ? "(SHOP RATE)" : "(PRIVATE DEAL)")
+    row("PAY", "$" + $d(wageRate(c)) + "/SHIFT " + (onShopRate(c) ? "(SHOP RATE)" : "(PRIVATE DEAL)")
       + (mood ? " - " + mood : ""),
       gr >= WAGE_CFG.WARN ? [190, 80, 80] : gr >= WAGE_CFG.GRUMBLE ? [200, 110, 40]
       : !onShopRate(c) ? [190, 110, 30] : [40, 30, 40]);
     if (gr >= WAGE_CFG.GRUMBLE)
-      smallText(ctx, "THE GOING RATE IS $" + Math.round(goingRate(c)) + " (PIER $" + Math.round(pierDay()) + ")",
+      smallText(ctx, "THE GOING RATE IS $" + $d(goingRate(c)) + " (PIER $" + $d(pierDay()) + ")",
         x + 56, ly, [110, 100, 110]), ly += 9;
   }
   row("WALLET", "$" + fmt(Math.max(0, p.wallet)), p.wallet < 12 ? [190, 80, 80] : [140, 110, 40]);
@@ -13830,18 +14077,18 @@ function drawManage() {
     smallText(ctx, "TODAY", x + 8, y + 84, [58, 42, 38]);
     smallText(ctx, "TOOK $" + fmt(bk.take), x + 44, y + 84, [40, 150, 70]);
     smallText(ctx, "COSTS $" + fmt(bk.cost), x + 104, y + 84, [190, 80, 80]);
-    smallText(ctx, "RENT $" + b.rent, x + 166, y + 84, [140, 110, 40]);
+    smallText(ctx, "RENT $" + $d(b.rent), x + 166, y + 84, [140, 110, 40]);
     // ---- THE PRICE. One multiplier, the whole board underneath it, and what
     // it costs you: cheap pulls footfall off the shop next door and thins
     // every margin you have. The promenade is zero sum - see the spawn weights.
     {
-      const mul = bizPriceMul(key), pct = Math.round(mul * 100);
+      const mul = bizPriceMul(key), pct = bizPricePct(key);
       smallText(ctx, "PRICE", x + 8, y + 97, [58, 42, 38]);
       btn(R.pm, "-"); btn(R.pp, "+");
       const pTxt = pct + "%";
       text(ctx, pTxt, x + 58 + ((38 - textWidth(pTxt)) >> 1), y + 97,
         pct === 100 ? [40, 30, 40] : pct < 100 ? [190, 110, 40] : [40, 110, 60]);
-      const menu = b.recipes.slice(0, 3).map(r => (ITEM_NAMES[r.icon] || "?") + " $" + menuPrice(key, r)).join("  ");
+      const menu = b.recipes.slice(0, 3).map(r => (ITEM_NAMES[r.icon] || "?") + " $" + $d(menuPrice(key, r))).join("  ");
       // the card ends at x + w2; leave 6px of margin and trim to what is left
       smallText(ctx, fitSmall(menu, w2 - 124), x + 118, y + 92, [110, 100, 110]);
       smallText(ctx, pct === 100 ? "THE BOARD PRICE"
@@ -13917,13 +14164,13 @@ function drawManage() {
     // payroll comes to at these rates, and what the rest of town is paying.
     smallText(ctx, "WAGE", x + 8, y + 49, [58, 42, 38]);
     btn(R.wm, "-"); btn(R.wp, "+");
-    const wtxt = "$" + bizWage(key);
+    const wtxt = "$" + $d(bizWage(key));
     text(ctx, wtxt, x + 58 + ((22 - textWidth(wtxt)) >> 1), y + 49, [40, 30, 40]);
     const deals = staff.filter(c => !onShopRate(c)).length;
-    chip(R.wall, "ALL $" + bizWage(key), null, deals > 0);
+    chip(R.wall, "ALL $" + $d(bizWage(key)), null, deals > 0);
     const bill = staff.reduce((s2, c) => s2 + Math.round(crabDueTonight(c)), 0);
     smallText(ctx, "TONIGHT $" + fmt(bill), x + 152, y + 45, [190, 80, 80]);
-    smallText(ctx, "TOWN $" + townWage(key).toFixed(0) + "  PIER $" + Math.round(pierDay()),
+    smallText(ctx, "TOWN $" + $d(townWage(key)) + "  PIER $" + $d(pierDay()),
       x + 152, y + 54, [110, 100, 110]);
     // ...and the roster's own hint goes UNDER THE ROSTER, at the foot of the
     // card, where there is a whole free row and where it is next to the thing
@@ -13956,7 +14203,7 @@ function drawManage() {
       // the per-crab rate: highlighted the moment it stops being the shop's
       const rate = Math.round(wageRate(c)), own = !onShopRate(c);
       smallText(ctx, "-", cell.wdn.x + 3, ry + 2, [150, 110, 70]);
-      smallText(ctx, "$" + rate, cell.wdn.x + 11, ry + 2, own ? [190, 110, 30] : [90, 80, 90]);
+      smallText(ctx, "$" + $d(rate), cell.wdn.x + 11, ry + 2, own ? [190, 110, 30] : [90, 80, 90]);
       smallText(ctx, "+", cell.wup.x + 14, ry + 2, [150, 110, 70]);
     }
     if (staff.length > R.rows.length)
@@ -14024,8 +14271,8 @@ function drawHall(R, chip) {
     // not counted"). These share their rows with a neighbour, so the budget is
     // the gap to that neighbour and not a character count that felt about right.
     smallText(ctx, fitSmall(shut ? "SHELTER BOLTED - " + townFund.shut + " MORE NIGHT" + (townFund.shut === 1 ? "" : "S")
-      : potLine() + (townFund.bowls > 0 ? " AT $" + bowlCost() + " EACH" : ""), 116), x + 8, y + 75, bar);
-    smallText(ctx, fitSmall("RENT $" + shelterRent() + (townFund.arrears > 0 ? " OWES $" + Math.ceil(townFund.arrears) : "")
+      : potLine() + (townFund.bowls > 0 ? " AT $" + $d(bowlCost()) + " EACH" : ""), 116), x + 8, y + 75, bar);
+    smallText(ctx, fitSmall("RENT $" + $d(shelterRent()) + (townFund.arrears > 0 ? " OWES $" + Math.ceil(townFund.arrears / 100) : "")
       + (townFund.strikes > 0 ? " STRIKE " + townFund.strikes + "/" + SHELTER_STRIKES : ""), w2 - 134),
       x + 128, y + 75, townFund.strikes > 0 ? [190, 80, 80] : [110, 100, 110]);
     smallText(ctx, fitSmall("SERVED " + townFund.served + ", TURNED AWAY " + townFund.cold
@@ -14137,7 +14384,7 @@ function drawHall(R, chip) {
   // LIT ONLY WHILE IT IS THE TOWN'S POLICY. It used to be hot unconditionally,
   // which is what made a manifesto look like a lever on the town - see the
   // note beside `apply` in the click handler.
-  chip(R.pmech, EP.short + " " + (ed.mech === "rents" || ed.mech === "levy" ? purseRate(ed) + "%" : "$" + purseRate(ed)), null, mine);
+  chip(R.pmech, EP.short + " " + (ed.mech === "rents" || ed.mech === "levy" ? purseRate(ed) + "%" : "$" + $d(purseRate(ed))), null, mine);
   chip(R.prm, "-", null, false); chip(R.prp, "+", null, false);
   smallText(ctx, "RATE " + (ed.rate | 0), R.prm.x + 20, R.prm.y + 4, [40, 30, 40]);
   chip(R.pbm, "-", null, false); chip(R.pbp, "+", null, false);
@@ -14147,7 +14394,7 @@ function drawHall(R, chip) {
   // implementation detail of the stepper and not what is on the ballot.
   const fl = floorOf(ed), cp = capOf(ed);
   chip(R.pwm, "-", null, false); chip(R.pwp, "+", null, false);
-  smallText(ctx, fl > 0 ? "MIN $" + fl : "MIN OFF", R.pwm.x + 19, R.pwm.y + 4,
+  smallText(ctx, fl > 0 ? "MIN $" + $d(fl) : "MIN OFF", R.pwm.x + 19, R.pwm.y + 4,
     fl > 0 ? [40, 30, 40] : [110, 100, 110]);
   chip(R.pcm, "-", null, false); chip(R.pcp, "+", null, false);
   smallText(ctx, cp > 0 ? "STAFF " + cp : "STAFF -", R.pcm.x + 19, R.pcm.y + 4,
@@ -14164,7 +14411,7 @@ function drawHall(R, chip) {
     if (fl > 0) {
       const lift = Math.round(crabs.reduce((a, k) => a + floorRaise(k, fl), 0));
       const under = allCrabs().filter(k => floorRaise(k, fl) > 0).length;
-      bits.push(under + " UNDER" + (lift > 0 ? " - $" + lift + " A DAY YOURS" : ""));
+      bits.push(under + " UNDER" + (lift > 0 ? " - $" + $d(lift) + " A DAY YOURS" : ""));
     }
     if (cp > 0) {
       const shut = ownedBizList().filter(b => bizHeads(b) >= cp).length;
@@ -14499,13 +14746,13 @@ function drawJobBoard() {
   for (const j of jobBoard) {
     if (j.biz === "fishing") {
       smallText(ctx, "HELP WANTED: THE PIER", x + 6, ly, [40, 30, 40]); ly += 7;
-      smallText(ctx, "FISH AT $" + trade.price + " - SELL WHAT YOU CATCH" + (day > j.day ? " (STILL OPEN)" : ""), x + 12, ly, [140, 110, 40]); ly += 9;
+      smallText(ctx, "FISH AT $" + $d(trade.price) + " - SELL WHAT YOU CATCH" + (day > j.day ? " (STILL OPEN)" : ""), x + 12, ly, [140, 110, 40]); ly += 9;
       continue;
     }
     smallText(ctx, "HELP WANTED: " + BIZ[j.biz].name, x + 6, ly, [40, 30, 40]); ly += 7;
-    smallText(ctx, "$" + j.wage + "/DAY - SEE " + ownerName(bizOwner(j.biz)) + (day > j.day ? " (STILL OPEN)" : ""), x + 12, ly, [140, 110, 40]); ly += 7;
+    smallText(ctx, "$" + $d(j.wage) + "/DAY - SEE " + ownerName(bizOwner(j.biz)) + (day > j.day ? " (STILL OPEN)" : ""), x + 12, ly, [140, 110, 40]); ly += 7;
     // what the posting is competing WITH: a day on the rail at today's price
-    smallText(ctx, "A DAY ON THE PIER PAYS ABOUT $" + Math.round(pierDay()), x + 12, ly,
+    smallText(ctx, "A DAY ON THE PIER PAYS ABOUT $" + $d(pierDay()), x + 12, ly,
       pierDay() > j.wage ? [180, 60, 40] : [110, 110, 130]); ly += 9;
   }
   {   // THE RIVALRY, in two lines at the top of the wall. This board is a full
@@ -14553,7 +14800,7 @@ function drawJobBoard() {
     // the pier price + its history: a tiny sparkline, floor $2 to ceiling $7
     smallText(ctx, "PIER FISH PRICE", x + 6, ly, [140, 110, 40]);
     {
-      const v = "$" + trade.price + (trade.price >= FISH_IMPORT ? " AT CEILING" : "");
+      const v = "$" + $d(trade.price) + (trade.price >= FISH_IMPORT ? " AT CEILING" : "");
       smallText(ctx, v, x + 140 - smallTextWidth(v), ly,
         trade.price >= FISH_IMPORT ? [200, 110, 40] : [140, 110, 40]);
     } ly += 7;
@@ -14578,7 +14825,7 @@ function drawJobBoard() {
       const im = IMPORTS[kind];
       drawCommodity(kind, x + 6, ly - 1);
       smallText(ctx, im.name, x + 16, ly, [90, 90, 105]);
-      const d = String(trade.day[kind]), t = String(trade.total[kind]), p = "$" + im.price;
+      const d = String(trade.day[kind]), t = String(trade.total[kind]), p = "$" + im.price / 100;   // pennies print 2dp exact
       smallText(ctx, d, cDay - smallTextWidth(d), ly, [110, 110, 130]);
       smallText(ctx, t, cTot - smallTextWidth(t), ly, [110, 110, 130]);
       smallText(ctx, p, cPr - smallTextWidth(p), ly, [140, 110, 40]);
@@ -14591,7 +14838,7 @@ function drawJobBoard() {
     ly += 2; smallText(ctx, "WHO WORKS FOR WHOM", x + 6, ly, [58, 42, 38]); ly += 8;
     for (const c of staff.slice(0, 4)) {
       if (ly > y + h2 - 16) break;   // the sparkline ate a row or two - keep inside the card
-      smallText(ctx, c.p.name + " - " + BIZ[c.p.job].short + " $" + Math.round(wageRate(c))
+      smallText(ctx, c.p.name + " - " + BIZ[c.p.job].short + " $" + $d(wageRate(c))
         + ", PAID BY " + ownerName(c.p.employer) + (wageGripe(c) >= WAGE_CFG.WARN ? " (RESTLESS)" : ""),
         x + 6, ly, wageGripe(c) >= WAGE_CFG.WARN ? [180, 60, 40] : [90, 90, 105]); ly += 7;
     }
@@ -14842,8 +15089,8 @@ function stayBlocked(k, why) { const s = stayOf(k); s[why] = (s[why] || 0) + 1; 
 // then a pure function, and a scenario can hand it a stay it built by hand.
 function departRecord(k) {
   const s = stayOf(k);
-  const purse = Math.max(1, Math.round(k.purse));
-  const left = Math.max(0, Math.min(purse, Math.round(k.wallet)));
+  const purse = Math.max(1, $d(k.purse));   // the record speaks DOLLARS: every
+  const left = Math.max(0, Math.min(purse, $d(k.wallet)));   // reader is a voice line or the card
   // WHICH SHUT DOOR MATTERED MOST. Ties and near-ties say nothing, so a reason
   // is only named when one of the three clearly dominates: 3 ticks is about
   // twenty game-minutes of wanting a thing and being turned away, and it has
@@ -14861,8 +15108,8 @@ function departRecord(k) {
     purse, left, spent: Math.max(0, purse - left), buys: k.buys,
     serves: s.serves, tables: s.tables,
     meals: s.meals, drinks: s.drinks, washes: s.washes, games: s.games, rooms: s.rooms,
-    topItem: s.topItem, topBiz: s.topBiz, topPaid: s.topPaid,
-    tips: Math.round(s.tips), dues: Math.round(s.dues),
+    topItem: s.topItem, topBiz: s.topBiz, topPaid: $d(s.topPaid),
+    tips: $d(s.tips), dues: $d(s.dues),
     waitMin: Math.round(s.waitMin), worstMin: Math.round(s.worstMin),
     worstBiz: s.worstBiz || "COUNTER",
     quits: s.quits, quitMin: Math.round(s.quitMin), quitBiz: s.quitBiz || "COUNTER",
@@ -15472,7 +15719,7 @@ const HELP_KEYCOL = 56;
 // a scenario carrying its own copy of the copy would prove nothing.
 function rosterHintBudget(R) { return R.done.x - (R.x + 6) - 6; }
 function rosterHint(key, deals) {
-  if (deals) return deals + " ON PRIVATE DEALS - ALL RESETS TO $" + bizWage(key);
+  if (deals) return deals + " ON PRIVATE DEALS - ALL RESETS TO $" + $d(bizWage(key));
   return BIZ[key].autoLabor ? "THE ROTA MANAGES ITSELF: SICK DAYS AND OT"
     : "TAP A ROW: SHIFT, OT, SICK OR THE WAGE";
 }
@@ -15657,7 +15904,7 @@ function drawHireCard() {
   const win = baseShift(c);   // their own contracted hours, whatever shop and shift they landed on
   smallText(ctx, (p.shift === "M" ? "MORNINGS " : p.shift === "E" ? "EVENINGS " : "DAYS ") + win.label,
     tx, y + 34, [70, 90, 130]);
-  smallText(ctx, "$" + Math.round(wageRate(c)) + " A SHIFT, ON TONIGHT'S BILL AT 20:00", tx, y + 43, [190, 80, 80]);
+  smallText(ctx, "$" + $d(wageRate(c)) + " A SHIFT, ON TONIGHT'S BILL AT 20:00", tx, y + 43, [190, 80, 80]);
   smallText(ctx, p.homeless ? "SLEEPS AT THE SHELTER UNTIL THEY CAN AFFORD A ROOM"
     : "HAS SOMEWHERE TO SLEEP", x + 6, y + 53, [110, 100, 110]);
 }
@@ -15758,9 +16005,9 @@ function frame(now) {
       wages += owed; backPaid += owed;
       c.p.gripe = Math.max(0, (c.p.gripe || 0) - WAGE_CFG.MISSED * 2);
       if (c.p.walkoutWhy === "pay") { c.p.walkout = null; c.p.walkoutWhy = null; }
-      crabLog(c, "money", "GOT $" + owed + " IN BACK PAY", 0);   // DIARY
+      crabLog(c, "money", "GOT $" + $d(owed) + " IN BACK PAY", 0);   // DIARY
       popText("BACK PAY!", c.x - 10, FLOOR_Y - 40, [140, 255, 160]);
-      today.moved.push(c.p.name + " WAS PAID $" + owed + " IN BACK PAY");
+      today.moved.push(c.p.name + " WAS PAID $" + $d(owed) + " IN BACK PAY");
     }
     for (const c of crabs) {
       if (c.p.sick && !c.workedToday) continue;      // sick day: no work, no pay (a REQUIRED crab who worked is paid in full)
@@ -15771,9 +16018,9 @@ function frame(now) {
       const due = Math.round(basePayToday(c)) + prem;   // the day, priced by the hours contracted
       if (coins - rentReserve >= due) {
         coins -= due; c.p.wallet += due; wages += due;
-        crabLog(c, "money", "DREW $" + due + " IN WAGES", 0);   // DIARY
+        crabLog(c, "money", "DREW $" + $d(due) + " IN WAGES", 0);   // DIARY
         if (prem > 0) {
-          popText("OT +$" + prem, c.x - 4, FLOOR_Y - 40, [255, 216, 96]);
+          popText("OT +$" + $d(prem), c.x - 4, FLOOR_Y - 40, [255, 216, 96]);
           if (window._stats) {
             window._stats.otPay = (window._stats.otPay || 0) + prem;
             window._stats.otMin = (window._stats.otMin || 0) + Math.round(c.otMin || 0);
@@ -15786,7 +16033,7 @@ function frame(now) {
         c.p.owed = Math.max(0, Math.round(c.p.owed || 0)) + due;
         c._stiffed = true;
         missedPay += due; missedN++;
-        crabLog(c, "peril", "WENT UNPAID - $" + due + " OWED", 0);   // DIARY
+        crabLog(c, "peril", "WENT UNPAID - $" + $d(due) + " OWED", 0);   // DIARY
         popText("NO PAY?!", c.x, FLOOR_Y - 30, [255, 120, 120]);
       }
     }
@@ -15822,7 +16069,7 @@ function frame(now) {
         }
         if (free >= 0 && c.p.wallet >= MOVE_IN_COST + HOUSE_RENT) {
           c.p.wallet -= MOVE_IN_COST; c.p.house = free; c.p.homeless = false;
-          logHome(c, "MOVED INTO " + placeName(c.p) + " - $" + MOVE_IN_COST);   // DIARY
+          logHome(c, "MOVED INTO " + placeName(c.p) + " - $" + $d(MOVE_IN_COST));   // DIARY
           today.moved.push(c.p.name + " GOT A HOUSE");
           toast = { text: c.p.name + " MOVED INTO A HOUSE!", t: 5 };
           popText("HOME SWEET HOME", HOUSE_XS[free] + 8, 100, [140, 255, 160]);
@@ -15838,7 +16085,7 @@ function frame(now) {
         const berth = freeBerth();
         c.p.wallet -= BOAT_COST;
         c.p.boat = berth; c.p.house = null;
-        logHome(c, "MOVED ABOARD THE " + BOAT_NAMES[berth] + " - $" + BOAT_COST);   // DIARY
+        logHome(c, "MOVED ABOARD THE " + BOAT_NAMES[berth] + " - $" + $d(BOAT_COST));   // DIARY
         c.fishSpot = boatSpot(berth);
         today.moved.push(c.p.name + " MOVED ABOARD THE " + BOAT_NAMES[berth]);
         toast = { text: c.p.name + " MOVED ABOARD!", t: 6 };
@@ -15851,7 +16098,7 @@ function frame(now) {
         // what the fund does not take is destroyed exactly as it always was.
         const cut = rentCut(c, HOUSE_RENT);
         c.p.wallet -= HOUSE_RENT - cut;
-        crabLog(c, "money", "PAID $" + HOUSE_RENT + " HOUSE RENT", 600);   // DIARY: once a night, never twice
+        crabLog(c, "money", "PAID $" + $d(HOUSE_RENT) + " HOUSE RENT", 600);   // DIARY: once a night, never twice
         // careers move; so do crabs. A housed crab whose job has drifted far
         // from their door takes a much-closer empty lot when they can cover
         // the move (a quit fisher shouldn't keep the promenade forever)
@@ -15892,7 +16139,7 @@ function frame(now) {
       if (c.p.sick && !c.workedToday) continue;      // sick day: no work, no pay - same deal as the crew
       if (awayToday(c) && !c.workedToday) continue;  // day off (or a walk-out): unpaid, but the job is safe
       const npcDue = Math.round(basePayToday(c)) + Math.round(otPayToday(c));   // peer owners buy hours at the same rate, premium included
-      if (o && o.till >= npcDue) { o.till -= npcDue; c.p.wallet += npcDue; crabLog(c, "money", "WAS PAID $" + npcDue + " BY " + o.name, 0); }   // DIARY
+      if (o && o.till >= npcDue) { o.till -= npcDue; c.p.wallet += npcDue; crabLog(c, "money", "WAS PAID $" + $d(npcDue) + " BY " + o.name, 0); }   // DIARY
       else {
         crabLog(c, "life", "QUIT - " + (o ? o.name : "THE BOSS") + " COULDN'T PAY", 0);   // DIARY
         // ...and they need somewhere to stand when they get there. layOff()
@@ -15984,7 +16231,7 @@ function frame(now) {
           now: { hunger: +(k.p.hunger || 0).toFixed(3), thirst: +(k.p.thirst || 0).toFixed(3),
                  dirt: +(k.p.dirt || 0).toFixed(3), tired: +(k.p.tired || 0).toFixed(3) },
         });
-        if (risk > 0 && Math.random() < Math.min(0.5, risk)) {
+        if (risk > 0 && srand() < Math.min(0.5, risk)) {
           k.p.sick = { days: 0 }; today.sick.push(k.p.name);
           logFellIll(k);   // DIARY
           if (window._stats) {
@@ -16009,7 +16256,7 @@ function frame(now) {
         // measurably better - and their own bed beats a shelter cot.
         const lane = careLane(k), care = CARE_LANES[lane];
         const tier = k.p.homeless ? "cot" : k.p.boat != null ? "boat" : "house";
-        if (Math.random() < care.cure) {
+        if (srand() < care.cure) {
           const dur = k.p.sick.days;
           k.p.sick = null; today.recovered.push(k.p.name);
           crabLog(k, "need", "GOT BETTER AFTER " + dur + " DAY" + (dur === 1 ? "" : "S") + " ILL", 0);   // DIARY
@@ -16020,7 +16267,7 @@ function frame(now) {
               .push({ day, name: k.p.name, days: dur, lane, tier, out: "well" });
           }
         } else if (k.p.sick.days >= deathArmsAt(lane) &&
-            Math.random() < Math.min(0.75, care.die + 0.12 * Math.max(0, k.p.sick.days - 4))) {
+            srand() < Math.min(0.75, care.die + 0.12 * Math.max(0, k.p.sick.days - 4))) {
           if (window._stats) (window._stats.illness = window._stats.illness || [])
             .push({ day, name: k.p.name, days: k.p.sick.days, lane, tier, out: "died", npc: !!k.p.npc });
           killCrab(k);   // the tide takes them - crew and townsfolk alike
@@ -16113,8 +16360,8 @@ function frame(now) {
       departQ = departBuild();
       const dl = (window.dayLog || [])[(window.dayLog || []).length - 1];
       if (dl) dl.after = Math.round(coins);   // forecaster: post-settlement till
-      if (rent > 0) popText("-$" + rent + " RENT", BIZ.shack.door, 110, [255, 120, 120]);
-      if (fin.drew > 0) popText("+$" + fin.drew + " ON CREDIT", BIZ.shack.door, 100, [255, 190, 90]);
+      if (rent > 0) popText("-$" + $d(rent) + " RENT", BIZ.shack.door, 110, [255, 120, 120]);
+      if (fin.drew > 0) popText("+$" + $d(fin.drew) + " ON CREDIT", BIZ.shack.door, 100, [255, 190, 90]);
       sfx.buy(); save();
     } else {
       gameOver = true; bankrupt = true; toast = null; save();
@@ -16144,7 +16391,7 @@ function frame(now) {
     for (const c of crabs) {
       c.animT += dt; maybeQuip(c, dt);
       if (c._wt == null || Math.abs(c.x - c._wt) < 2)
-        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + Math.random() * 90 - 45));
+        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + srand() * 90 - 45));
       else stepTo(c, c._wt, 11, dt, 158);
     }
     drawBG(); drawTown(); drawBus();
@@ -16448,7 +16695,7 @@ activeSlot = readActiveSlot();
 hasSave = load();
 if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
-  coins = 150;   // a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
+  coins = 15000;   // cents - a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
   dayOpen = coins;   // day one opens on the float, so TODAY starts at +$0
 }
 // A NEW TOWN OPENS EMPTY and waits for the 08:00 boat; a SAVED town keeps

@@ -135,7 +135,75 @@ bug, filed as one — never a float island in game.js. The slice ledger
 (what's converted, what units, where the rounding point is) lives in
 this file and updates with each slice.
 
-**SLICE LEDGER**: nothing converted yet. (Updates land here.)
+**SLICE LEDGER**
+
+| slice | state | unit | the rounding point |
+|---|---|---|---|
+| 1 MONEY | **CLOSED** (1a + 1b landed, re-baselined once) | integer **cents**, every balance and every price; the tip product in **milli-cents**; `tipShare` int **twentieths** 0..20; the price board an int **index** 14..26 (m = n/20) | the cent is BORN at `menuPrice`/`ingredientCost`/`upCost` (author-dollar tables cross ×100 at their read boundary) and at the visitor purse mint; a TIP rounds ONCE at `payTip`'s door (`tipCentsOf`, round-half-up from milli-cents) and the split then FLOORS n/20; `otPremium` is one rational with a single floor; the fund's three doors floor to whole cents; `localPrice` still rounds up to the whole DOLLAR |
+| 2–6 | not started | — | — |
+
+**Slice 1 is CLOSED.** What is converted: every balance, price, wage, rent,
+threshold and fund movement (1a); the tip product, the tip split, the overtime
+premium and the two 0.05-grids (1b). The sim's only `Math.pow` went with
+`priceAppeal`, which is now the baked `PRICE_APPEAL_Q16` table — so no
+implementation-approximated function remains anywhere in the money orbit, and
+both 0.05-grid epsilon guards (`PRICE_MIN - 1e-9`, `PRICE_MAX + 1e-9`) and the
+`setTipShare` double-round snap retired with the floats they were compensating
+for. `hourlyRate` no longer exists as a number: it is the shape of
+`otPremium`'s fraction. Two float-derived factors remain INSIDE the tip
+product — the patience ratio and the charm multiplier — and they cross into
+Q16 at one named line; they leave with slice 3, when needs become Q20.
+
+**The save carries two era flags**: `_num = 1` (cents, from 1a) and
+`_grid = 1` (twentieths + board index, from 1b). The grids need their own flag
+rather than a sniff because the old and new ranges OVERLAP — a stored
+`tipShare` of 1 is 100% in the old units and 5% in the new.
+
+Ruling 7a is **in force** from 1a: a CS3 change touching money is translated
+at the boundary, not merged textually. First application, 2026-08-21: the
+on-duty-order change (`cs35` 84f7346) carried `p.wallet = 60` and landed here
+as `6000`.
+
+**1b is verified and the slice's ONE re-baseline is spent** (protocol par.2,
+all ten points): suite **253/253 exit 0**; baseline `--days 30 --seeds 16`
+**0/16 exact, median 12** and growth `--buy chef,table` **4/16** across all
+sixteen — both identical to 1a's, so the floor did not move at all;
+conservation still exact (210 audited movements over three 30-day seeds, every
+one `delta === want`, all three doors exercised); the receipted fingerprint
+re-baseline moved **exactly one field by one cent** (1337's coins, 14822 →
+14821) with seed 4242 byte-identical whole — `tools/fpdiff.mjs --money-tol 1`
+reads 1 rounding-shaped, 0 behavior-shaped — and that cent is ATTRIBUTED, not
+assumed: arming the old float tip product back on the landing tree returns
+1337 to 14822, so it is the Q16 quantization of the patience ratio and the
+charm multiplier, and none of the other three 1b changes (all provably inert
+on a default town). The cross-engine receipt was refreshed on the final tree:
+both seeds **bit-identical under JavaScriptCore**, whole fingerprint
+(`cs35-research/numeric-wip/1b-crossengine.txt`).
+
+**1a was verified** (protocol par.2, everything but the receipted fingerprint
+re-baseline, which the slice takes ONCE after 1b): suite 253/253; baseline
+0/16 exact, median 12; growth 4/16; conservation now a THEOREM — 558 audited
+fund movements over three 30-day seeds, every one `delta === want`, all three
+doors exercised; the pre-cents migration lands to the cent and a save/load
+roundtrip is EXACT, which retires the census's silent sub-cent bug; and the
+day-2 fingerprint is **bit-identical under JavaScriptCore** on both seeds
+(`cs35-research/numeric-wip/1a-crossengine.txt`). Both frozen fingerprints
+carry a provisional re-point with the drift receipt in the comment: rep,
+serves, rage and every position byte-identical, money moved by accumulated
+per-sale cent rounding only.
+
+**The one real bug 1b found**: baking `upCost` by exponent priced the chef's
+WIPEOUT rungs at Infinity — the chef exponent is `lvl - 2` and goes negative
+when a town's whole crew dies, which is how a wiped-out town climbs back at
+$15 and $30. A scenario caught it, not a receipt. It is 1a's founding-tills
+lesson from the other end: the dangerous value in a unit conversion is the one
+that looks like it has no unit, and this time it was an array index standing in
+for an exponent that can go below zero.
+
+**The one real bug 1a found**: SUDSY and REEF opened on tills of `200`/`140`
+— cents-as-dollars — so a converted town ran its first days a hundredfold
+poor until the fingerprint caught it. A constant that is *already* a bare
+number is the easiest thing in a unit conversion to miss.
 
 ## WHAT STAYS FLOAT FOREVER
 

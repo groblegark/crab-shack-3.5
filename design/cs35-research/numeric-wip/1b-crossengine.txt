@@ -1,0 +1,25 @@
+CROSS-ENGINE RECEIPT - numeric slice 1 FINAL (money -> integer cents, 1a+1b)
+protocol numeric-protocol.md par.9: the converted subsystem's fields must be
+bit-identical under a second JS engine.
+
+engine A: V8 / node v26.5.1 (the suite's own pins; capture 1b-fp-after.json)
+engine B: JavaScriptCore (macOS 26.6 system framework), same two game days,
+          same seeds, sandbox mirroring tools/simlib.mjs
+
+seed 1337: BIT-IDENTICAL to the V8 capture, whole fingerprint
+seed 4242: BIT-IDENTICAL to the V8 capture, whole fingerprint
+
+Compared field-for-field as JSON, not by eye: coins, SUDSY's till, all seven
+wallets, rep, catch, serves, crabServes, rage and all seven positions agree
+exactly on both seeds. Slice 1b removed the sim's last Math.pow (priceAppeal,
+now a baked Q16 table), so the money orbit no longer contains a single
+implementation-approximated function - which is what makes this receipt a
+property of the code rather than a lucky agreement between two engines'
+libm. Positions still match because they are float-but-simple today; slice 4
+is what turns THAT into a guarantee rather than a coincidence.
+
+Harness: design/cs35-research/numeric-wip/xengine.js, prefixed with the seed
+(`var SEED = 1337;`) - jsc dialect: no vm module, so the game files evaluate
+in one Function body with the sandbox destructured in; drive through
+window.rafCb, because a destructured copy never sees the game's own
+requestAnimationFrame assignment.
