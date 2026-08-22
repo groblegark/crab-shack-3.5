@@ -3506,7 +3506,7 @@ scenario("ownership + the FOR SALE market roundtrip save/load", () => {
   if (m[0] !== null || m[1] !== true) return "the listing did not survive a save: " + JSON.stringify(m);
   if (m[2] !== price) return "asking price came back as $" + m[2] + ", was $" + price;
   if (m[3] !== true) return "a for-sale shop loaded un-dark";
-  if (JSON.stringify(m[4]) !== "[12,8,4]") return "the takings history was lost: " + JSON.stringify(m[4]);
+  if (JSON.stringify(m[4]) !== "[1200,800,400]") return "the takings history was lost: " + JSON.stringify(m[4]);   // cents, with the staging above
   if (a2.G('allCrabs().some(k => k.p.owner === "sudsy")')) return "the bought-out owner still owns it after a load";
 
   // ARM 2: sold to a crab - a brand-new owner in the registry, running the shop
