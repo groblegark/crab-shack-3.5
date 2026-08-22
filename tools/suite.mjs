@@ -1288,6 +1288,70 @@ scenario("juicebar economics: ledger flows, register income, staff retail", () =
   return b.G("trade.total.fruit") === 31 ? true : "fruit ledger did not roundtrip";
 });
 
+// THE DROP NUDGE (owner ruling, 2026-08-22). Three scenarios, and the middle
+// one is the ruling: the nudge is an INCENTIVE, so a crab who does not want
+// the thing walks away from it with the nudge live on their back.
+//
+// The staging drives the real gesture - orderCrab, the same call the SEND chip
+// and the right-click both reach - and asserts the MECHANISM (nudgeTag set,
+// the errand actually taken) rather than a coincidence of position.
+function nudgeSim(thirst, dropFar) {
+  const sim = createSim({ seed: 44 });
+  sim.G('coins = 90000; tryBuy("juicebar"); crabs[1].p.job = "juicebar"; rosterGen++;');
+  sim.runUntil('bizStaffed("juicebar") && tmin > 11 * 60', { maxSteps: 200000 });
+  sim.G(`crabs[0].p.thirst = qn(${thirst}); crabs[0].p.hunger = qn(0.2);
+         crabs[0].p.dirt = qn(0.2); crabs[0].p.bored = qn(0.2);
+         crabs[0].p.wallet = 8000; crabs[0].errandCd = 0;`);
+  const qx = sim.G("BIZ.juicebar.queueX");
+  // OPEN SAND IS x=2000, and it was chosen by looking: it sits outside every
+  // BIZ footprint (arcade ends 1800, hotel starts 2200) and 156px from the
+  // pier tap, the nearest stop of any kind. The first cut dropped the control
+  // 400px along and proved nothing - x=1284 is INSIDE the shack (1220-1560),
+  // so orderCrab took the forced-errand branch and orderGoto never ran. The
+  // scenario passed without ever reaching the code it names.
+  sim.G(`orderCrab(crabs[0], ${dropFar ? 2000 : qx}, FLOOR_Y - 10)`);
+  let tag = null;
+  for (let i = 0; i < 400 && tag === null; i++) {
+    sim.runUntil("false", { maxSteps: 30 });
+    tag = sim.G("crabs[0].nudgeTag || ''") || null;
+  }
+  let err = null;
+  for (let i = 0; i < 2000 && !err; i++) {
+    sim.runUntil("false", { maxSteps: 30 });
+    err = sim.G("crabs[0].errandBiz || (crabs[0].errand && crabs[0].errand.biz) || ''") || null;
+  }
+  return { tag, err };
+}
+
+scenario("the drop nudge: put down by the bar, a half-thirsty crab takes the hint", () => {
+  // 0.35 is BELOW the 0.45 bar a drink needs and above the relaxed 0.33, so
+  // this errand exists only because the crab was put down at the counter
+  const r = nudgeSim(0.35, false);
+  if (r.tag !== "biz:juicebar") return "no nudge at the bar, got: " + r.tag;
+  if (r.err !== "juicebar") return "nudged at the bar but bought nothing there, got: " + r.err;
+  return true;
+});
+
+scenario("the drop nudge is an incentive: a crab who is not thirsty walks away", () => {
+  // the nudge is LIVE on this crab's back and 0.20 thirst still does not want
+  // a drink - the ruling, asserted: the drop tilts the scales, it never seizes
+  // the wheel. A puppet-string implementation fails right here.
+  const r = nudgeSim(0.20, false);
+  if (r.tag !== "biz:juicebar") return "the nudge should still be SET, got: " + r.tag;
+  if (r.err === "juicebar") return "an unthirsty crab was puppeted into a drink";
+  return true;
+});
+
+scenario("the drop nudge: open sand nudges nothing", () => {
+  // dropped 400px from the counter, the same crab at the same thirst gets no
+  // nudge at all - which is what makes the first scenario's result the nudge's
+  // doing rather than the hour, the seed or the walk
+  const r = nudgeSim(0.35, true);
+  if (r.tag !== null) return "open sand set a nudge: " + r.tag;
+  if (r.err === "juicebar") return "unnudged crab bought a drink anyway - the pin proves nothing";
+  return true;
+});
+
 scenario("orders: redirect walks the crab there, then the schedule reclaims them", () => {
   const sim = createSim({ seed: 1337 });
   sim.runUntil('crabs[0].dayState === "working" && tmin > 10 * 60 && bizStaffed("showers")', {});
