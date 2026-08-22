@@ -8940,7 +8940,10 @@ function updateStuck(c, dt) {
   }
   if (!c.stuckRef) { c.stuckRef = { x: c.x, y: c.y }; c.stuckT = 0; return; }
   c.stuckT += dtT;
-  if (Math.hypot(c.x - c.stuckRef.x, c.y - c.stuckRef.y) >= STUCK_DIST) {
+  // squared compare - hypot is implementation-approximated and this is a pure
+  // gate (the distance's VALUE is never used), so the exact form replaces it
+  const spx = c.x - c.stuckRef.x, spy = c.y - c.stuckRef.y;
+  if (spx * spx + spy * spy >= STUCK_DIST * STUCK_DIST) {
     c.stuckRef = { x: c.x, y: c.y }; c.stuckT = 0; c.stuckN = 0;   // real progress: all clear
     return;
   }
@@ -9028,8 +9031,14 @@ function updateFishing(c, dt) {
 // beside somebody, which turns the refusal into a no-op.
 const SHUN_PX = 26;
 function tableShunned(t, skip) {
-  return allCrabs().some(c => !c.hidden && c !== skip && (c.p.dirt || 0) >= SHUN_AT &&
-    Math.hypot(c.x + 8 - (t.x + 10), (c.y - (t.y + 12)) * 1.8) < SHUN_PX);
+  // squared ellipse compare: hypot(dx, 1.8*dy) < 26 with 1.8 = 9/5 exactly,
+  // so 25*dx^2 + 81*dy^2 < 25*26^2 - a pure gate, and the inexact 1.8 float
+  // literal leaves the sim with the approximated hypot
+  return allCrabs().some(c => {
+    if (c.hidden || c === skip || (c.p.dirt || 0) < SHUN_AT) return false;
+    const dx = c.x + 8 - (t.x + 10), dy = c.y - (t.y + 12);
+    return 25 * dx * dx + 81 * dy * dy < 25 * SHUN_PX * SHUN_PX;
+  });
 }
 function pickSeat(tables, cust) {
   // a DIRTY table is not a table: it seats nobody until a crab has cleared it
