@@ -7578,6 +7578,7 @@ function stepTo(c, tx, speed, dt, ty) {
   c.y = (c.y * Q8 + tdiv(dyq * stepq, dq)) / Q8;
   c._stepped = true;   // moved this frame (anchors are crabs that did not)
   c._mx = tx;          // actual motion target this frame (collision uses this, not c.tx)
+  c._my = ty;          // ...and its y (slice 5: the mover-target exemption reads both)
   return false;
 }
 // THE WIDE BERTH, in the collider. Deliberately ASYMMETRIC and SIDEWAYS, and
@@ -7651,8 +7652,21 @@ function collide(dt) {
         const pushq = Math.min(idiv((15360 - d5) * kq, 5 * 2 * 4096), 4 * Q8);
         // unit vector: ux = dx/d = 5*dxq/D5; uy = (1.8dy)/d/1.8 = 5*dyq/D5
         const px2x = tdiv(5 * dxq * pushq * 2, d5), px2y = tdiv(5 * dyq * pushq * 2, d5);
-        if (aStill && !bStill) { b.x = (b.x * Q8 + px2x) / Q8; b.y = clampY((b.y * Q8 + px2y) / Q8); }
-        else if (bStill && !aStill) { a.x = (a.x * Q8 - px2x) / Q8; a.y = clampY((a.y * Q8 - px2y) / Q8); }
+        // THE MOVER-TARGET EXEMPTION (slice 5, found by the freeze tripwire):
+        // a mover whose waypoint lies INSIDE a parked crab's touch ellipse
+        // used to be pushed out exactly as fast as it stepped in - a standoff
+        // that held a homeless crab 5px from her pier spot for 25 game-minutes
+        // (SANDY vs CLAWDIA's doorstep, seed 4242 day 4). The stations block
+        // below already grants "a crab headed for this exact spot may stand
+        // there"; this is the same grant for crab bodies: skip the push, let
+        // the arrival fire, and the waypoint advances next tick.
+        const atTarget = (m, still) => {
+          if (m._mx == null) return false;
+          const tA5 = 5 * Math.round((m._mx - still.x) * Q8), tB9 = 9 * Math.round(((m._my != null ? m._my : m.y) - still.y) * Q8);
+          return tA5 * tA5 + tB9 * tB9 < 15360 * 15360;
+        };
+        if (aStill && !bStill) { if (!atTarget(b, a)) { b.x = (b.x * Q8 + px2x) / Q8; b.y = clampY((b.y * Q8 + px2y) / Q8); } }
+        else if (bStill && !aStill) { if (!atTarget(a, b)) { a.x = (a.x * Q8 - px2x) / Q8; a.y = clampY((a.y * Q8 - px2y) / Q8); } }
         else if (Math.sign((a._mx != null ? a._mx : a.x) - a.x) !== Math.sign((b._mx != null ? b._mx : b.x) - b.x) && (dxq > 512 || dxq < -512)) {
           // head-on: step around each other, not into each other
           a.y = clampY(Math.max(FLOOR_MIN, (a.y * Q8 - pushq * 2) / Q8));
