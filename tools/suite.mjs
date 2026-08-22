@@ -11346,6 +11346,25 @@ scenario("queues: the seat map is rank-by-ticket - the Map grouping owes nothing
   return true;
 });
 
+scenario("menus carry no pay ties - the cheap pick never consults sort stability", () => {
+  // PRE-PORT PIN (kernel phase 4, blocker 1's other face). visPick's cheap()
+  // takes stable-sort-[0] of the affordable list by pay; the kernel takes the
+  // FIRST strict minimum. Those agree exactly when no two recipes on one
+  // menu share a pay - which is true of every menu in the game, so the
+  // stability question is vacuous HERE TOO. This makes the vacuousness fail
+  // loudly: a future menu that grows a tie must decide the order on purpose.
+  const sim = createSim({ seed: 1 });
+  const bad = sim.G(`(() => {
+    for (const b of Object.keys(BIZ)) {
+      const pays = BIZ[b].recipes.map(r => r.pay);
+      if (new Set(pays).size !== pays.length) return b + " menu carries a pay tie: " + pays.join(",");
+    }
+    return "";
+  })()`);
+  if (bad) return bad;
+  return true;
+});
+
 scenario("the sim stream's cursor is shared: JS and kernel draws are one sequence", () => {
   // KERNEL PHASE 2's stream-identity proof. With the kernel armed, the sim
   // stream's mulberry32 state lives in kernel memory and srand() steps it
