@@ -13372,15 +13372,15 @@ function drawPanel() {
   }
 }
 
-function drawFloaters(dt) {
+function drawFloaters() {
+  // a READER now: lifetimes moved to ageFloaters (sim side, the seam) - the
+  // draw paints what the sim says is alive and mutates nothing
   for (const f of floaters) {
-    f.t -= dt; f.y -= 14 * dt;
     const raw = f.x - camX;
     if (raw < -30 || raw > W + 30) continue;   // offscreen event: no ghost text at the edges
     const fx = Math.max(2, Math.min(raw, W - textWidth(f.text) - 2));
     textShadow(ctx, f.text, fx, f.y, f.color, [30, 20, 36]);
   }
-  floaters = floaters.filter(f => f.t > 0);
 }
 // MR. PINCHERTON'S TERMS, hoisted out of the draw so the suite can measure
 // them. The card is 200px wide and the 5x7 font is 6px a character, so a term
@@ -16077,37 +16077,20 @@ function drawHirePointer() {
 
 // ---------------------------------------------------------------- main loop
 let last = performance.now(), saveT = 0, msAcc = 0;
-function frame(now) {
-  refreshHatches();   // hatch flags snapshot: one global read set per frame
-  // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
-  // speed chips, and everything in the world runs on it. `raw` is WALL time,
-  // and the HIRE CARD runs on that instead: a card you are meant to read must
-  // not get six times shorter because the town is running at 6x. It buys the
-  // player nothing - the day underneath it is running at whatever speed they
-  // chose - it just means the card is legible at every one of them. (The toast
-  // deliberately stays on sim time: it is an event notice, and it belongs to
-  // the moment in the day that produced it.)
-  //
-  // Deliberately computed BESIDE the dt line rather than out of it, so the
-  // speed row's own arithmetic is left exactly as it was.
-  //
-  // AND `dt` NO LONGER ASKS ABOUT PAUSE. This branch was cut while a pause
-  // still existed; the operator removed it (see the ruling at FF_SPEED) and a
-  // union of the two sides here would have restored `paused ? 0 :` against a
-  // name that no longer exists - a ReferenceError on the first frame, and the
-  // whole game dark. Neither side was wrong; they were written a ruling apart.
-  // THE QUANTIZER. Wall milliseconds in, WHOLE TICKS out, with the remainder
-  // carried in an accumulator so a 60Hz browser (16.7ms - a third of a tick)
-  // still advances the world instead of freezing at floor(0.33) = 0. Headless
-  // steps exactly 50ms, so rawTicks is exactly 1 and msAcc never leaves 0 -
-  // the sim's arithmetic is integer whether or not the clock feeding it is.
-  const rawMs = Math.max(0, Math.min(100, now - last));
-  msAcc += rawMs;
-  const rawTicks = (msAcc - msAcc % 50) / 50;
-  msAcc -= rawTicks * 50;
-  dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
-  const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
-  last = now; T += dtT;
+// ---------------------------------------------------------------- THE SEAM
+// The sim/view split (perf-ladder rung 1). State flows ONE WAY, sim -> view:
+// simClock and simTown are the whole of the world's advance - everything the
+// headless fingerprint sees, announcement state included (toasts, floaters,
+// the report and departure cards - the suite drives and reads them, so they
+// are observable sim, not decoration). viewFrame and the intro/title screens
+// are READERS: they may look at anything and write nothing the sim reads.
+// A headless run never enters a view function BY CONSTRUCTION - the one gate
+// in frame() is the only crossing, and window._viewCalls counts crossings so
+// the suite can assert zero. The two "go and look at this" camera snaps
+// (hireCrew, the ferry ending) are one-way EMISSIONS into view state, and the
+// title screen's attract-mode wander is view-side sim theatre - browser-only
+// by construction, srand-inventoried for slice 5.
+function simClock(dt, rawMs) {
   if (hireCard) { hireCard.t -= rawMs / 1000; if (hireCard.t <= 0) hireCard = null; }   // WALL seconds, deliberately
   if (saveConfirmT > 0) { saveConfirmT -= dt; if (saveConfirmT <= 0) saveConfirm = null; }
   if (saleArmT > 0) { saleArmT -= dt; if (saleArmT <= 0) saleArm = null; }
@@ -16531,38 +16514,18 @@ function frame(now) {
   }
 
   if (screen === "play" && !gameOver) updateBankWarning();
+}
 
-  if (screen === "intro") {
-    camX = clampCam(BIZ.shack.x0 - 20);
-    drawBG(); drawTown();
-    for (const c of crabs) drawCrab(c);
-    drawIntro();
-    requestAnimationFrame(frame);
-    return;
-  }
-  if (screen === "title") {
-    // THE START SCREEN HAS ITS OWN TRACK, and it is the one named after it.
-    playRole("title");
-    if (newConfirmT > 0) newConfirmT -= dt;
-    // attract mode: slow ping-pong pan across the town
-    const span = WORLD_W - W, s = (viewT * 9) % (2 * span);
-    camX = s < span ? s : 2 * span - s;
-    updateBus(dt);
-    for (const c of crabs) {
-      c.animT += dt; maybeQuip(c, dt);
-      if (c._wt == null || Math.abs(c.x - c._wt) < 2)
-        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + srand() * 90 - 45));
-      else stepTo(c, c._wt, 11, dt, 158);
-    }
-    drawBG(); drawTown(); drawBus();
-    for (const c of crabs) drawCrab(c);
-    drawNight();
-    drawTitle();
-    drawSaveScreen();
-    drawHelp();   // HOW TO PLAY is readable before the first day, which is the point
-    requestAnimationFrame(frame);
-    return;
-  }
+// the announcement half of what drawFloaters used to do: lifetimes are SIM
+// (a float belongs to the moment in the day that produced it), rendering is
+// not. Headless towns now age their floats too, instead of hoarding every
+// pop-up since day one.
+function ageFloaters(dt) {
+  for (const f of floaters) { f.t -= dt; f.y -= 14 * dt; }
+  floaters = floaters.filter(f => f.t > 0);
+}
+
+function simTown(dt) {
   if (!gameOver) {
   updateBus(dt);
   if (tmin >= 7.5 * 60 && hireDay !== day) { hireDay = day; runJobBoard(); }
@@ -16594,11 +16557,6 @@ function frame(now) {
   if (dossier && !dossier.p && !customers.includes(dossier)) dossier = null;
   // a selected tourist who leaves town (or a crab who dies) drops the selection
   if (sel && (sel.p ? !allCrabs().includes(sel) : !customers.includes(sel))) sel = null;
-  const followed = followNpc || followCust || (followIdx >= 0 && crabs[followIdx]);
-  if (followed) {
-    const t = clampCam(followed.x - W / 2 + 8);
-    camX += (t - camX) * Math.min(1, dt * 5);
-  }
   const reading = boardView || manage || saveView || dossier || helpView;
   if (reportT > 0 && !ffSleep && !reading) reportT -= dt;   // waits out a sun-skip, and waits behind an open card
   // THE DAY'S SECOND PAGE. It comes up when the report goes down - by the click
@@ -16612,8 +16570,53 @@ function frame(now) {
   saveT += dt; if (saveT > 5) { saveT = 0; save(); }
   }
 
+  ageFloaters(dt);
   if (!gameOver && !_fNoColl) collide(dt);
-  if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: no rendering
+}
+
+function introFrame() {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+    camX = clampCam(BIZ.shack.x0 - 20);
+    drawBG(); drawTown();
+    for (const c of crabs) drawCrab(c);
+    drawIntro();
+}
+
+function titleFrame(dt) {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+    // THE START SCREEN HAS ITS OWN TRACK, and it is the one named after it.
+    playRole("title");
+    if (newConfirmT > 0) newConfirmT -= dt;
+    // attract mode: slow ping-pong pan across the town
+    const span = WORLD_W - W, s = (viewT * 9) % (2 * span);
+    camX = s < span ? s : 2 * span - s;
+    updateBus(dt);
+    for (const c of crabs) {
+      c.animT += dt; maybeQuip(c, dt);
+      if (c._wt == null || Math.abs(c.x - c._wt) < 2)
+        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + srand() * 90 - 45));
+      else stepTo(c, c._wt, 11, dt, 158);
+    }
+    drawBG(); drawTown(); drawBus();
+    for (const c of crabs) drawCrab(c);
+    drawNight();
+    drawTitle();
+    drawSaveScreen();
+    drawHelp();   // HOW TO PLAY is readable before the first day, which is the point
+}
+
+// the follow lerp, named so the suite can drive the view camera contract
+// from a frozen state snapshot - the seam "view is a reader" made testable
+function followCam(dt) {
+  const followed = followNpc || followCust || (followIdx >= 0 && crabs[followIdx]);
+  if (followed) {
+    const t = clampCam(followed.x - W / 2 + 8);
+    camX += (t - camX) * Math.min(1, dt * 5);
+  }
+}
+function viewFrame(dt) {
+  window._viewCalls = (window._viewCalls || 0) + 1;
+  followCam(dt);
   drawBG();
   drawTown();
   drawBus();
@@ -16843,6 +16846,45 @@ function frame(now) {
     ffChain++; frame(last + 100); return;
   }
   if (ffChain) { ffChain = 0; last = performance.now(); }   // resync: chained steps ran ahead of the real clock
+}
+
+function frame(now) {
+  refreshHatches();   // hatch flags snapshot: one global read set per frame
+  // TWO CLOCKS, and the second one is new. `dt` is SIM time, scaled by the
+  // speed chips, and everything in the world runs on it. `raw` is WALL time,
+  // and the HIRE CARD runs on that instead: a card you are meant to read must
+  // not get six times shorter because the town is running at 6x. It buys the
+  // player nothing - the day underneath it is running at whatever speed they
+  // chose - it just means the card is legible at every one of them. (The toast
+  // deliberately stays on sim time: it is an event notice, and it belongs to
+  // the moment in the day that produced it.)
+  //
+  // Deliberately computed BESIDE the dt line rather than out of it, so the
+  // speed row's own arithmetic is left exactly as it was.
+  //
+  // AND `dt` NO LONGER ASKS ABOUT PAUSE. This branch was cut while a pause
+  // still existed; the operator removed it (see the ruling at FF_SPEED) and a
+  // union of the two sides here would have restored `paused ? 0 :` against a
+  // name that no longer exists - a ReferenceError on the first frame, and the
+  // whole game dark. Neither side was wrong; they were written a ruling apart.
+  // THE QUANTIZER. Wall milliseconds in, WHOLE TICKS out, with the remainder
+  // carried in an accumulator so a 60Hz browser (16.7ms - a third of a tick)
+  // still advances the world instead of freezing at floor(0.33) = 0. Headless
+  // steps exactly 50ms, so rawTicks is exactly 1 and msAcc never leaves 0 -
+  // the sim's arithmetic is integer whether or not the clock feeding it is.
+  const rawMs = Math.max(0, Math.min(100, now - last));
+  msAcc += rawMs;
+  const rawTicks = (msAcc - msAcc % 50) / 50;
+  msAcc -= rawTicks * 50;
+  dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
+  const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
+  last = now; T += dtT;
+  simClock(dt, rawMs);
+  if (screen === "intro") { introFrame(); requestAnimationFrame(frame); return; }
+  if (screen === "title") { titleFrame(dt); requestAnimationFrame(frame); return; }
+  simTown(dt);
+  if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: the seam
+  viewFrame(dt);
   requestAnimationFrame(frame);
 }
 

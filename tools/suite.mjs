@@ -5514,7 +5514,10 @@ scenario("cycler: < crab > steps the selection AND the camera, and wraps", () =>
   // world that crab is NOT at, and the convergence is always a real one.
   sim.G(`camX = clampCam(sel.x > WORLD_W / 2 ? 0 : WORLD_W);`);
   const far0 = Math.round(sim.G(`Math.abs(camX - clampCam(sel.x - W / 2 + 8))`));
-  sim.runUntil(`false`, { maxSteps: 80 });   // ~4 sim-seconds of the real camera lerp
+  // post-seam the lerp is view-side (followCam) and headless frames never run
+  // it - so drive the reader directly, from a FROZEN state: the same real
+  // lerp, and the sim provably doesn't need to advance for the camera to come
+  sim.G(`for (let i = 0; i < 80; i++) followCam(0.05)`);
   const dx = Math.round(sim.G(`Math.abs(camX - clampCam(sel.x - W / 2 + 8))`));
   if (far0 < 200) return `the camera was already on that crab - the convergence arm proves nothing`;
   if (dx > 12) return `the camera never converged on the cycled crab (${far0}px -> ${dx}px)`;
