@@ -915,7 +915,7 @@ scenario("needs bite: needy crew serve measurably fewer dishes", () => {
     // housing pinned identically in both arms: crabs now relocate toward their
     // work, and a shorter commute lifts BOTH arms' output, compressing the
     // ratio this scenario measures. The channel under test is crabEff, not rent.
-    const pin = `for (const c of crabs) { c.p.hunger = ${needy ? 1 : 0}; c.p.dirt = ${needy ? 1 : 0};
+    const pin = `for (const c of crabs) { c.p.hunger = ${needy ? "Q20" : 0}; c.p.dirt = ${needy ? "Q20" : 0};
       c.p.bored = 0; c.p.tired = 0; c.p.sick = null; c.p.homeless = false; }
       crabs.forEach((c, i) => { c.p.house = i; }); rep = 90;
       townCatch = 40; spawnT = 0;`;
@@ -3783,7 +3783,7 @@ function idleTown(sim, crew = 3) {
   sim.G(`coins = 400000; tryBuy("table"); while (crabs.length < ${crew}) hireCrew(); coins = 400000;`);
 }
 function statusOf(sim) { return sim.G(`crabStatus(allCrabs().find(c => c.p.name === window._w))`); }
-const CHAT_RELIEF_MAX = 0.061;
+const CHAT_RELIEF_MAX = qn(0.061);
 
 scenario("idle hands: a bored crab leaves its post - and an order brings it back", () => {
   const sim = createSim({ seed: 21 });
