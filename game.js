@@ -16,6 +16,14 @@ ctx.imageSmoothingEnabled = false;
 const TICK_HZ = 20;               // sim ticks per real second
 const SEC = TICK_HZ;              // ...so a duration written in seconds reads as one
 const GMIN = 5;                   // ticks per GAME minute (4 game-minutes a second)
+// ---- NEEDS IN Q20 (numeric slice 3) --------------------------------------
+// A need is an int 0..Q20, never a float. Authored 0..1 fractions cross the
+// boundary through qn() at their READ site - const definitions and cold
+// checks - exactly as slice 1's author-dollar tables cross x100. What the
+// sim STORES and what it does arithmetic on are integers, all the way down.
+const Q20 = 1048576;                  // 2^20: a full bar
+const qn = (f) => Math.round(f * Q20);   // authored 0..1 -> Q20, at the boundary
+const TICKS_PER_GH = 60 * GMIN;       // 300 ticks a game hour
 const TICK_MIN = GMIN;            // the clock's name for the same five
 // THE FRAME'S TICK DELTA, and it is a global for the same reason `dt` was a
 // parameter: every updater in the sim needs it and none of them should be
@@ -98,16 +106,16 @@ const WATER_TAPS = [
 // that costs TIME, never money: it stops a death spiral, it never pays the
 // rent. A crab who lives at the tap is a crab who isn't working - which is a
 // cost the player feels without a single coin changing hands.
-const TAP_AT = 0.72;         // you'd BUY a drink at 0.45; you trudge to the standpipe only
+const TAP_AT = qn(0.72);         // you'd BUY a drink at 0.45; you trudge to the standpipe only
                              // when you're genuinely parched. The gap is the whole design:
                              // the juice bar gets first refusal, free water picks up what
                              // the counters could not - and it picks it up SLOWLY.
-const TAP_QUENCH = 0.5;     // a mouthful, not a drink: a juice zeroes thirst, water takes
+const TAP_QUENCH = qn(0.5);     // a mouthful, not a drink: a juice zeroes thirst, water takes
                              // the edge off, so the parched crab is back within the hour
 const TAP_SIP = 6 * SEC;   // a long draw at the spout - minutes of the working day, gone
 const TAP_APPEAL = 0.35;      // a poor third to anything a counter can hand you
 const TAP_CD = 20 * SEC;     // errand cooldown after a sip
-const TAP_RINSE = 0.35;      // a cold rinse under the spout: worse than a $5 shower
+const TAP_RINSE = qn(0.35);      // a cold rinse under the spout: worse than a $5 shower
 const TAP_RINSE_AT = 0.85;   // ...and only when filthy - the showers own 0.66 upward
 const TAP_RINSE_SICK = 0.66; // an ill crab hoses down at the CARED bar, shower or no shower
 // ---------------------------------------------------------- the shelter pot
@@ -133,9 +141,9 @@ const TAP_RINSE_SICK = 0.66; // an ill crab hoses down at the CARED bar, shower 
 // nothing in the pot (see stockPot / potWarm). A cold pot is the failure mode,
 // not an edge case.
 const SOUP_X = SHELTER_X + 10;   // the pot is on the shelter's own step
-const SOUP_AT = 0.80;        // you would BUY a plate at 0.50; you queue here only when starving
-const SOUP_SICK_AT = 0.62;   // ...unless you are ill, when the floor has to be reachable
-const SOUP_FILL = 0.45;      // a thin bowl. A real meal zeroes hunger; this takes the edge off
+const SOUP_AT = qn(0.8);        // you would BUY a plate at 0.50; you queue here only when starving
+const SOUP_SICK_AT = qn(0.62);   // ...unless you are ill, when the floor has to be reachable
+const SOUP_FILL = qn(0.45);      // a thin bowl. A real meal zeroes hunger; this takes the edge off
 const SOUP_MINS = 11 * SEC;  // longer than TAP_SIP: it is a queue, not a spout
 const SOUP_CD = 20 * SEC;    // and you cannot live in the line
 // the memorial plot: three markers to a row on the dune between the last
@@ -5506,7 +5514,7 @@ const WANDER_QUIPS = ["NOTHING DOING", "JUST STRETCHING MY LEGS",
   "WONDER IF THEY'RE BITING", "BACK IN A TICK"];
 
 // ---- IDLE HANDS, late stage: THE WALK-OUT ---------------------------------
-const WALKOUT_AT = 0.95;      // pinned this bored...
+const WALKOUT_AT = qn(0.95);      // pinned this bored...
 // ...at this many settlements running, and they've had enough. The design doc
 // wrote 2, but it wrote it assuming a FREE FUN venue would exist to bring the
 // bar down. It doesn't: in an arcade-less town boredom PINS at 1.00 by about
@@ -5564,9 +5572,9 @@ function awayToday(c) { return offToday(c) || walkoutToday(c); }
 // nearest sand to the tuned geometry: the bus stop ends at 1192, the shack
 // starts at 1220, and a game here is in front of nothing.
 const BALL_X = 1206;
-const BALL_AT = 0.66;         // you'd BUY fun at 0.45; you walk out here when properly bored
-const BALL_JOIN = 0.48;       // ...but a game already going is worth joining at much less
-const BALL_YIELD = 0.55;      // ...and any real need outranks it well before boredYields' 0.8
+const BALL_AT = qn(0.66);         // you'd BUY fun at 0.45; you walk out here when properly bored
+const BALL_JOIN = qn(0.48);       // ...but a game already going is worth joining at much less
+const BALL_YIELD = qn(0.55);      // ...and any real need outranks it well before boredYields' 0.8
 const BALL_LEAD = 90;         // game-minutes of clear air needed before a shift: the game is ~48
 const BALL_Y = 157;           // up the sand, clear of BOTH travel lanes (146/168, 9px of blocking each)
 const BALL_SECS = 12 * SEC;   // real seconds stood throwing - ~48 game-minutes
@@ -5930,7 +5938,7 @@ function newCrab(persona) {
 // crabEff and both needs already feed the nightly sickness roll; a crab that
 // is starving AND parched must not compound into one that can no longer walk
 // to the food and water that would fix it. The two multiply, floored at 0.70.
-const DRAG_HUNGER_AT = 0.3;   // = crabEff's own hunger line: past 0.3 hunger
+const DRAG_HUNGER_AT = qn(0.3);   // = crabEff's own hunger line: past 0.3 hunger
                               // already costs prep, and now it costs pace too.
                               // Swept against the baseline matrix: at 0.5 the
                               // do-nothing town got RICHER than it is meant to
@@ -6023,7 +6031,7 @@ function crabEff(c) {
 // a bubble of empty boardwalk that follows one crab around.
 // (The doc's D2, the smudge trail, is deliberately NOT built - the doc holds
 // it back until dirt is reliably serviceable and the owner did not pick it.)
-const BERTH_AT = 0.6;     // where the bubble starts to open (= crabEff's dirt line)
+const BERTH_AT = qn(0.6);     // where the bubble starts to open (= crabEff's dirt line)
 const BERTH_PX = 10;      // full bubble at dirt 1.00: 12px personal space -> 22px
 const SHUN_AT = 0.8;      // a tourist takes the FAR table - binary, and pitched
                           // high on purpose so seating does not churn on a 0.61
@@ -9715,7 +9723,11 @@ const VIS_THINK = 1.6 * SEC;     // real seconds between "what do I fancy" check
 // and the overflow was served over the pass for a token tip. Fewer, hungrier
 // visitors are worth more than more, thirstier ones, because SEATS are what
 // this town is short of.
-const VIS_RATE = { hunger: 0.115, thirst: 0.055, dirt: 0.090, bored: 0.045, tired: 0.048 };
+// Q20 PER TICK, round-half-up from the authored per-hour rates (0.115/hr =
+// 401.95 q20/tick -> 402). Rounding to NEAREST and not flooring is the whole
+// point: flooring all five runs the town's needs 1.19% slow, every one in the
+// same direction, which is a quietly easier game bought by arithmetic.
+const VIS_RATE = { hunger: 402, thirst: 192, dirt: 315, bored: 157, tired: 168 };   // per TICK, Q20
 const VIS_WANT = { food: 0.45, drink: 0.40, clean: 0.45, fun: 0.45 };
 // A VISITOR'S PRIORITIES ARE NOT A LOCAL'S. ERRAND_RANK puts washing third
 // because a crab washes when the day allows; a holidaymaker who has spent the
