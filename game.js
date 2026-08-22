@@ -23,6 +23,28 @@ const GMIN = 5;                   // ticks per GAME minute (4 game-minutes a sec
 // sim STORES and what it does arithmetic on are integers, all the way down.
 const Q20 = 1048576;                  // 2^20: a full bar
 const qn = (f) => Math.round(f * Q20);   // authored 0..1 -> Q20, at the boundary
+// ---- SPACE IN Q8 (numeric slice 4) ----------------------------------------
+// A position is a Q8 GRAIN: the integer numerator q is the stored truth, and
+// the resident px Number is its exact double image q/256 (every q < 2^21, so
+// the image is exact and unique - multiplying by 256 recovers q losslessly).
+// The whole px-unit read surface (geometry constants, lane tables, the view)
+// keeps its unit; the movement kernels do their arithmetic on the numerators
+// and every write lands back on the grain. Slice 6 flips residency to the
+// Int32Array numerators with zero semantic change.
+const Q8 = 256;                          // 2^8: one pixel, in the movement grain
+const q8g = (v) => Math.round(v * Q8) / Q8;   // authoring boundary: px -> the nearest grain
+// floor toward -inf, exact for any exact-int a (|a| < 2^53) and int b > 0:
+// JS % is exact fmod, so the subtraction and the final divide are exact
+const idiv = (a, b) => { const m = a % b; return (a - (m < 0 ? m + b : m)) / b; };
+// exact integer sqrt: Math.sqrt is correctly rounded per ECMA-262 (it is NOT
+// on the implementation-approximated list), and the fixup makes the floor
+// exact by construction regardless
+function isqrt(n) {
+  let s = Math.floor(Math.sqrt(n));
+  while (s * s > n) s--;
+  while ((s + 1) * (s + 1) <= n) s++;
+  return s;
+}
 const TICKS_PER_GH = 60 * GMIN;       // 300 ticks a game hour
 const TICK_MIN = GMIN;            // the clock's name for the same five
 // THE FRAME'S TICK DELTA, and it is a global for the same reason `dt` was a
@@ -5606,7 +5628,7 @@ function startBallStop(c) {
 }
 function updateBall(c, dt) {
   if (c.ballT <= 0) {                       // still walking out to it
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       c.ballT = BALL_SECS + ((srand() * 4 * SEC) | 0);
       c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 * SEC };
     }
@@ -5820,11 +5842,11 @@ function updateHome(c, dt) {
   if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
     if (c._offPause > 0) { c._offPause -= dtT; return; }
     if (c._offWt == null) {
-      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + srand() * 240 - 120));
-      c._offWy = clearSpotY(c._offWt, 150 + srand() * 16);   // amble on the sand, not through the picnic tables
+      c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + Math.floor(srand() * 240 * Q8) / Q8 - 120));   // same draw, on the grain
+      c._offWy = clearSpotY(c._offWt, 150 + Math.floor(srand() * 16 * Q8) / Q8);   // amble on the sand, not through the picnic tables
       setT(c, c._offWt, c._offWy);
     }
-    if (routedStep(c, crabMove(c) * 0.55, dt)) {
+    if (routedStep(c, idiv(crabMoveQ8(c) * 11, 20), dt)) {
       c._offWt = null; c._offPause = 2 * SEC + ((srand() * 5 * SEC) | 0);
     }
     return;
@@ -5871,7 +5893,7 @@ function updateHome(c, dt) {
     const t0 = c.p.tired || 0, off = (t0 * dtT - (t0 * dtT) % den) / den;
     c.p.tired = Math.max(0, t0 - off);
   }
-  routedWalk(c, s.x, s.y, crabMove(c) * 0.7, dt);
+  routedWalk(c, s.x, s.y, idiv(crabMoveQ8(c) * 7, 10), dt);
 }
 
 function newCrab(persona) {
@@ -5962,8 +5984,10 @@ const DRAG_THIRST_AT = qn(0.5);   // pitched so the ramp passes through 0.85 at
                               // same crab errand hours. Under the 25% gate,
                               // documented in the scenario, and this is the
                               // knob if it ever climbs past it.)
-const DRAG_MAX = 0.25;        // each need, at a pinned 1.00
-const DRAG_FLOOR = 0.70;      // the two TOGETHER can never go below this
+// DRAG_MAX is 0.25 per need at a pinned 1.00 - authored as the exact Q12
+// 1024/4096 inside _dragRampQ12, so there is no float twin to drift from it.
+// DRAG_FLOOR is 0.70 - the two together can never go below it - and lives as
+// DRAG_FLOOR_Q12 beside the ramp.
 // ...and the ONE exemption, which is THE SELF-HEALING RULE read straight: the
 // way out of a deficiency costs TIME, but it can never be closed off. A crab
 // is not slowed on the walk to the very thing that would fix it - the trudge
@@ -5981,13 +6005,23 @@ function selfCareNeed(c) {
   return null;
 }
 // The ramp lived as a per-call closure and profiled at 1% by itself; same
-// float ops in the same order, now allocated once.
-const _dragRamp = (v, at, off) => off ? 1 : 1 - DRAG_MAX * Math.min(1, Math.max(0, v - at) / (Q20 - at));
-function needDrag(c) {
-  if (_fNoDrag) return 1;   // paired-arm probe (see the anti-spiral suite gate)
+// shape in the same order, now in Q12 (4096 = x1.00) so the whole speed
+// chain folds in integers. DRAG_MAX 0.25 is exactly 1024/4096; each ramp
+// floors its own term (slice 4).
+const _dragRampQ12 = (v, at, off) => {
+  if (off) return 4096;
+  const over = Math.min(Q20 - at, Math.max(0, v - at));
+  return 4096 - idiv(over * 1024, Q20 - at);
+};
+// 0.70 lands between Q12 grains: 2867/4096 = 0.699951, the nearest (-0.007%,
+// the slice-3 two-column discipline - floor would be 2867 here too)
+const DRAG_FLOOR_Q12 = 2867;
+function needDragQ12(c) {
+  if (_fNoDrag) return 4096;   // paired-arm probe (see the anti-spiral suite gate)
   const fixing = _fNoCare ? null : selfCareNeed(c);
-  return Math.max(DRAG_FLOOR, _dragRamp(c.p.hunger || 0, DRAG_HUNGER_AT, fixing === "food")
-    * _dragRamp(c.p.thirst || 0, DRAG_THIRST_AT, fixing === "drink"));
+  return Math.max(DRAG_FLOOR_Q12, idiv(
+    _dragRampQ12(c.p.hunger || 0, DRAG_HUNGER_AT, fixing === "food")
+    * _dragRampQ12(c.p.thirst || 0, DRAG_THIRST_AT, fixing === "drink"), 4096));
 }
 // HEAT SHIMMER (the doc's T2, shipped as the cheap visual companion it was
 // pitched as): a parched crab does not walk uniformly slow, it LURCHES -
@@ -5995,7 +6029,11 @@ function needDrag(c) {
 // so it costs nothing mechanically: the ramp above is the whole penalty.
 // It never reaches zero either, so a panting crab still counts as a MOVER to
 // collide() and still clears the no-progress watchdog's 2px in 1.5s.
-const SHIMMER_AT = qn(0.6), SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;   // _AT is a need level; AMP/HZ are the wave
+const SHIMMER_AT = qn(0.6);   // the need level where the lurch begins
+// SHIMMER_AMP is 0.5 - authored as the exact shift num/2^16 in the factor
+// below; SHIMMER_HZ 4.0 became the BAM stride when slice 2 integerized the
+// phase. Neither survives as a float const a tuner could turn without
+// touching the arithmetic that owns it.
 // The phase is a BAM16 integer now (65,536 = one turn) walked off the master
 // tick, not a float second: 2048 a tick is 1/32 of a turn, so the orbit closes
 // in exactly 32 ticks and an odd-symmetric wave over it sums to exactly zero.
@@ -6005,17 +6043,112 @@ const SHIMMER_AT = qn(0.6), SHIMMER_AMP = 0.5, SHIMMER_HZ = 4.0;   // _AT is a n
 // deliberate curve change in this slice; the sine itself waits for slice 4.
 const SHIMMER_STRIDE = 2048;
 const BAM_RAD = Math.PI * 2 / 65536;
-function heatShimmer(c) {
-  if (_fNoShim) return 1;
-  const f = Math.min(1, Math.max(0, (c.p.thirst || 0) - SHIMMER_AT) / (Q20 - SHIMMER_AT));
-  if (f <= 0) return 1;
-  if (c.shimPh == null) c.shimPh = Math.round(c.animT * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
-  return 1 + SHIMMER_AMP * f * Math.sin(((T * SHIMMER_STRIDE + c.shimPh) & 0xFFFF) * BAM_RAD);
+// The sine itself (slice 4): a baked Q15 quarter wave - generated and
+// receipted by tools/gen-luts.mjs --sin / --test-sin - reconstructed to the
+// full 4096-entry cycle by mirror and sign, so sin(i + half turn) === -sin(i)
+// EXACTLY, by construction rather than by rounding luck. The last
+// implementation-approximated function leaves the sim with it.
+const SIN_QW_Q15 = [
+  0, 50, 101, 151, 201, 251, 302, 352, 402, 452, 503, 553, 603, 653, 704, 754,
+  804, 854, 905, 955, 1005, 1055, 1106, 1156, 1206, 1256, 1307, 1357, 1407, 1457, 1507, 1558,
+  1608, 1658, 1708, 1758, 1809, 1859, 1909, 1959, 2009, 2059, 2110, 2160, 2210, 2260, 2310, 2360,
+  2410, 2461, 2511, 2561, 2611, 2661, 2711, 2761, 2811, 2861, 2911, 2962, 3012, 3062, 3112, 3162,
+  3212, 3262, 3312, 3362, 3412, 3462, 3512, 3562, 3612, 3662, 3712, 3761, 3811, 3861, 3911, 3961,
+  4011, 4061, 4111, 4161, 4210, 4260, 4310, 4360, 4410, 4460, 4509, 4559, 4609, 4659, 4708, 4758,
+  4808, 4858, 4907, 4957, 5007, 5056, 5106, 5156, 5205, 5255, 5305, 5354, 5404, 5453, 5503, 5552,
+  5602, 5651, 5701, 5750, 5800, 5849, 5899, 5948, 5998, 6047, 6096, 6146, 6195, 6245, 6294, 6343,
+  6393, 6442, 6491, 6540, 6590, 6639, 6688, 6737, 6786, 6836, 6885, 6934, 6983, 7032, 7081, 7130,
+  7179, 7228, 7277, 7326, 7375, 7424, 7473, 7522, 7571, 7620, 7669, 7718, 7767, 7815, 7864, 7913,
+  7962, 8010, 8059, 8108, 8157, 8205, 8254, 8303, 8351, 8400, 8448, 8497, 8545, 8594, 8642, 8691,
+  8739, 8788, 8836, 8885, 8933, 8981, 9030, 9078, 9126, 9175, 9223, 9271, 9319, 9367, 9416, 9464,
+  9512, 9560, 9608, 9656, 9704, 9752, 9800, 9848, 9896, 9944, 9992, 10039, 10087, 10135, 10183, 10231,
+  10278, 10326, 10374, 10421, 10469, 10517, 10564, 10612, 10659, 10707, 10754, 10802, 10849, 10897, 10944, 10992,
+  11039, 11086, 11133, 11181, 11228, 11275, 11322, 11370, 11417, 11464, 11511, 11558, 11605, 11652, 11699, 11746,
+  11793, 11840, 11886, 11933, 11980, 12027, 12074, 12120, 12167, 12214, 12260, 12307, 12353, 12400, 12446, 12493,
+  12539, 12586, 12632, 12679, 12725, 12771, 12817, 12864, 12910, 12956, 13002, 13048, 13094, 13141, 13187, 13233,
+  13279, 13324, 13370, 13416, 13462, 13508, 13554, 13599, 13645, 13691, 13736, 13782, 13828, 13873, 13919, 13964,
+  14010, 14055, 14101, 14146, 14191, 14236, 14282, 14327, 14372, 14417, 14462, 14507, 14553, 14598, 14643, 14688,
+  14732, 14777, 14822, 14867, 14912, 14956, 15001, 15046, 15090, 15135, 15180, 15224, 15269, 15313, 15358, 15402,
+  15446, 15491, 15535, 15579, 15623, 15667, 15712, 15756, 15800, 15844, 15888, 15932, 15976, 16019, 16063, 16107,
+  16151, 16195, 16238, 16282, 16325, 16369, 16413, 16456, 16499, 16543, 16586, 16630, 16673, 16716, 16759, 16802,
+  16846, 16889, 16932, 16975, 17018, 17061, 17104, 17146, 17189, 17232, 17275, 17317, 17360, 17403, 17445, 17488,
+  17530, 17573, 17615, 17657, 17700, 17742, 17784, 17827, 17869, 17911, 17953, 17995, 18037, 18079, 18121, 18163,
+  18204, 18246, 18288, 18330, 18371, 18413, 18454, 18496, 18537, 18579, 18620, 18661, 18703, 18744, 18785, 18826,
+  18868, 18909, 18950, 18991, 19032, 19072, 19113, 19154, 19195, 19236, 19276, 19317, 19357, 19398, 19438, 19479,
+  19519, 19560, 19600, 19640, 19680, 19721, 19761, 19801, 19841, 19881, 19921, 19961, 20000, 20040, 20080, 20120,
+  20159, 20199, 20238, 20278, 20317, 20357, 20396, 20436, 20475, 20514, 20553, 20592, 20631, 20670, 20709, 20748,
+  20787, 20826, 20865, 20904, 20942, 20981, 21019, 21058, 21096, 21135, 21173, 21212, 21250, 21288, 21326, 21364,
+  21403, 21441, 21479, 21516, 21554, 21592, 21630, 21668, 21705, 21743, 21781, 21818, 21856, 21893, 21930, 21968,
+  22005, 22042, 22079, 22116, 22154, 22191, 22227, 22264, 22301, 22338, 22375, 22411, 22448, 22485, 22521, 22558,
+  22594, 22631, 22667, 22703, 22739, 22776, 22812, 22848, 22884, 22920, 22956, 22991, 23027, 23063, 23099, 23134,
+  23170, 23205, 23241, 23276, 23311, 23347, 23382, 23417, 23452, 23487, 23522, 23557, 23592, 23627, 23662, 23697,
+  23731, 23766, 23801, 23835, 23870, 23904, 23938, 23973, 24007, 24041, 24075, 24109, 24143, 24177, 24211, 24245,
+  24279, 24312, 24346, 24380, 24413, 24447, 24480, 24514, 24547, 24580, 24613, 24647, 24680, 24713, 24746, 24779,
+  24811, 24844, 24877, 24910, 24942, 24975, 25007, 25040, 25072, 25105, 25137, 25169, 25201, 25233, 25265, 25297,
+  25329, 25361, 25393, 25425, 25456, 25488, 25519, 25551, 25582, 25614, 25645, 25676, 25708, 25739, 25770, 25801,
+  25832, 25863, 25893, 25924, 25955, 25986, 26016, 26047, 26077, 26108, 26138, 26168, 26198, 26229, 26259, 26289,
+  26319, 26349, 26378, 26408, 26438, 26468, 26497, 26527, 26556, 26586, 26615, 26644, 26674, 26703, 26732, 26761,
+  26790, 26819, 26848, 26876, 26905, 26934, 26962, 26991, 27019, 27048, 27076, 27104, 27133, 27161, 27189, 27217,
+  27245, 27273, 27300, 27328, 27356, 27384, 27411, 27439, 27466, 27493, 27521, 27548, 27575, 27602, 27629, 27656,
+  27683, 27710, 27737, 27764, 27790, 27817, 27843, 27870, 27896, 27923, 27949, 27975, 28001, 28027, 28053, 28079,
+  28105, 28131, 28157, 28182, 28208, 28234, 28259, 28284, 28310, 28335, 28360, 28385, 28411, 28436, 28460, 28485,
+  28510, 28535, 28560, 28584, 28609, 28633, 28658, 28682, 28706, 28730, 28755, 28779, 28803, 28827, 28850, 28874,
+  28898, 28922, 28945, 28969, 28992, 29016, 29039, 29062, 29085, 29108, 29131, 29154, 29177, 29200, 29223, 29246,
+  29268, 29291, 29313, 29336, 29358, 29380, 29403, 29425, 29447, 29469, 29491, 29513, 29534, 29556, 29578, 29599,
+  29621, 29642, 29664, 29685, 29706, 29728, 29749, 29770, 29791, 29812, 29832, 29853, 29874, 29894, 29915, 29936,
+  29956, 29976, 29997, 30017, 30037, 30057, 30077, 30097, 30117, 30136, 30156, 30176, 30195, 30215, 30234, 30253,
+  30273, 30292, 30311, 30330, 30349, 30368, 30387, 30406, 30424, 30443, 30462, 30480, 30498, 30517, 30535, 30553,
+  30571, 30589, 30607, 30625, 30643, 30661, 30679, 30696, 30714, 30731, 30749, 30766, 30783, 30800, 30818, 30835,
+  30852, 30868, 30885, 30902, 30919, 30935, 30952, 30968, 30985, 31001, 31017, 31033, 31050, 31066, 31082, 31097,
+  31113, 31129, 31145, 31160, 31176, 31191, 31206, 31222, 31237, 31252, 31267, 31282, 31297, 31312, 31327, 31341,
+  31356, 31371, 31385, 31400, 31414, 31428, 31442, 31456, 31470, 31484, 31498, 31512, 31526, 31539, 31553, 31567,
+  31580, 31593, 31607, 31620, 31633, 31646, 31659, 31672, 31685, 31698, 31710, 31723, 31736, 31748, 31760, 31773,
+  31785, 31797, 31809, 31821, 31833, 31845, 31857, 31869, 31880, 31892, 31903, 31915, 31926, 31937, 31949, 31960,
+  31971, 31982, 31993, 32004, 32014, 32025, 32036, 32046, 32057, 32067, 32077, 32087, 32098, 32108, 32118, 32128,
+  32137, 32147, 32157, 32166, 32176, 32185, 32195, 32204, 32213, 32223, 32232, 32241, 32250, 32258, 32267, 32276,
+  32285, 32293, 32302, 32310, 32318, 32327, 32335, 32343, 32351, 32359, 32367, 32375, 32382, 32390, 32397, 32405,
+  32412, 32420, 32427, 32434, 32441, 32448, 32455, 32462, 32469, 32476, 32482, 32489, 32495, 32502, 32508, 32514,
+  32521, 32527, 32533, 32539, 32545, 32550, 32556, 32562, 32567, 32573, 32578, 32584, 32589, 32594, 32599, 32604,
+  32609, 32614, 32619, 32624, 32628, 32633, 32637, 32642, 32646, 32650, 32655, 32659, 32663, 32667, 32671, 32674,
+  32678, 32682, 32685, 32689, 32692, 32696, 32699, 32702, 32705, 32708, 32711, 32714, 32717, 32720, 32722, 32725,
+  32728, 32730, 32732, 32735, 32737, 32739, 32741, 32743, 32745, 32747, 32748, 32750, 32752, 32753, 32755, 32756,
+  32757, 32758, 32759, 32760, 32761, 32762, 32763, 32764, 32765, 32765, 32766, 32766, 32766, 32767, 32767, 32767,
+  32767,
+];
+function sinQ15(i) {
+  const q = i & 1023, quad = (i >> 10) & 3;
+  return quad === 0 ? SIN_QW_Q15[q] : quad === 1 ? SIN_QW_Q15[1024 - q]
+       : quad === 2 ? -SIN_QW_Q15[q] : -SIN_QW_Q15[1024 - q];
 }
-function crabMove(c) {
-  const t = TRAITS[c.p.trait];
-  return 40 * t.move * (1 - 0.2 * (Math.max(0, (c.p.bored || 0) - qn(0.5)) / Q20)) * (c.p.sick ? 0.5 : 1)
-    * needDrag(c) * heatShimmer(c);
+function heatShimmerQ12(c) {
+  if (_fNoShim) return 4096;
+  const th = c.p.thirst || 0;
+  if (th <= SHIMMER_AT) return 4096;
+  const f = Math.min(4096, idiv((th - SHIMMER_AT) * 4096, Q20 - SHIMMER_AT));
+  if (c.shimPh == null) c.shimPh = Math.round(c.animT * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
+  const s = sinQ15(((T * SHIMMER_STRIDE + c.shimPh) & 0xFFFF) >> 4);
+  // 0.5 * (f/4096) * (s/32768) in Q12 is f*s/65536 - and it TRUNCATES, not
+  // floors: trunc is odd where floor is not, so the 32-tick orbit's paired
+  // samples cancel exactly and the mean factor is 4096 ON THE NOSE. That is
+  // the "mean-preserving by construction" receipt, proved in gen-luts
+  // --test-sin over every phase class and a spread of f.
+  const num = f * s;
+  return 4096 + (num < 0 ? -1 : 1) * Math.floor(Math.abs(num) / 65536);
+}
+// A speed is an int Q8 px/s (slice 4). The chain folds base -> bored ->
+// sick -> drag -> shimmer in that documented order, flooring each fold -
+// the float version was one order-free product, so the fold order is now
+// behavior and this comment is its record.
+const MOVE_Q8 = {};
+for (const k of Object.keys(TRAITS)) MOVE_Q8[k] = Math.round(40 * TRAITS[k].move * Q8);
+function crabMoveQ8(c) {
+  let v = MOVE_Q8[c.p.trait];
+  const over = Math.max(0, (c.p.bored || 0) - qn(0.5));
+  v -= idiv(v * over, 5 * Q20);                    // 1 - 0.2*(over/Q20), 0.2 = 1/5
+  if (c.p.sick) v = idiv(v, 2);
+  v = idiv(v * needDragQ12(c), 4096);
+  v = idiv(v * heatShimmerQ12(c), 4096);
+  return v;
 }
 function crabWork(c) { return TRAITS[c.p.trait].work; }
 // needs -> output: a well-kept crab works at 1.0. Let hunger or dirt slide
@@ -6025,12 +6158,13 @@ function crabWork(c) { return TRAITS[c.p.trait].work; }
 // "needs bite" scenario in tools/suite.mjs before touching these numbers.
 // (Fishing casts deliberately NOT coupled: the whole town eats the catch,
 // and any measurable drag there re-tilts the calibrated economy.)
-function crabEff(c) {
+function crabEffQ12(c) {
   // the two ramps, in Q20. Each is a fraction of its own span (0.7 of the
   // hunger bar, 0.4 of the dirt bar) and each clamps at the top of it.
-  const hungry = Math.min(Q20, Math.max(0, (c.p.hunger || 0) - qn(0.3)) * Q20 / qn(0.7));
-  const grubby = Math.min(Q20, Math.max(0, (c.p.dirt || 0) - qn(0.6)) * Q20 / qn(0.4));
-  return 1 - 0.18 * (hungry / Q20) - 0.06 * (grubby / Q20);
+  // Output in Q12: 0.18 = 9/50 and 0.06 = 3/50 exactly, floored per term.
+  const hungry = Math.min(Q20, idiv(Math.max(0, (c.p.hunger || 0) - qn(0.3)) * Q20, qn(0.7)));
+  const grubby = Math.min(Q20, idiv(Math.max(0, (c.p.dirt || 0) - qn(0.6)) * Q20, qn(0.4)));
+  return 4096 - idiv(hungry * 9 * 4096, 50 * Q20) - idiv(grubby * 3 * 4096, 50 * Q20);
 }
 // ---- THE WIDE BERTH (design doc D1, Matt's pick): dirt is the town's one
 // SOCIAL need, so it fails socially. A filthy crab's personal space inflates -
@@ -6044,8 +6178,9 @@ const BERTH_PX = 10;      // full bubble at dirt 1.00: 12px personal space -> 22
 const SHUN_AT = qn(0.8);      // a tourist takes the FAR table - binary, and pitched
                           // high on purpose so seating does not churn on a 0.61
 const PATIENCE_FILTH = 0.3;   // up to +30% patience drain from a filthy server
-function crabBerth(c) {
-  return BERTH_PX * Math.min(1, Math.max(0, (c.p.dirt || 0) - BERTH_AT) / (Q20 - BERTH_AT));
+function crabBerthQ8(c) {   // -> int Q8 px: the bubble's extra radius
+  const over = Math.min(Q20 - BERTH_AT, Math.max(0, (c.p.dirt || 0) - BERTH_AT));
+  return idiv(BERTH_PX * Q8 * over, Q20 - BERTH_AT);
 }
 
 // ---------------------------------------------------------------- sound (from CS1)
@@ -6569,8 +6704,8 @@ function save() {
     // THE CENTS ERA (numeric slice 1). Every money field in this envelope is
     // integer cents; an envelope without this flag is float dollars and gets
     // the one-shot migration in load(). Staged counter, per the protocol:
-    // 2 will be ticks, 3 Q-needs, 4 Q-positions.
-    _num: 3,
+    // 2 is ticks, 3 Q-needs, 4 Q-positions (the grain).
+    _num: 4,
     // THE GRIDS (slice 1b): tipShare rides as int TWENTIETHS and price as the
     // int board INDEX. Both used to be float fractions whose ranges overlap
     // the new integers (a tipShare of 1 is 100% in the old units and 5% in the
@@ -6710,6 +6845,15 @@ function needsEnvelope(s) {
   }
   s._num = 3;
 }
+// NUMERIC SLICE 4 (the grain). Positions were always WRITTEN rounded, so for
+// every honest envelope this stage is a proof, not a change: rounding an int
+// to the Q8 grain is the identity. It exists so a hand-edited or dev-era
+// float slips onto the grain instead of poisoning the movement kernels.
+function gridEnvelope(s) {
+  const g = (v) => Math.round((+v || 0) * Q8) / Q8;
+  for (const v of s.visitors || []) { if (v.x != null) v.x = g(v.x); if (v.y != null) v.y = g(v.y); }
+  s._num = 4;
+}
 // a need off the wire: already Q20 in this era, clamped to the bar
 const needIn = (v) => Math.max(0, Math.min(Q20, Math.round(+v || 0)));
 
@@ -6790,6 +6934,7 @@ function load(slot) {
   // `_num` counter slice 1 built, so a float-era save walks both steps.
   if (!s._num || s._num < 2) ticksEnvelope(s);
   if (!s._num || s._num < 3) needsEnvelope(s);
+  if (!s._num || s._num < 4) gridEnvelope(s);
   coins = s.coins || 0; lifetime = s.lifetime || 0;
   day = s.day || 1;
   tday = Math.max(0, Math.min(DAY_TICKS - 1, Math.round((s.tmin != null ? s.tmin : 7 * 60) * TICK_MIN)));
@@ -7369,15 +7514,22 @@ const FLOOR_MIN = 126, FLOOR_MAX = 168;
 const CAB_UP = 6, CAB_DN = 4;
 function furnUp(t) { return t.cabana ? CAB_UP : 9; }
 function furnDn(t) { return t.cabana ? CAB_DN : 6; }
+// THE STEP, in Q8 integers (slice 4). `speed` is int Q8 px/s; the dt
+// parameter is kept for its callers but the tick count dtT is the actual
+// clock (dt = dtT/20 is an inexact float; dtT is the exact truth). The
+// normalization is the contract's isqrt + one floor per component, toward
+// -inf - and the arrival radius 2.2px lands on the grain as 563/256.
+const ARRIVE_Q = Math.round(2.2 * Q8);   // 563
 function stepTo(c, tx, speed, dt, ty) {
   if (ty == null) ty = c.ty != null ? c.ty : 160;
-  const dx = tx - c.x, dy = ty - c.y;
-  const d = Math.hypot(dx, dy);
-  if (d <= 2.2) { c.x = tx; c.y = ty; return true; }
-  if (Math.abs(dx) > 1) c.flip = dx < 0;
-  const step = Math.min(speed * dt, d);
-  c.x += dx / d * step;
-  c.y += dy / d * step;
+  const dxq = tx * Q8 - c.x * Q8, dyq = ty * Q8 - c.y * Q8;   // exact: grains
+  const dsq = dxq * dxq + dyq * dyq;
+  if (dsq <= ARRIVE_Q * ARRIVE_Q) { c.x = tx; c.y = ty; return true; }
+  if (dxq > Q8 || dxq < -Q8) c.flip = dxq < 0;
+  const dq = isqrt(dsq);
+  const stepq = Math.min(idiv(speed * dtT, TICK_HZ), dq);
+  c.x = (c.x * Q8 + idiv(dxq * stepq, dq)) / Q8;
+  c.y = (c.y * Q8 + idiv(dyq * stepq, dq)) / Q8;
   c._stepped = true;   // moved this frame (anchors are crabs that did not)
   c._mx = tx;          // actual motion target this frame (collision uses this, not c.tx)
   return false;
@@ -7400,23 +7552,26 @@ function stepTo(c, tx, speed, dt, ty) {
 // have two body-widths, and this is a boardwalk read, not a bedroom one.
 // A crab standing in its station slot is exempt too - shoving a chef off the
 // grill is not "the town parts for him", it is a bug.
-function giveBerth(a, b, d, dt) {
-  const ra = crabBerth(a), rb = crabBerth(b);
+// (slice 4) `d5` is the ellipse distance in the 5x grid: 5*d in Q8, exact
+// from the collider's isqrt. Radii are Q8 ints; pushes floor to the grain.
+function giveBerth(a, b, d5, dt) {
+  const ra = crabBerthQ8(a), rb = crabBerthQ8(b);
   const r = Math.max(ra, rb);
-  if (r <= 0 || d >= 12 + r || window._noBerth) return;   // _noBerth: the paired-arm wedge probe
+  if (r <= 0 || d5 >= 5 * (12 * Q8 + r) || window._noBerth) return;   // _noBerth: the paired-arm wedge probe
   const dirty = ra >= rb ? a : b, clean = ra >= rb ? b : a;
   if (darkness() > 0.6) return;
   if (dirty.dayState === "home" || clean.dayState === "home") return;
   if (clean.slotKind && clean.slot >= 0) return;
   let away = clean.y - dirty.y;
   if (Math.abs(away) < 1) away = (dirty.y - FLOOR_MIN < FLOOR_MAX - dirty.y) ? 1 : -1;
-  const push = Math.min((12 + r - d) * 0.5 * Math.min(1, dt * 12), 3);
-  clean.y = clampY(clean.y + Math.sign(away) * push);
+  const kq = Math.min(4096, idiv(12 * 4096 * dtT, TICK_HZ));   // min(1, dt*12) in Q12
+  const pushq = Math.min(idiv((5 * (12 * Q8 + r) - d5) * kq, 5 * 2 * 4096), 3 * Q8);
+  clean.y = clampY((clean.y * Q8 + Math.sign(away) * pushq) / Q8);
   // a crab who is STANDING there also steps BACK, which is what gives the
   // bubble its width. Only a still crab: it has no forward progress to lose,
   // so the no-progress watchdog can never read this as a pin (the same
   // still-vs-mover distinction the core collider already makes).
-  if (!clean._stepped) clean.x += Math.sign(clean.x - dirty.x || 1) * push;
+  if (!clean._stepped) clean.x = (clean.x * Q8 + Math.sign(clean.x - dirty.x || 1) * pushq) / Q8;
 }
 // soft-radius separation + station bodies: nobody stands inside anybody
 function collide(dt) {
@@ -7428,32 +7583,43 @@ function collide(dt) {
   for (let i = 0; i < bodies.length; i++)
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i], b = bodies[j];
-      const dx = b.x - a.x, dy = (b.y - a.y) * 1.8;   // wide sprites: ellipse
-      // far pair: hypot(dx,dy) >= max(|dx|,|dy|), and both consumers below
-      // want d < 12+BERTH_PX = 22, so a pair past 22 on either axis cannot
-      // touch anything - skip before paying for the sqrt. A pure skip: the
-      // survivors compute the identical hypot in the identical order.
-      if (dx > 22 || dx < -22 || dy > 22 || dy < -22) continue;
-      const d = Math.hypot(dx, dy);
-      if (d < 12 && d > 0.01) {
+      // (slice 4) the ellipse in integers: dy's x1.8 is exactly 9/5, so the
+      // pair lives in a 5x grid - A5 = 5*dx, B9 = 9*dy in Q8 - and the
+      // distance D5 = 5*d comes from one exact isqrt. Gates are squared
+      // compares; pushes floor to the grain, one floor per component.
+      const dxq = b.x * Q8 - a.x * Q8, dyq = b.y * Q8 - a.y * Q8;   // exact: grains
+      // far pair: past 22px on either ellipse axis nothing below can touch -
+      // skip before paying for the sqrt (22px is 5632 Q8; 1.8*|dy| > 22 is
+      // 9*|dyq| > 28160)
+      if (dxq > 5632 || dxq < -5632 || 9 * dyq > 140800 || 9 * dyq < -140800) continue;
+      const A5 = 5 * dxq, B9 = 9 * dyq;
+      const d5sq = A5 * A5 + B9 * B9;
+      // d > 0.01px is D5 > 12.8 i.e. d5sq >= 164; d < 12px is D5 < 15360
+      const touching = d5sq >= 164 && d5sq < 15360 * 15360;
+      const berthable = d5sq >= 164 && d5sq < 28160 * 28160;   // d < 12 + BERTH_PX
+      const d5 = (touching || berthable) ? isqrt(d5sq) : 0;
+      if (touching) {
         const still = (c) => !c._stepped;
         const aStill = still(a), bStill = still(b);
-        const push = Math.min((12 - d) / 2 * Math.min(1, dt * 12), 4);
-        const ux = dx / d, uy = dy / d / 1.8;
-        if (aStill && !bStill) { b.x += ux * push * 2; b.y = clampY(b.y + uy * push * 2); }
-        else if (bStill && !aStill) { a.x -= ux * push * 2; a.y = clampY(a.y - uy * push * 2); }
-        else if (Math.sign((a._mx != null ? a._mx : a.x) - a.x) !== Math.sign((b._mx != null ? b._mx : b.x) - b.x) && Math.abs(dx) > 2) {
+        const kq = Math.min(4096, idiv(12 * 4096 * dtT, TICK_HZ));   // min(1, dt*12) in Q12
+        const pushq = Math.min(idiv((15360 - d5) * kq, 5 * 2 * 4096), 4 * Q8);
+        // unit vector: ux = dx/d = 5*dxq/D5; uy = (1.8dy)/d/1.8 = 5*dyq/D5
+        const px2x = idiv(5 * dxq * pushq * 2, d5), px2y = idiv(5 * dyq * pushq * 2, d5);
+        if (aStill && !bStill) { b.x = (b.x * Q8 + px2x) / Q8; b.y = clampY((b.y * Q8 + px2y) / Q8); }
+        else if (bStill && !aStill) { a.x = (a.x * Q8 - px2x) / Q8; a.y = clampY((a.y * Q8 - px2y) / Q8); }
+        else if (Math.sign((a._mx != null ? a._mx : a.x) - a.x) !== Math.sign((b._mx != null ? b._mx : b.x) - b.x) && (dxq > 512 || dxq < -512)) {
           // head-on: step around each other, not into each other
-          a.y = clampY(Math.max(FLOOR_MIN, a.y - push * 2));
-          b.y = clampY(b.y + push * 2);
-          if (b.y >= FLOOR_MAX - 0.5) b.y = clampY(b.y - push * 4);   // no room below: b passes above instead
+          a.y = clampY(Math.max(FLOOR_MIN, (a.y * Q8 - pushq * 2) / Q8));
+          b.y = clampY((b.y * Q8 + pushq * 2) / Q8);
+          if (b.y >= FLOOR_MAX - 0.5) b.y = clampY((b.y * Q8 - pushq * 4) / Q8);   // no room below: b passes above instead
         }
         else {
-          a.x -= ux * push; a.y = clampY(a.y - uy * push);
-          b.x += ux * push; b.y = clampY(b.y + uy * push);
+          const p1x = idiv(5 * dxq * pushq, d5), p1y = idiv(5 * dyq * pushq, d5);
+          a.x = (a.x * Q8 - p1x) / Q8; a.y = clampY((a.y * Q8 - p1y) / Q8);
+          b.x = (b.x * Q8 + p1x) / Q8; b.y = clampY((b.y * Q8 + p1y) / Q8);
         }
       }
-      if (d > 0.01 && d < 12 + BERTH_PX) giveBerth(a, b, d, dt);
+      if (berthable) giveBerth(a, b, d5, dt);
     }
   // solid tables: nobody walks through the picnic area
   for (const bizKey of BIZ_KEYS) {
@@ -7464,9 +7630,11 @@ function collide(dt) {
         if (Math.abs((c.tx || 0) - (t.x + 2)) < 8 && Math.abs((c.ty || 0) - (t.y + 12)) < 8) continue;
         const dx = c.x + 8 - (t.x + 10), dy = c.y - t.y;
         if (Math.abs(dx) < 14 && dy > -furnUp(t) && dy < furnDn(t)) {
-          const push = Math.min(95 * dt, 5);
-          if (Math.abs(dx) > Math.abs(dy) * 1.6) c.x += (dx > 0 ? 1 : -1) * push;
-          else c.y = clampY(c.y + (dy > -2 ? 1 : -1) * push);
+          const pushq = Math.min(idiv(95 * Q8 * dtT, TICK_HZ), 5 * Q8);
+          // 1.6 = 8/5 exactly: |dx| > 1.6|dy| in the grain is 5|dxq| > 8|dyq|
+          const dxq = Math.round(dx * Q8), dyq = Math.round(dy * Q8);
+          if (5 * Math.abs(dxq) > 8 * Math.abs(dyq)) c.x = (c.x * Q8 + (dxq > 0 ? 1 : -1) * pushq) / Q8;
+          else c.y = clampY((c.y * Q8 + (dyq > -2 * Q8 ? 1 : -1) * pushq) / Q8);
           c._blocked = true;   // furniture is in the way: the bounce budget ticks
         }
       }
@@ -7486,9 +7654,10 @@ function collide(dt) {
           const dx = c.x + 8 - cx, dy = c.y - st.y;
           if (Math.abs(dx) < 13 && dy > -10 && dy < 6) {
             // deflect briskly (faster than walk speed, so nobody grinds on a counter)
-            const push = Math.min(95 * dt, 5);   // stable at fast-forward
-            if (Math.abs(dx) > Math.abs(dy) * 1.6) c.x += (dx > 0 ? 1 : -1) * push;
-            else c.y = clampY(c.y + (dy > -2 ? 1 : -1) * push);
+            const pushq = Math.min(idiv(95 * Q8 * dtT, TICK_HZ), 5 * Q8);   // stable at fast-forward
+            const dxq = Math.round(dx * Q8), dyq = Math.round(dy * Q8);
+            if (5 * Math.abs(dxq) > 8 * Math.abs(dyq)) c.x = (c.x * Q8 + (dxq > 0 ? 1 : -1) * pushq) / Q8;
+            else c.y = clampY((c.y * Q8 + (dyq > -2 * Q8 ? 1 : -1) * pushq) / Q8);
             c._blocked = true;
           }
         }
@@ -7527,7 +7696,7 @@ function updateCommute(c, dt) {
     return;
   }
   const m = c.p.mode, tr = TRAITS[c.p.trait];
-  const wspd = crabMove(c), vspd = MODES[m].speed * tr.move;
+  const wspd = crabMoveQ8(c), vspd = Math.round(MODES[m].speed * tr.move * Q8);
 
   if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3 * SEC;
   if (c.pauseT > 0) { c.pauseT -= dtT; return; }
@@ -7582,7 +7751,7 @@ function updateBus(dt) {
     return;
   }
   const prevCx = bus.x + BUS2.w / 2;
-  bus.x += bus.dir * 100 * dt;
+  bus.x = (bus.x * Q8 + bus.dir * idiv(100 * Q8 * dtT, TICK_HZ)) / Q8;
   const cx = bus.x + BUS2.w / 2;
   for (const s of BUS_STOPS) {
     const crossed = (prevCx - s) * (cx - s) <= 0;   // stop lies within this frame's travel
@@ -8211,6 +8380,11 @@ function pickErrand(c) {
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
   let best = null, bestScore = 0;   // the chaining pick: best urgency per unit of detour
+  // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
+  // slice 4): strict > means the FIRST candidate at a score keeps it, and the
+  // take() sequence above is fixed, so an exact tie - far likelier now that
+  // detours sit on the Q8 grain and levels on Q20 - resolves the same way on
+  // every engine, every run. Do not "fix" this to >= without a new tie rule.
   for (const e of cand) {
     const s = errandScore(c, e);
     if (s > bestScore) { bestScore = s; best = e; }
@@ -8225,7 +8399,7 @@ function startSelfCook(c, e) {
 function updateSelfCook(c, dt) {
   const sb = c.cookBiz || "shack", wk = sb === "juicebar" ? "juicer" : "grill";
   if (c.cookStep === 0) {                      // to the source bin: ring yourself up first
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       const r = c.cookRecipe;
       const pay = staffMealCharge(sb, r);   // the shop's meal policy sets the price (retail/at-cost/free)
       c.p.wallet = Math.max(0, c.p.wallet - pay);
@@ -8250,7 +8424,7 @@ function updateSelfCook(c, dt) {
       }
     }
   } else if (c.cookStep === 2) {               // to the grill (or the juicer)
-    if (routedStep(c, crabMove(c), dt)) { c.workT = (c.cookNeed === "drink" ? 1.5 : 3) * SEC; c.cookStep = 3; }
+    if (routedStep(c, crabMoveQ8(c), dt)) { c.workT = (c.cookNeed === "drink" ? 1.5 : 3) * SEC; c.cookStep = 3; }
   } else if (c.cookStep === 3) {               // cook + eat (or blend + drink)
     c.workT -= dtT;
     if (c.workT <= 0) {
@@ -8299,7 +8473,7 @@ function updateTap(c, dt) {
   const e = c.tapStop;
   if (!e) { c.dayState = "home"; return; }
   if (c.tapT <= 0) {                      // still walking over
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       // ARRIVING AFTER THE POLLS SHUT is a real way to lose your vote, and it
       // is the whole point of there being a closing time. The rule is the one
       // a real returning officer uses: standing at the table when it shuts
@@ -8430,7 +8604,7 @@ function updateErrand(c, dt) {
     // every frame), so this is a comparison per crab and nothing re-plans.
     const tail = queueSlotX(c.errandBiz, queueLen(c.errandBiz));
     if (c.tx !== tail) setT(c, tail, 166);
-    if (routedStep(c, crabMove(c), dt)) {
+    if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
       const q = customers.filter(k => k.biz === c.errandBiz && (k.state === "waiting" || k.state === "arriving")).length;
       if (q >= QUEUE_MAX) {
@@ -8459,7 +8633,7 @@ function updateErrand(c, dt) {
     if ((k.state === "dining" || k.state === "seatedWaiting" || k.state === "toSeat") && k.table) { c.x = k.table.x + 2; c.y = k.table.y + 1; }
     else if (k.state === "showering" && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
     else if ((k.state === "toStall" || k.state === "outStall") && k.climb)
-      { c.hidden = false; c.x = k.x; c.y = 166 - 26 * k.climb; }   // stepping up/down
+      { c.hidden = false; c.x = k.x; c.y = (166 * Q8 - idiv(26 * Q8 * k.climb, 4096)) / Q8; }   // stepping up/down, on the grain
     else { c.hidden = false; c.x = k.x; c.y = 166; }
   }
 }
@@ -8801,7 +8975,7 @@ function updateDirected(c, dt) {
     if (o.idleT <= 0) { c.order = null; c.dayState = "home"; c.errandCd = Math.max(c.errandCd, 1 * SEC); }
     return;
   }
-  if (routedStep(c, crabMove(c), dt)) o.idleT = ORDER_IDLE;
+  if (routedStep(c, crabMoveQ8(c), dt)) o.idleT = ORDER_IDLE;
 }
 // pickErrand's recipe/pricing/staffing gates, sans the need thresholds - a
 // directed crab runs the errand NOW if the till, wallet and line allow it
@@ -8920,7 +9094,7 @@ function updateStuck(c, dt) {
   }
   if (c.detour) {   // sidestep in progress: steer for the waypoint, then resume
     c.detour.t -= dtT;
-    const done = stepTo(c, c.detour.x, crabMove(c) * 1.2, dt, c.detour.y);
+    const done = stepTo(c, c.detour.x, idiv(crabMoveQ8(c) * 6, 5), dt, c.detour.y);
     if (done || c.detour.t <= 0) c.detour = null;
     c.stuckT = 0; c.stuckRef = null;
     return;
@@ -9060,7 +9234,7 @@ function pickSeat(tables, cust) {
 // same ramp the bubble opens on (up to +30% at a pinned 1.00).
 function serverFilth(k) {
   const s = k.server;
-  return s && s.p && !k.isCrab ? 1 + PATIENCE_FILTH * (crabBerth(s) / BERTH_PX) : 1;
+  return s && s.p && !k.isCrab ? 1 + PATIENCE_FILTH * (crabBerthQ8(s) / (BERTH_PX * Q8)) : 1;
 }
 // ------------------------------------------------- busing (the fancier tier)
 // A vacated table is DIRTY and seats nobody until a staff crab clears it -
@@ -9117,8 +9291,12 @@ function updateKitchen(c, dt) {
   // hustle: kitchens move quick - but a run-down crab loses the spring in
   // their step: a gentle slope, plus a kicker once seriously neglected
   // (eff < 0.85), totalling ~-18% at rock bottom
-  const eff = crabEff(c);
-  const spd = crabMove(c) * 1.55 * (1 - 0.3 * (1 - eff) - 1.2 * Math.max(0, 0.85 - eff));
+  const effQ = crabEffQ12(c);
+  // 1.55 = 31/20; the slope 0.3(1-eff) = 3(4096-effQ)/10; the kicker
+  // 1.2*max(0, 0.85-eff) = 6*max(0, 17*4096 - 20*effQ)/100 - all exact
+  // rationals, floored per fold
+  const pQ = 4096 - idiv(3 * (4096 - effQ), 10) - idiv(6 * Math.max(0, 69632 - 20 * effQ), 100);
+  const spd = idiv(idiv(crabMoveQ8(c) * 31, 20) * pQ, 4096);
   if (c.kstate === "idle") {
     const lastCall = c.pendingOff && tmin < effShift(c).end + 45;
     if (!c.pendingOff || lastCall) {
@@ -9257,7 +9435,7 @@ function updateKitchen(c, dt) {
       }
     }
   } else if (c.kstate === "toStallClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (2.5 * SEC / (crabWork(c) * crabEff(c))) | 0; c.kstate = "cleaningStall"; }
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (2.5 * SEC * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.kstate = "cleaningStall"; }
   } else if (c.kstate === "cleaningStall") {
     c.workT -= dtT;
     if (c.workT <= 0) {
@@ -9268,7 +9446,7 @@ function updateKitchen(c, dt) {
       popText("SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
   } else if (c.kstate === "toTableClean") {
-    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS / (crabWork(c) * crabEff(c))) | 0; c.kstate = "busingTable"; }
+    if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.kstate = "busingTable"; }
   } else if (c.kstate === "busingTable") {
     c.workT -= dtT;
     if (c.workT <= 0) {
@@ -9309,7 +9487,7 @@ function updateKitchen(c, dt) {
   } else if (c.kstate === "toSlot") {
     if (routedStep(c, spd, dt)) {
       const [, secs] = c.cust.recipe.steps[c.stepIdx];
-      const mult = masteryMult(c, c.cust.recipe.id) / (crabWork(c) * crabEff(c));
+      const mult = masteryMult(c, c.cust.recipe.id) * 4096 / (crabWork(c) * crabEffQ12(c));
       c.workMax = c.workT = (secs * SEC * mult) | 0;
       c.kstate = "work";
     }
@@ -10361,10 +10539,11 @@ function visGo(k, e) {
 }
 // ---- MOVEMENT + THE DAY ----------------------------------------------------
 function visStep(k, tx, ty, dt) {
-  const sp = VIS_SPEED * dt;
-  const dx = tx - k.x, dy = (ty == null ? k.wy : ty) - k.wy;
-  if (Math.abs(dx) > 1) { k.x += Math.sign(dx) * Math.min(sp, Math.abs(dx)); k.face = Math.sign(dx); }
-  if (Math.abs(dy) > 1) k.wy += Math.sign(dy) * Math.min(sp, Math.abs(dy));
+  // (slice 4) the stroll in Q8: per-frame step floors 42 px/s to the grain
+  const spq = idiv(VIS_SPEED * Q8 * dtT, TICK_HZ);
+  const dxq = tx * Q8 - k.x * Q8, dyq = (ty == null ? k.wy : ty) * Q8 - k.wy * Q8;
+  if (dxq > Q8 || dxq < -Q8) { k.x = (k.x * Q8 + Math.sign(dxq) * Math.min(spq, Math.abs(dxq))) / Q8; k.face = Math.sign(dxq); }
+  if (dyq > Q8 || dyq < -Q8) k.wy = (k.wy * Q8 + Math.sign(dyq) * Math.min(spq, Math.abs(dyq))) / Q8;
   return Math.abs(tx - k.x) <= 1 && Math.abs((ty == null ? k.wy : ty) - k.wy) <= 1;
 }
 // needs, the clock, and the wallet's own ticking - runs for EVERY visitor,
@@ -10569,9 +10748,10 @@ function updateCustomers(dt) {
       // never overshoot its slot - which is the whole anti-jitter argument: with
       // no overshoot there is nothing to correct on the next frame, and a place
       // that only ever moves TOWARD the counter can never flip direction either.
-      const dxq = slot - k.x;
-      if (Math.abs(dxq) <= QUEUE_STEP * dt) { k.x = slot; k.qWalk = false; k.face = -1; }
-      else { k.x += Math.sign(dxq) * QUEUE_STEP * dt; k.qWalk = true; k.face = Math.sign(dxq); }
+      const dq8 = slot * Q8 - k.x * Q8;   // exact: grains
+      const stepq = idiv(QUEUE_STEP * Q8 * dtT, TICK_HZ);   // 45px/s = exactly 576 Q8/tick
+      if (Math.abs(dq8) <= stepq) { k.x = slot; k.qWalk = false; k.face = -1; }
+      else { k.x = (k.x * Q8 + Math.sign(dq8) * stepq) / Q8; k.qWalk = true; k.face = Math.sign(dq8); }
       if (k.state === "arriving") {
         if (k.x === slot) {
           k.state = "waiting";
@@ -10588,13 +10768,13 @@ function updateCustomers(dt) {
     } else if (k.state === "toStall") {
       const st = k.stall;
       const dxs = st.x + 3 - k.x;
-      if (Math.abs(dxs) > 2) k.x += Math.sign(dxs) * Math.min(45 * dt, Math.abs(dxs));
+      if (Math.abs(dxs) > 2) k.x = (k.x * Q8 + Math.sign(dxs) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs) * Q8))) / Q8;
       else {
-        k.climb = Math.min(1, (k.climb || 0) + dt * 1.8);   // step up into the stall
-        if (k.climb >= 1) { k.state = "showering"; k.showerT = (k.recipe.showerT || 5) * SEC; }
+        k.climb = Math.min(4096, (k.climb || 0) + idiv(4096 * 9 * dtT, 5 * TICK_HZ));   // step up into the stall (Q12, 1.8/s = 9/5)
+        if (k.climb >= 4096) { k.state = "showering"; k.showerT = (k.recipe.showerT || 5) * SEC; }
       }
     } else if (k.state === "outStall") {   // hop back down to the floor, towel-fresh
-      k.climb = Math.max(0, (k.climb || 0) - dt * 2.2);
+      k.climb = Math.max(0, (k.climb || 0) - idiv(4096 * 11 * dtT, 5 * TICK_HZ));   // 2.2/s = 11/5, Q12
       if (k.climb <= 0) k.state = "leaving";
     } else if (k.state === "showering") {
       k.showerT -= dtT;
@@ -10625,7 +10805,7 @@ function updateCustomers(dt) {
     } else if (k.state === "toSeat") {
       const t = k.table;
       const dxs2 = t.x + 10 - k.x;
-      if (Math.abs(dxs2) > 2) k.x += Math.sign(dxs2) * Math.min(45 * dt, Math.abs(dxs2));
+      if (Math.abs(dxs2) > 2) k.x = (k.x * Q8 + Math.sign(dxs2) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxs2) * Q8))) / Q8;
       else k.state = "seatedWaiting";
     } else if (k.state === "seatedWaiting") {
       k.patience -= dt * 0.35 * serverFilth(k);   // seated guests relax
@@ -10639,7 +10819,7 @@ function updateCustomers(dt) {
     } else if (k.state === "toTable") {
       const t = k.table;
       const dxt = t.x + 10 - k.x;
-      if (Math.abs(dxt) > 2) k.x += Math.sign(dxt) * Math.min(45 * dt, Math.abs(dxt));
+      if (Math.abs(dxt) > 2) k.x = (k.x * Q8 + Math.sign(dxt) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxt) * Q8))) / Q8;
       else { k.state = "dining"; k.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0); k.table.dishes = 1; if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1; }
     } else if (k.state === "dining") {
       k.dineT -= dtT;
@@ -10670,7 +10850,7 @@ function updateCustomers(dt) {
         k.state = "leaving";
       }
     } else if (k.state === "leaving") {
-      k.x += (k.happy ? 50 : 75) * dt;
+      k.x = (k.x * Q8 + idiv((k.happy ? 50 : 75) * Q8 * dtT, TICK_HZ)) / Q8;
       if (k.isCrab) { finishErrand(k); continue; }
       // A VISITOR IS NOT LEAVING TOWN, they are leaving a COUNTER. A few paces
       // clear of the line and the visit picks up where it left off.
@@ -11612,7 +11792,7 @@ cv.addEventListener("click", (ev) => {
   // tourists are people too: click to follow them around their visit
   for (const k of customers) {
     if (k.isCrab || k.state === "showering" || k.state === "inRoom") continue;
-    const ky = custY(k) - 4 - 26 * (k.climb || 0);
+    const ky = custY(k) - 4 - 26 * ((k.climb || 0) / 4096);   // climb is Q12
     if (Math.abs(wx - (k.x + 8)) < 12 && Math.abs(p.y - ky) < 14) {
       sel = k; followCust = k; followIdx = -1; followNpc = null;
       return;
@@ -12601,7 +12781,7 @@ function drawCrab(c) {
   if ((c.p.dirt || 0) >= qn(0.66)) wblit(DIRT, c.x, y, c.flip);
   // THE WIDE BERTH's badge: the bubble of empty boardwalk needs a visible
   // cause, so a crab whose personal space has inflated wears stink lines.
-  if (crabBerth(c) > 0 && darkness() <= 0.6 && c.dayState !== "home")
+  if (crabBerthQ8(c) > 0 && darkness() <= 0.6 && c.dayState !== "home")
     wblit(STINK_MARK[((viewT * 3.1) | 0) % 2], c.x + 12, y - 7);
   if (sleeping) {   // a little Z drifts up from the shell
     const ph = (viewT * 0.45 + c.animT * 0.37) % 1;
@@ -12661,7 +12841,7 @@ function drawCustomer(k) {
       const flip = k.visitor ? (k.face == null ? true : k.face < 0) : k.state !== "leaving";
       const base = custY(k);
       const bodyW = cul ? cul.body.w : 16, bodyH = cul ? cul.body.h : 12;
-      const cy = base - bodyH - 26 * (k.climb || 0);
+      const cy = base - bodyH - 26 * ((k.climb || 0) / 4096);   // climb is Q12
       wblit(art, k.x, cy, flip);
       const acc = (cul ? cul.acc : ACCESSORIES)[k.acc];
       if (acc && !sleeping) {   // a side-sleeper's hat comes off (spec 5.5 rev 3)
@@ -12917,7 +13097,7 @@ function drawFollowCard() {
     rect(ctx, 58, 35, 28, 8, [96, 170, 220]);
     smallText(ctx, "JOB>", 60, 36, [255, 255, 255]);
   }
-  const eff = crabEff(c) * (p.sick ? 0.5 : 1);   // illness halves everything - show it
+  const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);   // illness halves everything - show it
   if (eff < 0.995)
     smallText(ctx, "PACE " + Math.round(eff * 100) + "%", 74, 36, eff < 0.8 ? [190, 80, 80] : [200, 110, 40]);
   const bars = [["FED", 1 - (p.hunger || 0), 6], ["SIP", 1 - (p.thirst || 0), 30],
@@ -13982,7 +14162,7 @@ function drawDossier() {
     if (granted) smallText(ctx, "RESTED " + ((p.restT || 0) / (60 * GMIN)).toFixed(1) + "H/" + (REST_HOURS / (60 * GMIN))
       + "H - " + CARE_LANES[careLane(c)].label, x + 56, ly, [110, 100, 110]), ly += 9;
   }
-  const eff = crabEff(c) * (p.sick ? 0.5 : 1);
+  const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);
   if (eff < 0.995) {
     const why = [];
     if (p.sick) why.push("SICK");
@@ -13993,7 +14173,7 @@ function drawDossier() {
   }
   // THE TRUDGE, named the way PACE names the prep drag: hunger and thirst fail
   // as a speed penalty, so the card says how slow and says why.
-  const walk = needDrag(c);
+  const walk = needDragQ12(c) / 4096;
   if (walk < 0.995) {
     const wwhy = [];
     if ((p.hunger || 0) > DRAG_HUNGER_AT) wwhy.push("HUNGRY");
@@ -14851,7 +15031,7 @@ function drawCensus(R) {
       r.x + 12, ry + 8, otM ? [200, 110, 40] : [110, 100, 110]);
     smallText(ctx, WEEKDAYS[dayOffIdx(c)], r.x + 50, ry + 8, [70, 140, 200]);
     if (otM) smallText(ctx, "OT", r.x + 66, ry + 8, [255, 150, 40]);
-    const eff = crabEff(c) * (p.sick ? 0.5 : 1);
+    const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);
     smallText(ctx, Math.round(eff * 100) + "%", r.x + 78, ry + 8, eff < 0.8 ? [190, 80, 80] : eff < 0.995 ? [200, 110, 40] : [110, 100, 110]);
     const bars = [1 - (p.hunger || 0) / Q20, 1 - (p.thirst || 0) / Q20, 1 - (p.dirt || 0) / Q20,
       1 - (p.bored || 0) / Q20, 1 - (p.tired || 0) / Q20];
@@ -16530,7 +16710,7 @@ function simClock(dt, rawMs) {
 // not. Headless towns now age their floats too, instead of hoarding every
 // pop-up since day one.
 function ageFloaters(dt) {
-  for (const f of floaters) { f.t -= dt; f.y -= 14 * dt; }
+  for (const f of floaters) { f.t -= dt; f.y = (f.y * Q8 - idiv(14 * Q8 * dtT, TICK_HZ)) / Q8; }   // rise on the grain
   floaters = floaters.filter(f => f.t > 0);
 }
 
@@ -16603,8 +16783,8 @@ function titleFrame(dt) {
     for (const c of crabs) {
       c.animT += dt; maybeQuip(c, dt);
       if (c._wt == null || Math.abs(c.x - c._wt) < 2)
-        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + srand() * 90 - 45));
-      else stepTo(c, c._wt, 11, dt, 158);
+        c._wt = Math.max(20, Math.min(WORLD_W - 30, c.x + Math.floor(srand() * 90 * Q8) / Q8 - 45));   // same draw, on the grain
+      else stepTo(c, c._wt, 11 * Q8, dt, 158);
     }
     drawBG(); drawTown(); drawBus();
     for (const c of crabs) drawCrab(c);
@@ -16731,7 +16911,7 @@ function viewFrame(dt) {
   // itself, so without these two the ring blinks on bare wall.
   if (sel && !sel.hidden && sel.state !== "showering" && sel.state !== "inRoom") paint.push({ base: sel.y - 0.1, f: () => {
     // a soft ring under whoever you've picked: it stays put while you pan
-    const bx = sel.x + 8 - camX, by = (sel.p ? sel.y : custY(sel) - 4 - 26 * (sel.climb || 0)) + 2;
+    const bx = sel.x + 8 - camX, by = (sel.p ? sel.y : custY(sel) - 4 - 26 * ((sel.climb || 0) / 4096)) + 2;
     const blink = 0.55 + 0.45 * Math.sin(viewT * 4);
     const col = [Math.round(120 + 135 * blink), Math.round(200 + 30 * blink), 120];
     for (let i = -6; i <= 6; i++) {

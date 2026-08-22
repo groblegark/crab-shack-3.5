@@ -903,9 +903,10 @@ scenario("needs bite: needy crew serve measurably fewer dishes", () => {
   // paying dishes served over the same 5 days (rep pinned so demand is equal,
   // sickness cleared so only the efficiency channel differs).
   const sim0 = createSim({ seed: 1 });
+  // crabEff speaks Q12 since slice 4; the scenario keeps its 0..1 bands
   const effs = JSON.parse(sim0.G(`JSON.stringify([
-    crabEff({p:{hunger:0,dirt:0}}), crabEff({p:{hunger:Q20,dirt:0}}),
-    crabEff({p:{hunger:0,dirt:Q20}}), crabEff({p:{hunger:Q20,dirt:Q20}})])`));
+    crabEffQ12({p:{hunger:0,dirt:0}}) / 4096, crabEffQ12({p:{hunger:Q20,dirt:0}}) / 4096,
+    crabEffQ12({p:{hunger:0,dirt:Q20}}) / 4096, crabEffQ12({p:{hunger:Q20,dirt:Q20}}) / 4096])`));
   if (effs[0] !== 1) return `well-kept eff ${effs[0]}, expected 1.0`;
   if (!near(effs[1], 0.78, 0.86)) return `starving eff ${effs[1]}, expected ~0.82`;
   if (!near(effs[2], 0.90, 0.97)) return `filthy eff ${effs[2]}, expected ~0.94`;
@@ -1004,7 +1005,10 @@ scenario("boat: flush fisher climbs the ladder; catch rate rises", () => {
     // thirst joined the pin list with the fish market: market income makes the
     // drink trip affordable, and this scenario measures catch rates, not breaks
     G('OWNERS.sudsy.till = 0;' +
-      'for (const c of npcs) if (c.p.fisher) { c.p.hunger = qn(0.2); c.p.thirst = qn(0.2); c.p.dirt = qn(0.2); c.p.tired = qn(0.2); c.p.bored = qn(0.2); c.p.sick = null; }');
+      // ...and their PROFESSION: the board can poach a flush fisher onto a
+      // day job (it did, on slice 4's re-rolled hiring stream), and this
+      // scenario measures cast rates, which need a fisher fishing
+      'for (const c of npcs) if (c.p.fisher) { c.p.hunger = qn(0.2); c.p.thirst = qn(0.2); c.p.dirt = qn(0.2); c.p.tired = qn(0.2); c.p.bored = qn(0.2); c.p.sick = null; if (c.p.job !== "fishing") { c.p.job = "fishing"; rosterGen++; } }');
   };
   // days 1-2: SALTY's pier rate
   sim.runUntil("day >= 3 && tmin > 10", { maxSteps: 900000, onTick: steady, tickEvery: 40 });
@@ -8537,7 +8541,15 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   if (sim.G("shelterBeds()") !== roll) return "the bought beds did not stand";
   sim.runUntil("tmin < 1 * 60", { maxSteps: 400000 });
   sim.G(`{ for (const c of cotRoster()) { c.p.rough = false; c.x = SHELTER_X + 20; c.y = 155; setT(c, c.x, c.y); } }`);
-  sim.runUntil("tmin >= 23.5 * 60", { maxSteps: 400000 });
+  // the counter-arm pins the EXHAUSTION channel shut for the day between the
+  // grant and the count: the ROUGH shortcut (a spent crab keeling over on a
+  // long walk home) is real, but it is not want-of-a-bed, and this arm exists
+  // to measure want-of-a-bed alone. Slice 4's re-rolled day-3 made one crab
+  // work late and keel over honestly; pinned, the only rough left is bedless.
+  // MUTATION-TESTED below: with the beds revoked the same pinned night fails.
+  sim.runUntil("tmin >= 23.5 * 60", { maxSteps: 400000,
+    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); }'),
+    tickEvery: 40 });
   const out2 = JSON.parse(sim.G(`JSON.stringify(cotRoster().map(c => [c.p.name, !!c.p.rough]))`));
   const rough2 = out2.filter(r => r[1]).map(r => r[0]);
   if (rough2.length) return "a bed each and " + rough2.join(",") + " still slept outside";
@@ -10948,6 +10960,35 @@ scenario("cultureways: a minted pig round-trips and a minted crab stays byte-sha
 // rung-1 close-out): a viewFrame call smuggled past the headless gate, an
 // aging line put back into drawFloaters, and an srand() dropped into drawBG
 // each fail their scenario naming the mechanism.
+
+scenario("space: every position rides the Q8 grain, all day", () => {
+  // THE REPRESENTATION'S TRIPWIRE (slice 4). A position is a Q8 grain - the
+  // px Number is exactly q/256 - and this holds by INDUCTION over writers:
+  // one non-grain writer anywhere breaks it within a tick of running. So the
+  // scenario is the writer sweep the diff cannot promise: run a real day
+  // with visitors, work, errands and collisions, and sweep every actor's
+  // coordinates on a cadence. MUTATION-TESTED: a planted 0.1px nudge in
+  // simTown fails within one sweep, naming the crab.
+  const sim = createSim({ seed: 1337 });
+  let bad = null;
+  const sweep = (G) => {
+    if (bad) return;
+    bad = G(`(() => {
+      const g = (v) => (v * 256) % 1 !== 0;
+      for (const c of allCrabs()) {
+        if (g(c.x) || g(c.y)) return c.p.name + " off the grain at " + c.x + "," + c.y;
+        if (c.tx != null && g(c.tx) || c.ty != null && g(c.ty)) return c.p.name + " TARGET off the grain at " + c.tx + "," + c.ty;
+      }
+      for (const k of customers) if (g(k.x) || (k.wy != null && g(k.wy))) return "visitor " + (k.name || "?") + " off the grain at " + k.x + "," + k.wy;
+      if (g(bus.x)) return "the bus off the grain at " + bus.x;
+      for (const f of floaters) if (g(f.y)) return "a floater off the grain at " + f.y;
+      return null;
+    })()`) || null;
+  };
+  sim.runDays(2, { onTick: sweep, tickEvery: 25 });
+  sweep(sim.G);
+  return bad ? bad : true;
+});
 
 scenario("seam: a headless day never enters the view", () => {
   const sim = createSim({ seed: 1337 });
