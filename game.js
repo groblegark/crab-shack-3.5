@@ -6007,7 +6007,13 @@ const PXQ  = KERN ? new Int32Array(_kb, _k0,        POOL_MAX) : new Int32Array(P
       PMYQ = KERN ? new Int32Array(_kb, _k0 + 3840, POOL_MAX) : new Int32Array(POOL_MAX);
 const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
       KB_FLAGS = KERN ? new Int32Array(_kb, _k0 + 5120, POOL_MAX) : null,
-      KB_BERTH = KERN ? new Int32Array(_kb, _k0 + 5760, POOL_MAX) : null;
+      KB_BERTH = KERN ? new Int32Array(_kb, _k0 + 5760, POOL_MAX) : null,
+      KF_X     = KERN ? new Int32Array(_kb, _k0 + 6400, POOL_MAX) : null,
+      KF_Y     = KERN ? new Int32Array(_kb, _k0 + 7040, POOL_MAX) : null,
+      KF_CAB   = KERN ? new Int32Array(_kb, _k0 + 7680, POOL_MAX) : null,
+      KS_X     = KERN ? new Int32Array(_kb, _k0 + 8320, POOL_MAX) : null,
+      KS_Y     = KERN ? new Int32Array(_kb, _k0 + 8960, POOL_MAX) : null,
+      KB_BLK   = KERN ? new Int32Array(_kb, _k0 + 9600, POOL_MAX) : null;
 const MNULL = -0x80000000;   // the _mx/_my "no motion target this frame" sentinel
 const POOL_LIVE = new Uint8Array(POOL_MAX), POOL_MARK = new Uint8Array(POOL_MAX);
 let poolTop = 0; const poolFree = [];
@@ -7776,8 +7782,23 @@ function collide(dt) {
     }
     KERN.exports.collide_pairs(bodies.length, dtT,
       darkness() > 0.6 ? 1 : 0, window._noBerth ? 1 : 0);
+    // ...and the solids: marshal the furniture and station rects (O(F), 60x
+    // cheaper than the O(F*B) deflection loops they feed) and let the kernel
+    // run both loops in the same order the JS below does.
+    let nf = 0, ns = 0;
+    for (const bizKey of BIZ_KEYS) {
+      if (!bizUnlocked(bizKey)) continue;
+      for (const t of bizFurniture(bizKey)) { KF_X[nf] = t.x; KF_Y[nf] = t.y; KF_CAB[nf] = t.cabana ? 1 : 0; nf++; }
+      const sts = BIZ[bizKey].stations;
+      for (const kind of Object.keys(sts))
+        for (let si2 = 0; si2 < sts[kind].length; si2++) { KS_X[ns] = sts[kind][si2].x; KS_Y[ns] = sts[kind][si2].y; ns++; }
+    }
+    for (let bi = 0; bi < bodies.length; bi++) KB_BLK[bi] = 0;
+    KERN.exports.collide_solids(bodies.length, nf, ns, dtT);
+    for (let bi = 0; bi < bodies.length; bi++) if (KB_BLK[bi]) bodies[bi]._blocked = true;
+    return;
   }
-  else for (let i = 0; i < bodies.length; i++)
+  for (let i = 0; i < bodies.length; i++)
     for (let j = i + 1; j < bodies.length; j++) {
       const a = bodies[i], b = bodies[j];
       // (slice 4) the ellipse in integers: dy's x1.8 is exactly 9/5, so the

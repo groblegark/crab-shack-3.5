@@ -50,6 +50,14 @@ static int32_t *const PMYQ = (int32_t *)20224;
 static int32_t *const B_SI    = (int32_t *)20864;
 static int32_t *const B_FLAGS = (int32_t *)21504;
 static int32_t *const B_BERTH = (int32_t *)22144;
+/* the furniture and station rects (marshalled per frame - O(F), 60x cheaper
+   than the O(F*B) loops they feed) and the blocked-flag output plane */
+static int32_t *const F_X   = (int32_t *)22784;   /* furniture t.x, px ints */
+static int32_t *const F_Y   = (int32_t *)23424;
+static int32_t *const F_CAB = (int32_t *)24064;   /* 1 = cabana (up 6/dn 4; else 9/6) */
+static int32_t *const S_X   = (int32_t *)24704;   /* station st.x, px ints */
+static int32_t *const S_Y   = (int32_t *)25344;
+static int32_t *const B_BLK = (int32_t *)25984;   /* out: _blocked this frame */
 
 double __builtin_sqrt(double);
 
@@ -178,4 +186,51 @@ void collide_pairs(int32_t n, int32_t dtT, int32_t dark, int32_t noBerth) {
       }
       if (berthable) give_berth(i, j, d5, dtT, dark, noBerth);
     }
+}
+
+/* the solid-furniture and solid-station deflections (game.js, the two loops
+   after the pair loop in collide). Every coordinate is a pool grain or an
+   int, so the float dance transcribes exactly:
+     dx = c.x + 8 - (t.x + 10)  ->  dxq = PXQ + 8*Q8 - (fx+10)*Q8, exact.
+   The exemption windows read the crab's TARGET (PTXQ/PTYQ - "a crab headed
+   for this exact spot may stand there"); `(c.tx || 0)` is the plain plane
+   read, 0 being the plane's own default. */
+__attribute__((export_name("collide_solids")))
+void collide_solids(int32_t n, int32_t nf, int32_t ns, int32_t dtT) {
+  int64_t pushq = min64((int64_t)95 * Q8 * dtT / TICK_HZ, 5 * Q8);
+  for (int32_t f = 0; f < nf; f++) {
+    int32_t fx = F_X[f], fy = F_Y[f];
+    int32_t up = F_CAB[f] ? 6 : 9, dn = F_CAB[f] ? 4 : 6;
+    for (int32_t b = 0; b < n; b++) {
+      int32_t si = B_SI[b];
+      int64_t etx = (int64_t)PTXQ[si] - (fx + 2) * Q8; if (etx < 0) etx = -etx;
+      int64_t ety = (int64_t)PTYQ[si] - (fy + 12) * Q8; if (ety < 0) ety = -ety;
+      if (etx < 8 * Q8 && ety < 8 * Q8) continue;
+      int64_t dxq = (int64_t)PXQ[si] + 8 * Q8 - (fx + 10) * Q8;
+      int64_t dyq = (int64_t)PYQ[si] - (int64_t)fy * Q8;
+      int64_t adx = dxq < 0 ? -dxq : dxq, ady = dyq < 0 ? -dyq : dyq;
+      if (adx < 14 * Q8 && dyq > -(int64_t)up * Q8 && dyq < (int64_t)dn * Q8) {
+        if (5 * adx > 8 * ady) PXQ[si] += (dxq > 0 ? 1 : -1) * (int32_t)pushq;
+        else PYQ[si] = clampYQ((int64_t)PYQ[si] + (dyq > -2 * Q8 ? 1 : -1) * pushq);
+        B_BLK[b] = 1;
+      }
+    }
+  }
+  for (int32_t s = 0; s < ns; s++) {
+    int32_t sx = S_X[s], sy = S_Y[s];
+    for (int32_t b = 0; b < n; b++) {
+      int32_t si = B_SI[b];
+      int64_t etx = (int64_t)PTXQ[si] - (sx + 2) * Q8; if (etx < 0) etx = -etx;
+      int64_t ety = (int64_t)PTYQ[si] - (sy + 7) * Q8; if (ety < 0) ety = -ety;
+      if (etx < 6 * Q8 && ety < 6 * Q8) continue;
+      int64_t dxq = (int64_t)PXQ[si] + 8 * Q8 - (sx + 10) * Q8;
+      int64_t dyq = (int64_t)PYQ[si] - (int64_t)sy * Q8;
+      int64_t adx = dxq < 0 ? -dxq : dxq, ady = dyq < 0 ? -dyq : dyq;
+      if (adx < 13 * Q8 && dyq > -10 * (int64_t)Q8 && dyq < 6 * Q8) {
+        if (5 * adx > 8 * ady) PXQ[si] += (dxq > 0 ? 1 : -1) * (int32_t)pushq;
+        else PYQ[si] = clampYQ((int64_t)PYQ[si] + (dyq > -2 * Q8 ? 1 : -1) * pushq);
+        B_BLK[b] = 1;
+      }
+    }
+  }
 }
