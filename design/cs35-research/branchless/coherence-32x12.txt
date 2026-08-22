@@ -1,0 +1,65 @@
+seed 1000: day 13 frames 84299 trans/crabTick 0.00122
+seed 1017: day 13 frames 84299 trans/crabTick 0.00115
+seed 1034: day 13 frames 84299 trans/crabTick 0.00117
+seed 1051: day 11! frames 75899 trans/crabTick 0.00114
+seed 1068: day 12! frames 83099 trans/crabTick 0.00101
+seed 1085: day 13 frames 84299 trans/crabTick 0.00117
+seed 1102: day 10! frames 68699 trans/crabTick 0.00101
+seed 1119: day 12! frames 83099 trans/crabTick 0.00116
+seed 1136: day 12! frames 83099 trans/crabTick 0.00122
+seed 1153: day 12! frames 83099 trans/crabTick 0.00108
+seed 1170: day 13 frames 84299 trans/crabTick 0.00113
+seed 1187: day 12! frames 83099 trans/crabTick 0.00117
+seed 1204: day 13 frames 84299 trans/crabTick 0.00125
+seed 1221: day 13 frames 84299 trans/crabTick 0.00120
+seed 1238: day 12! frames 83099 trans/crabTick 0.00110
+seed 1255: day 12! frames 83099 trans/crabTick 0.00103
+seed 1272: day 13 frames 84299 trans/crabTick 0.00112
+seed 1289: day 13 frames 84299 trans/crabTick 0.00114
+seed 1306: day 12! frames 83099 trans/crabTick 0.00114
+seed 1323: day 13 frames 84299 trans/crabTick 0.00123
+seed 1340: day 13 frames 84299 trans/crabTick 0.00117
+seed 1357: day 13 frames 84299 trans/crabTick 0.00114
+seed 1374: day 12! frames 83099 trans/crabTick 0.00110
+seed 1391: day 13 frames 84299 trans/crabTick 0.00115
+seed 1408: day 12! frames 83099 trans/crabTick 0.00113
+seed 1425: day 9! frames 61499 trans/crabTick 0.00086
+seed 1442: day 13 frames 84299 trans/crabTick 0.00113
+seed 1459: day 11! frames 75899 trans/crabTick 0.00096
+seed 1476: day 13 frames 84299 trans/crabTick 0.00120
+seed 1493: day 9! frames 61499 trans/crabTick 0.00100
+seed 1510: day 13 frames 84299 trans/crabTick 0.00106
+seed 1527: day 9! frames 61499 trans/crabTick 0.00086
+
+== BRANCHLESS COHERENCE REPORT  (32 seeds x 12 days, 2584768 town-frames, 5169536 crab-ticks)
+
+-- CPU: dispatch stability (the branch predictor's view)
+state transitions per crab-tick: 0.00112  (dispatch branch holds 894 ticks between changes)
+crab-tick share by state:
+   home         45.9%  (transitions into: 1395)
+   working      30.0%  (transitions into: 690)
+   toHome       8.1%  (transitions into: 1397)
+   selfCook     4.1%  (transitions into: 538)
+   toWork       3.1%  (transitions into: 614)
+   atBall       3.0%  (transitions into: 246)
+   atTap        1.7%  (transitions into: 193)
+   errand       1.5%  (transitions into: 186)
+   chat         1.5%  (transitions into: 327)
+   toErrand     1.0%  (transitions into: 197)
+
+-- within-town: state-sorted bucket structure
+distinct states live per tick: mean 1.66, hist {"1":878877,"2":1705891}
+mean customers per tick 9.84, mean actors 17.04
+
+-- GPU: cross-seed warp coherence (one town per lane, 32-wide)
+modal-state share per crab slot, overall mean: 90.2%
+   night(0-7h)      mean 91.9%  min 46.9%
+   morning(7-10h)   mean 85.8%  min 62.5%
+   midday(10-15h)   mean 86.6%  min 48.4%
+   evening(15-21h)  mean 90.0%  min 45.3%
+   late(21-24h)     mean 97.9%  min 84.4%
+
+-- rare events per town-day
+illness 0.224, polls 0.086, closures 0.094, walkouts 0.356
+towns ended early: 16/32
+EXIT:0

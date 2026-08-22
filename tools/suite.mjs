@@ -6282,7 +6282,7 @@ scenario("hotel: a guest asleep in their room holds ONE state, and the card hold
     frame = (t) => { card = []; body = 0; const r = oFrame(t);
       out.push(JSON.stringify({ state: g.state, card, body: body > 0 })); return r; };
     requestAnimationFrame(frame);
-    for (let i = 0; i < 40; i++) { simNow += 16; rafCb(simNow); }
+    for (let i = 0; i < 40; i++) { window.simNow += 16; window.rafCb(window.simNow); }
     frame = oFrame; drawCustomer = oCust; drawFollowCard = oCard; text = oT; smallText = oS; wblit = oW;
     requestAnimationFrame(frame);
     return JSON.stringify(out);
@@ -6303,7 +6303,7 @@ scenario("hotel: a guest asleep in their room holds ONE state, and the card hold
   const a = JSON.parse(sim.G(`(() => { const g = BIZ.hotel.stalls.find(r => r.occupant
     && r.occupant.state === "inRoom").occupant; window._BED = g;
     return JSON.stringify([g.tired, g.hunger, g.thirst, g.dirt, g.bored]); })()`));
-  sim.G(`for (let i = 0; i < 600; i++) { simNow += 16; rafCb(simNow); }`);
+  sim.G(`for (let i = 0; i < 600; i++) { window.simNow += 16; window.rafCb(window.simNow); }`);
   const b = JSON.parse(sim.G(`(() => { const g = window._BED;
     return JSON.stringify([g.state, g.tired, g.hunger, g.thirst, g.dirt, g.bored]); })()`));
   if (b[0] !== "inRoom") return "the guest left the room mid-probe (" + b[0] + ")";
@@ -10679,7 +10679,7 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
     camX = 860;   // put the sleeper and the stall in frame; the roamers pan in below
     let err = null;
     try {
-      for (let i = 0; i < 30; i++) { simNow += 16; camX = 860 + i * 20; rafCb(simNow); }
+      for (let i = 0; i < 30; i++) { window.simNow += 16; camX = 860 + i * 20; window.rafCb(window.simNow); }
     } catch (e) { err = String(e); }
     window._headless = true;
     wblit = oW; wrect = oR;

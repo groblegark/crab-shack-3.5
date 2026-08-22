@@ -1,0 +1,4 @@
+vm   p1  {"simDays":12,"realm":"vm","rounds":3,"cpuSec":6.69,"wallSec":4.71,"daysPerSec":2.55,"daysPerCpuSec":1.79,"spread":1.02,"stable":true,"fingerprint":"1337:11783:7 4242:15781:7"}
+main p1  {"simDays":12,"realm":"main","rounds":3,"cpuSec":1.81,"wallSec":1.11,"daysPerSec":10.83,"daysPerCpuSec":6.63,"spread":1.14,"stable":true,"fingerprint":"1337:11783:7 4242:15781:7"}
+vm   p2  {"simDays":12,"realm":"vm","rounds":3,"cpuSec":6.89,"wallSec":4.84,"daysPerSec":2.48,"daysPerCpuSec":1.74,"spread":1.01,"stable":true,"fingerprint":"1337:11783:7 4242:15781:7"}
+main p2  {"simDays":12,"realm":"main","rounds":3,"cpuSec":1.77,"wallSec":1.08,"daysPerSec":11.06,"daysPerCpuSec":6.77,"spread":1.15,"stable":true,"fingerprint":"1337:11783:7 4242:15781:7"}
