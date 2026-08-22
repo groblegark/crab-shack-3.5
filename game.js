@@ -4157,8 +4157,15 @@ function refreshDaysOff() {
   // because a missing key reads as "Monday" rather than as an error. The
   // key used to be a rebuilt name|job fingerprint string; rosterGen marks
   // the same invalidation moments for the cost of an integer compare.
-  if (_offStamp === T && _offGen === rosterGen) return;
-  _offStamp = T; _offGen = rosterGen; _offMap = {}; _needCover = {};
+  // KEYED ON THE INVALIDATION MOMENTS, NOT THE CLOCK. This used to read
+  // `_offStamp === T`, and T advances every tick - so the memo was a
+  // per-tick memo, and the full roster gather + sort + key build ran 7,200
+  // times a sim-day for a map that only changes when the DAY turns (wd) or
+  // the ROSTER does (rosterGen - which the shift stepper now bumps, because
+  // _needCover reads p.shift). Measured at ~12% of the whole sim bill,
+  // kernel-armed, before the fix; the derivation itself is unchanged.
+  if (_offStamp === day && _offGen === rosterGen) return;
+  _offStamp = day; _offGen = rosterGen; _offMap = {}; _needCover = {};
   const byBiz = {};
   for (const k of allCrabs()) (byBiz[k.p.job] = byBiz[k.p.job] || []).push(k);
   const wd = weekdayIdx(day);
@@ -11748,6 +11755,7 @@ cv.addEventListener("click", (ev) => {
         if (hit(cell.shift)) {   // M -> E -> D -> M: the roster's one real assignment
           const order = ["M", "E", "D"];
           c.p.shift = order[(order.indexOf(c.p.shift) + 1) % order.length];
+          rosterGen++;   // _needCover reads p.shift; the day-off memo keys on rosterGen
           sfx.buy(); save(); return;
         }
         if (hit(cell.ot)) {
