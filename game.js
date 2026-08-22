@@ -7317,6 +7317,76 @@ function centsEnvelope(s) {
     if (v.st && typeof v.st === "object") { v.st.tp = m(v.st.tp); v.st.tp2 = m(v.st.tp2); v.st.du = m(v.st.du); }
   }
 }
+// ---------------------------------------------------------------- the reset
+// EVERY PIECE OF STATE THAT OUTLIVES A TOWN GOES HERE, and registering new
+// module state in this function is the contract: if you add a `let` at module
+// scope that a town writes and the envelope does not carry, it belongs on this
+// list or it will follow the player into the next town.
+//
+// Why this exists. `load()` restores everything the SAVE holds, which is
+// exactly right for the one case the game ever performed - boot, then load,
+// once. The science bench loads repeatedly into a world that has already been
+// lived, and there the gap showed: the envelope has no line for the agent
+// pool's free list, for a plane bit saying a hotel room is taken, or for the
+// earnings history a rival prices her ambition from, so all three walked into
+// the next town. Measured before this landed (tools/loadaudit.mjs): a town
+// loaded onto seven lived days diverged from the same town loaded clean -
+// coins 17,485 vs 10,902, rep 95,800 vs 68,069, a different roll of guests
+// ashore. Not a live player bug, because normal play loads once; a real
+// correctness hole for every caller that does not.
+//
+// The bench used to sweep this itself, immediately before calling load(). It
+// does not any more, and it must not go back to: a workaround kept on top of a
+// fix is how the next person learns the wrong lesson.
+function resetSession() {
+  // THE AGENT POOL. Slot bookkeeping only - poolAlloc initializes every plane
+  // it hands out, so the free list and the live bits ARE the invariant. The
+  // mark array goes too: a reap that runs before the next mark would otherwise
+  // read the last town's marks.
+  poolTop = 0; poolFree.length = 0; POOL_LIVE.fill(0); POOL_MARK.fill(0);
+  // ...and the planes themselves, which poolAlloc would initialize anyway on
+  // the way out. Belt and braces on purpose: a never-allocated slot holding
+  // the last town's grains is unreachable but not OBVIOUSLY unreachable, and
+  // these are the bytes the kernel reads directly. 640 bytes a plane.
+  for (const pl of [PXQ, PYQ, PTXQ, PTYQ, PWYQ, VHUN, VTHI, VDIRP, VBOR, VTIR, VSTCP,
+                    C_PAT, C_CLM, C_SHW, C_DIN, C_WAI]) pl.fill(0);
+  PMXQ.fill(MNULL); PMYQ.fill(MNULL);   // "no motion target", not zero
+  C_STL.fill(-1); C_TBL.fill(-1);       // no holds; 0 is a real fid
+  // THE FURNITURE. Occupancy is a PLANE BIT, not a field, and the bit is the
+  // half the kernel reads - clearing the wrapper alone would leave a fresh
+  // morning opening onto a full hotel that only the kernel could see.
+  FT_FLG.fill(0); FT_DSH.fill(0);
+  for (const b of Object.keys(BIZ)) {
+    for (const t of BIZ[b].tables || []) { t._occ = null; t.dirty = false; t.cleaning = false; t.dishes = 0; }
+    for (const t of BIZ[b].stalls || []) { t._occ = null; t.dirty = false; t.cleaning = false; t.dishes = 0; }
+  }
+  // THE BODIES. Visitors and crab customers alike: the envelope mints its own.
+  customers.length = 0; floaters.length = 0;
+  initNpcs();                     // the townsfolk go back to their own front doors
+  // THE SESSION LEDGERS - the last town's books on the new town's desk.
+  earnHist.length = 0;            // the rival prices her ambition from this
+  qSeqN = 0;                      // the queue's ticket counter: order, not just count
+  today = newDayLog();
+  report = null; reportT = 0;
+  depart = null; departT = 0; departPage = 0; departQ = null;
+  bankHorizon = Infinity;
+  hoursObs = {}; _wasOpen = {};   // per-day boundary observations, explicitly transient
+  toast = null; hireCard = null; sel = null;
+  // THE MEMOS. Each is keyed, and every key is derived from state this
+  // function has just moved - a stale entry would answer for the old town
+  // until its key happened to change.
+  _cotRoll = null; _cotKey = "";
+  _offMap = {}; _needCover = {}; _offStamp = -1; _offGen = -1;
+  _acCache = null; _acGen = -1;
+  _bands = null; _bandsKey = "";
+  // THE CLOCKS. `T` is the master tick and the stamp on half the memo keys
+  // above; the derived readings follow from reclock(), which load() calls once
+  // it has seated the day.
+  T = 0; dtT = 0; viewT = 0; saveT = 0;
+  // ...and the invalidation counters get their beat, because everything they
+  // guard has just been rebuilt underneath them.
+  rosterGen++; furnGen++;
+}
 // `envIn` loads an envelope the caller already holds instead of reading a
 // slot - the science center materializes a keyframe through the SAME loader a
 // saved town walks, migrations and all, so a scrubbed moment and a loaded save
@@ -7326,6 +7396,10 @@ function load(slot, envIn) {
   const s = envIn || readSlotEnv(slot == null ? activeSlot : slot);
   if (!s) return false;
   if (!Array.isArray(s.personas) || !s.personas.length) return false;   // reject before touching state
+  // ...and the moment the envelope IS accepted, the previous town ends. Placed
+  // exactly here, after the last `return false` and before the first write, so
+  // a rejected save leaves the town on screen untouched.
+  resetSession();
   const preCents = !s._num;
   if (preCents) centsEnvelope(s);
   // NUMERIC SLICE 2 (ticks). The four persisted clocks were hours, game
@@ -18045,24 +18119,23 @@ function sciDayNote() {
 // memo-invalidation counters, and winding one BACK would make a stale cache
 // look current. Monotonic is their whole contract.)
 function sciShuttle(envJson) {
-  T = 0; dtT = 0;
-  floaters.length = 0; toast = null; report = null; reportT = 0;
-  customers.length = 0;
-  poolTop = 0; poolFree.length = 0; POOL_LIVE.fill(0);
-  earnHist.length = 0;
-  qSeqN = 0;
-  FT_FLG.fill(0); FT_DSH.fill(0);
-  for (const b of Object.keys(BIZ)) {
-    for (const t of BIZ[b].tables || []) t._occ = null;
-    for (const t of BIZ[b].stalls || []) t._occ = null;
-  }
+  // THE SWEEP THAT USED TO LIVE HERE IS GONE, and that is the point. Every
+  // clear this function performed - the pool and its free list, the furniture
+  // occupancy bits, earnHist, the ticket counter, the townsfolk - is now
+  // resetSession()'s job, run by load() itself the moment an envelope is
+  // accepted. A workaround kept on top of a fix is how the next person learns
+  // the wrong lesson, and the loader owed this to every caller, not just to
+  // the bench.
+  //
+  // ONE THING STAYS, and it is not a leak: _stats is the HARNESS's observation
+  // channel, not the town's state. The loader has no business zeroing a
+  // counter the measuring tools own, so a bench run that wants clean stats
+  // clears them here.
   if (window._stats) for (const k of Object.keys(window._stats)) {
     const v = window._stats[k];
     window._stats[k] = typeof v === "number" ? 0 : Array.isArray(v) ? [] : typeof v === "object" && v ? {} : v;
   }
-  initNpcs();                      // the townsfolk go back to their own front doors
   load(null, JSON.parse(envJson));
-  poolReap();                      // ...and the slots the old bodies held go back
 }
 // LIVE THE WHOLE TOWN. Runs synchronously - a dozen days is about a second
 // with the kernel armed, and a run that blocks briefly is honest where a
