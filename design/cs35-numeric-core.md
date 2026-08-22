@@ -140,7 +140,28 @@ this file and updates with each slice.
 | slice | state | unit | the rounding point |
 |---|---|---|---|
 | 1 MONEY | **CLOSED** (1a + 1b landed, re-baselined once) | integer **cents**, every balance and every price; the tip product in **milli-cents**; `tipShare` int **twentieths** 0..20; the price board an int **index** 14..26 (m = n/20) | the cent is BORN at `menuPrice`/`ingredientCost`/`upCost` (author-dollar tables cross ×100 at their read boundary) and at the visitor purse mint; a TIP rounds ONCE at `payTip`'s door (`tipCentsOf`, round-half-up from milli-cents) and the split then FLOORS n/20; `otPremium` is one rational with a single floor; the fund's three doors floor to whole cents; `localPrice` still rounds up to the whole DOLLAR |
-| 2–6 | not started | — | — |
+| 2 CLOCK | **2a LANDED, 2b's quantizer landed with it; the slice stays OPEN on one human play-test** | master int **tick**, 20 a real second / 5 a game minute / 7200 a day; `tmin` whole game **minutes** and `tdgm` **deci-minutes**, both DERIVED from the tick of day, never accumulated; all 42 sim timers, `restT`, `otMin`, `mistMin` and `ferryT` in **ticks**; mist peak in **Q16**; shimmer phase in **BAM16** | the tick is BORN in `frame()`'s quantizer (wall ms in, whole ticks out, remainder carried, clamped at 2 ticks a frame); `tmin` FLOORS the tick of day to the minute and every shop-hours and shift gate reads it; `tdgm` is the finer grain the three RAMPS read (`darkness()`, the mist, the rent proration); random durations FLOOR to whole ticks from the same draw; `otPremium` folds ticks→minutes into its one existing rational; midnight is an exact integer gate |
+| 3–6 | not started | — | — |
+
+**Slice 2 (a) is LANDED and the slice is OPEN on one gate.** What is
+converted: the master clock, `tmin`/`tdgm` as projections of it, all 42 `-= dt`
+timers plus the five that hid from the census's count (`stuckT`, `castT`, the
+35 quip bubbles, `DETOUR_T`, the ballot count's own decrement), the four
+persisted clocks with their `_num: 2` migration, `mistPeak` as a baked
+257-entry Q16 table rolled once at midnight, and heat shimmer's phase as a
+BAM16 accumulator on stride 2048 (period 1.5708s → 1.6s, +1.9%, bought so the
+32-tick orbit closes and "mean-preserving by construction" is literally true).
+The sim's LAST `Math.pow` is `mistPeak`'s and it is gone; what remains in the
+sim is `Math.sin` in the shimmer, which slice 4 takes with the sine LUT.
+
+**WHAT SLICE 2 STILL OWES**: risky-decision 4's **human play-test gate**. The
+browser now runs on quantized whole ticks, and no automated referee covers
+browser FEEL at the speed chips - the suite proves the rate is right at every
+cadence a screen runs at, not that 6x still feels like 6x. The Gaffer-style
+render INTERPOLATION is deliberately NOT here: interpolating a rendered frame
+between two sim states needs the sim/view split, which the design already
+places before slice 4. The quantizer half of 2b is landed because 2a could not
+run in a browser without it.
 
 **Slice 1 is CLOSED.** What is converted: every balance, price, wage, rent,
 threshold and fund movement (1a); the tip product, the tip split, the overtime

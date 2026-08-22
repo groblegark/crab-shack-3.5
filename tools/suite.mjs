@@ -267,6 +267,43 @@ scenario("no crab freezes mid-walk (full town)", () => {
   return det.worstSeconds < 18 ? true : `a crab froze ~${det.worstSeconds}s in a moving state`;
 });
 
+scenario("the quantizer: whole ticks at every frame rate, and a stall runs SLOW", () => {
+  // NUMERIC SLICE 2b, the browser dt-quantizer. The sim counts in whole ticks
+  // now, so a 60Hz browser hands the frame a third of one - and the world must
+  // neither freeze on floor(0.33) = 0 nor drift. The remainder rides in an
+  // accumulator; what comes out is exactly real time at every cadence a screen
+  // actually runs at. Headless is the 20Hz row and takes exactly one tick a
+  // step, which is why this landing is byte-identical there.
+  //
+  // ...AND A STALLED TAB RUNS SLOW RATHER THAN FAST-FORWARDING. `raw` clamps
+  // at 100ms = two ticks, so a 5Hz frame buys two ticks and not ten: the town
+  // falls behind the wall clock instead of teleporting a quarter of an hour
+  // the moment the tab wakes. That is the spiral-of-death guard, and it is
+  // the deliberate half of this rule rather than a rounding artifact.
+  const run = (frameMs, seconds, speed) => {
+    let msAcc = 0, T = 0;
+    for (let t = 0; t < seconds * 1000; t += frameMs) {
+      const rawMs = Math.max(0, Math.min(100, frameMs));
+      msAcc += rawMs;
+      const rawTicks = (msAcc - msAcc % 50) / 50;
+      msAcc -= rawTicks * 50;
+      T += rawTicks * (speed || 1);
+    }
+    return T;
+  };
+  // ...within one tick, because ten seconds is not a whole number of frames at
+  // 144Hz and the last partial frame is not owed a tick it has not earned
+  for (const [name, ms] of [["60Hz", 1000 / 60], ["30Hz", 1000 / 30], ["144Hz", 1000 / 144],
+                            ["20Hz", 50], ["10Hz", 100]]) {
+    const got = run(ms, 10);
+    if (got % 1 !== 0) return `${name} produced a fractional tick: ${got}`;
+    if (Math.abs(got - 200) > 1) return `${name} ran ${got} ticks in ten seconds, want 200 (real time)`;
+  }
+  if (run(200, 10) !== 100) return "a 5Hz stall did not run at half speed - the 100ms clamp is gone";
+  if (run(1000 / 60, 10, 6) !== 1200) return "6x at 60Hz did not consume six ticks a frame";
+  return true;
+});
+
 scenario("fast-forward (6x dt) stays stable", () => {
   const sim = createSim({ seed: 55 });
   sim.G("ffMode = 3");   // the real in-game top speed: dt = 0.1 * 6
