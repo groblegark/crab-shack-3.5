@@ -472,6 +472,30 @@ bare public clone; the first sweep (4,096-town baseline histogram,
 8 pods × 512 towns) is specced in its README and blocked only on
 operator SSO to gasboat-prod.
 
+## THE CLUSTER LEDGER (2026-08-22 — gasboat-prod, ephemeral pool, operator-granted)
+
+First off-laptop rungs, run via `deploy/crab-science` pinned to 01883c4,
+16-pod n=4096 baseline + a 27-receipt slice of the 128-pod ceiling run
+(wound down early for spend — ~$9-10 total on-demand m5):
+
+- **0.89 lived sim-days/s per m5 vCPU, and it is LINEAR**: 48-vCPU and
+  ~112-vCPU concurrency read the same per-vCPU rate to two digits. The
+  pool's 384-vCPU limit therefore implies **~342 d/s, measured-linear**.
+- With the laptop's 45, hardware currently granted reaches **~390 d/s
+  ≈ 260×** the 1× baseline. The 1000× gap is now purely hardware shape:
+  ~4× more CPU (bigger pool / second cluster — embarrassingly parallel,
+  proven linear) or the GPU rung (divergence measured ~1.5-2×).
+- **Science the laptop could not do**: the n=4096 eviction histogram
+  (median 12, tail to day 29) and the no-buy floor's first crack —
+  **seed 723 survives 30 days**, 1 in 4,096, found on amd64 Xeons and
+  reproduced bit-exactly on this arm64 laptop: cross-architecture
+  determinism demonstrated on a rare-event needle.
+- **Ops lesson, paid for twice-shaped**: karpenter reaps an ephemeral
+  node the moment its pod completes, and kubelet logs die with it — a
+  4,096-town run's receipts existed only on deleted nodes. Pods now bank
+  receipts as ConfigMaps through the API before exiting. On an ephemeral
+  pool, stdout is a progress feed, not a result store.
+
 ## Sources
 
 - [Understanding the Performance of WebAssembly Applications](https://benchmarkingwasm.github.io/BenchmarkingWebAssembly/)
