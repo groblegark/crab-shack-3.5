@@ -10777,7 +10777,7 @@ for (let i = 0; i < argv.length; i++) {
   if (argv[i] === "--jobs" || argv[i] === "--timings-out" || argv[i] === "--_run") flags[argv[i]] = argv[++i];
   else filters.push(argv[i]);
 }
-const JOBS = Math.max(1, parseInt(flags["--jobs"] || "1") || 1);
+let JOBS = Math.max(1, parseInt(flags["--jobs"] || "1") || 1);   // let: the watchdog's re-queue drains alone
 
 if (flags["--_run"] != null) {
   // ---- worker mode: run the listed registration indices, report each result
@@ -10828,6 +10828,8 @@ if (JOBS <= 1) {
   const queue = listIdx.slice().sort((a, b) =>
     (known[results[b].name] || MEDIAN) - (known[results[a].name] || MEDIAN));
   const out = {};
+  const retried = new Set(), requeue = [];
+  const SLOW = { pass: false, msg: "re-queued to run alone", ms: 0 };   // a sentinel, never printed
   await new Promise((resolve) => {
     let next = 0, done = 0, live = 0;
     const launch = () => {
@@ -10841,10 +10843,18 @@ if (JOBS <= 1) {
         // scenario's own book time (min 60s) is generous under full-core load;
         // past it, the child is killed and the scenario FAILS loudly, which is
         // a red line instead of a forty-minute mystery.
-        const budget = Math.max(60000, 10 * (known[results[idx].name] || MEDIAN));
+        // ...and the budget is WALL time, which is not the scenario's to spend.
+        // A starved machine (another pool, a build, a browser) stretches a 14s
+        // scenario past 139s while it burns 19s of CPU, and the pool would call
+        // that a wedge. So the first expiry is not a verdict: the scenario is
+        // re-queued ONCE to run alone after the pool drains, on a budget of its
+        // own. A real wedge spins forever and fails there too; a starved one
+        // passes. The red line stays loud, and it stays true.
+        const budget = Math.max(60000, 10 * (known[results[idx].name] || MEDIAN)) * (retried.has(idx) ? 3 : 1);
         const dog = setTimeout(() => {
-          out[idx] = { idx, pass: false,
-            msg: "WATCHDOG: no result in " + Math.round(budget / 1000) + "s (10x book time) - killed", ms: budget };
+          if (!retried.has(idx)) { retried.add(idx); requeue.push(idx); out[idx] = SLOW; }
+          else out[idx] = { idx, pass: false,
+            msg: "WATCHDOG: no result in " + Math.round(budget / 1000) + "s, alone, on 3x the budget - wedged", ms: budget };
           child.kill("SIGKILL");
         }, budget);
         child.on("message", (m) => { out[m.idx] = m; });
@@ -10853,7 +10863,13 @@ if (JOBS <= 1) {
           live--;
           if (out[idx] === undefined)
             out[idx] = { idx, pass: false, msg: "WORKER DIED (exit " + code + ")", ms: 0 };
-          if (++done === queue.length) return resolve();
+          if (++done === queue.length) {
+            if (!requeue.length) return resolve();
+            // drain the slow list alone, one at a time, in the same pool
+            queue.length = 0; queue.push(...requeue); requeue.length = 0;
+            next = 0; done = 0; JOBS = 1;
+            return launch();
+          }
           launch();
         });
       }
