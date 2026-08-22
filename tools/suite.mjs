@@ -5799,6 +5799,15 @@ scenario("rivalry: her interest builds from HER OWN books, and it is visible lon
   for (let i = 0; i < 12; i++) rivalDay(cold, "starve");
   if (cold.G(`rival.stage`) === "offer")
     return `a rival with no money and no credit still made an offer`;
+  // ...and the intent number itself is read off books that ARE empty at the
+  // moment of asking. It used to be enough to starve her once a day and check
+  // at day's end, because a day's takings could not fund an offer. THE PIGS
+  // ENDED THAT: they arrive rating a soak 2.0, the showers are HERS, and one
+  // day of pig custom banks more than the offer threshold - the intent formula
+  // was reading her books correctly the whole time, the staging had simply
+  // stopped producing an empty set. Starve her once more so the assertion is
+  // about the formula and not about how lucrative a shower has become.
+  rivalStarve(cold);
   if (cold.G(`rivalIntent()`) >= cold.G(`RIVAL_CFG.OFFER`))
     return `a rival with empty books reached intent ${cold.G("rivalIntent()")}`;
   return true;
@@ -10744,7 +10753,19 @@ scenario("cultureways: a save without cultures changes nothing", () => {
     + '["CLAWDIA",108,1600],["SUDSY",436,23410],["REEF",2136,20935],["SALTY",2072,0],'
     + '["DRIFT",464,400],["KELP",450,1000]],"vis":6,"catch":1}';
   if (fp !== want) return "the fingerprint moved: " + fp;
-  if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
+  // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
+  // the game now, so the registry is no longer crab-only on a plain town - but
+  // this town's rep is 53.6 at day 3, the pig's arrival gate is 80, and the
+  // roll short-circuits BEFORE the draw when a gate is shut. The fingerprint
+  // above is the proof: byte-identical to the pre-pig world, every wallet and
+  // every position. That is the invariant this scenario was always about.
+  if (sim.G("Object.keys(CULTURES).sort().join()") !== "crab,pig")
+    return "the bundled peoples are not in the registry: " + sim.G("Object.keys(CULTURES).join()");
+  if (sim.G("rep >= 80000")) return "this town crossed the pig gate - the arm proves nothing";
+  if (sim.G("customers.some(k => k.culture && k.culture !== 'crab')"))
+    return "a pig came ashore below the gate";
+  // a bundled document is the ENGINE's, never the save's: it must not be
+  // written into a town, or improving it later would never reach that save
   if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
   // ...and a plain save round-trip writes no cultures key
   sim.G("save()");
@@ -10822,7 +10843,13 @@ scenario("cultureways: broken art is refused with a message and the town still l
   env.cultures = { pig: bad };
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 66, storage: store, fresh: false });
-  if (b.G("!!CULTURES.pig")) return "a ragged pig was accepted into the registry";
+  // The ragged document is refused - and the BUNDLED pig stands in its place,
+  // because a broken document in a save is the player's file going wrong, not
+  // a reason to take the world's peoples away from them. So "refused" is no
+  // longer provable by absence: it is provable by whose art is in the registry.
+  if (b.G("CULTURES.pig && CULTURES.pig.def.art.body.poses.a[3]") === "..KK")
+    return "a ragged pig was accepted into the registry";
+  if (!b.G("!!CULTURES.pig")) return "the ragged document took the bundled pig down with it";
   if (!/CULTUREWAY/.test(b.G("toast ? toast.text : ''"))) return "no toast named the dropped culture";
   if (!(b.G("crabs.length") >= 1)) return "the town failed to load around the bad culture";
   // the raw key still round-trips: a load never destroys data it could not use
@@ -10919,6 +10946,101 @@ scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in
   if (probe.bodyStray) return "a pig body blitted away from every pig";
   if (!probe.pigDome) return "the pig bather never drew over the curtain";
   if (probe.crabDome) return "a crab dome drew for a pig bather";
+  return true;
+});
+
+// ---- SHIPPED PIGS (CS3.5): the bundled cultureway reaches a real player.
+// The pig used to exist only as the fixture two hundred lines above this -
+// every scenario staged it by hand into a save, and no shipped path minted
+// one, so a town could reach the maximum reputation and never meet a pig.
+// These three are about the PLAYER'S town: nobody stages anything.
+
+scenario("pigs: word reaches the mainland, and only then does a pig sail", () => {
+  // No fixture, no staging - a plain new town, exactly what the URL serves.
+  const sim = createSim({ seed: 1337 });
+  if (!sim.G("!!CULTURES.pig")) return "the bundled pig is not in a fresh town's registry";
+  if (sim.G("rawCultures") !== null) return "a bundled document leaked into the save layer";
+  // BELOW THE GATE: the mainland has not heard of this town, and the roll is
+  // short-circuited before the draw - no pig, and no cost to the stream.
+  sim.G("rep = 40000");   // 40 rep, gate is 80
+  let below = 0;
+  for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") !== "crab") below++;
+  if (below) return `${below} pigs sailed to a town nobody has heard of`;
+  // ABOVE IT: they come. Rep at the cap makes the share its maximum quarter.
+  sim.G("rep = 100000");
+  let above = 0;
+  for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") === "pig") above++;
+  if (above < 20) return `only ${above}/200 sailings carried a pig at full reputation`;
+  if (above > 80) return `${above}/200 sailings carried a pig - the mainland emptied out`;
+  return true;
+});
+
+scenario("pigs: they actually get off the boat in a town nobody staged", () => {
+  // The end-to-end claim, and the one that was false before this landed:
+  // play a town from nothing and a pig walks down the gangway.
+  const sim = createSim({ seed: 1337 });
+  let firstDay = 0, name = "";
+  for (let d = 1; d <= 12 && !firstDay && !sim.G("gameOver"); d++) {
+    sim.runDays(d);
+    const n = sim.G(`(customers.filter(k => k.visitor && k.culture === "pig")[0] || {}).name || ""`);
+    if (n) { firstDay = sim.G("day"); name = n; }
+  }
+  if (!firstDay) return "no pig ever came ashore in a played town";
+  if (firstDay < 4) return `a pig landed on day ${firstDay} - that is wallpaper, not an arrival`;
+  // ...and she is a pig all the way down, not a crab wearing a name
+  const her = JSON.parse(sim.G(`JSON.stringify((() => {
+    const k = customers.filter(c => c.visitor && c.culture === "pig")[0];
+    if (!k) return {};
+    const cul = CULTURES.pig;
+    return { culture: k.culture, h: cul.body.h, w: cul.body.w,
+      fish: cul.def.tastes.fish, soak: cul.def.tastes.soak, regs: cul.regs.length };
+  })())`));
+  if (her.culture !== "pig") return "the arrival is not carrying her culture";
+  if (!(her.h > her.w)) return `a pig should stand taller than she is wide (${her.w}x${her.h})`;
+  if (!(her.fish < 1 && her.soak > 1)) return `her appetites are not a pig's (fish ${her.fish}, soak ${her.soak})`;
+  if (her.regs < 2) return `she has ${her.regs} register(s) - pig society is not so egalitarian`;
+  return true;
+});
+
+scenario("pigs: fish is the taboo, and it is the WEIGHTS doing it", () => {
+  // A mechanism assertion, not a coincidence: the same draw, the same recipe
+  // list, the same seed - only the weights differ between a crab and a pig.
+  // The taboo is a floor (0.5), not a ban, so this reads the RATE.
+  const sim = createSim({ seed: 1337 });
+  const rate = (cu) => Number(sim.G(`(() => {
+    const rs = BIZ.shack.recipes.filter(r => !DRINKS[r.id]);
+    const k = { culture: ${JSON.stringify(cu)} };
+    const ws = rs.map(r => tasteW(k, r));
+    let total = 0; for (const w of ws) total += w;
+    const fish = rs.findIndex(r => r.id === "fish");
+    return fish < 0 ? -1 : ws[fish] / total;
+  })()`));
+  const crab = rate("crab"), pig = rate("pig");
+  if (crab < 0 || pig < 0) return "there is no fish on the menu to be taboo about";
+  if (!(pig < crab)) return `a pig fancies fish at ${pig.toFixed(3)} against a crab's ${crab.toFixed(3)} - no taboo`;
+  // EXACTLY what the table predicts, or the weights are not what is steering.
+  // (The gap is small on purpose-of-fact rather than by design: the plate menu
+  // is two dishes and she is lukewarm on the taco too, so the taboo shows as
+  // 0.5/(0.5+0.6) against a crab's even split. Her real character is in the
+  // drinks and the bathhouse - which is what pig DISHES are for, phase 2.)
+  const want = JSON.parse(sim.G(`JSON.stringify((() => {
+    const rs = BIZ.shack.recipes.filter(r => !DRINKS[r.id]);
+    const k = { culture: "pig" };
+    let total = 0; for (const r of rs) total += tasteW(k, r);
+    const fish = rs.find(r => r.id === "fish");
+    return { pred: tasteW(k, fish) / total, n: rs.length };
+  })())`));
+  if (Math.abs(pig - want.pred) > 1e-9)
+    return `her fish share is ${pig} but her own table predicts ${want.pred}`;
+  // fish is the FLOOR of everything she has an opinion about
+  const floor = JSON.parse(sim.G(`JSON.stringify((() => {
+    const t = CULTURES.pig.def.tastes, ks = Object.keys(t);
+    let lo = Infinity, at = "";
+    for (const k of ks) if (t[k] < lo) { lo = t[k]; at = k; }
+    return { at, lo, soak: t.soak };
+  })())`));
+  if (floor.at !== "fish") return `her taste floor is ${floor.at} (${floor.lo}), not fish`;
+  if (!(floor.soak > 1.5)) return `a pig rates a soak ${floor.soak} - that is not a love of bathing`;
   return true;
 });
 

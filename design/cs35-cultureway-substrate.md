@@ -13,6 +13,18 @@ the FIRST LIVE hook table), and the live engine at `loadCultures` /
 
 ## WHERE WE ACTUALLY ARE (stronger than the plan assumed)
 
+> **STATUS 2026-08-22 — PHASE A IS PARTLY LANDED, AND THE PIG SHIPS.** The
+> document is no longer fixture-only: `cultureways.js` bundles it, boot
+> installs it, and 16/16 baseline towns meet a pig by a median day 7. What
+> this section says below about the document being "one validated door" away
+> from a player is now historical — the door is open and the pigs walked
+> through it. The bundling rule that landed, and which the rest of phase A
+> should keep: **bundled documents are the engine's and never enter a save;
+> a save's documents overlay them by id; a document that fails its clamps is
+> refused with a toast while the bundled one stands in its place.** See
+> PLAN.md "THE PIGS SHIP" for the measurements and the two phase-2 findings
+> it exposed (pigs leave hungry; their money goes to NPC businesses).
+
 The substrate is not greenfield. Three of its pillars already run:
 
 1. **The document exists.** `tools/fixtures/cultures-pig.json` (465 lines)

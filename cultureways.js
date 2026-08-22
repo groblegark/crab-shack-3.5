@@ -1,0 +1,485 @@
+// THE BUNDLED CULTUREWAYS — the peoples who ship with the island.
+//
+// A cultureway is a DOCUMENT: art, appetite, voice, and the terms on which
+// its people travel. The engine holds no opinion about who these are; it
+// reads this file the same way it would read a document out of a save, and
+// the only difference is trust. These are ours, so they are installed
+// without a toast; a document that arrives in a save file is a stranger and
+// goes through the same clamps either way (cultureProblem, game.js).
+//
+// GENERATED from tools/fixtures/cultures-pig.json by tools/mkcultureways.mjs —
+// the fixture the suite has proved against since spec-01. Edit the fixture,
+// regenerate, and the suite is still testing the thing the player gets.
+//
+// Loaded as a plain script (no build step) and read by loadCultures() at
+// boot, BEFORE any save's own cultures, which override by id — so a player
+// who authors their own pigway replaces ours rather than fighting it.
+var BUNDLED_CULTUREWAYS = {
+ "pig": {
+  "meta": {
+   "id": "pig",
+   "name": "PORKRESENTATIVE PIGPUBLIC",
+   "ver": 1
+  },
+  "people": {
+   "names": [
+    "HAMLET",
+    "SPAMELA",
+    "BOARIS",
+    "HOGARTH",
+    "SOWPHIE",
+    "HAMISH",
+    "PIGBY",
+    "SWINSTON",
+    "HAM SOLO",
+    "PIGGY SUE",
+    "BIG HOCK",
+    "FARROW MAE",
+    "TROTTER",
+    "RASHER",
+    "GAMMON",
+    "CRACKLIN",
+    "RIND",
+    "SNOUT",
+    "BRISTLE",
+    "WALLOW",
+    "ACORN",
+    "CLOVER",
+    "TURNIP",
+    "MAIZE",
+    "LOAM",
+    "PETUNIA"
+   ]
+  },
+  "art": {
+   "palette": {
+    "K": [
+     30,
+     20,
+     36
+    ],
+    "P": [
+     248,
+     176,
+     168
+    ],
+    "Q": [
+     200,
+     120,
+     120
+    ],
+    "O": [
+     248,
+     176,
+     168
+    ],
+    "B": [
+     30,
+     20,
+     36
+    ],
+    "Y": [
+     255,
+     230,
+     120
+    ],
+    "A": [
+     255,
+     216,
+     96
+    ],
+    "L": [
+     250,
+     250,
+     255
+    ]
+   },
+   "colorNames": [
+    "PIGLET PINK",
+    "ROSE",
+    "OXFORD SANDY",
+    "TAMWORTH GINGER",
+    "BERKSHIRE PLUM",
+    "OLD SPOT"
+   ],
+   "colorways": [
+    {
+     "P": [
+      248,
+      176,
+      168
+     ],
+     "Q": [
+      200,
+      120,
+      120
+     ],
+     "O": [
+      248,
+      176,
+      168
+     ]
+    },
+    {
+     "P": [
+      232,
+      136,
+      144
+     ],
+     "Q": [
+      176,
+      88,
+      104
+     ],
+     "O": [
+      232,
+      136,
+      144
+     ]
+    },
+    {
+     "P": [
+      224,
+      184,
+      136
+     ],
+     "Q": [
+      168,
+      128,
+      88
+     ],
+     "O": [
+      168,
+      128,
+      88
+     ]
+    },
+    {
+     "P": [
+      208,
+      136,
+      80
+     ],
+     "Q": [
+      152,
+      88,
+      48
+     ],
+     "O": [
+      208,
+      136,
+      80
+     ]
+    },
+    {
+     "P": [
+      136,
+      96,
+      136
+     ],
+     "Q": [
+      88,
+      56,
+      88
+     ],
+     "O": [
+      136,
+      96,
+      136
+     ]
+    },
+    {
+     "P": [
+      224,
+      216,
+      208
+     ],
+     "Q": [
+      168,
+      160,
+      152
+     ],
+     "O": [
+      64,
+      56,
+      72
+     ]
+    }
+   ],
+   "body": {
+    "w": 12,
+    "h": 16,
+    "slots": [
+     "P",
+     "Q",
+     "O"
+    ],
+    "anchors": {
+     "hat": {
+      "x": 1,
+      "y": 2
+     },
+     "carry": {
+      "x": 2,
+      "y": -7
+     },
+     "mark": {
+      "x": 9,
+      "y": -6
+     },
+     "bar": {
+      "w": 12
+     }
+    },
+    "poses": {
+     "a": [
+      "..KK....KK..",
+      ".KPPKKKKPPK.",
+      ".KPPPPPOPPK.",
+      ".KPBPPPBPPK.",
+      ".KPQQQQQQPK.",
+      ".KPQBQQBQPK.",
+      ".KPPQQQQPPK.",
+      "..KPPPPPPK..",
+      "..KKKKKKKK..",
+      ".KPOOPPPPPK.",
+      "KPKPQQQQPKPK",
+      "KQKPQQQQPKQK",
+      ".KPPPPPPOPK.",
+      "..KPPKKPPK..",
+      "..KQQKKQQK..",
+      "..KKKKKKKK.."
+     ],
+     "b": [
+      "..KK....KK..",
+      ".KPPKKKKPPK.",
+      ".KPPPPPOPPK.",
+      ".KPBPPPBPPK.",
+      ".KPQQQQQQPK.",
+      ".KPQBQQBQPK.",
+      ".KPPQQQQPPK.",
+      "..KPPPPPPK..",
+      "..KKKKKKKK..",
+      ".KPOOPPPPPK.",
+      "KPKPQQQQPKPK",
+      "KQKPQQQQPKQK",
+      ".KPPPPPPOPK.",
+      ".KPPK..KPPK.",
+      ".KQQK..KQQK.",
+      ".KKKK..KKKK."
+     ],
+     "w": [
+      "..KK....KK..",
+      ".KPPKKKKPPK.",
+      ".KPPPPPOPPK.",
+      ".KPBPPPBPPK.",
+      ".KPQQQQQQPK.",
+      ".KPQBQQBQPK.",
+      ".KPPQQQQPPK.",
+      "KQKPPPPPPKQK",
+      "KPKKKKKKKKPK",
+      "KPKOOPPPPKPK",
+      ".KPPQQQQPPK.",
+      ".KPPQQQQPPK.",
+      ".KPPPPPPOPK.",
+      "..KPPKKPPK..",
+      "..KQQKKQQK..",
+      "..KKKKKKKK.."
+     ],
+     "s": [
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "............",
+      "..KK..KKKK..",
+      ".KPPKPPPPPK.",
+      "KPPPPPPPOPPK",
+      "KPKKPPPPPPPK",
+      "KQQQPPPPPPPK",
+      "KQBQPQQPQQPK",
+      ".KKKKKKKKKK."
+     ]
+    }
+   },
+   "accessories": {
+    "strawhat": {
+     "dx": -2,
+     "dy": -4,
+     "rows": [
+      "....KYYYYK....",
+      "....KAAAAK....",
+      ".KYYYYYYYYYYK.",
+      "KYYYYYYYYYYYYK",
+      ".KKKKKKKKKKKK."
+     ]
+    }
+   },
+   "items": {
+    "bao": {
+     "rows": [
+      ".........",
+      "...KKK...",
+      "..KLKLK..",
+      ".KLLPLLK.",
+      ".KLLLLLK.",
+      ".KLLLLLK.",
+      "..KKKKK.."
+     ]
+    }
+   },
+   "bather": [
+    [
+     4,
+     0,
+     8,
+     3,
+     0
+    ],
+    [
+     5,
+     -1,
+     6,
+     1,
+     0
+    ],
+    [
+     3,
+     -2,
+     2,
+     2,
+     1
+    ],
+    [
+     11,
+     -2,
+     2,
+     2,
+     1
+    ]
+   ]
+  },
+  "voice": {
+   "registers": [
+    {
+     "id": "farmhand",
+     "acc": "strawhat",
+     "purseMul": 0.7,
+     "diary": {
+      "ashore": "OFF THE BOAT AND HUNGRY ALREADY",
+      "dues": "PAID MY WAY IN. FAIR'S FAIR.",
+      "leaving": "OFF TO THE BOAT. GOOD MUD AHEAD.",
+      "missedboat": "MISSED THE BOAT. MORE FOR ME.",
+      "checkin": "ROOM {N} AT THE DRIFTWOOD. THAT'LL DO.",
+      "checkout": "UP WITH THE SUN. SLEPT LIKE A HOG.",
+      "rough": "SLEPT ROUGH. DONE WORSE AT HARVEST.",
+      "wokesand": "WOKE IN THE SAND. ITCHY.",
+      "turnin": "FULL DAY. STRAIGHT TO THE HAY.",
+      "gaveup": "GAVE UP ON THE {BIZ}. LIFE'S SHORT.",
+      "bought": "GOT A {ITEM}. MONEY WELL SPENT."
+     },
+     "depart": {
+      "rough": "A BEACH IS NO BED. EVEN OUR MUD IS WARMER.",
+      "quits": "WALKED OUT OF EVERY LINE. I'D RATHER SHOVEL.",
+      "quit": "STOOD AT THE {BIZ} TIL MY FEET GAVE UP.",
+      "nothing": "ALL THAT WAY FOR SHUT DOORS AND SEA AIR.",
+      "unspent": "TAKING ${LEFT} HOME. NOTHING HERE TO SPEND IT ON.",
+      "idle": "MONEY LEFT OVER AND NOTHING I WANTED. ODD PLACE.",
+      "hungry": "LEAVING HUNGRIER THAN THE HARVEST LEFT ME.",
+      "parched": "DRY AS AUGUST. NOT A DROP ALL DAY.",
+      "grubby": "SAND IN MY BRISTLES AND NO TUB IN TOWN.",
+      "weary": "DEAD ON MY TROTTERS. NO HAY IN THIS TOWN.",
+      "bored": "SEEN THE SEA. THAT WAS THE WHOLE SHOW.",
+      "wait": "WAITED {MINS} FOR A PLATE. ATE IT ANYWAY.",
+      "dues": "PAID AT THE PLANK. STEEP, FOR PLANKS.",
+      "missed": "MISSED THE BOAT. THE HAY WILL WAIT.",
+      "mist": "THE MIST ATE THE VIEW. SMELLED LIKE HOME.",
+      "table": "WAITED ON AT A TABLE. LIKE A PRIZE HOG.",
+      "bed": "THAT DRIFTWOOD BED BEAT MY OWN HAYLOFT.",
+      "spentup": "SPENT THE LOT. THAT'S WHAT MONEY'S FOR.",
+      "top": "PAID PROPER FOR A {ITEM}. WORTH EVERY CENT.",
+      "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
+      "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE."
+     },
+     "dossier": [
+      "CAME FOR THE FOOD, STAYING FOR THE FOOD",
+      "BACK HOME, THE PIGTATOR. HERE, GULLS.",
+      "THE SEA'S BIGGER THAN THEY SAID"
+     ],
+     "foreign": "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE.",
+     "refuseHire": "KIND OFFER. BUT MY FIELDS WON'T PLOW THEMSELVES."
+    },
+    {
+     "id": "clerk",
+     "acc": "none",
+     "purseMul": 1.3,
+     "diary": {
+      "ashore": "DISEMBARKED IN GOOD ORDER",
+      "dues": "HARBOUR DUE PAID AND RECEIPTED",
+      "leaving": "PROCEEDING TO THE FERRY AS SCHEDULED",
+      "missedboat": "THE BOAT LEFT EARLY. I DID NOT.",
+      "checkin": "REGISTERED - ROOM {N} AT THE DRIFTWOOD",
+      "checkout": "CHECKED OUT. THE LEDGER IS SETTLED.",
+      "rough": "PASSED THE NIGHT UNHOUSED. NOTED.",
+      "wokesand": "WOKE UNHOUSED. A SECOND NOTE IS MADE.",
+      "turnin": "RETIRED AT A RESPECTABLE HOUR",
+      "gaveup": "WITHDREW MY CUSTOM FROM THE {BIZ}",
+      "bought": "PAID IN FULL FOR MY {ITEM}"
+     },
+     "depart": {
+      "rough": "THE PIGPUBLIC WILL HEAR OF THE SAND I SLEPT ON.",
+      "quits": "I WITHDREW FROM EVERY QUEUE. SO FILED.",
+      "quit": "ABANDONED THE {BIZ} QUEUE UNDER PROTEST.",
+      "nothing": "EVERY DOOR SHUT. I SHALL SAY SO IN MY REPORT.",
+      "unspent": "${LEFT} OF MY ${PURSE} RETURNS UNSPENT TO THE MAINLAND.",
+      "idle": "FUNDS REMAIN. THE TOWN LACKED AMBITION.",
+      "hungry": "I DEPART UNFED. THE REPORT WILL BE FRANK.",
+      "parched": "NO REFRESHMENT WAS SECURED. DULY NOTED.",
+      "grubby": "I ARRIVE HOME UNBATHED. MOST IRREGULAR.",
+      "weary": "NO BED WAS PROVIDED. I REMAINED UPRIGHT.",
+      "bored": "THE ENTERTAINMENTS WERE NOT LOCATED.",
+      "wait": "SERVED AFTER {MINS}. I STOOD ON PRINCIPLE.",
+      "dues": "TAXED AT THE PLANK. AN INVOICE FOLLOWS.",
+      "missed": "THE SAILING WAS MISSED. INQUIRIES PROCEED.",
+      "mist": "VISIBILITY POOR. THE FAR SHORE UNVERIFIED.",
+      "table": "TABLE SERVICE RENDERED. MOST CORRECT.",
+      "bed": "THE DRIFTWOOD KEEPS A BED FIT FOR A CONSUL.",
+      "spentup": "SPENT EVERY DOLLAR OF MY ${PURSE}. QUITE CORRECT.",
+      "top": "THE {ITEM} WAS ACCEPTABLE. PAID IN FULL.",
+      "regular": "{STOPS} STOPS IN {DAYS} DAYS. THE PIGPUBLIC APPROVES.",
+      "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED."
+     },
+     "dossier": [
+      "MY PAPERS ARE ENTIRELY IN ORDER",
+      "TRAVELING BY LEAVE OF THE PIGTATOR",
+      "HERE IN A STRICTLY PRIVATE CAPACITY"
+     ],
+     "foreign": "NOTHING ON ANY MENU A PIG WOULD RECOGNIZE.",
+     "refuseHire": "AN APRON? I HOLD A CLERKSHIP, MADAM."
+    }
+   ]
+  },
+  "tastes": {
+   "taco": 0.6,
+   "fish": 0.5,
+   "juice": 1.6,
+   "cooler": 1.8,
+   "clawgame": 1,
+   "skeerun": 1,
+   "gamenight": 1.1,
+   "room": 1.7,
+   "rinse": 1.3,
+   "soak": 2
+  },
+  "arrival": {
+   "repGate": 80,
+   "shareMax": 0.25,
+   "shareRamp": 80
+  }
+ }
+};
+if (typeof window !== "undefined") window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS;

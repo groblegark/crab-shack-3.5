@@ -3182,6 +3182,50 @@ them, rep is 5 points lower, and the player's till is $64/$105 down at the end
 of day two. Two fixtures that used to CLEAR the opening crowd are now no-ops
 and are kept as belts, with their comments re-pointed to say so.
 
+## THE PIGS SHIP (2026-08-22) — the first bundled cultureway
+
+Pigs arrive in a town nobody staged. Before this, `cultures.pig` existed only
+as a suite fixture: MEASURED, a fresh town reached rep 100 against an arrival
+gate of 80 — wide open — with `CULTURES` holding nothing but `crab`, so no
+player could meet a pig at any reputation, ever. The gate was fine. There was
+simply nobody on the mainland.
+
+**How it ships.** `cultureways.js` carries the document (generated from the
+fixture the suite has proved against since spec-01, by `tools/mkcultureways.mjs`
+— edit the fixture, regenerate, and the suite is still testing the thing the
+player gets). `loadCultures` installs the bundled documents FIRST and lets a
+save's own documents overlay them by id, and boot installs them even when
+there is no save. Two consequences worth stating: a player who authors their
+own pigway **replaces** ours rather than fighting it, and a bundled culture we
+improve later **reaches every existing save**, because saves carry the
+player's documents and never ours (`rawCultures` stays the save's own). A
+document that fails its clamps is refused with a toast and the bundled one
+stands in its place — a broken file in a save is the player's file going
+wrong, not a reason to take the world's peoples away from them.
+
+**MEASURED.** 16/16 baseline towns see a pig, first landing median **day 7**
+(min 6, max 11) — earned, not wallpaper: rep must cross 80 first. Baseline
+floor **0/16 both ways**, median 11 → 12 (inside the documented ±1 band).
+Growth **4/16 both ways, unchanged**. Mixed signs throughout. **No fingerprint
+re-baseline was owed** — the frozen two-day pins live at rep ~53, below the
+gate, where the roll short-circuits before the draw, so the pre-pig world is
+byte-identical. The gate bought that.
+
+**Two findings the shipping exposed, both for phase 2.** First: pigs arrive,
+find nothing they want to eat, and **leave hungry and unspent** — seen live on
+a day-18 departures card, BIG PALP taking home $136 of $136 and complaining
+"GETTING ON THIS BOAT HUNGRIER THAN I GOT OFF IT" while PETUNIA files it as "I
+DEPART UNFED. THE REPORT WILL BE FRANK." The taboo is working exactly as
+written and the town has no answer to it, which is precisely what **pig dishes
+and venues** are for. Second, related: the fish taboo barely differentiates on
+the shack's two-plate menu, because she is lukewarm on the taco (0.6) as well
+as the fish (0.5) — her character actually lives in the drinks and the
+bathhouse (juice 1.6, cooler 1.8, room 1.7, **soak 2.0**), which are mostly
+NPC businesses. That is why growth lifetime moved DOWN slightly with pigs
+aboard: **pig money flows to the showers and the hotel, not to the player's
+shack.** A rival who runs the showers now banks an offer's worth of intent in
+a single day of pig custom — the paired arm in the rivalry scenario had to
+starve her once more to keep asking its question.
 ## PUT DOWN BESIDE A THING, A CRAB CONSIDERS IT (Matt, 2026-08-22) — a ruling
 
 > "we should make it so when crabs get dragged somewhere they interact with

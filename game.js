@@ -6842,21 +6842,41 @@ function buildCulture(def) {
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
     bather: Array.isArray(a.bather) ? a.bather : null, regs };
 }
-function loadCultures(raw) {
-  for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
-  rawCultures = null;
+// Install one document set into the registry. `mine` marks the BUNDLED
+// cultureways - ours, shipped in cultureways.js - which install silently:
+// a toast about our own content would be a bug report addressed to the
+// player. A document out of a SAVE is a stranger and says so when it fails.
+// Both go through the identical clamps; trust buys a quieter failure, never
+// a laxer one (the hostile-file posture, cultureway research ruling 5).
+function installCultures(raw, mine) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
-  // the RAW key round-trips even when a culture fails the gate: a load must
-  // never destroy data it merely could not use
-  rawCultures = raw;
   for (const id in raw) {
     if (id === "crab") continue;   // the crab is the engine's own, not overridable yet
     if (!/^[a-z][a-z0-9_]{0,15}$/.test(id)) continue;
     const why = cultureProblem(raw[id]);
-    if (why) { toast = { text: "A CULTUREWAY DIDN'T LOAD - " + why, t: 8 }; continue; }
+    if (why) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - " + why, t: 8 }; continue; }
     try { CULTURES[id] = buildCulture(raw[id]); }
-    catch (e) { toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
+    catch (e) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
   }
+}
+// THE PEOPLES OF THE WORLD, assembled at every boot and every load.
+//
+// The bundled documents go in FIRST and a save's own documents overlay them
+// by id, so a player who writes their own pigway replaces ours instead of
+// fighting it - and so a bundled culture we improve later reaches every
+// existing save, because saves carry the player's documents, never ours.
+// (That is also why `rawCultures` - what gets written back out - holds only
+// the save's own: bundling anything into a save would freeze it at the
+// version it was written with.)
+function loadCultures(raw) {
+  for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
+  rawCultures = null;
+  installCultures(typeof BUNDLED_CULTUREWAYS !== "undefined" ? BUNDLED_CULTUREWAYS : null, true);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return;
+  // the RAW key round-trips even when a culture fails the gate: a load must
+  // never destroy data it merely could not use
+  rawCultures = raw;
+  installCultures(raw, false);
 }
 // Resolve a customer/visitor's culture entry for the DRAW path. Crab - and
 // every walk-in, which has no culture field at all - resolves to null, and
@@ -17907,6 +17927,10 @@ addEventListener("beforeunload", save);
 initNpcs();
 if (!FRESH) migrateLegacy();   // the old single-key town becomes slot 1, intact
 activeSlot = readActiveSlot();
+// The world has peoples in it before anybody saves one. load() installs them
+// again alongside a save's own documents; a town with no save at all would
+// otherwise sail forever with an empty mainland.
+loadCultures(null);
 hasSave = load();
 if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
