@@ -11632,6 +11632,118 @@ const sciRun = (sim, seed, plan, span) => {
   return sim.G("SCI.days.map(r => r.day + ':' + r.coins + ':' + r.lifetime + ':' + r.rep).join('|')");
 };
 
+// ---- THE LOADER OWES EVERY CALLER A CLEAN TOWN. Both scenarios below pin
+// the sim stream before loading, deliberately: the stream is the HOST's
+// (`_rtap === null` means the context's own Math.random), not state the
+// envelope carries, so a town loaded at a different stream position draws
+// different guests no matter how clean the loader is. Pinning it isolates
+// exactly what `load()` owns - which is the thing under test.
+const LOAD_FP = `JSON.stringify({
+  day, tday, coins, rep, catch: townCatch, fund: townFund.bal,
+  crabs: allCrabs().map(c => [c.p.name, c.x, c.p.wallet, c.p.hunger, c.p.tired]),
+  vis: customers.filter(k => k.visitor && !k.gone).map(k => [k.name, k.x, k.wallet]).sort() })`;
+// a lived-in town, saved: the envelope both scenarios load
+const loadEnvOf = (seed, days) => {
+  const s = createSim({ seed });
+  s.runDays(days);
+  return s.G("JSON.stringify(save(true))");
+};
+
+scenario("load: a town loaded onto a lived-in world is the town loaded clean", () => {
+  const env = loadEnvOf(4242, 4), lit = JSON.stringify(env);
+  const land = (lived) => {
+    const s = createSim({ seed: 4242 });
+    if (lived) s.runDays(7);            // a whole other town's worth of residue
+    s.G(`sciSeedStream(99); load(null, JSON.parse(${lit}))`);
+    s.runDays(+s.G("day") + 3);         // far enough for a leak to reach the books
+    return s.G(LOAD_FP);
+  };
+  const clean = land(false), dirty = land(true);
+  if (clean === dirty) return true;
+  const a = JSON.parse(clean), b = JSON.parse(dirty);
+  const k = Object.keys(a).find(k2 => JSON.stringify(a[k2]) !== JSON.stringify(b[k2]));
+  return `the last town followed this one in: ${k} ${JSON.stringify(a[k]).slice(0, 60)}`
+    + ` vs ${JSON.stringify(b[k]).slice(0, 60)}`;
+});
+
+scenario("load: the same envelope lands the same way however often you land it", () => {
+  // The scrub's own shape - a bench shuttles keyframe after keyframe into one
+  // world - and the sharper property: the twentieth landing must equal the
+  // first. Twenty is not arbitrary: the pool overflowed at 160 slots when
+  // landings ran without a tick between them, which is where this bites.
+  const env = loadEnvOf(1337, 3), lit = JSON.stringify(env);
+  const s = createSim({ seed: 1337 });
+  s.G(`sciSeedStream(7); load(null, JSON.parse(${lit}))`);
+  const first = s.G(LOAD_FP);
+  for (let i = 0; i < 19; i++) s.G(`sciSeedStream(7); load(null, JSON.parse(${lit}))`);
+  const twentieth = s.G(LOAD_FP);
+  if (first !== twentieth) {
+    const a = JSON.parse(first), b = JSON.parse(twentieth);
+    const k = Object.keys(a).find(k2 => JSON.stringify(a[k2]) !== JSON.stringify(b[k2]));
+    return `landing 20 differs from landing 1 at ${k}`;
+  }
+  // ...and the pool did not grow a body per landing: twenty landings of a
+  // seven-crab town must not have consumed twenty townsful of slots.
+  const top = +s.G("poolTop"), live = +s.G("allCrabs().length + customers.length");
+  if (top > live + 8) return `the pool kept the dead: poolTop ${top} against ${live} live`;
+  return true;
+});
+
+scenario("load: the new town's desk is clear of the last town's books", () => {
+  // The second escalated data pin. Leaking earnHist alone does not move a
+  // three-day trajectory either - the rival only prices her ambition when she
+  // gets around to it - so this reads the ledgers directly rather than
+  // waiting for one to matter. That is the same judgement the furniture bit
+  // got, for the same reason: the instrument has to match the mechanism.
+  const s = createSim({ seed: 4242 });
+  s.runDays(6);
+  const filled = +s.G("earnHist.length") + +s.G("qSeqN");
+  if (filled < 1) return "staging failed: six days wrote no session ledgers";
+  const other = createSim({ seed: 1337 });
+  other.runDays(2);
+  const env = JSON.stringify(other.G("JSON.stringify(save(true))"));
+  s.G(`sciSeedStream(5); load(null, JSON.parse(${env}))`);
+  // earnHist is the one the rival reads to decide what a shop is worth; qSeqN
+  // stamps a place in the queue, so a carried counter mis-orders the new
+  // town's first line.
+  const carried = [];
+  if (+s.G("earnHist.length")) carried.push(`earnHist ${s.G("earnHist.length")} row(s)`);
+  if (+s.G("qSeqN")) carried.push(`qSeqN at ${s.G("qSeqN")}`);
+  if (s.G("report !== null")) carried.push("yesterday's report card");
+  if (+s.G("Object.keys(hoursObs).length")) carried.push("the old hours observations");
+  if (carried.length) return "the last town's books came in with the new one: " + carried.join(", ");
+  return true;
+});
+
+scenario("load: the furniture forgets its guests, and the BIT is where it forgets", () => {
+  // A DATA PIN, escalated rather than claimed. The obvious mutation - stop
+  // clearing FT_FLG and let the occupancy bit leak - does NOT move either
+  // scenario above: a town re-derives who is sitting where fast enough that
+  // the books come out the same. That makes a trajectory assertion the wrong
+  // instrument, so this one reads the bit directly.
+  //
+  // And it reads the BIT, not `w.occupant`, on purpose: the getter is
+  // `(FT_FLG[fid] & 1) ? this._occ : null`, so clearing the wrapper alone
+  // leaves a fresh morning opening onto a hotel that only the kernel can see
+  // as full - the bit is the half the kernel reads.
+  const s = createSim({ seed: 4242 });
+  s.runDays(6);                       // long enough to seat guests and let rooms
+  const occupied = `(() => { let n = 0; for (let i = 0; i < FT_FLG.length; i++) if (FT_FLG[i] & 1) n++; return n; })()`;
+  const before = +s.G(occupied);
+  if (before < 1) return "staging failed: nothing in town was occupied after six days";
+  // a DIFFERENT town's envelope, landed on top
+  const other = createSim({ seed: 1337 });
+  other.runDays(2);
+  const env = JSON.stringify(other.G("JSON.stringify(save(true))"));
+  s.G(`sciSeedStream(5); load(null, JSON.parse(${env}))`);
+  const after = +s.G(occupied);
+  const seated = +s.G(`customers.filter(k => k.visitor && !k.gone && (k.room || C_TBL[k.pi] >= 0 || C_STL[k.pi] >= 0)).length`);
+  if (after > seated)
+    return `the furniture kept ${after - seated} guest(s) the new town never seated`
+      + ` (${after} bit(s) set, ${seated} guest(s) holding)`;
+  return true;
+});
+
 scenario("science: one recipe lives the same town twice", () => {
   // Two pristine boots of the same recipe. In the browser that is two loads
   // of the same `?lab&seed=...` URL; here it is two fresh sims, which is the
