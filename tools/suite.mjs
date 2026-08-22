@@ -2200,8 +2200,24 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
   // dirt's per-tick rate 315 runs +0.136% fast and had accrued ~one tick's
   // extra dirt by 13:53 (design/cs35-research/numeric-wip/3-closeout.md).
   const want = {
-    1337: '{"day":3,"tmin":0,"coins":14998,"rep":51.3587,"catch":1,"serves":36,"crabServes":4,"rage":4,"till":18662,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18662],["REEF",19729],["SALTY",700],["DRIFT",200],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[464,155],[2072,167]]}',
-    4242: '{"day":3,"tmin":0,"coins":19152,"rep":53.8816,"catch":4,"serves":45,"crabServes":4,"rage":5,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",23316],["SALTY",0],["DRIFT",400],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
+    // RE-BASELINED for NUMERIC SLICE 4 (space -> Q8), the slice the protocol
+    // budgeted as the largest honest blast radius. Every position now rides
+    // the Q8 grain and every step/push is exact integer arithmetic, so both
+    // trajectories re-roll wholesale (fpdiff: 30 behavior-shaped fields, 0
+    // rounding - the expected shape, not a surprise). THE HEADS ARE TRACED,
+    // per the slice-3 standard, and they are mirror images:
+    //   * 1337, day 1 tick 1425: a strolling visitor arrives inside
+    //     updateVisitor's 1px window one tick EARLY on Q8-floored steps; her
+    //     conditional decision draw advances the shared stream one slot
+    //     (draw #256 fires at 1425, not 1426). The decision is identical -
+    //     only the stream position moves, and the day re-rolls behind it.
+    //   * 4242, day 1 tick 636: the same site, one tick LATE - the stream
+    //     holds a draw for a tick instead. Opposite signs at the two heads:
+    //     the quantization has no compass.
+    // The matrix refereed the slice: baseline 0/48 over three blocks, median
+    // 12 in each; growth 14/48 vs 11/48 (+1/+2/0 per block, mixed bands).
+    1337: '{"day":3,"tmin":0,"coins":12934,"rep":50.3247,"catch":1,"serves":37,"crabServes":4,"rage":4,"till":19861,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19861],["REEF",18545],["SALTY",300],["DRIFT",200],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[558.4,167.1],[646,163]]}',
+    4242: '{"day":3,"tmin":0,"coins":19361,"rep":53.5996,"catch":1,"serves":44,"crabServes":5,"rage":6,"till":23410,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23410],["REEF",20935],["SALTY",0],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[436.5,167.7],[2136,154],[2072,154],[464,155],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -10585,16 +10601,18 @@ scenario("cultureways: a save without cultures changes nothing", () => {
     vis: customers.filter(k => k.visitor && !k.gone).length,
     catch: townCatch
   })`);
-  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 2 (the master tick). This is
-  // seed 4242's two-day town and it moves for exactly the reason the day-2
-  // fingerprint above moves - every duration is a whole tick now, each one
-  // floors, and a chaotic town re-rolls who is standing where. rep 5429 ->
-  // 5388, coins 11191 -> 19152, and the visitor count 10 -> 7. The floor is
-  // the referee and it did not move: 0/16 exact, median eviction 12, on both
-  // sides of the slice. Bit-identical under JavaScriptCore on this tree.
-  const want = '{"day":3,"coins":19152,"rep":5388,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,21443],["REEF",2136,23316],["SALTY",2072,0],'
-    + '["DRIFT",318,400],["KELP",248,0]],"vis":7,"catch":4}';
+  // RE-BASELINED 2026-08-21 for NUMERIC SLICE 2 (the master tick): rep 5429 ->
+  // 5388, coins 11191 -> 19152, vis 10 -> 7, floor unmoved either side.
+  // RE-BASELINED again for NUMERIC SLICE 4 (space -> Q8): this is seed 4242's
+  // two-day town, and its head is TRACED in the day-2 fingerprint above -
+  // day 1 tick 636, a visitor's updateVisitor decision draw held for one tick
+  // on grain-quantized stroll steps, and the town re-rolls behind the stream.
+  // Matrix referee: baseline 0/48 over three blocks (median 12 in each),
+  // growth 14/48 vs 11/48, bands mixed-sign. Bit-identical under
+  // JavaScriptCore on this tree.
+  const want = '{"day":3,"coins":19361,"rep":5360,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",436,23410],["REEF",2136,20935],["SALTY",2072,0],'
+    + '["DRIFT",464,400],["KELP",450,1000]],"vis":6,"catch":1}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
   if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
