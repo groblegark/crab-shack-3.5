@@ -3326,6 +3326,29 @@ a tap; there was no gesture to arbitrate. Verified on a 390×844 portrait
 viewport with real touch events: SEND arms, a pan while armed pans and does NOT
 dispatch the crab, and the next tap dispatches and disarms.
 
+## A SAVE KEEPS ITS SEED (Matt, 2026-08-22) — a ruling
+
+> "yeah we gotta definitely keep the same seed, seems obvious"
+
+A save describes a town's PRESENT **and its FUTURE**. The sim stream's cursor
+rides in the envelope (`rs`), and `load()` adopts it, so reloading a town after
+playing on brings back the same town — same guests off the same boat — instead
+of resuming from wherever the session happened to leave the dice. The stream is
+town state, exactly as `T` and the pool bookkeeping turned out to be in the
+loader-reset pass; this is that pass's last outstanding question, answered.
+
+`SAVE_VER` is unchanged: the fields are additive, and an older save (which never
+wrote a cursor) derives one from its own bytes — not the future it would have
+had, which was never written down, but the same future every time it is loaded.
+
+**The view stream is NOT part of this.** The title screen's wander and the music
+shuffle are the session's own, unsaved and unrestored; attract mode repeating
+each boot is tradition, and a save has no business dictating it.
+
+Boot still draws from the host: a brand-new town has no save to replay. Giving a
+fresh town its own founding seed from its first breath is a larger landing, and
+the close-out records what it costs (`design/cs35-research/numeric-wip/stream-cursor-closeout.md`).
+
 ## ON DUTY IS NOT A REFUSAL (Matt, 2026-08-21) — a ruling
 
 An owner's business order to their own staffer fires MID-SHIFT: the boss can
