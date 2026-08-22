@@ -5735,6 +5735,15 @@ scenario("rivalry: her interest builds from HER OWN books, and it is visible lon
   for (let i = 0; i < 12; i++) rivalDay(cold, "starve");
   if (cold.G(`rival.stage`) === "offer")
     return `a rival with no money and no credit still made an offer`;
+  // ...and the intent number itself is read off books that ARE empty at the
+  // moment of asking. It used to be enough to starve her once a day and check
+  // at day's end, because a day's takings could not fund an offer. THE PIGS
+  // ENDED THAT: they arrive rating a soak 2.0, the showers are HERS, and one
+  // day of pig custom banks more than the offer threshold - the intent formula
+  // was reading her books correctly the whole time, the staging had simply
+  // stopped producing an empty set. Starve her once more so the assertion is
+  // about the formula and not about how lucrative a shower has become.
+  rivalStarve(cold);
   if (cold.G(`rivalIntent()`) >= cold.G(`RIVAL_CFG.OFFER`))
     return `a rival with empty books reached intent ${cold.G("rivalIntent()")}`;
   return true;
@@ -10680,7 +10689,19 @@ scenario("cultureways: a save without cultures changes nothing", () => {
     + '["CLAWDIA",108,1600],["SUDSY",436,23410],["REEF",2136,20935],["SALTY",2072,0],'
     + '["DRIFT",464,400],["KELP",450,1000]],"vis":6,"catch":1}';
   if (fp !== want) return "the fingerprint moved: " + fp;
-  if (sim.G("Object.keys(CULTURES).join()") !== "crab") return "the registry is not crab-only on a plain town";
+  // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
+  // the game now, so the registry is no longer crab-only on a plain town - but
+  // this town's rep is 53.6 at day 3, the pig's arrival gate is 80, and the
+  // roll short-circuits BEFORE the draw when a gate is shut. The fingerprint
+  // above is the proof: byte-identical to the pre-pig world, every wallet and
+  // every position. That is the invariant this scenario was always about.
+  if (sim.G("Object.keys(CULTURES).sort().join()") !== "crab,pig")
+    return "the bundled peoples are not in the registry: " + sim.G("Object.keys(CULTURES).join()");
+  if (sim.G("rep >= 80000")) return "this town crossed the pig gate - the arm proves nothing";
+  if (sim.G("customers.some(k => k.culture && k.culture !== 'crab')"))
+    return "a pig came ashore below the gate";
+  // a bundled document is the ENGINE's, never the save's: it must not be
+  // written into a town, or improving it later would never reach that save
   if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
   // ...and a plain save round-trip writes no cultures key
   sim.G("save()");
@@ -10758,7 +10779,13 @@ scenario("cultureways: broken art is refused with a message and the town still l
   env.cultures = { pig: bad };
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 66, storage: store, fresh: false });
-  if (b.G("!!CULTURES.pig")) return "a ragged pig was accepted into the registry";
+  // The ragged document is refused - and the BUNDLED pig stands in its place,
+  // because a broken document in a save is the player's file going wrong, not
+  // a reason to take the world's peoples away from them. So "refused" is no
+  // longer provable by absence: it is provable by whose art is in the registry.
+  if (b.G("CULTURES.pig && CULTURES.pig.def.art.body.poses.a[3]") === "..KK")
+    return "a ragged pig was accepted into the registry";
+  if (!b.G("!!CULTURES.pig")) return "the ragged document took the bundled pig down with it";
   if (!/CULTUREWAY/.test(b.G("toast ? toast.text : ''"))) return "no toast named the dropped culture";
   if (!(b.G("crabs.length") >= 1)) return "the town failed to load around the bad culture";
   // the raw key still round-trips: a load never destroys data it could not use
