@@ -11175,6 +11175,54 @@ scenario("the kernel and the reference agree, byte for byte", () => {
   return true;
 });
 
+scenario("the sim's numbers are integers - the tripwire the no-float receipt lacked", () => {
+  // Slice 5 claimed the sim advance path held no float arithmetic, and the
+  // claim was OVER-stated: p.tired banked float state for two more phases,
+  // green on every receipt because IEEE floats are deterministic. This walk
+  // is the tripwire that would have caught it - and did catch cust.animT and
+  // cust.spawnX on its first run. Exceptions are ENUMERATED, each with an
+  // owner: rival.intent (a persisted 0..CAP ratio; converts with the rival
+  // machine's port), shimPh's float INIT chain (receipted since slice 5; the
+  // stored value is int and asserted here), and _stats (observability, not
+  // sim state - nothing reads it back).
+  const sim = createSim({ seed: 4242 });
+  sim.runDays(3);
+  const bad = sim.G(`(() => {
+    const out = [];
+    const chk = (label, v) => { if (typeof v === "number" && isFinite(v) && !Number.isInteger(v)) out.push(label + "=" + v); };
+    for (const c of allCrabs()) {
+      for (const k in c.p) chk("p." + k, c.p[k]);
+      chk("c.otMin", c.otMin); chk("c.tiredIn", c.tiredIn); chk("c.shimPh", c.shimPh); chk("c.animQ", c.animQ);
+    }
+    for (const k of customers) for (const f in k) { if (typeof k[f] === "number" && f !== "intent") chk("cust." + f, k[f]); }
+    for (const f in townFund) chk("fund." + f, townFund[f]);
+    for (const o in OWNERS) for (const f in OWNERS[o]) chk("own." + f, OWNERS[o][f]);
+    for (const f in rival) if (f !== "intent") chk("rival." + f, rival[f]);
+    for (const f in trade) chk("trade." + f, trade[f]);
+    chk("coins", coins); chk("lifetime", lifetime); chk("rep", rep); chk("tmin", tmin);
+    return out.slice(0, 8).join(" | ");
+  })()`);
+  if (bad) return "float state in the sim: " + bad;
+  // ...and the save envelope carries integers too (the persisted image is
+  // the spec a loading kernel reads)
+  sim.G("save()");
+  const env = sim.G(`(() => {
+    const out = [];
+    const walk = (o, path) => {
+      for (const k in o) {
+        const v = o[k];
+        if (typeof v === "number" && isFinite(v) && !Number.isInteger(v) && k !== "intent") out.push(path + k + "=" + v);
+        else if (v && typeof v === "object") walk(v, path + k + ".");
+      }
+    };
+    const raw = localStorage.getItem("crabshack3_v1_s" + (localStorage.getItem("crabshack3_v1_active") || 1)) || localStorage.getItem("crabshack3_v1_s1");
+    walk(JSON.parse(raw || "{}"), "");
+    return out.slice(0, 8).join(" | ");
+  })()`);
+  if (env) return "float in the save envelope: " + env;
+  return true;
+});
+
 scenario("the sim stream's cursor is shared: JS and kernel draws are one sequence", () => {
   // KERNEL PHASE 2's stream-identity proof. With the kernel armed, the sim
   // stream's mulberry32 state lives in kernel memory and srand() steps it

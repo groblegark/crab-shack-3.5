@@ -1327,7 +1327,10 @@ function stockPot() {
     : (hall.policy.bowls | 0) <= 0 ? "policy" : want <= 0 ? "nocall" : "ok";
   if (want <= 0 || !a || shelterShut()) return 0;
   const each = bowlCost();
-  const n = Math.min(want, Math.floor(townFund.bal / Math.max(1, each)));
+  // the exact-division idiom (provably identical here: for int a,b under
+  // 2^53, IEEE a/b is correctly rounded, so floor(a/b) can only err when
+  // a*floor is within a half-ulp of an integer - impossible below 2^53)
+  const eachD = Math.max(1, each), n = Math.min(want, (townFund.bal - townFund.bal % eachD) / eachD);
   if (n <= 0) { townFund.potWhy = "funds"; return 0; }
   fundPay(SOUP_BIZ, n * each, n + " BOWLS FROM " + BIZ[SOUP_BIZ].short);
   for (let i = 0; i < n; i++) {                    // ...and the shack buys the fish for them
@@ -1373,23 +1376,25 @@ function takeBowl(c) {
 // stand to LOSE from each way of paying for it. Both are small readable
 // numbers and both are printed beside the vote on the HALL tab, so a result
 // can be argued with rather than just watched.
-function potStake(c) {
-  let s = 0.05;                            // everybody would rather the shelter stayed open
-  if (c.p.homeless) s += 0.55;             // ...but if you sleep there it is your address
-  if (c.p.sick) s += 0.20;                 // and a sick day pays nothing at all
-  if ((c.p.bowls || 0) > 0) s += 0.25;     // you have actually stood in that queue
-  if (c.p.fisher) s -= 0.30;               // a fisher roasts their own catch (measured - PLAN)
-  if (!c.p.npc) s -= 0.15;                 // of 1800 ticks where a sick crab could not buy food,
+// ...in INT TWENTIETHS (the 0.05 grid was always exact twentieths wearing
+// float clothing; the election comparators want exact equality, not 1e-9)
+function potStake20(c) {
+  let s = 1;                               // everybody would rather the shelter stayed open
+  if (c.p.homeless) s += 11;               // ...but if you sleep there it is your address
+  if (c.p.sick) s += 4;                    // and a sick day pays nothing at all
+  if ((c.p.bowls || 0) > 0) s += 5;        // you have actually stood in that queue
+  if (c.p.fisher) s -= 6;                  // a fisher roasts their own catch (measured - PLAN)
+  if (!c.p.npc) s -= 3;                    // of 1800 ticks where a sick crab could not buy food,
                                            // ZERO were the player's crew: they draw a wage
-  return Math.max(0, Math.min(1, s));
+  return Math.max(0, Math.min(20, s));
 }
-function purseCost(c, mech) {
+function purseCost100(c, mech) {   // int hundredths
   const owns = !!(c.p.owner && OWNERS[c.p.owner]);
   const paid = !c.p.npc || !!c.p.employer;   // somebody's wage comes out of somebody's till
-  if (mech === "levy") return owns ? 1.0 : paid ? 0.28 : 0.04;
-  if (mech === "dues") return owns ? 0.50 : paid ? 0.12 : 0.02;
-  if (mech === "tin") return (c.p.wallet || 0) >= TIN_KEEP ? 0.34 : 0.03;
-  return 0.04;   // RENTS: Mr. Pincherton pays, and Mr. Pincherton does not vote
+  if (mech === "levy") return owns ? 100 : paid ? 28 : 4;
+  if (mech === "dues") return owns ? 50 : paid ? 12 : 2;
+  if (mech === "tin") return (c.p.wallet || 0) >= TIN_KEEP ? 34 : 3;
+  return 4;   // RENTS: Mr. Pincherton pays, and Mr. Pincherton does not vote
 }
 // WHAT A PLATFORM WOULD ACTUALLY RAISE, off what the town did today. This is
 // the number that makes the election worth holding: a homeless crab does not
@@ -1418,7 +1423,8 @@ function purseYield(p) {
 // it, so it is not part of what a policy costs you week after week.
 function platTake(p) { return Math.min(purseYield(p), shelterRent() + (p.bowls | 0) * bowlCost()); }
 function platBowls(p) {   // bowls the purse can actually pay for, after the roof
-  return Math.max(0, Math.min(p.bowls | 0, Math.floor((purseYield(p) - shelterRent()) / Math.max(1, bowlCost()))));
+  const room = purseYield(p) - shelterRent(), bc = Math.max(1, bowlCost());
+  return Math.max(0, Math.min(p.bowls | 0, room >= 0 ? (room - room % bc) / bc : 0));   // exact idiom; the old floor of a negative was clamped by the max(0,) anyway
 }
 // THE ROOF IS WORTH MORE THAN THE POT, and the town knows it. A platform whose
 // purse cannot even cover the shelter's rent is a platform that closes the
@@ -1433,9 +1439,9 @@ function platBowls(p) {   // bowls the purse can actually pay for, after the roo
 // six solvent towns over 24 days shut the shelter FIVE times and paid 75 rough
 // nights against 35 with no town hall at all. The office was making crab
 // welfare worse and buying nothing with it.
-function roofWeight(c) {
+function roofWeight20(c) {   // int twentieths, same grid as potStake20
   const seen = townFund.strikes > 0 || shelterShut() ? 2 : 1;
-  return (c.p.homeless ? 0.60 : 0.20) * seen;
+  return (c.p.homeless ? 12 : 4) * seen;
 }
 // WHAT THE FLOOR IS WORTH TO THIS CRAB, and it is the one line on the ballot
 // where the town splits along a seam the shelter never touches: a wage packet
@@ -1469,7 +1475,7 @@ function floorRaise(c, floor) {   // what it puts in THIS crab's day, as wages
 // pays the shops that are not. The seam is therefore between BIG and SMALL
 // employers rather than between labour and capital - which is why it is worth
 // having on the ballot next to the floor rather than folded into it.
-function capStake(c, p) {
+function capStake100(c, p) {   // int hundredths (every weight here is a 0.01 multiple)
   const cap = capOf(p);
   if (cap <= 0) return 0;
   let v = 0;
@@ -1477,23 +1483,18 @@ function capStake(c, p) {
     for (const b of Object.keys(BIZ)) {
       if (!bizUnlocked(b) || !bizOwner(b)) continue;
       const over = bizHeads(b) + 1 - cap;          // >0 means this shop cannot hire again
-      if (bizOwner(b) === c.p.owner) v -= Math.max(0, over) * 0.22;   // your own hands, tied
-      else v += Math.min(0.5, Math.max(0, over) * 0.18);              // ...and so are theirs
+      if (bizOwner(b) === c.p.owner) v -= Math.max(0, over) * 22;   // your own hands, tied
+      else v += Math.min(50, Math.max(0, over) * 18);               // ...and so are theirs
     }
   }
   // A CRAB WITHOUT A WAGE JOB IS THE ONE IT COSTS, and they are not an
   // abstraction here: a limit is a posting that never goes up on the board.
-  if (!BIZ[c.p.job] && !c.p.owner) v -= 0.18;
+  if (!BIZ[c.p.job] && !c.p.owner) v -= 18;
   return v;
 }
-function wageStake(c, p) {
-  const floor = floorOf(p);
-  if (floor <= 0) return 0;
-  // a day's raise, as a fraction of a standard day - so "the floor is worth a
-  // third of my wage to me" is literally what the number says
-  return floorRaise(c, floor) / WAGE_STD
-    - floorBill(c, floor) / 4500;   // 4500c = a heavy morning's lift on one till
-}
+// wageStake folded into platValue: its two terms keep their meanings (a
+// day's raise as a fraction of a standard day; the bill against a heavy
+// morning's lift) but ride as int cents against their own denominators.
 // The purse half of a platform does not depend on the floor, so allPlatforms()
 // prices it once per (mech, rate, bowls) and hands the same three numbers to
 // all five wage steps. Without it the fifth dial multiplied a grid that walks
@@ -1502,12 +1503,23 @@ function wageStake(c, p) {
 function pYield(p) { return p._y != null ? p._y : purseYield(p); }
 function pTake(p) { return p._take != null ? p._take : platTake(p); }
 function pBowls(p) { return p._bowls != null ? p._bowls : platBowls(p); }
+// ...as an EXACT INTEGER, in units of 1/41,400,000 of the old scale. Every
+// term was always a rational on a fixed grid (twentieths, hundredths, cents
+// over WAGE_STD / 4500 / 6000); D = lcm(20*POT_MAX, 20, WAGE_STD, 4500,
+// 100, 100*6000) = 41,400,000 clears every denominator, the largest product
+// (pc100 * take * 69) stays far under 2^53, and the election comparators
+// compare exactly instead of through a 1e-9 blur. Only ever compared or
+// sorted - nothing reads the absolute scale.
 function platValue(c, p) {
   const roof = pYield(p) >= shelterRent() ? 1 : 0;
-  return potStake(c) * (pBowls(p) / POT_MAX)
-    + roofWeight(c) * roof
-    + wageStake(c, p) + capStake(c, p)
-    - purseCost(c, p.mech) * (pTake(p) / 6000);   // 6000c = a big night for this fund
+  const floor = floorOf(p);
+  const fr = floor > 0 ? floorRaise(c, floor) : 0, fb = floor > 0 ? floorBill(c, floor) : 0;
+  return 345000 * potStake20(c) * pBowls(p)      // D / (20 * POT_MAX)
+    + 2070000 * roofWeight20(c) * roof           // D / 20
+    + 18000 * fr                                 // D / WAGE_STD (2300c: a standard day)
+    - 9200 * fb                                  // D / 4500 (a heavy morning's lift on one till)
+    + 414000 * capStake100(c, p)                 // D / 100
+    - 69 * purseCost100(c, p.mech) * pTake(p);   // D / (100 * 6000c: a big night for this fund)
 }
 // every platform on the grid, scored once an election and shared by every
 // voter (the yields depend on the town, never on who is reading them)
@@ -1538,9 +1550,9 @@ function capAsk(p) { const v = (p && p.cap) | 0; return v === 0 ? -1 : CAP_STEPS
 function idealPlatform(c, grid) {
   let best = null, bv = -Infinity;
   for (const p of grid || allPlatforms()) {
-    const v = platValue(c, p);
-    if (v > bv + 1e-9
-        || (Math.abs(v - bv) <= 1e-9 && best && (p.rate < best.rate
+    const v = platValue(c, p);   // exact int - strict better is strict, a tie is exact
+    if (v > bv
+        || (v === bv && best && (p.rate < best.rate
             || (p.rate === best.rate && p.bowls < best.bowls)
             || (p.rate === best.rate && p.bowls === best.bowls
                 && (p.wage | 0) < (best.wage | 0))
@@ -1573,7 +1585,7 @@ function voteReason(c, p) {
     if (mine) bits.push("AND CANNOT HIRE AGAIN");
     else if (!BIZ[c.p.job] && !c.p.owner) bits.push("AND IS LOOKING FOR WORK");
   }
-  bits.push(purseCost(c, p.mech) * pTake(p) >= 12 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");
+  bits.push(purseCost100(c, p.mech) * pTake(p) >= 1200 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");   // same line, x100 both sides
   return bits.join(", ");
 }
 // THE BALLOT. Everybody has an ideal; the crabs who STAND are the ones who
@@ -1643,7 +1655,7 @@ function pickCandidate(c, cands) {
     const v = platValue(c, k.plat);
     // a dead heat in a voter's head goes to the crab already doing the job,
     // then alphabetically - so the same town votes the same way every run
-    if (v > pv + 1e-9 || (Math.abs(v - pv) <= 1e-9 && pick
+    if (v > pv || (v === pv && pick
         && !pick.inc && (k.inc || k.name < pick.name))) { pv = v; pick = k; }
   }
   return pick;
@@ -1715,8 +1727,11 @@ function printBallots() {
       today.moved.push("THE TOWN PASSED THE HAT FOR BALLOT PAPER - $" + (raised / 100));   // pennies: 2dp is exact
     }
   }
-  const n = Math.max(0, Math.min(want, Math.floor(spare / BALLOT_PRICE + 1e-9)));
-  const cost = Math.round(n * BALLOT_PRICE * 100) / 100;
+  // exact int division - the 1e-9 was the dollar era guarding a float
+  // quotient; for int cents over int cents the exact form needs no guard
+  // (and n * BALLOT_PRICE was already exactly the old round(x*100)/100)
+  const n = Math.max(0, Math.min(want, (spare - spare % BALLOT_PRICE) / BALLOT_PRICE));
+  const cost = n * BALLOT_PRICE;
   // ...and it comes off the ferry like every other import, on the trade
   // ledger, out of a named purse. Nothing in this town is conjured.
   if (n > 0) { fundRemit(cost, "THE FERRY", "BALLOT PAPER"); tradeImport("paper", n, cost); }
@@ -1923,8 +1938,8 @@ function seatFoundingMayor() {
   if (!town.length) return;
   let best = town[0], bs = -Infinity;
   for (const c of town) {
-    const s = potStake(c);
-    if (s > bs + 1e-9 || (Math.abs(s - bs) <= 1e-9 && c.p.name < best.p.name)) { bs = s; best = c; }
+    const s = potStake20(c);   // exact int - a tie is a TIE, not a 1e-9 blur
+    if (s > bs || (s === bs && c.p.name < best.p.name)) { bs = s; best = c; }
   }
   hall.mayor = best.p.name; hall.termDay = 1;
 }
@@ -5977,6 +5992,7 @@ const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // An own `state:` data property would SHADOW the accessor, so the string is
 // lifted off, the prototype attached, and the string re-enters through the
 // strict setter - arriving as a code like every other write.
+const animTOf = (c) => c.animQ * 9 / 4294967296;   // exactly the old srand()*9 double
 function vivifyCust(o) {
   const lift = {};
   for (const f of ["state", "x", "y", "wy", "tx", "ty", "_mx", "_my"])
@@ -5984,6 +6000,8 @@ function vivifyCust(o) {
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
   for (const f in lift) o[f] = lift[f];
+  // a foreign literal speaking px spawnX gets the Q8 grain the gates compare
+  if (o.spawnXQ == null && o.spawnX != null) { o.spawnXQ = Math.round(o.spawnX * Q8); delete o.spawnX; }
   return o;
 }
 
@@ -6082,7 +6100,7 @@ function newCrab(persona) {
   const c = Object.setPrototypeOf({
     p: persona,
     si: poolAlloc(),
-    flip: false, hidden: false, animT: srand() * 9,
+    flip: false, hidden: false, animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
     dsC: DS.home, csC: 0, target: 0, busFrom: -1, busTo: -1, workBiz: "shack",
     errandBiz: null, errandCust: null, errandCd: 0,
     duty: false, pendingOff: false, pauseT: 0, _offIdx: 0,
@@ -6274,7 +6292,7 @@ function heatShimmerQ12(c) {
   const th = c.p.thirst || 0;
   if (th <= SHIMMER_AT) return 4096;
   const f = Math.min(4096, idiv((th - SHIMMER_AT) * 4096, Q20 - SHIMMER_AT));
-  if (c.shimPh == null) c.shimPh = Math.round(c.animT * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
+  if (c.shimPh == null) c.shimPh = Math.round(animTOf(c) * 6.3 / BAM_RAD) & 0xFFFF;   // the same draw, in turns
   const s = sinQ15(((T * SHIMMER_STRIDE + c.shimPh) & 0xFFFF) >> 4);
   // 0.5 * (f/4096) * (s/32768) in Q12 is f*s/65536 - and it TRUNCATES, not
   // floors: trunc is odd where floor is not, so the 32-tick orbit's paired
@@ -7503,7 +7521,7 @@ function load(slot) {
     if (ri >= 0 && rooms[ri] && !rooms[ri].occupant) { k.room = rooms[ri]; rooms[ri].occupant = k; k.roomN = ri + 1; }
     else if (k.stC === VS.inRoom || k.stC === VS.toRoom) k.stC = VS.roam;
     if (k.stC === VS.onSand) { k.rough = true; k.roughFlag = true; }
-    k.spawnX = k.x; k.y = k.wy; k.biz = null; k.recipe = null;
+    k.spawnXQ = Math.round(k.x * Q8); k.y = k.wy; k.biz = null; k.recipe = null;
     customers.push(k);
   }
   if (s.ferry) {
@@ -8263,8 +8281,24 @@ function updateSchedule(c, dt) {
     // crew's MORNING reading to 0.85. Now the housing ladder decides it: off a
     // cot you wake around 0.5 and cross the nod line halfway through every
     // shift; out of your own bed you wake near 0.05 and never do.
-    c.p.tired = Math.min(Q20, (c.p.tired || 0)
-      + TIRED_SHIFT / ownStdSpan(c) * (onOT ? OT_FATIGUE : 1) * dtT / GMIN);
+    // ...and it accrues EXACTLY. The float form above this comment's history
+    // (rate / span * ot * dtT / GMIN) banked FLOAT STATE in a Q20 field -
+    // deterministic, so every fingerprint stayed green, but a spec violation
+    // the C port cannot reproduce. The exact form is the otPremium pattern:
+    // a per-crab remainder accumulator - add the numerator, move floor(R/D)
+    // whole grains, keep R % D for next tick. Unbiased over any span (the
+    // remainder carries what a plain floor would lose ~half a grain a tick
+    // of), one named boundary, and the OT premium 1.5 rides as exactly 3/2.
+    // The remainder lives at p.tiredRem so a mid-shift save carries it; a
+    // span change reinterprets a sub-grain leftover once per rota move,
+    // bounded below one grain, deterministic.
+    {
+      const den = ownStdSpan(c) * GMIN * (onOT ? 2 : 1);
+      const R = (c.p.tiredRem || 0) + TIRED_SHIFT * dtT * (onOT ? 3 : 1);
+      const move = (R - R % den) / den, t1 = (c.p.tired || 0) + move;
+      if (t1 >= Q20) { c.p.tired = Q20; c.p.tiredRem = 0; }   // the bar is full; overflow is lost, as it always was
+      else { c.p.tired = t1; c.p.tiredRem = R % den; }
+    }
   }
   if (c.dsC === DS.working && tmin >= sh.end) c.pendingOff = true;
   if (c.dsC === DS.working && c.pendingOff && c.ksC === KS.idle) {
@@ -8291,14 +8325,23 @@ function updateSchedule(c, dt) {
     // tiredness because the last two hours are the ones that break you.
     // Under default hours with no cover this is byte-for-byte the old numbers.
     logShiftEnd(c);   // DIARY
-    const load = shiftLoad(c), otF = (c.otMin || 0) / GMIN / ownStdSpan(c);
-    c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + Math.floor(qn(0.25) * (load + otF)));  // a shift works up an appetite - a long one, more
+    // the load ratios as ONE exact rational each: load = dur/spanD and
+    // otF = otTicks/(GMIN*spanO) share the denominator 5*spanD*spanO, so
+    // floor(rate * (load + otF)) is floor(rate * (dur*5*spanO + otT*spanD) / D)
+    // with one floor at the end - the float dance (two divisions, an add, a
+    // multiply, then floor) could land a hair either side of a grain line.
+    const sD = dutyShift(c), dur = Math.max(0, sD.end - sD.start),
+      spanD = dutyStdSpan(c), spanO = ownStdSpan(c), otT = c.otMin || 0;
+    const loadN = dur * GMIN * spanO + otT * spanD, loadD = GMIN * spanD * spanO;
+    const hN = qn(0.25) * loadN;
+    c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + (hN - hN % loadD) / loadD);  // a shift works up an appetite - a long one, more
     // ...and thirst still reads how tired they were CLOCKING IN, never how
     // tired the shift left them. That is exactly what the old "checked
     // pre-bump" comment meant; now that tiredness accrues THROUGH the day it
     // has to be said with a field - c.tiredIn, stamped at arriveCommute. Same
     // rule, same firing rate, stated where it cannot drift.
-    c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + Math.floor(qn(0.35) * (load + otF) * ((c.tiredIn || 0) > qn(0.5) ? 1.5 : 1)));  // working a whole shift ALREADY tired makes you thirsty
+    const tN = qn(0.35) * loadN * ((c.tiredIn || 0) > qn(0.5) ? 3 : 2), tD = loadD * 2;   // the 1.5 rides as 3/2
+    c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
     c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
@@ -8869,7 +8912,7 @@ function updateErrand(c, dt) {
       }
       const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
         si: poolAlloc(),
-        need: c.errand.need, spawnX: c.x, stC: VS.waiting,
+        need: c.errand.need, spawnXQ: Math.round(c.x * Q8), stC: VS.waiting,
         patience: 90 * PQ, maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
       cust.x = c.x;
       queueJoin(cust);   // a neighbour takes their ticket like anybody else
@@ -10311,7 +10354,7 @@ function newVisitor(overnightOnly, cu) {
     color: cul ? (srand() * cul.colorways) | 0 : (srand() * CRAB_COLORS.length) | 0,
     acc: cul ? cul.accKeys[(srand() * cul.accKeys.length) | 0]
       : ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
-    animT: srand() * 9,
+    animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
     // they come off the boat ON THE PLANKS, at rail height, and walk down
     si: poolAlloc(), leg: 0,
     stC: VS.ashore,
@@ -10900,7 +10943,7 @@ function updateVisitor(k, dt) {
       k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
       return;
     }
-    k.stC = VS.arriving; k.spawnX = k.x; k.y = FLOOR_Y;
+    k.stC = VS.arriving; k.spawnXQ = Math.round(k.x * Q8); k.y = FLOOR_Y;
     // visStep settles within a pixel of its target y, and a line standing on
     // five different y values reads as a huddle however even the spacing is.
     // Everybody in a line stands ON the boardwalk line.
@@ -11000,8 +11043,8 @@ function newCustomer(bizKey) {
     name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
     color: (srand() * CRAB_COLORS.length) | 0,
     acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
-    animT: srand() * 9,
-    si: poolAlloc(), spawnX, stC: VS.arriving, patience: 50 * PQ, maxPatience: 50 * PQ,
+    animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
+    si: poolAlloc(), spawnXQ: spawnX * Q8, stC: VS.arriving, patience: 50 * PQ, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
     claimed: false, served: false, server: null }, VisProto);
   w.x = spawnX;
@@ -11152,11 +11195,11 @@ function updateCustomers(dt) {
       if (k.isCrab) { finishErrand(k); continue; }
       // A VISITOR IS NOT LEAVING TOWN, they are leaving a COUNTER. A few paces
       // clear of the line and the visit picks up where it left off.
-      if (k.visitor && Math.abs(k.x - (k.spawnX == null ? k.x : k.spawnX)) > 26) { visAfterCounter(k); continue; }
+      if (k.visitor && Math.abs(PXQ[k.si] - (k.spawnXQ == null ? PXQ[k.si] : k.spawnXQ)) > 26 * Q8) { visAfterCounter(k); continue; }
     }
   }
   // A visitor stays until the ferry takes them; everybody else goes as before.
-  customers = customers.filter(k => k.visitor ? !k.gone : k.isCrab ? !k.done : k.x < (k.spawnX || WORLD_W) + 20);
+  customers = customers.filter(k => k.visitor ? !k.gone : k.isCrab ? !k.done : PXQ[k.si] < (k.spawnXQ || WORLD_W * Q8) + 20 * Q8);
   // (THE OLD SPAWN TIMER LIVED HERE.) Tourist demand is no longer a clock: it
   // is the visitors who are actually in town, deciding what they fancy. The
   // reputation term the timer carried now sets the SIZE OF THE BOAT instead -
@@ -13057,11 +13100,11 @@ function drawCrab(c) {
   const sleeping = napping || (!moving && c.dsC === DS.home && (darkness() > 0.7 || c.p.rough));
   let art;
   if (sleeping) art = arts.s;
-  else if (working) art = ((c.animT * 6) | 0) % 2 ? arts.w : arts.a;
-  else if (moving) art = ((c.animT * 8) | 0) % 2 ? arts.a : arts.b;
+  else if (working) art = ((animTOf(c) * 6) | 0) % 2 ? arts.w : arts.a;
+  else if (moving) art = ((animTOf(c) * 8) | 0) % 2 ? arts.a : arts.b;
   else art = arts.a;
-  const bob = sleeping ? (Math.sin(viewT * 1.6 + c.animT) > 0 ? 1 : 0)   // slow breathing
-    : working ? -(((c.animT * 6) | 0) % 2) : 0;
+  const bob = sleeping ? (Math.sin(viewT * 1.6 + animTOf(c)) > 0 ? 1 : 0)   // slow breathing
+    : working ? -(((animTOf(c) * 6) | 0) % 2) : 0;
   let y = c.y - 12 + bob;
   if (riding && c.p.mode === "bike") {
     wblit(BIKE, c.x - 2, ROAD_Y1 - 8, c.flip);
@@ -13083,9 +13126,9 @@ function drawCrab(c) {
   if (crabBerthQ8(c) > 0 && darkness() <= 0.6 && c.dsC !== DS.home)
     wblit(STINK_MARK[((viewT * 3.1) | 0) % 2], c.x + 12, y - 7);
   if (sleeping) {   // a little Z drifts up from the shell
-    const ph = (viewT * 0.45 + c.animT * 0.37) % 1;
+    const ph = (viewT * 0.45 + animTOf(c) * 0.37) % 1;
     if (ph < 0.75) {
-      const zx = c.x + 13 + ((Math.sin(ph * 9 + c.animT) * 2) | 0) - camX;
+      const zx = c.x + 13 + ((Math.sin(ph * 9 + animTOf(c)) * 2) | 0) - camX;
       if (zx > -4 && zx < W) smallText(ctx, "Z", zx, y - 2 - ph * 13, ph < 0.4 ? [200, 210, 235] : [150, 160, 195]);
     }
   }
