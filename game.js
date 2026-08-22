@@ -10779,11 +10779,17 @@ function visLevel(k, need) {
 function visOpen(b) {
   return bizUnlocked(b) && !bizDark(b) && bizOpenNow(b) && bizStaffed(b);
 }
-function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
+// the two line counts, shared verbatim by visRoomFor and the kernel marshal
+// so the compiled scorer and the reference count the same heads
+function lineCounts(k, b) {
   const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
     && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
   const allQ = customers.filter(c => c.biz === b && c !== k
     && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
+  return [tourQ, allQ];
+}
+function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
+  const [tourQ, allQ] = lineCounts(k, b);
   return tourQ < TOURIST_QUEUE_MAX && allQ < QUEUE_MAX;
 }
 function visPick(k) {
@@ -10893,6 +10899,43 @@ function visPick(k) {
   if (best && best.recipe && k.culture && k.culture !== "crab" && tasteW(k, best.recipe) <= 0.6)
     stayBlocked(k, "foreign");
   return best;
+}
+// THE COMPILED SCORER's marshal + drain (kernel phase 4). Fills the per-think
+// planes with the same facts the reference reads - the taste row is the
+// Layer-0 cultureway hook table crossing the boundary as pure data - calls
+// vis_pick (which draws through the SHARED cursor, same count, same order),
+// then drains the blocked counters into the stay exactly as stayBlocked did.
+function kernelVisPick(k) {
+  const res = roomReserve(k);
+  for (let s = 0; s < KVP_BIZ.length; s++) {
+    const b = KVP_BIZ[s], rs = BIZ[b].recipes;
+    if (rs.length > KVP_RMAX) throw new Error("recipe table outgrew the kernel plane: " + b);
+    KM_OPEN[s] = visOpen(b) ? 1 : 0;
+    KM_UNLK[s] = bizUnlocked(b) ? 1 : 0;
+    const tq = lineCounts(k, b);
+    KM_TOURQ[s] = tq[0]; KM_ALLQ[s] = tq[1];
+    KM_QX[s] = BIZ[b].queueX;
+    KM_APQ[s] = priceAppealQ16(b);
+    KM_RN[s] = rs.length;
+    for (let i = 0; i < rs.length; i++) {
+      KM_PRICE[s * KVP_RMAX + i] = menuPrice(b, rs[i]);
+      KM_PAY[s * KVP_RMAX + i] = rs[i].pay;
+      KM_DRINK[s * KVP_RMAX + i] = DRINKS[rs[i].id] ? 1 : 0;
+      KM_TASTE[s * KVP_RMAX + i] = tasteW(k, rs[i]);
+    }
+  }
+  const cultured = k.culture && k.culture !== "crab" ? 1 : 0;
+  const ret = KERN.exports.vis_pick(k.si, k.wallet, res, tmin, cultured,
+    wantsRoom(k) ? 1 : 0, freeRoom() ? 1 : 0, roomPrice());
+  const st = stayOf(k);
+  if (KM_VPOUT[0]) st.shut = (st.shut || 0) + KM_VPOUT[0];
+  if (KM_VPOUT[1]) st.full = (st.full || 0) + KM_VPOUT[1];
+  if (KM_VPOUT[2]) st.broke = (st.broke || 0) + KM_VPOUT[2];
+  if (KM_VPOUT[3]) st.foreign = (st.foreign || 0) + KM_VPOUT[3];
+  if (ret < 0) return null;
+  const slot = (ret >> 4) & 15;
+  return { biz: KVP_BIZ[slot], need: ["food", "drink", "clean", "fun", "room"][(ret >> 8) & 15],
+    recipe: BIZ[KVP_BIZ[slot]].recipes[ret & 15] };
 }
 function visGo(k, e) {
   // the room is RESERVED the moment they set off for it - nobody sells the
@@ -11033,7 +11076,7 @@ function updateVisitor(k, dt) {
   }
   if (k.thinkT <= 0) {
     k.thinkT = VIS_THINK;
-    const e = visPick(k);
+    const e = KERN ? kernelVisPick(k) : visPick(k);   // the compiled scorer; visPick stays the reference
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing

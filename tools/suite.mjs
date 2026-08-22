@@ -11194,6 +11194,21 @@ scenario("the kernel and the reference agree, byte for byte", () => {
         if (!a[i] || !b[i] || a[i][f] !== b[i][f])
           return `pool diverged at agent ${i} field ${["si","PXQ","PYQ","PMXQ","PMYQ","PWYQ"][f]}: ref ${a[i] && a[i][f]} vs kernel ${b[i] && b[i][f]}`;
   }
+  // PHASE 4: the customers+visitors unit's planes and the stay's counters -
+  // needs, the state code, and everything vis_pick's drain writes
+  const vis = (s) => s.G(
+    `JSON.stringify(customers.filter(k => k.visitor).map(k => [k.si, VHUN[k.si], VTHI[k.si],
+      VDIRP[k.si], VBOR[k.si], VTIR[k.si], VSTCP[k.si], k.wallet, k.spent, k.buys,
+      k.stay.shut, k.stay.full, k.stay.broke, k.stay.foreign || 0, k.stay.mistMin]))`);
+  const vr = vis(ref), vk = vis(kern);
+  if (vr !== vk) {
+    const a = JSON.parse(vr), b = JSON.parse(vk);
+    const F = ["si","hunger","thirst","dirt","bored","tired","stC","wallet","spent","buys","shut","full","broke","foreign","mistMin"];
+    for (let i = 0; i < Math.max(a.length, b.length); i++)
+      for (let f = 0; f < F.length; f++)
+        if (!a[i] || !b[i] || a[i][f] !== b[i][f])
+          return `visitor diverged at ${i} field ${F[f]}: ref ${a[i] && a[i][f]} vs kernel ${b[i] && b[i][f]}`;
+  }
   const dig = (s) => s.G("JSON.stringify([coins, day, tmin, lifetime, rep, window._stats.warps || 0])");
   if (dig(ref) !== dig(kern)) return "digest diverged: ref " + dig(ref) + " vs kernel " + dig(kern);
   return true;
