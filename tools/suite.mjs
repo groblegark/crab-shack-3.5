@@ -5837,7 +5837,12 @@ scenario("rivalry: after a refusal she competes with the PLAYER'S OWN levers, an
   // comparison, and it is what a working lever actually looks like.
   const barShare = (mul) => {
     let bar = 0, shwr = 0;
-    for (const seed of [909, 1337, 4242]) {
+    // FIVE towns, not three (slice 5): the lever's step is ~9 drinks and a
+      // three-town pool's arm noise proved comparable after the mover-target
+      // exemption re-rolled every walk - dear beat level by 6 while cut beat
+      // both by 40. Two more towns push the pooled signal back past the
+      // noise; the claim itself is unchanged.
+      for (const seed of [909, 1337, 4242, 21, 77]) {
       const s2 = createSim({ seed });
       // ...AND THE TOWN'S WAGE FLOOR IS PINNED OFF, for exactly the reason the
       // hotelier is. An elected floor lifts every packet in town, and crabs
