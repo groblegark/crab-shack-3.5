@@ -1,0 +1,6 @@
+  PASS  pigs: word reaches the mainland, and only then does a pig sail (11ms)
+  PASS  pigs: they actually get off the boat in a town nobody staged (1176ms)
+  FAIL  pigs: fish is the taboo, and it is the WEIGHTS doing it (13ms)
+        EXCEPTION: ReferenceError: RECIPES is not defined /     at eval (eval at <anonymous> (eval at loadGame (file:///Users/matthewbaker/crab-shack-3.5/.claude/worktrees/agent-aaeea39abdef265c2/tools/simlib.mjs:65:13)), <anonymous>:2:16) /     at eval (eval at <anonymous> (eval at loadGame (file:///Users/matthewbaker/crab-shack-3.5/.claude/worktrees/agent-aaeea39abdef265c2/tools/simlib.mjs:65:13)), <anonymous>:8:5) /     at Object.eval [as G] (eval at loadGame (file:///Users/matthewbaker/crab-shack-3.5/.claude/worktrees/agent-aaeea39abdef265c2/tools/simlib.mjs:65:13), <anonymous>:20188:33)
+
+2/3 passed in 1.2s
