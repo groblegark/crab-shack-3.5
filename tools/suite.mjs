@@ -5356,7 +5356,19 @@ scenario("no surface prints off the canvas", () => {
       hireCard = { c: crabs[0], how: "WAS HERE ON HOLIDAY - LIKED IT AND STAYED", t: 5 }; },
       () => drawHireCard());
     run("nav-chips", () => { hireCard = null; helpSeen = false; day = 1; }, () => drawNav());
-    run("gameover", () => { saveView = false; gameOver = true; bankrupt = false; }, () => drawGameOver());
+    // the science bench, in both of its states: the recipe form, and a
+    // finished run whose longest strings (the rule names, the day line) are
+    // the ones most likely to run off a 256px screen
+    run("sci-setup", () => { saveView = false; SCI.days = []; SCI.at = -1;
+      SCI.plan = 2; SCI.rule = 2; SCI.seed = 999999; SCI.stopDay = 30; }, () => sciFrame(0.05));
+    run("sci-run", () => {
+      SCI.msg = "STOP AT 50% REPUTATION";
+      SCI.days = [{ day: 1, env: "{}", coins: 1500000, lifetime: 0, rep: 30000, note: "9 CRABS, REP 100%" },
+                  { day: 2, env: "{}", coins: 22222, lifetime: 99999, rep: 50000, note: "THE TOWN FAILED" }];
+      SCI.at = 1;
+    }, () => sciFrame(0.05));
+    run("gameover", () => { saveView = false; SCI.days = []; SCI.at = -1;
+      gameOver = true; bankrupt = false; }, () => drawGameOver());
     run("ending", () => { won = true; winT = 99; winRec = { day: 40, lifetime: 99999,
       crew: ["PINCHY", "CLAWDIA", "SHELDON", "BARNACLE", "REEF"], pop: 9, housed: 7,
       hand: "BARNACLE" }; }, () => drawEnding());
@@ -11602,6 +11614,124 @@ scenario("the sim stream's cursor is shared: JS and kernel draws are one sequenc
   for (let i = 0; i < 4; i++)
     if (got[i] !== want[i])
       return `stream diverged at draw ${i}${i === 2 ? " (the kernel-side draw)" : ""}: ref ${want[i]} vs shared ${got[i]}`;
+  return true;
+});
+
+// ---------------------------------------------------------- CRAB SCIENCE
+// The bench's whole claim is that a RECIPE fixes a TOWN. These three prove it
+// from the outside: the same recipe lives the same days twice, the seed is
+// what makes it that town and not another, and a scrub lands on the day the
+// run actually recorded rather than near it.
+// A RECIPE IS A BOOT. The bench lives its town on a world one line old - the
+// browser reaches that by reloading into `?lab&seed=...`, and a scenario
+// reaches it with a fresh sim, which is the same pristine thing.
+const sciRun = (sim, seed, plan, span) => {
+  sim.G(`sciSeedStream(${seed});
+         SCI.seed = ${seed}; SCI.plan = ${plan}; SCI.stopDay = ${span}; SCI.rule = 0;
+         sciStart();`);
+  return sim.G("SCI.days.map(r => r.day + ':' + r.coins + ':' + r.lifetime + ':' + r.rep).join('|')");
+};
+
+scenario("science: one recipe lives the same town twice", () => {
+  // Two pristine boots of the same recipe. In the browser that is two loads
+  // of the same `?lab&seed=...` URL; here it is two fresh sims, which is the
+  // same pristine thing - the harness seed IS the boot, exactly as the lab's
+  // URL seed is, so both must carry it.
+  const a = createSim({ seed: 1337, fresh: false });
+  const b = createSim({ seed: 1337, fresh: false });
+  const fa = sciRun(a, 4242, 2, 6), fb = sciRun(b, 4242, 2, 6);
+  if (!fa || fa.split("|").length < 3) return "the run recorded nothing: " + fa;
+  if (fa !== fb) {
+    const A = fa.split("|"), B = fb.split("|");
+    const i = A.findIndex((r, n) => r !== B[n]);
+    return `the same recipe lived two different towns, first at day row ${i}: ${A[i]} vs ${B[i]}`;
+  }
+  // ...and the seeded stream is STILL INSTALLED after the run, deliberately:
+  // shuttling a keyframe in mints its guests, and minting draws, so a lab that
+  // handed the stream back would materialize the same day differently every
+  // time you scrubbed to it.
+  if (a.G("_rtap === null")) return "the run released the seeded tap - scrub landings would drift";
+  // ...and it wrote no slot: a lab town is never somebody's saved town
+  if (a.G(`(() => { try { return !!localStorage.getItem(slotKey(activeSlot)); } catch (e) { return false; } })()`))
+    return "a science run wrote a save slot";
+  return true;
+});
+
+scenario("science: the seeded stream is the recipe's, and it is pinned", () => {
+  // A DATA PIN, because the obvious mutation is vacuous here and saying so is
+  // the rule: remove the bench's seeding and two harness sims still agree,
+  // since the harness seeds Math.random for them anyway - so the reproduce
+  // scenario cannot police the seeder. This can. These three numbers are
+  // mulberry32 from 4242, and they are identical with the kernel armed and
+  // off, which is the other half of the claim: with the kernel armed the sim's
+  // cursor lives in kernel memory, and seeding has to reach BOTH sides or the
+  // compiled consumers would walk a different sequence from the JS ones.
+  const want = "0.5467061335220933,0.27860878920182586,0.9312369171530008";
+  const off = createSim({ seed: 7, fresh: false, kernel: "off" });
+  const got = off.G("sciSeedStream(4242); [srand(), srand(), srand()].join(',')");
+  if (got !== want) return "the seeded stream moved: " + got;
+  let kern;
+  try { kern = createSim({ seed: 7, fresh: false, kernel: "wasm" }); }
+  catch (e) { return "kernel failed to arm: " + e.message; }
+  const kgot = kern.G("sciSeedStream(4242); [srand(), srand(), srand()].join(',')");
+  return kgot === want ? true : "the armed cursor drew a different sequence: " + kgot;
+});
+
+scenario("science: the seed is the town - a different one lives differently", () => {
+  const a = createSim({ seed: 1337, fresh: false });
+  const b = createSim({ seed: 1337, fresh: false });
+  // MUTATION-PROOFED ON PURPOSE: if sciStart ever stopped seeding, the two
+  // runs below would still differ (unseeded draws diverge on their own),
+  // so this scenario alone cannot police seeding - the reproduce scenario
+  // above is what bites there. This one polices the opposite failure: a seed
+  // that is READ but never reaches the stream, which would make every recipe
+  // live the same town.
+  const fa = sciRun(a, 4242, 0, 5), fb = sciRun(b, 909, 0, 5);
+  return fa !== fb ? true : "two seeds lived identical towns - the seed never reached the stream";
+});
+
+scenario("science: a scrub lands on the day the run recorded", () => {
+  const sim = createSim({ seed: 1337, fresh: false });
+  sciRun(sim, 4242, 2, 8);
+  const n = sim.G("SCI.days.length");
+  if (n < 4) return "too few days to scrub: " + n;
+  // walk the whole timeline backwards, which is the gesture that used to
+  // overflow the agent pool - twenty landings without a tick between them
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = n - 1; i >= 0; i--) {
+      sim.G(`sciGoto(${i})`);
+      const got = sim.G(`[day, coins, lifetime].join(':')`);
+      const want = sim.G(`[SCI.days[${i}].day, SCI.days[${i}].coins, SCI.days[${i}].lifetime].join(':')`);
+      if (got !== want) return `scrub to row ${i} landed on ${got}, the run recorded ${want}`;
+    }
+  }
+  // ...AND THE ROOM IS EMPTY WHEN YOU GET THERE. Landing on the opening
+  // morning after a busy one has to bring the chairs back with it: occupancy
+  // is a plane BIT rather than a field on the table, so an envelope restores
+  // the town's books while leaving every seat its guests were in still taken.
+  // Without this the first assertion above passes happily - day and money are
+  // exactly right - onto a full hotel.
+  sim.G(`sciGoto(${n - 1})`);          // a day with guests in it
+  sim.G("sciGoto(0)");                 // ...then back to the opening morning
+  // Asserted on the PLANE BIT, not on `occupant`: the getter also consults a
+  // JS field, so a stale bit hides behind a cleared object - and the bit is
+  // the half the compiled kernel reads, which makes it the half that decides
+  // whether the two backends still agree.
+  const bits = sim.G("Array.from(FT_FLG).filter(v => v & 1).length");
+  if (bits) return `the opening morning came back with ${bits} seat(s) still flagged taken`;
+  // ...and the FINGER-TO-DAY mapping, which the loop above bypasses by calling
+  // sciGoto directly. Pure geometry, so it is cheap to pin: the bar's left
+  // edge is the first day, its right edge the last, and nothing in between
+  // escapes the timeline. An off-by-one here would send every scrub a day
+  // wide while every assertion above still passed.
+  const ends = sim.G(`(() => { const b = sciBarRect(), n = SCI.days.length;
+    const at = (x) => sciBarIndex({ x, y: b.y + 2 });
+    const inner = []; for (let x = b.x; x < b.x + b.w; x++) inner.push(at(x));
+    return [at(b.x), at(b.x + b.w - 1), Math.min(...inner), Math.max(...inner), n - 1].join(",");
+  })()`).split(",").map(Number);
+  if (ends[0] !== 0) return "the bar's left edge scrubs to day row " + ends[0] + ", not the first";
+  if (ends[1] !== ends[4]) return "the bar's right edge scrubs to row " + ends[1] + ", not the last (" + ends[4] + ")";
+  if (ends[2] < 0 || ends[3] > ends[4]) return `the bar scrubs off the timeline: ${ends[2]}..${ends[3]}`;
   return true;
 });
 
