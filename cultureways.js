@@ -7,7 +7,7 @@
 // without a toast; a document that arrives in a save file is a stranger and
 // goes through the same clamps either way (cultureProblem, game.js).
 //
-// GENERATED from tools/fixtures/cultures-pig.json by probe/mkbundle.mjs —
+// GENERATED from tools/fixtures/cultures-pig.json by tools/mkcultureways.mjs —
 // the fixture the suite has proved against since spec-01. Edit the fixture,
 // regenerate, and the suite is still testing the thing the player gets.
 //

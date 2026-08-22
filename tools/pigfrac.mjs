@@ -1,4 +1,4 @@
-import { createSim } from "../tools/simlib.mjs";
+import { createSim } from "./simlib.mjs";
 // How many towns ever see a pig, and on what day does the first one land?
 // Baseline play (buy nothing) — the hardest case: these towns die around day 12.
 const N = Number(process.argv[2] || 16), DAYS = Number(process.argv[3] || 30);

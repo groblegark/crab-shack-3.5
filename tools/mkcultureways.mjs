@@ -3,7 +3,7 @@
 // against since spec-01; shipping anything else would ship an unproven pig.
 import { readFileSync, writeFileSync } from "fs";
 
-const pig = JSON.parse(readFileSync(new URL("../tools/fixtures/cultures-pig.json", import.meta.url), "utf8"));
+const pig = JSON.parse(readFileSync(new URL("./fixtures/cultures-pig.json", import.meta.url), "utf8"));
 
 const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the island.
 //
@@ -14,7 +14,7 @@ const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the isl
 // without a toast; a document that arrives in a save file is a stranger and
 // goes through the same clamps either way (cultureProblem, game.js).
 //
-// GENERATED from tools/fixtures/cultures-pig.json by probe/mkbundle.mjs —
+// GENERATED from tools/fixtures/cultures-pig.json by tools/mkcultureways.mjs —
 // the fixture the suite has proved against since spec-01. Edit the fixture,
 // regenerate, and the suite is still testing the thing the player gets.
 //
