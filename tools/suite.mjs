@@ -11649,6 +11649,69 @@ const loadEnvOf = (seed, days) => {
   return s.G("JSON.stringify(save(true))");
 };
 
+// THE STREAM A SAVE CARRIES (owner ruling, 2026-08-22: "we gotta definitely
+// keep the same seed"). The property under test is the one a player feels:
+// save, keep playing, come back to the save - and it is the SAME town, not a
+// town that happens to look like it until the next ferry rolls its guests.
+scenario("stream: a saved town's future does not depend on what you did after saving", () => {
+  // The town is put on its own stream first, so it saves a real cursor - the
+  // shape a lab run or any post-load save has. Then two futures: one loaded
+  // straight, one loaded after the session has drawn a few hundred times.
+  const src = createSim({ seed: 4242 });
+  src.G("sciSeedStream(31337)");
+  src.runDays(4);
+  const env = src.G("JSON.stringify(save(true))"), lit = JSON.stringify(env);
+  if (JSON.parse(env).rs == null) return "the save carried no cursor - env.rs missing";
+  const future = (churn) => {
+    const s = createSim({ seed: 4242 });
+    if (churn) { s.runDays(6); s.G("for (let i = 0; i < 500; i++) srand();"); }
+    s.G(`load(null, JSON.parse(${lit}))`);
+    s.runDays(+s.G("day") + 3);   // far enough for a shifted draw to reach the books
+    return s.G(LOAD_FP);
+  };
+  const straight = future(false), afterChurn = future(true);
+  if (straight === afterChurn) return true;
+  const a = JSON.parse(straight), b = JSON.parse(afterChurn);
+  const k = Object.keys(a).find(k2 => JSON.stringify(a[k2]) !== JSON.stringify(b[k2]));
+  return `the session leaked into the town's future: ${k} ${JSON.stringify(a[k]).slice(0, 60)}`
+    + ` vs ${JSON.stringify(b[k]).slice(0, 60)}`;
+});
+
+scenario("stream: a save from before the cursor still lands the same way twice", () => {
+  // Old saves have no `rs`, so load derives one from the envelope's own bytes.
+  // The guarantee is not "the same future it would have had" - that future was
+  // never written down - but "the same future every time", which is what makes
+  // an old town replayable at all.
+  const env = JSON.parse(loadEnvOf(909, 3));
+  delete env.rs; delete env.sd;                 // a pre-ruling save, exactly
+  const lit = JSON.stringify(JSON.stringify(env));
+  const future = (churn) => {
+    const s = createSim({ seed: 909 });
+    if (churn) s.G("for (let i = 0; i < 250; i++) srand();");
+    s.G(`load(null, JSON.parse(${lit}))`);
+    s.runDays(+s.G("day") + 3);
+    return s.G(LOAD_FP);
+  };
+  return future(false) === future(true) ? true
+    : "an old save's future still depends on the session that loaded it";
+});
+
+scenario("stream: the view's own stream is the session's, and a save does not touch it", () => {
+  // The sim stream is town state; the VIEW stream is not, and the two must
+  // stay separate - a save dictating the title screen's wander would be a save
+  // reaching somewhere it has no business. Asserted as a DATA pin rather than
+  // a trajectory: the view stream drives nothing headless can watch walk
+  // around, so the mechanism is the assertion.
+  const env = loadEnvOf(1337, 3), lit = JSON.stringify(env);
+  const s = createSim({ seed: 1337 });
+  const before = s.G("_vs");
+  s.G(`load(null, JSON.parse(${lit}))`);
+  const after = s.G("_vs");
+  if (before !== after) return `load moved the view stream: _vs ${before} -> ${after}`;
+  // ...and the sim cursor DID move, or this scenario is proving nothing
+  return s.G("_rOwned") ? true : "load left the town on the host's stream";
+});
+
 scenario("load: a town loaded onto a lived-in world is the town loaded clean", () => {
   const env = loadEnvOf(4242, 4), lit = JSON.stringify(env);
   const land = (lived) => {
