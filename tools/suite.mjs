@@ -4304,22 +4304,27 @@ scenario("tips: the sharing slider pays the crab's wallet and the till, exactly"
     c.p.dirt = 0; c.p.tired = 0;
     const r = BIZ.shack.recipes.find(x => x.id === "taco");
     const out = [];
-    for (const share of [0, 0.5, 1]) {
+    // 0.35 and 0.05 are here to make the SPLIT RULE testable: at seven and at
+    // one twentieth of this tip the exact cut lands on a half cent, which is
+    // the only place a floor and a round disagree. Without them the scenario
+    // cannot tell the two apart and the rule below is unproven.
+    for (const share of [0, 0.5, 1, 0.35, 0.05]) {
       setTipShare("shack", share);
       c.p.wallet = 0;
       const t0 = coins;
       payAndBenefit(c, { biz: "shack", recipe: r, state: "seatedWaiting", patience: 50,
         maxPatience: 50, x: 1500, isCrab: false, server: c, claimed: true, served: false });
-      out.push({ share: BIZ.shack.tipShare, till: coins - t0, wallet: c.p.wallet,
+      out.push({ share: bizTipShare("shack"), n: bizTipTwentieths("shack"), till: coins - t0, wallet: c.p.wallet,
         tip: r.pay * 0.5 * TRAITS[c.p.trait].tip, pay: r.pay });
     }
     return JSON.stringify(out);
   })()`));
   for (const r of rows) {
-    // cents, exact: the tip rounds ONCE at payTip's door, the cut rounds once
-    // in the split, and till + wallet must reassemble the whole tip
+    // cents, exact: the tip rounds ONCE at payTip's door and the split FLOORS
+    // (slice 1b - a rescale floors, only the door rounds), and till + wallet
+    // must still reassemble the whole tip with nothing left over
     const price = r.pay * 100, tipC = Math.round(r.tip * 100);
-    const wantWallet = Math.round(tipC * r.share);
+    const wantWallet = Math.floor(tipC * r.n / 20);
     const wantTill = price + (tipC - wantWallet);
     if (r.wallet !== wantWallet)
       return `at ${r.share * 100}% the crab pocketed ${r.wallet}, expected ${wantWallet}`;
@@ -4332,7 +4337,10 @@ scenario("tips: the sharing slider pays the crab's wallet and the till, exactly"
   const clamp = JSON.parse(sim.G(`JSON.stringify([setTipShare("shack", -3), setTipShare("shack", 7.5),
     setTipShare("shack", 0.37)])`));
   if (clamp[0] !== 0 || clamp[1] !== 1) return `setTipShare failed to clamp: ${JSON.stringify(clamp)}`;
-  if (Math.abs(clamp[2] - 0.35) > 1e-9) return `setTipShare did not snap to the 5% grain: ${clamp[2]}`;
+  // EXACT, not near: 7/20 is a real number in the new unit, so the old 1e-9
+  // slack on the snapped value has nothing left to absorb
+  if (clamp[2] !== 0.35) return `setTipShare did not land on the 5% grain: ${clamp[2]}`;
+  if (sim.G(`bizTipTwentieths("shack")`) !== 7) return "0.37 did not store as 7 twentieths";
   return true;
 });
 
@@ -4466,9 +4474,9 @@ scenario("tip sharing + the table cap roundtrip save/load", () => {
   a.runDays(1);
   a.G(`setTipShare("shack", 0.35); setTipShare("juicebar", 1); UPS.table.lvl = 3; save();`);
   const b = createSim({ seed: 3, storage: store, fresh: false });
-  const got = JSON.parse(b.G(`JSON.stringify({ shack: BIZ.shack.tipShare, bar: BIZ.juicebar.tipShare,
+  const got = JSON.parse(b.G(`JSON.stringify({ shack: bizTipShare("shack"), bar: bizTipShare("juicebar"),
     lvl: UPS.table.lvl, tables: (bizTables("shack") || []).length })`));
-  if (Math.abs(got.shack - 0.35) > 1e-9) return `shack tip share came back ${got.shack}`;
+  if (got.shack !== 0.35) return `shack tip share came back ${got.shack}`;   // exact: 7/20
   if (got.bar !== 1) return `juice bar tip share came back ${got.bar}`;
   if (got.lvl !== 3) return `table level came back ${got.lvl}`;
   if (got.tables !== 5) return `${got.tables} tables stand at level 3, expected 5`;
@@ -4478,12 +4486,14 @@ scenario("tip sharing + the table cap roundtrip save/load", () => {
     personas: [{ name: "PINCHY", job: "shack" }, { name: "CLAWDIA", job: "shack" }] }));
   store2.set(ACTIVE, "1");
   const c = createSim({ seed: 3, storage: store2, fresh: false });
-  const old = JSON.parse(c.G(`JSON.stringify({ shack: BIZ.shack.tipShare, tables: (bizTables("shack") || []).length })`));
+  const old = JSON.parse(c.G(`JSON.stringify({ shack: bizTipShare("shack"), tables: (bizTables("shack") || []).length })`));
   if (old.shack !== 0) return `an old save opened on a ${old.shack} tip share instead of 0`;
   if (old.tables !== 3) return `an old save at table level 1 stands ${old.tables} tables, expected 3`;
-  // and a hand-edited nonsense value cannot hand a crab 750% of the tip
+  // and a hand-edited nonsense value cannot hand a crab more than the whole
+  // tip. The share rides as TWENTIETHS now, so the corrupt number that means
+  // "750%" is 150 of them - and 750 for good measure.
   const d = createSim({ seed: 3, storage: store2, fresh: false });
-  d.G(`BIZ.shack.tipShare = 7.5`);
+  d.G(`BIZ.shack.tipShare = 750`);
   const clamped = d.G(`bizTipShare("shack")`);
   return clamped === 1 ? true : `a corrupt tip share read back as ${clamped}`;
 });
