@@ -39,6 +39,12 @@ const idiv = (a, b) => { const m = a % b; return (a - (m < 0 ? m + b : m)) / b; 
 // exact integer sqrt: Math.sqrt is correctly rounded per ECMA-262 (it is NOT
 // on the implementation-approximated list), and the fixup makes the floor
 // exact by construction regardless
+// ...and its signed sibling for VECTOR COMPONENTS: truncate toward zero, so
+// a step west and a step east of the same length round the same way. Floor's
+// -inf asymmetry on signed components is a compass bias - measured on the
+// growth matrix as +40% warps/unsticks (crabs grinding along solids they
+// used to clear) before this was made symmetric.
+const tdiv = (a, b) => (a < 0 ? -1 : 1) * ((x, y) => (x - x % y) / y)(Math.abs(a), b);
 function isqrt(n) {
   let s = Math.floor(Math.sqrt(n));
   while (s * s > n) s--;
@@ -7528,8 +7534,8 @@ function stepTo(c, tx, speed, dt, ty) {
   if (dxq > Q8 || dxq < -Q8) c.flip = dxq < 0;
   const dq = isqrt(dsq);
   const stepq = Math.min(idiv(speed * dtT, TICK_HZ), dq);
-  c.x = (c.x * Q8 + idiv(dxq * stepq, dq)) / Q8;
-  c.y = (c.y * Q8 + idiv(dyq * stepq, dq)) / Q8;
+  c.x = (c.x * Q8 + tdiv(dxq * stepq, dq)) / Q8;
+  c.y = (c.y * Q8 + tdiv(dyq * stepq, dq)) / Q8;
   c._stepped = true;   // moved this frame (anchors are crabs that did not)
   c._mx = tx;          // actual motion target this frame (collision uses this, not c.tx)
   return false;
@@ -7604,7 +7610,7 @@ function collide(dt) {
         const kq = Math.min(4096, idiv(12 * 4096 * dtT, TICK_HZ));   // min(1, dt*12) in Q12
         const pushq = Math.min(idiv((15360 - d5) * kq, 5 * 2 * 4096), 4 * Q8);
         // unit vector: ux = dx/d = 5*dxq/D5; uy = (1.8dy)/d/1.8 = 5*dyq/D5
-        const px2x = idiv(5 * dxq * pushq * 2, d5), px2y = idiv(5 * dyq * pushq * 2, d5);
+        const px2x = tdiv(5 * dxq * pushq * 2, d5), px2y = tdiv(5 * dyq * pushq * 2, d5);
         if (aStill && !bStill) { b.x = (b.x * Q8 + px2x) / Q8; b.y = clampY((b.y * Q8 + px2y) / Q8); }
         else if (bStill && !aStill) { a.x = (a.x * Q8 - px2x) / Q8; a.y = clampY((a.y * Q8 - px2y) / Q8); }
         else if (Math.sign((a._mx != null ? a._mx : a.x) - a.x) !== Math.sign((b._mx != null ? b._mx : b.x) - b.x) && (dxq > 512 || dxq < -512)) {
@@ -7614,7 +7620,7 @@ function collide(dt) {
           if (b.y >= FLOOR_MAX - 0.5) b.y = clampY((b.y * Q8 - pushq * 4) / Q8);   // no room below: b passes above instead
         }
         else {
-          const p1x = idiv(5 * dxq * pushq, d5), p1y = idiv(5 * dyq * pushq, d5);
+          const p1x = tdiv(5 * dxq * pushq, d5), p1y = tdiv(5 * dyq * pushq, d5);
           a.x = (a.x * Q8 - p1x) / Q8; a.y = clampY((a.y * Q8 - p1y) / Q8);
           b.x = (b.x * Q8 + p1x) / Q8; b.y = clampY((b.y * Q8 + p1y) / Q8);
         }
