@@ -397,6 +397,171 @@ static int32_t k_cheap(int32_t slot, const int32_t *idx, int32_t n) {
   return best;
 }
 
+/* ---- KERNEL PHASE 5: the counter machine, whole ---------------------------
+   updateCustomers' per-customer state chain (game.js ~11260): the shuffle,
+   the stalls, the seats, the tables, the tips, the leaving walk - one call
+   per customer at exactly the reference's point in the pass, so a stall
+   freed by customer i is claimable by customer j the same frame, in the
+   same order. Planes (the map's 32768.. run, mirrored in game.js):
+     32768 C_PAT  33408 C_CLM  34048 C_SHW  34688 C_DIN  35328 C_WAI
+     35968 C_STL  36608 C_TBL  37248 FT_X[64]  37504 FT_FLG  37760 FT_DSH
+     38016 MS_FID[5*16]  38336 MS_N[8]  38368 EVR_N + 38372 EVR[16*3]
+   Human-facing effects leave as RING EVENTS (code, a, b) drained by the JS
+   right after the call - popText, sfx, stats, the persona side of a crab's
+   shower, the tip through payTip's door. The kernel owns the STATE; money
+   still crosses at the same JS doors. */
+static int32_t *const C_PAT = (int32_t *)32768;
+static int32_t *const C_CLM = (int32_t *)33408;
+static int32_t *const C_SHW = (int32_t *)34048;
+static int32_t *const C_DIN = (int32_t *)34688;
+static int32_t *const C_WAI = (int32_t *)35328;
+static int32_t *const C_STL = (int32_t *)35968;
+static int32_t *const C_TBL = (int32_t *)36608;
+static int32_t *const FT_X   = (int32_t *)37248;
+static int32_t *const FT_FLG = (int32_t *)37504;   /* 1 occ, 2 dirty, 4 cleaning */
+static int32_t *const FT_DSH = (int32_t *)37760;
+static int32_t *const MS_FID = (int32_t *)38016;   /* per-biz stall fids, slot*16+i */
+static int32_t *const MS_N   = (int32_t *)38336;
+static int32_t *const EVR_N  = (int32_t *)38368;
+static int32_t *const EVR    = (int32_t *)38372;   /* (code, a, b) triples */
+
+#define VSK_ARRIVING 2
+#define VSK_WAITING 3
+#define VSK_TOSEAT 4
+#define VSK_SEATED 5
+#define VSK_DINING 6
+#define VSK_TOSTALL 7
+#define VSK_WAITSTALL 8
+#define VSK_OUTSTALL 9
+#define VSK_TOTABLE 10
+#define VSK_SHOWERING 11
+#define VSK_LEAVING 18
+/* ring codes - the drain switch in updateCustomers matches these by number */
+#define EV_ARRIVE_ASK 1
+#define EV_RAGE_LINE 2
+#define EV_STALL_CLAIM 3
+#define EV_SHOWER_DONE 4
+#define EV_WAIT_TIMEOUT 5
+#define EV_DINE_START 6
+#define EV_RAGE_SEAT 7
+#define EV_DINE_EXIT 8
+#define QN_070 734003   /* qn(0.7): the deep-soak scrub */
+#define QN_050 524288   /* qn(0.5) */
+
+static void emit(int32_t code, int32_t a, int32_t b) {
+  int32_t n = *EVR_N; if (n >= 16) return;   /* a step emits at most two */
+  EVR[n * 3] = code; EVR[n * 3 + 1] = a; EVR[n * 3 + 2] = b; *EVR_N = n + 1;
+}
+/* the shared walk-to-x used by toStall/toSeat/toTable: returns 1 on "there"
+   (|d| <= 2px), else steps at 45px/s clamped to the distance - the exact
+   integer image of `Math.min(idiv(45*Q8*dtT,TICK_HZ), Math.round(|dxs|*Q8))` */
+static int32_t walk_to(int32_t si, int32_t txq, int32_t dtT) {
+  int64_t dq = (int64_t)txq - PXQ[si];
+  int64_t ad = dq < 0 ? -dq : dq;
+  if (ad <= 2 * Q8) return 1;
+  PXQ[si] += sign3(dq) * (int32_t)min64((int64_t)576 * dtT, ad);
+  return 0;
+}
+
+__attribute__((export_name("cust_step")))
+int32_t cust_step(int32_t si, int32_t dtT, int32_t slotQ8, int32_t staffed,
+                  int32_t filthQ12, int32_t isCrab, int32_t visitor, int32_t happy,
+                  int32_t wallet, int32_t tableTipC, int32_t showInitT, int32_t deep,
+                  int32_t bizSlot, int32_t spawnXQ, int32_t selfBused) {
+  *EVR_N = 0;
+  int32_t stC = VSTC[si], r = 1;
+  if (stC == VSK_ARRIVING || stC == VSK_WAITING) {
+    int64_t dq8 = (int64_t)slotQ8 - PXQ[si];
+    int64_t ad = dq8 < 0 ? -dq8 : dq8;
+    int64_t stepq = (int64_t)576 * dtT;   /* idiv(45*Q8*dtT, TICK_HZ), exact */
+    if (ad <= stepq) { PXQ[si] = slotQ8; r |= 2; }
+    else { PXQ[si] += sign3(dq8) * (int32_t)stepq; r |= 4 | ((dq8 < 0) ? 8 : 0); }
+    if (stC == VSK_ARRIVING) {
+      if (PXQ[si] == slotQ8) { VSTC[si] = VSK_WAITING; emit(EV_ARRIVE_ASK, 0, 0); }
+    } else {
+      C_PAT[si] -= (int32_t)(((int64_t)dtT * (staffed ? 1 : 6) * filthQ12 + 10) / 20);
+      if (C_PAT[si] <= 0) { VSTC[si] = VSK_LEAVING; emit(EV_RAGE_LINE, 0, 0); }
+    }
+  } else if (stC == VSK_TOSTALL) {
+    if (C_STL[si] < 0) return 0;   /* a null hold: the JS chain throws, as the reference would */
+    if (!walk_to(si, (FT_X[C_STL[si]] + 3) * Q8, dtT)) return r;
+    C_CLM[si] = (int32_t)min64(4096, (int64_t)C_CLM[si] + ((int64_t)4096 * 9 * dtT) / (5 * TICK_HZ));
+    if (C_CLM[si] >= 4096) { VSTC[si] = VSK_SHOWERING; C_SHW[si] = showInitT; }
+  } else if (stC == VSK_OUTSTALL) {
+    C_CLM[si] = (int32_t)max64(0, (int64_t)C_CLM[si] - ((int64_t)4096 * 11 * dtT) / (5 * TICK_HZ));
+    if (C_CLM[si] <= 0) VSTC[si] = VSK_LEAVING;
+  } else if (stC == VSK_SHOWERING) {
+    C_SHW[si] -= dtT;
+    if (C_SHW[si] <= 0) {
+      int32_t fid = C_STL[si];
+      if (fid < 0) return 0;
+      FT_FLG[fid] = (FT_FLG[fid] & ~1) | 2;   /* occupant out, dirty on */
+      C_STL[si] = -1;
+      if (visitor) {
+        int64_t d = (int64_t)VDIR[si] - (deep ? QN_070 : QN_050);
+        VDIR[si] = d < 0 ? 0 : (int32_t)d;
+      }
+      emit(EV_SHOWER_DONE, deep, isCrab);
+      VSTC[si] = VSK_OUTSTALL;
+    }
+  } else if (stC == VSK_WAITSTALL) {
+    C_WAI[si] -= dtT;
+    int32_t found = -1;
+    for (int32_t i = 0; i < MS_N[bizSlot]; i++) {
+      int32_t fid = MS_FID[bizSlot * 16 + i];
+      if (!(FT_FLG[fid] & 3)) { found = fid; break; }   /* !occupant && !dirty */
+    }
+    if (found >= 0) {
+      FT_FLG[found] |= 1; C_STL[si] = found; VSTC[si] = VSK_TOSTALL;
+      emit(EV_STALL_CLAIM, found, 0);
+    } else if (C_WAI[si] <= 0) { VSTC[si] = VSK_LEAVING; emit(EV_WAIT_TIMEOUT, 0, 0); }
+  } else if (stC == VSK_TOSEAT) {
+    if (C_TBL[si] < 0) return 0;
+    if (walk_to(si, (FT_X[C_TBL[si]] + 10) * Q8, dtT)) VSTC[si] = VSK_SEATED;
+  } else if (stC == VSK_SEATED) {
+    C_PAT[si] -= (int32_t)(((int64_t)7 * dtT * filthQ12 + 200) / 400);
+    if (C_PAT[si] <= 0) {
+      VSTC[si] = VSK_LEAVING;
+      int32_t fid = C_TBL[si];
+      if (fid >= 0) { FT_FLG[fid] &= ~1; C_TBL[si] = -1; }
+      emit(EV_RAGE_SEAT, 0, 0);
+    }
+  } else if (stC == VSK_TOTABLE) {
+    if (C_TBL[si] < 0) return 0;
+    if (walk_to(si, (FT_X[C_TBL[si]] + 10) * Q8, dtT)) {
+      VSTC[si] = VSK_DINING;
+      C_DIN[si] = 6 * TICK_HZ + (int32_t)(k_srand() * (4 * TICK_HZ));   /* the dine draw, shared cursor */
+      FT_DSH[C_TBL[si]] = 1;
+      emit(EV_DINE_START, 0, 0);
+    }
+  } else if (stC == VSK_DINING) {
+    C_DIN[si] -= dtT;
+    if (C_DIN[si] <= 0) {
+      int32_t fid = C_TBL[si];
+      if (fid < 0) return 0;
+      FT_FLG[fid] &= ~1;   /* released FIRST and unconditionally (the wedge rule) */
+      if (selfBused) FT_DSH[fid] = 0;
+      else { FT_DSH[fid] = 1; FT_FLG[fid] |= 2; }
+      if (!isCrab) {
+        int32_t tt = visitor
+          ? (int32_t)max64(0, min64(tableTipC, wallet))
+          : tableTipC;
+        emit(EV_DINE_EXIT, tt, 0);
+      }
+      VSTC[si] = VSK_LEAVING;   /* k.table stays held - visAfterCounter clears it */
+    }
+  } else if (stC == VSK_LEAVING) {
+    PXQ[si] += (happy ? 640 : 960) * dtT;   /* idiv((50|75)*Q8*dtT, TICK_HZ), exact */
+    if (isCrab) return r | 16;
+    if (visitor) {
+      int64_t d = (int64_t)PXQ[si] - (spawnXQ == MNULL ? PXQ[si] : spawnXQ);
+      if (d < 0) d = -d;
+      if (d > 26 * Q8) return r | 32;
+    }
+  } else return 0;   /* not this unit's state: the JS chain owns it */
+  return r;
+}
+
 __attribute__((export_name("vis_pick")))
 int32_t vis_pick(int32_t si, int32_t wallet, int32_t res, int32_t tmin, int32_t cultured,
                  int32_t wantsRoomF, int32_t freeRoomF, int32_t roomPrice) {

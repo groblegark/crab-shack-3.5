@@ -6102,6 +6102,12 @@ const KM_OPEN  = KERN ? new Int32Array(_kb, 31168, 8) : null,
       KM_DRINK = KERN ? new Int32Array(_kb, 31936, 64) : null,
       KM_TASTE = KERN ? new Float64Array(_kb, 32192, 64) : null,
       KM_VPOUT = KERN ? new Int32Array(_kb, 32704, 8) : null;
+// ...phase 5's marshal + ring views (armed only): the per-biz stall fid
+// lists cust_step's waitStall scan walks, and the event ring it emits into
+const KMS_FID = KERN ? new Int32Array(_kb, 38016, 80) : null,
+      KMS_N   = KERN ? new Int32Array(_kb, 38336, 8) : null,
+      KEV_N   = KERN ? new Int32Array(_kb, 38368, 1) : null,
+      KEV     = KERN ? new Int32Array(_kb, 38372, 48) : null;
 if (KERN && !(KERN.exports.abi_check && KERN.exports.abi_check(VS.toBiz, VS.inRoom, VS.onSand, VS.roam)))
   throw new Error("kernel ABI mismatch: the VS codes moved under the compiled unit");
 // KERNEL PHASE 5 residency: the counter machine's per-customer scalars and
@@ -11238,10 +11244,68 @@ function newCustomer(bizKey) {
   w.x = spawnX;
   return w;
 }
+// the counter machine's states - the set cust_step owns when the kernel is
+// armed. Everything else in the chain (the visitor walk states) stays JS.
+const KCUST_STATES = (() => { const t = new Uint8Array(32);
+  for (const s of ["arriving", "waiting", "toStall", "waitStall", "outStall",
+                   "showering", "toSeat", "seatedWaiting", "toTable", "dining", "leaving"])
+    t[VS[s]] = 1;
+  return t; })();
+// the ring drain: the kernel's (code, a, b) events, rendered at the same
+// frame position the reference produced them - strings, stats, sfx, the
+// crab's persona side of a shower, and the tip through payTip's own door
+function drainCustRing(k) {
+  const n = KEV_N[0];
+  for (let i = 0; i < n; i++) {
+    const code = KEV[i * 3], a = KEV[i * 3 + 1];
+    if (code === 1) {        // arrived at the counter: the ask
+      popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
+    } else if (code === 2) { // rage-quit in the line
+      k.happy = false; k.claimed = false;
+      if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
+      popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
+    } else if (code === 3) { // claimed a stall: the identity joins the plane bit
+      FURN[a].occupant = k;
+    } else if (code === 4) { // shower done (a = deep, b = isCrab)
+      if (k.isCrab) {
+        k.crab.p.dirt = Math.max(0, (k.crab.p.dirt || 0) - (a ? qn(0.7) : qn(0.5)));
+        crabLog(k.crab, "need", "TOOK A " + (a ? "LONG SOAK" : "SHOWER") + " AT THE " + BIZ[k.biz].name, 0);   // DIARY
+        k.crab.quip = { text: "SQUEAKY CLEAN!", t: 2.4 * SEC };
+      }
+      if (window._stats) {
+        window._stats.showersDone = (window._stats.showersDone || 0) + 1;
+        const kk = k.crab ? "showersDoneCrab" : "showersDoneTour";
+        window._stats[kk] = (window._stats[kk] || 0) + 1;
+      }
+      tradeImport("water", a ? 14 : 8);
+      popText("AHHH", k.x, 126, [140, 220, 255]);
+    } else if (code === 5) { // the stall wait ran out
+      k.happy = false;
+    } else if (code === 6) { // sat down to eat
+      if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
+    } else if (code === 7) { // rage-quit at the table
+      k.happy = false; k.claimed = false;
+      if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
+      if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
+      popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
+    } else if (code === 8) { // dining done: the table tip (a = tt, cents)
+      if (k.visitor) { k.wallet -= a; k.spent += a; stayOf(k).tips += a; }
+      payTip(k.biz, k.server, a * MC_PER_CENT, k.x, 130);
+      if (window._stats) window._stats.tableTip = (window._stats.tableTip || 0) + a;
+    }
+  }
+}
 function updateCustomers(dt) {
   if (KERN) {   // vis_tick's frame facts, computed once with the reference's own expressions
     _ktMist = tmin >= 16.5 * 60 && mistNowQ16() * 5 > 3 * 65536 ? 1 : 0;
     _ktDrain = (Q20 * 3 * dtT / 10 - (Q20 * 3 * dtT / 10) % TICKS_PER_GH) / TICKS_PER_GH;
+    // ...and phase 5's stall lists: the fids cust_step's waitStall scan walks,
+    // in the reference's own array order (the find's order IS semantics)
+    for (let s2 = 0; s2 < KVP_BIZ.length; s2++) {
+      const sts = BIZ[KVP_BIZ[s2]].stalls;
+      KMS_N[s2] = sts ? sts.length : 0;
+      if (sts) for (let i2 = 0; i2 < sts.length; i2++) KMS_FID[s2 * 16 + i2] = sts[i2].fid;
+    }
   }
   trackCloseQueues();   // hours-policy signal: who was still in line when a shop shut
   runFerry(dtT);        // the timetable: she docks, lands a batch, and sails
@@ -11271,6 +11335,34 @@ function updateCustomers(dt) {
     if (k.visitor) {
       visTick(k, dt);                                        // needs run wherever they are
       if (VIS_STATES[k.state]) { updateVisitor(k, dt); continue; }
+    }
+    // KERNEL PHASE 5: the whole counter machine runs compiled, one call per
+    // customer at the reference's own point in the pass - a stall freed by
+    // this call is claimable by the NEXT customer, same frame, same order.
+    // The ring drains IMMEDIATELY so popText/sfx/stats/persona effects and
+    // the tip through payTip's door keep their exact frame position. The JS
+    // chain below stays the reference, byte for byte.
+    if (KERN) {
+      const bslot = KVP_BIZ.indexOf(k.biz);
+      if (bslot >= 0 && KCUST_STATES[VSTCP[k.si]]) {
+        const r = KERN.exports.cust_step(k.si, dtT,
+          qslot.has(k) ? qslot.get(k) * Q8 : PXQ[k.si],
+          bizStaffed(k.biz) ? 1 : 0, serverFilthQ12(k),
+          k.isCrab ? 1 : 0, k.visitor ? 1 : 0, k.happy ? 1 : 0,
+          k.wallet | 0, tableTipOf(k.biz),
+          (k.recipe ? (k.recipe.showerT || 5) : 5) * SEC,
+          k.recipe && k.recipe.deep ? 1 : 0, bslot,
+          k.spawnXQ == null ? MNULL : k.spawnXQ,
+          window._selfBused ? 1 : 0);
+        if (r) {
+          drainCustRing(k);
+          if (r & 2) { k.qWalk = false; k.face = -1; }
+          else if (r & 4) { k.qWalk = true; k.face = (r & 8) ? -1 : 1; }
+          if (r & 16) { finishErrand(k); continue; }
+          if (r & 32) { visAfterCounter(k); continue; }
+          continue;
+        }   // r === 0: not this unit's state (or a null hold) - the chain owns it
+      }
     }
     if (k.stC === VS.arriving || k.stC === VS.waiting) {
       // joined DURING this pass (a visitor whose walk ended a few lines up):
