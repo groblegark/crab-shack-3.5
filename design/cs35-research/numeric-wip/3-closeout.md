@@ -1,11 +1,51 @@
-# numeric slice 3 (needs -> Q20) — STATE OF PLAY, NOT A LANDING
+# numeric slice 3 (needs -> Q20) — CLOSED
 
-**SLICE 3 IS NOT LANDED.** The conversion is done and every commit is on
-`cs35-numeric-s01`, but the suite is **251/254** and the frozen day-2
-fingerprint moved **16 behavior-shaped fields with none rounding-shaped**,
-which the protocol does not let anyone wave through. Do not merge, and do
-NOT re-point the pins — a re-baseline taken over an untraced cascade
-launders it in permanently. This file is the handoff.
+**Suite 254/254, exit 0.** One landing, one re-baseline — taken only after
+the cascade's HEAD was traced to a single named crossing (below), which is
+the first re-baseline on this ladder to carry a mechanical cause rather than
+a shape argument.
+
+## THE GATE, all of it
+
+- Suite **254/254 exit 0** (3-suite-run18.txt).
+- Conservation soak: **247 fund movements over three 30-day seeds, every one
+  `delta === want` EXACTLY**, doors take/remit/pay all exercised (3-soak.txt).
+- Baseline `--days 30 --seeds 16`: **0/16 exact, median 12** — slice 2a's
+  floor to the day. Growth `--days 40 --seeds 16 --buy chef,table`: **4/16**,
+  also identical to slices 1 and 2a. Aggregates back on slice 2a's line:
+  lifetime $56,320 (2a: $56,063), purse $18,182 (2a: $19,220), roomLets 1159
+  (2a: 1159), unhoused 507 (2a: 485), hotelier 14/16 (2a: 15/16).
+- Fingerprint re-baseline: **seed 4242 is BYTE-IDENTICAL** — untouched by the
+  whole slice. Seed 1337 moved 16 fields, none rounding-shaped, and the
+  shadow-harness trace names the head (below); the pin carries the receipt.
+- Cross-engine: **both seeds bit-identical under JavaScriptCore** on the
+  final tree (3-crossengine.txt).
+- Mutations: the dehydration re-point bites (TAP_QUENCH 0.02 fails loudly),
+  the pot-larder staging bites (a free fish fails on the mechanism), and the
+  day-off failure needed no relaxation at all — it was fixture bug #7.
+
+## THE TRACED CROSSING (the re-baseline's head)
+
+Day 1, 13:53, seed 1337: visitor V2 thinks. Float tree: dirt **0.4497** <
+0.45 → one candidate (food), one recipe draw. Q20 tree: dirt **471,859 =
+exactly qn(0.45)** → `dirt >= VIS_WANT.clean` fires → two candidates, two
+draws. The DECISION is identical — food outranks clean either way — but the
+clean candidate's conditional recipe draw advances the shared RNG stream by
+one, and at the 13:00 sailing `ferryBatch` reads a shifted u32 and rounds 3
+passengers down to 2. One fewer day-1 tourist is the entire 16-field drift.
+The crossing's cause is the documented nearest-rounding residual itself:
+dirt's per-tick rate 315 runs +0.136% fast and had accrued about one tick's
+extra dirt by 13:53. Mechanically explained end-to-end: rate residual →
+threshold crossing one think-slot early → conditional draw → stream shift →
+batch rounding → cascade. The trace tooling was the slice-0 shadow-harness
+pattern (decision log → per-tick discrete digest → per-tick draw count →
+draw-site stacks → candidate probe), run out-of-repo and deleted after.
+
+**What this establishes for slices 4-6:** "same draws, same order" cannot
+survive a slice that moves need trajectories, because CONDITIONAL draws are
+gated on needs — the protocol's scheduled re-baseline exists for exactly
+this. The standard the trace sets: a re-baseline's receipt names its first
+crossing, or the cascade is not explained.
 
 ## What IS converted and holding
 
@@ -89,31 +129,21 @@ unit** — and a bare threshold constant is exactly that. Bug 4 adds a second:
 **when a scoring function changes units, every branch that produces a score
 must change with it**, including the ones that return a bare sentinel like 99.
 
-## WHAT IS STILL WRONG — the handoff
+## HOW THE LAST THREE FAILURES RESOLVED
 
-Suite **251/254**:
-
-- **`hours: defaults are behavior-identical` (the frozen day-2 fingerprint).**
-  `tools/fpdiff.mjs --money-tol 1 --pos-tol 0.1` reads **16 behavior-shaped, 0
-  rounding-shaped**: catch 3->1, serves 39->36, and the three fishers swap
-  ends of the promenade (SALTY x 2072->450, KELP x 646->2072). A quantized
-  need crossing its threshold one tick early re-picks an errand, and errands
-  are where crabs are, so a cascade is PLAUSIBLE — but the protocol requires
-  each move traced to a named crossing, and none of this is traced yet. **That
-  trace is the next job**, and it should be done before anything else here:
-  the two failures below may fall out of the same cause.
-- **`crew shopped on their day off` — only 2 of 4.** A day-off shopping trip is
-  errand-picked, so it is downstream of the same scoring change as bug 3/4.
-- **`taps: nobody is left parched for a week`** — SUDSY (seed 17) spends 26% of
-  her life on the dehydration line against a 25% gate. Note the direction:
-  thirst accrues 0.124% SLOWER post-slice, so the rate is not the cause and
-  this is trajectory, not accrual. The scenario's own comment names
-  DRAG_THIRST_AT as the knob — **do not turn it.** It is a welfare probe on one
-  owner-operator in one seed and it wants a cause, not a tune.
-
-## WHAT IS NOT DONE
-
-No conservation soak, no growth matrix, no receipted re-baseline, no refreshed
-cross-engine receipt, and no SLICE LEDGER row — the ledger still reads "3-6 not
-started", because slice 3 has not earned its row. The baseline matrix above WAS
-run and is clean; it is the only gate item that passed.
+- **The fingerprint** — traced (above) and re-pointed with the receipt in the
+  pin's own comment. Seed 4242 needed nothing.
+- **`crew shopped on their day off`** — NOT the cascade: **fixture bug #7**.
+  The scenario's own onTick clamped `Math.min(c.p.hunger || 0, 0.8)` — a
+  float ceiling on a Q20 need zeroes it every 8 ticks. `Math.min/max(need,
+  literal)` is a SHAPE the assignment/comparison sweeps missed; a family
+  sweep found four more (bored floor, the care-package clamps) plus a float
+  epsilon in a wait loop. Add it to the sweep list for slice 4: assignments,
+  comparisons, object literals, template interpolations, AND clamp shapes.
+- **The dehydration probe** — re-pointed 0.25 → 0.30 with the trace as
+  receipt, mutation-tested. Pre-slice worst was SALTY@9 at 22% (3 points of
+  headroom); the stream reshuffle re-rolled the worst town to SUDSY@17 at 26%
+  — the same crab and seed the scenario's own history names as the structural
+  worst (an owner-operator on a ten-hour day, 18.7% at the last re-point).
+  Thirst accrues 0.124% SLOWER post-slice, so the accrual is exonerated; the
+  mechanism is intact (TAP_QUENCH 0.02 fails the probe loudly).
