@@ -12412,6 +12412,7 @@ cv.addEventListener("click", (ev) => {
       else { followCust = sel; followIdx = -1; followNpc = null; }
       sfx.ding(); return;
     }
+    if (tapSendChip(p)) return;   // the SEND chip sits on the card: it is tested before the card opens
     if (sel && p.x >= 2 && p.x < 130 && p.y >= 2 && p.y < 60) { dossier = sel; sfx.ding(); return; }
   }
   // the little sun: fast-forward to morning
@@ -12421,6 +12422,13 @@ cv.addEventListener("click", (ev) => {
     sfx.ding(); return;
   }
   const wx = p.x + camX;
+  // ARMED: the world is a destination. Placed after the HUD above (the card and
+  // the little sun still work while armed) and before every building, chip and
+  // crab below, so the tap cannot be stolen by whatever happens to be there.
+  if (sendArm) {
+    sendArm = false; sendArmT = 0;
+    if (sel && sel.p && !sel.p.npc) { orderCrab(sel, wx, p.y); return; }
+  }
   // the job board is readable
   if (wx >= JOB_BOARD_X - 2 && wx < JOB_BOARD_X + 28 && p.y >= HOME_BOTTOM - 40 && p.y < HOME_BOTTOM + 4) {
     boardView = true; sfx.ding(); return;
@@ -14575,6 +14583,50 @@ function followCrab(c) {
 // and the day report own the screen.
 function cycleList() { return allCrabs(); }
 const CYCLE_W = 21, CYCLE_H = 12;
+// ---------------------------------------------------------------- SEND
+// ORDERING A CRAB, IN ONE SENTENCE, ON BOTH DEVICES: tap a crab to select
+// them, tap SEND to arm the order, tap where they should go. That is the
+// shop button's own doctrine applied to the town - read-then-buy becomes
+// select-then-send - and it exists because ordering was, until now, a
+// RIGHT-CLICK: a gesture no phone can make. The whole feature was desktop
+// only, which is not a mode the mouse earned, just one touch never got.
+//
+// The mouse keeps right-click as its shortcut over the same two steps,
+// exactly as hover arms the shop tooltip for free. Neither device has a
+// mode the other lacks; one of them just has a faster road to it.
+//
+// AND THE DRAG STAYS THE CAMERA'S, on both devices. Because the sentence is
+// two TAPS and never a drag, a finger that moves is unambiguously a pan
+// (the click handler's `if (dragMoved) return` already swallows it) and a
+// finger that does not is a tap. There was no gesture to arbitrate.
+let sendArm = false, sendArmT = 0;   // armed: the next tap on the world is a destination
+// the bottom row, beside MORE>: the need bars own y44-49 and the first cut at
+// y48 clipped them - measured by looking, which is the only way text and
+// pixel slots have ever been measured on this project
+function sendChipRect() { return { x: 4, y: 50, w: 30, h: 9 }; }
+function sendShown() {
+  return screen === "play" && !gameOver && !!sel && !!sel.p && !sel.p.npc
+    && !(dossier || manage || boardView || saveView || reportT > 0 || departT > 0) && tab !== "menu";
+}
+function tapSendChip(p) {
+  if (!sendShown()) return false;
+  const r = sendChipRect();
+  if (!(p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h)) return false;
+  sendArm = !sendArm;
+  sendArmT = sendArm ? 8 : 0;
+  if (sendArm) toast = { text: "TAP WHERE TO SEND " + sel.p.name.split(" ")[0], t: 5 };
+  sfx.ding();
+  return true;
+}
+function drawSendChip() {
+  if (!sendShown()) return;
+  const r = sendChipRect();
+  rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 36]);
+  rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, sendArm ? [190, 140, 80] : [235, 225, 205]);
+  const lab = sendArm ? "WHERE?" : "SEND";
+  smallText(ctx, lab, r.x + ((r.w - smallTextWidth(lab)) >> 1), r.y + 2,
+    sendArm ? [40, 24, 16] : [90, 60, 40]);
+}
 function cyclerRects() {
   const x = 106, y = 3;          // the card's own header row, right of the name
   return { x, y, w: CYCLE_W, h: CYCLE_H,
@@ -17004,6 +17056,8 @@ function simClock(dt, rawMs) {
   if (hireCard) { hireCard.t -= rawMs / 1000; if (hireCard.t <= 0) hireCard = null; }   // WALL seconds, deliberately
   if (saveConfirmT > 0) { saveConfirmT -= dt; if (saveConfirmT <= 0) saveConfirm = null; }
   if (saleArmT > 0) { saleArmT -= dt; if (saleArmT <= 0) saleArm = null; }
+  if (sendArmT > 0) { sendArmT -= dt; if (sendArmT <= 0) sendArm = false; }
+  if (sendArm && !sendShown()) { sendArm = false; sendArmT = 0; }   // selection changed under the arm
   if (upArmT > 0) { upArmT -= dt; if (upArmT <= 0) upArm = null; }   // the accommodation chips' arm
   if (ferryArm > 0) ferryArm -= dt;
   if (won) winT += dt;   // the beat before the ending card: she comes alongside first
@@ -17741,6 +17795,7 @@ function viewFrame(dt) {
   drawDossier();   // above the management card: a census row opens a dossier ON TOP of it
   drawFollowCard();
   drawCycler();   // < crab > : step the selection (and the camera) through the town
+  drawSendChip();   // SEND: the order gesture every device can make
   drawPanel();
   drawNavChips();      // MANAGE / TOWN sit IN the panel now, so they go on after it
   drawShopTip();       // hangs off the bottom of the world, pointing at the grid it explains
