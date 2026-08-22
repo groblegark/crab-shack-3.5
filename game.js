@@ -6066,6 +6066,21 @@ const PXQ  = KERN ? new Int32Array(_kb, _k0,        POOL_MAX) : new Int32Array(P
       PWYQ = KERN ? new Int32Array(_kb, _k0 + 2560, POOL_MAX) : new Int32Array(POOL_MAX),
       PMXQ = KERN ? new Int32Array(_kb, _k0 + 3200, POOL_MAX) : new Int32Array(POOL_MAX),
       PMYQ = KERN ? new Int32Array(_kb, _k0 + 3840, POOL_MAX) : new Int32Array(POOL_MAX);
+// RENDER INTERPOLATION (slice 2b's deferred half, landed after rung 1 made
+// it legal). The sim advances in whole 50ms ticks; displays paint at
+// 60-120Hz, so a walking crab was stepping once every third frame. These
+// buffers are VIEW STATE: a prev-tick image of the position planes, and a
+// restore image so the swap is exact. The draw pass renders
+// lerp(prev, curr, msAcc/50) - the accumulator's fractional remainder IS
+// the interpolation parameter - by writing interpolated grains into the
+// live planes for EXACTLY the viewFrame call and restoring them
+// bit-for-bit after. No sim read can ever see an interpolated value,
+// because no sim code runs inside the window (the sun-mode loop runs in
+// frame(), after the restore). Headless never snapshots, never swaps.
+const VP_PX = new Int32Array(POOL_MAX), VP_PY = new Int32Array(POOL_MAX), VP_WY = new Int32Array(POOL_MAX),
+      VP_RX = new Int32Array(POOL_MAX), VP_RY = new Int32Array(POOL_MAX), VP_RW = new Int32Array(POOL_MAX);
+let vpTicks = 1, vpSwapped = false;   // ticks advanced at the last snapshot; swap-window latch
+const VP_SNAPQ = 2048;   // 8px of Q8 grains: beyond any plausible step, a slot SNAPS - a warped crab must not smear
 const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
       KB_FLAGS = KERN ? new Int32Array(_kb, _k0 + 5120, POOL_MAX) : null,
       KB_BERTH = KERN ? new Int32Array(_kb, _k0 + 5760, POOL_MAX) : null,
@@ -17661,25 +17676,30 @@ function viewFrame(dt) {
   drawSaveScreen();
   drawHelp();          // the last word: HOW TO PLAY sits over everything, including game over
   if (window.MergeMode) MergeMode.frame(dt);
-  // sun mode: chain extra 0.6s sim steps synchronously (same per-step bound the
-  // suite verifies at 6x) so the night passes in about a second of real time.
-  // A LOOP, not a re-entrant frame() - the re-entrant form scheduled a rAF per
-  // nested call, and every sun-skip left a permanent pack of parallel frame
-  // loops behind it (the play-test's "slow and choppy after the sun"). The
-  // steps are SIM-ONLY: same accumulator arithmetic, same tick math, and the
-  // seam's own theorem is what makes skipping the six invisible draws legal -
-  // a render moves nothing.
-  for (let c = 0; c < 6 && ffSleep && screen === "play" && !gameOver; c++) {
-    msAcc += 100;
-    const ct = (msAcc - msAcc % 50) / 50;
-    msAcc -= ct * 50;
-    dtT = ct * TURBO * 6;
-    const cdt = dtT / TICK_HZ;
-    T += dtT;
-    simClock(cdt, 100);
-    if (screen === "play") simTown(cdt);
-    last = performance.now();   // chained steps ran ahead of the real clock
+}
+
+// THE SWAP WINDOW. Interpolated grains go into the live planes for exactly
+// one viewFrame call and come back out bit-for-bit. A fast-forward frame
+// (more than 2 ticks) skips the swap entirely - at 6x the eye cannot see
+// tick granularity, and the sun-skip advances 12 a step.
+function vpSwapIn() {
+  if (vpTicks > 2) return;
+  const a = msAcc / 50;   // view float, like camX - the sim never sees it
+  VP_RX.set(PXQ); VP_RY.set(PYQ); VP_RW.set(PWYQ);
+  for (let i = 0; i < POOL_MAX; i++) {
+    const dx = PXQ[i] - VP_PX[i], dy = PYQ[i] - VP_PY[i];
+    if (dx > VP_SNAPQ || dx < -VP_SNAPQ || dy > VP_SNAPQ || dy < -VP_SNAPQ) continue;   // teleport: draw the truth
+    PXQ[i] = VP_PX[i] + Math.round(dx * a);
+    PYQ[i] = VP_PY[i] + Math.round(dy * a);
+    PWYQ[i] = VP_WY[i] + Math.round((PWYQ[i] - VP_WY[i]) * a);
   }
+  vpSwapped = true;
+  window._vpLerped = (window._vpLerped || 0) + 1;   // debug seam, same family as _viewCalls
+}
+function vpSwapOut() {
+  if (!vpSwapped) return;
+  PXQ.set(VP_RX); PYQ.set(VP_RY); PWYQ.set(VP_RW);
+  vpSwapped = false;
 }
 
 function frame(now) {
@@ -17712,13 +17732,37 @@ function frame(now) {
   msAcc -= rawTicks * 50;
   dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
   const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
+  // the interpolation's prev image: the state the LAST render stood on,
+  // taken only when this frame actually advances the world
+  if (!window._headless && rawTicks > 0) { VP_PX.set(PXQ); VP_PY.set(PYQ); VP_WY.set(PWYQ); vpTicks = dtT; }
   last = now; T += dtT;
   simClock(dt, rawMs);
   if (screen === "intro") { introFrame(); requestAnimationFrame(frame); return; }
   if (screen === "title") { titleFrame(dt); requestAnimationFrame(frame); return; }
   simTown(dt);
   if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: the seam
+  vpSwapIn();
   viewFrame(dt);
+  vpSwapOut();
+  // sun mode: chain extra 0.6s sim steps synchronously (same per-step bound the
+  // suite verifies at 6x) so the night passes in about a second of real time.
+  // A LOOP, not a re-entrant frame() - the re-entrant form scheduled a rAF per
+  // nested call, and every sun-skip left a permanent pack of parallel frame
+  // loops behind it (the play-test's "slow and choppy after the sun"). The
+  // steps are SIM-ONLY: same accumulator arithmetic, same tick math, and the
+  // seam's own theorem is what makes skipping the six invisible draws legal -
+  // a render moves nothing. It runs AFTER vpSwapOut, on the real planes.
+  for (let c = 0; c < 6 && ffSleep && screen === "play" && !gameOver; c++) {
+    msAcc += 100;
+    const ct = (msAcc - msAcc % 50) / 50;
+    msAcc -= ct * 50;
+    dtT = ct * TURBO * 6;
+    const cdt = dtT / TICK_HZ;
+    T += dtT;
+    simClock(cdt, 100);
+    if (screen === "play") simTown(cdt);
+    last = performance.now();   // chained steps ran ahead of the real clock
+  }
   requestAnimationFrame(frame);
 }
 
