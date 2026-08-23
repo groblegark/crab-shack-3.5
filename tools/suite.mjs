@@ -13269,6 +13269,39 @@ scenario("errands: a data errand joins the ballot, wins when it should, and its 
   return true;
 });
 
+// ---- THE HOOK TAXONOMY (phase D): four named points, observe-only ctx of
+// primitive copies, a throwing hook unhooked with a legible toast, and an
+// empty point that costs nothing (the dispatch guards on length).
+scenario("hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal", () => {
+  const sim = createSim({ seed: 31 });
+  sim.G(`window._hk = { tx: 0, txAmt: 0, days: [], settles: [], scans: 0, boom: 0 };
+    registerHook("midTransaction", { id: "t.tx", fn: (c) => { window._hk.tx++; window._hk.txAmt += c.amt;
+      if (typeof c.biz !== "string" || typeof c.amt !== "number") throw new Error("live object leaked"); } });
+    registerHook("worldEvent", { id: "t.day", fn: (c) => window._hk.days.push(c.day) });
+    registerHook("settlementAggregate", { id: "t.set", fn: (c) => window._hk.settles.push([c.culture, c.rule, c.purse - c.left]) });
+    registerHook("walletScan", { id: "t.scan", fn: (c) => window._hk.scans++ });
+    registerHook("midTransaction", { id: "t.boom", fn: () => { window._hk.boom++; throw new Error("kaboom"); } });`);
+  sim.runDays(3);
+  const got = JSON.parse(sim.G("JSON.stringify(Object.assign({}, window._hk, { left: HOOKS.midTransaction.length, toast: toast && toast.text }))"));
+  if (!got.tx || got.txAmt <= 0) return "the mid-transaction point never fired: " + JSON.stringify(got);
+  if (got.days.join(",") !== "2,3,4") return "the day roll fired wrong: days " + got.days.join(",");
+  if (!got.settles.length) return "no settlement aggregate in two lived days";
+  if (got.settles.some(s => typeof s[0] !== "string" || typeof s[2] !== "number"))
+    return "a settle ctx was not primitive: " + JSON.stringify(got.settles[0]);
+  if (got.boom !== 1) return "the faulty hook fired " + got.boom + " times, want exactly 1";
+  if (got.left !== 1) return "the faulty hook was not unhooked: " + got.left + " remain";
+  // registration clamps, engine-facing: loud throws
+  for (const [bad, name] of [
+    [`registerHook("teatime", { id: "x", fn: () => 0 })`, "unknown point"],
+    [`registerHook("worldEvent", { id: "t.day", fn: () => 0 })`, "duplicate"],
+    [`registerHook("worldEvent", { id: "??", fn: () => 0 })`, "bad id"],
+    [`registerHook("worldEvent", { id: "x.f", fn: 7 })`, "must be a function"]]) {
+    const msg = sim.G(`(() => { try { ${bad}; return "TOOK"; } catch (e) { return e.message; } })()`);
+    if (msg === "TOOK" || !msg.includes(name)) return "a bad hook was not refused: " + msg;
+  }
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used

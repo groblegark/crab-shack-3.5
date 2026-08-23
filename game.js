@@ -684,9 +684,58 @@ function ownerFunds(b) {
 function bizDayBook(b) {   // today's per-business takings/costs (management screen + CPU policy signals)
   return today.biz[b] = today.biz[b] || { take: 0, cost: 0 };
 }
+// ------------------------------------------------------- THE HOOK TAXONOMY
+// (cultureway phase D, substrate §2/§6-D.) MR_TASTE set the pattern for data
+// hooks: the engine reads a table and never learns a culture's name. This
+// registry names the four POINTS where Layer-1 expressions will attach in
+// phase E - mid-transaction, world-event, settlement-aggregate, wallet-scan -
+// and wires their dispatches into the engine NOW, so civics lands as data
+// plus registrations rather than as engine surgery.
+//
+// THE PHASE-D CONTRACT, deliberately narrow:
+//   - a hook OBSERVES. Its ctx is primitive copies, never live sim objects;
+//     it returns nothing; anything it wants to keep it keeps in its own
+//     closure. Mutation verbs arrive with Layer-1's fuel-counted bytecode
+//     (phase E), where rollback is implementable; a JS closure gets no verb
+//     because a verb without fuel-and-rollback is a hole in the sim's hull.
+//   - a hook that THROWS is removed on the spot with one legible toast (the
+//     substrate's opacity rule: the sim never stops, the error is named).
+//   - an EMPTY point costs nothing: dispatch sites guard on length before
+//     building ctx, so a hookless town allocates nothing and stays
+//     byte-identical by construction.
+//   - KERNEL: none of these cross the wasm boundary. A hook point the kernel
+//     must serve crosses as a data plane per the MR_TASTE precedent when a
+//     consumer exists - not-yet-ported by design, per the appeal ruling.
+const HOOKS = { midTransaction: [], worldEvent: [], settlementAggregate: [], walletScan: [] };
+function registerHook(point, def) {
+  // engine-facing: bad registrations fail loud at boot (data's door is phase E)
+  if (!HOOKS[point]) throw new Error("registerHook: unknown point " + point);
+  if (!def || typeof def.id !== "string" || !/^[a-z0-9_.]{1,24}$/.test(def.id))
+    throw new Error("registerHook: bad id " + (def && def.id));
+  if (HOOKS[point].some(h => h.id === def.id)) throw new Error("registerHook: duplicate " + point + "/" + def.id);
+  if (HOOKS[point].length >= 16) throw new Error("registerHook: " + point + " is full (16)");
+  if (typeof def.fn !== "function") throw new Error("registerHook " + def.id + ": fn must be a function");
+  HOOKS[point].push(def);
+  return def;
+}
+function fireHooks(point, ctx) {
+  const hs = HOOKS[point];
+  for (let i = 0; i < hs.length; i++) {
+    try { hs[i].fn(ctx); }
+    catch (e) {
+      // one legible error, the offender is unhooked, the sim never stops
+      toast = { text: "A HOOK FAILED - " + point + "/" + hs[i].id + ": " + (e && e.message || e), t: 8 };
+      hs.splice(i, 1); i--;
+    }
+  }
+}
 function creditBiz(b, amt, x, y, quiet) {   // quiet: the caller pops its own label (tips)
   const o = bizOwner(b);
   if (!o) return;                          // a shuttered shop takes no money
+  // THE MID-TRANSACTION POINT: every till credit in the game funnels here,
+  // which is what makes this one line the whole taxonomy row. Primitive
+  // copies only; guarded so a hookless town allocates nothing.
+  if (HOOKS.midTransaction.length) fireHooks("midTransaction", { biz: b, owner: o, amt, day, tmin });
   bizDayBook(b).take += amt;
   if (o === "player") {
     today.revenue += amt;
@@ -1251,6 +1300,12 @@ function collectPurse() {
   const p = hall.policy, rate = purseRate(p);
   const need = fundNeed();
   let got = 0;
+  // THE WALLET-SCAN POINT (phase D): the evening pass over the town's purses
+  // is the one moment civics looks at everybody's money at once. Fired even
+  // when the rate is zero - a scan that only fires when the town collects
+  // would hide exactly the wallets a hook exists to see.
+  if (HOOKS.walletScan.length) fireHooks("walletScan",
+    { kind: "collectPurse", mech: p.mech, rate, need, day, tmin });
   if (rate <= 0 || need <= 0) return 0;
   if (p.mech === "levy") {
     // A SHARE OF WHAT YOU TOOK TODAY, so a shop that sold nothing pays
@@ -18133,6 +18188,12 @@ function visQuote(r) {
     if (ow && ow[rule.id] != null) w = (w * ow[rule.id]) / 4;
     if (w > bw) { bw = w; best = rule; }
   }
+  // THE SETTLEMENT-AGGREGATE POINT (phase D): one guest's whole stay, settled
+  // and ruled - the row an acceptance meter or exposure-drift rule reads.
+  // Primitive projection of the stay record, plus the rule that spoke.
+  if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
+    { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+      buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
   return { id: best.id, mood: best.mood, weight: bw, line: departLine(r, best) };
 }
 // THE SENTENCE IS CULTURE; THE RULE IS ENGINE. A cultured guest's register
@@ -18783,6 +18844,11 @@ function simClock(dt, rawMs) {
   reclock();
   if (tday >= DAY_TICKS) {
     tday -= DAY_TICKS; reclock(); day++;
+    // THE WORLD-EVENT POINT (phase D): the day roll is the one world event
+    // every civics calendar counts from. Fired before the day's books reset
+    // so a hook reads yesterday's rep/coins, exactly what a calendar phase
+    // would settle against.
+    if (HOOKS.worldEvent.length) fireHooks("worldEvent", { kind: "dayRoll", day, rep, coins });
     mistRoll();   // tonight's shore, drawn once and held as an integer
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price
