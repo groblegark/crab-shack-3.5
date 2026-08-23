@@ -12522,22 +12522,46 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   // Gulls ashore, both brains live, and the save must still be a complete
   // description of the town - the stream-cursor guarantee holding with
   // neural deciders in the loop. One save, loaded twice, identical futures.
+  // E0a: this scenario read the legacy SAVE_KEY, which save() stopped
+  // writing in the slots era (writeSlotEnv -> slotKey), so it compared two
+  // FRESH towns and passed emptily. It now reads the active slot, refuses a
+  // null envelope, refuses a load that did not take, and carries its own
+  // bite: a corrupted temperament (dm) on the reloaded copy must change the
+  // future, or the delta never reached the brain and the save is not the
+  // complete description it claims to be.
   const sim = createSim({ seed: 909 });
   sim.G("rep = 75000");   // past both gates: gulls and pigs may sail
   sim.runDays(6);
   if (!sim.G(`customers.some(k => k.visitor && k.culture && k.culture !== "crab")`))
     return "no cultured guest was even ashore - the staging says nothing";
   sim.G("save()");
-  const env = sim.G("localStorage.getItem(SAVE_KEY)");
-  const future = () => {
+  const env = sim.G("localStorage.getItem(slotKey(activeSlot))");
+  if (!env) return "save() left the active slot empty - the envelope is null";
+  const arch = JSON.parse(sim.G(`(() => { const c = allCrabs()[0]; const bp = citBrainOf(c);
+    return JSON.stringify(bp ? { out: bp.arch.out, hidden: bp.arch.hidden } : null); })()`));
+  if (!arch) return "the first crab has no citizen brain - the temperament bite cannot be staged";
+  const future = (envStr) => {
     const s2 = createSim({ seed: 31 });
-    s2.G(`localStorage.setItem(SAVE_KEY, ${JSON.stringify(env)}); load();`);
+    s2.G(`localStorage.setItem(slotKey(1), ${JSON.stringify(envStr)}); load();`);
+    if (s2.G("day") < 6) return null;   // the vacuous trap: a load that didn't take is a fresh town
     s2.runDays(8);
     return s2.G(`JSON.stringify({ coins, rep, pos: allCrabs().map(c => [c.x | 0, c.wy | 0]),
       vis: customers.filter(k => k.visitor).map(k => [k.name, k.culture || "crab", k.wallet]) })`);
   };
-  const a = future(), b = future();
+  const a = future(env), b = future(env);
+  if (a === null || b === null) return "the load did not take - day never reached the saved town's";
   if (a !== b) return "two loads of one save diverged: " + a.slice(0, 100) + " vs " + b.slice(0, 100);
+  // The bite: one crew temperament, maximally biased toward class 0, valid by
+  // every range check and exactly the live artifact's shape - the reloaded
+  // town must live a DIFFERENT life, or dm is dead freight in the envelope.
+  const evil = JSON.parse(env);
+  if (!Array.isArray(evil.personas) || !evil.personas[0]) return "the envelope has no crew to corrupt";
+  evil.personas[0].dm = { w: new Array(arch.out * arch.hidden).fill(0),
+    b: [3000000].concat(new Array(arch.out - 1).fill(0)) };
+  evil.personas[0].dr = 1;
+  const c = future(JSON.stringify(evil));
+  if (c === null) return "the corrupted load did not take";
+  if (c === a) return "a corrupted temperament left the future untouched - the delta never reached the brain";
   return true;
 });
 
