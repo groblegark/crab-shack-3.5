@@ -424,17 +424,20 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
   const opt = (n, d) => { const i = args.indexOf(n); return i === -1 ? d : args[i + 1]; };
   const culture = opt("--culture", "crab");
+  const surface = opt("--surface", "vis_pick.candidate");
   const docPath = opt("--doc", null);
   const cultureDoc = docPath ? JSON.parse(readFileSync(docPath, "utf8")) : null;
-  const data = collectRows({
+  const collect = surface === "cit_errand.candidate" ? collectCitizenRows : collectRows;
+  const data = collect({
     towns: parseInt(opt("--towns", "32")), days: parseInt(opt("--days", "12")),
     culture, cultureDoc, stage: opt("--stage", "v3"),
+    seedBase: parseInt(opt("--seedbase", "1337")),
     onTown: (i, seed, n) => process.stderr.write(`town ${i} (${seed}): ${n} ${culture} thinks\n`),
   });
   console.log(JSON.stringify(data.meta));
   const nr = opt("--none-ratio", "all");   // "all" = the sim's own class prior
   const { artifact, heldout, trainRows } = trainArtifact({
-    data, hidden: parseInt(opt("--hidden", "24")),
+    data, surface, hidden: parseInt(opt("--hidden", "24")),
     epochs: parseInt(opt("--epochs", "25")), seed: parseInt(opt("--seed", "7")),
     lrDecay: parseFloat(opt("--lr-decay", "0.9")),
     noneRatio: nr === "all" ? null : parseFloat(nr),
