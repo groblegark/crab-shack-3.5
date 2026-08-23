@@ -101,6 +101,16 @@ A people, written as a document. Not code — data the engine reads:
             mul100 100-300 — each defaulting to the crab values (72/60/
             0.12/130) when left out. Top-level "tastes" is gone and fails
             loudly.
+  management  the culture's working norms, author units, each defaulting to
+            the crab value when left out. tableTip: whole dollars a guest of
+            this people leaves on the table (crab 9). counter20: the jar's
+            token share of that tip at the counter, in twentieths (crab 3).
+            shifts: the working day's shape in half-hour minutes — std the
+            M/E standard day (crab 360), day the owner's open-to-close cap
+            (crab 600), cover the covering double (crab 720). The town's
+            standard WAGE is deliberately NOT declarable yet: a culture's
+            customary wage arrives with the settlers slice, when someone
+            exists to be paid it.
   arrival   repGate (how well-regarded the town must be before word reaches
             them), shareMax, shareRamp
 

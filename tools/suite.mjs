@@ -11094,6 +11094,9 @@ scenario("cultureways: broken art is refused with a message and the town still l
     ["a bad nudge thumb", mut(d => d.appeal.nudge = { mul100: 9000 })],
     ["a fractional nudge radius", mut(d => d.appeal.nudge = { radius: 72.5 })],
     ["a bad name", mut(d => d.people.names[0] = "AN EXTREMELY LONG PIG NAME")],
+    ["a lavish table tip", mut(d => d.management = { tableTip: 900 })],   // author units are DOLLARS - 900 is the cents habit, refused
+    ["a fractional counter share", mut(d => d.management = { counter20: 3.5 })],
+    ["a shift off the half-hour", mut(d => d.management = { shifts: { std: 361 } })],
   ];
   for (const [what, d] of cases) {
     const why = b.G("cultureProblem(" + JSON.stringify(d) + ")");
@@ -11135,6 +11138,58 @@ scenario("appeal: a cultureway's nudge terms land in the engine's own units, and
   if (!got.picksPig) return "nudgeCfg did not hand a pig her own culture's table";
   if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own table";
   if (!got.silentIsCrab) return "a culture that declared no nudge grew one anyway";
+  return true;
+});
+
+scenario("management: a cultureway's working norms land in the engine's own units, and only for its own folk", () => {
+  // The mgmt seam, proved the same way as appeal's: buildCulture converts
+  // author units (whole dollars, twentieths, half-hour minutes) into EXACTLY
+  // the forms the crab constants hold, mgmtOf hands the override only to that
+  // culture's own - reading a VISITOR's culture at k.culture and a RESIDENT's
+  // at c.p.culture, because the tipper and the worker live on different
+  // shapes - and everyone else gets MGMT verbatim (===, the behavior-neutral
+  // guarantee). A partial document inherits crab values field by field, and
+  // shifts.std feeds BOTH M and E, because they are the same standard day.
+  const sim = createSim({ seed: 9 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.management = { tableTip: 4, counter20: 0, shifts: { std: 300, day: 540, cover: 660 } };
+  const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  part.meta.id = "partpig";
+  part.management = { tableTip: 12 };   // counter share and every span inherit crab values
+  sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const m = CULTURES.pig.mgmt, p = CULTURES.partpig.mgmt;
+    return {
+      full: { TT: m.TT, C20: m.C20, M: m.SPAN.M, E: m.SPAN.E, D: m.SPAN.D, cover: m.SPAN.cover },
+      want: { TT: 400, C20: 0, M: 300, E: 300, D: 540, cover: 660 },
+      part: { TT: p.TT, C20: p.C20, spanIsCrab: p.SPAN === SHIFT_SPAN },
+      partWant: { TT: 1200, C20: MGMT.C20 },
+      tipsPig: tableTipOf({ culture: "pig" }) === 400,
+      spansPigWorker: mgmtOf({ p: { culture: "pig" } }).SPAN.M === 300,
+      crabIsCrab: mgmtOf({ p: {} }) === MGMT && mgmtOf(null) === MGMT && tableTipOf({ visitor: true }) === TABLE_TIP,
+      silentIsCrab: (() => { const g = CULTURES.gull; return !g || g.mgmt === null; })(),
+      windowIsFresh: (() => {
+        // a cultured worker's shift window must derive from THEIR span and
+        // never poison the shared memo: the native window before, a pig
+        // window in the middle, the native window after - the two native
+        // reads are the SAME object and the pig's is its own, capped at 300
+        const w1 = bizShiftWindow("shack", "M");
+        const wp = bizShiftWindow("shack", "M", CULTURES.pig.mgmt.SPAN);
+        const w2 = bizShiftWindow("shack", "M");
+        return w1 === w2 && wp !== w1 && (wp.end - wp.start) <= 300 && (w1.end - w1.start) <= 360;
+      })(),
+    };
+  })())`));
+  for (const k of ["TT", "C20", "M", "E", "D", "cover"])
+    if (got.full[k] !== got.want[k]) return `mgmt.${k} built as ${got.full[k]}, want ${got.want[k]}`;
+  if (got.part.TT !== got.partWant.TT || got.part.C20 !== got.partWant.C20)
+    return `partial mgmt built as TT ${got.part.TT} C20 ${got.part.C20}, want TT ${got.partWant.TT} C20 ${got.partWant.C20}`;
+  if (!got.part.spanIsCrab) return "a document silent on shifts grew its own span table instead of the crab object";
+  if (!got.tipsPig) return "a pig guest's table tip did not follow her culture";
+  if (!got.spansPigWorker) return "a pig worker's standard day did not follow her culture";
+  if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own norms";
+  if (!got.silentIsCrab) return "a culture that declared no management grew norms anyway";
+  if (!got.windowIsFresh) return "the shift-window memo served a cultured worker a crab window (or vice versa)";
   return true;
 });
 

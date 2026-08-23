@@ -4265,25 +4265,32 @@ function capWindow(start, end, cap, mid) {
 // the schedule chain). Callers never mutate the returned window - the OT
 // path in effShift builds its own object - so sharing the instance is safe.
 const _swinBy = {};
-function bizShiftWindow(b, kind) {
+function bizShiftWindow(b, kind, spans) {
+  spans = spans || SHIFT_SPAN;
   const h = BIZ[b].hours;
+  // the memo serves ONLY the native table (identity, not equality): a cultured
+  // worker's window derives from THEIR spans and is computed fresh - rare by
+  // construction until settlers, and never allowed to poison the shared cache
+  const native = spans === SHIFT_SPAN;
   const bb = _swinBy[b] || (_swinBy[b] = {});
-  const hit = bb[kind];
-  if (hit && hit.o === h.open && hit.c === h.close) return hit.w;
+  if (native) {
+    const hit = bb[kind];
+    if (hit && hit.o === h.open && hit.c === h.close) return hit.w;
+  }
   const mid = h.open + Math.round((h.close - h.open) / 2 / 30) * 30;
   const raw = kind === "M" ? { start: h.open, end: mid }
     : kind === "E" ? { start: mid, end: h.close }
     : kind === "D" ? { start: h.open + 30, end: h.close - 90 }
     : { start: h.open, end: h.close };   // covering double: the full window
-  const w = capWindow(raw.start, raw.end, SHIFT_SPAN[kind] || SHIFT_SPAN.cover, mid);
+  const w = capWindow(raw.start, raw.end, spans[kind] || spans.cover, mid);
   w.label = fmtHr(w.start) + "-" + fmtHr(w.end);   // paid once, at fill
-  bb[kind] = { o: h.open, c: h.close, w };
+  if (native) bb[kind] = { o: h.open, c: h.close, w };
   return w;
 }
-function baseShift(c) { return c.p.job === "fishing" ? SHIFTS[c.p.shift] : bizShiftWindow(c.p.job, c.p.shift); }
+function baseShift(c) { return c.p.job === "fishing" ? SHIFTS[c.p.shift] : bizShiftWindow(c.p.job, c.p.shift, mgmtOf(c).SPAN); }
 // the shift they're CONTRACTED to work today: their own, or the cover double.
 // effShift (below) adds overtime on top - it's "the hours they actually work".
-function dutyShift(c) { return coveringToday(c) ? bizShiftWindow(c.p.job, "cover") : baseShift(c); }
+function dutyShift(c) { return coveringToday(c) ? bizShiftWindow(c.p.job, "cover", mgmtOf(c).SPAN) : baseShift(c); }
 
 // ================================================================ LABOR POLICY
 // Sick days, overtime, and the rules a manager - player or CPU - applies to
@@ -4434,9 +4441,10 @@ function floorBinds(c) { return BIZ[c.p.job] && minWage() > rawWage(c); }
 // trading day, by construction.
 function ownStdSpan(c) {   // the crab's own contracted standard, never the cover double
   if (c.p.job === "fishing") { const s = SHIFTS[c.p.shift]; return Math.max(60, s.end - s.start); }
-  return SHIFT_SPAN[c.p.shift] || SHIFT_SPAN.cover;
+  const S = mgmtOf(c).SPAN;   // the WORKER's working-day custom (crab SPAN verbatim until settlers)
+  return S[c.p.shift] || S.cover;
 }
-function dutyStdSpan(c) { return coveringToday(c) ? SHIFT_SPAN.cover : ownStdSpan(c); }
+function dutyStdSpan(c) { return coveringToday(c) ? mgmtOf(c).SPAN.cover : ownStdSpan(c); }
 // what today's shift COSTS the crab, in standard days of their own shift. Pay
 // and fatigue part company on exactly one day: a full-open cover double is one
 // contract (SHIFT_SPAN.cover, one wage - the rota generosity that has always
@@ -6996,6 +7004,28 @@ function cultureProblem(d) {
         && n.relax >= 0 && n.relax <= 0.5)) return "A BAD NUDGE RELAX";
     }
   }
+  // MANAGEMENT is the culture's working norms (cultureway phase B, debt item
+  // 7): what a guest of this people leaves on the table, the jar's token share
+  // of it, and the shape of their working day. Author units are whole dollars
+  // and half-hour minutes, converted ONCE at build (see buildCulture) into the
+  // exact internal forms the crab constants hold. Partial objects inherit the
+  // engine's crab values field by field. WAGE_STD deliberately stays an engine
+  // constant - it is the town's arithmetic grid (the election lcm) and no
+  // culture-side reader exists until the settlers slice births one.
+  if (d.management != null) {
+    const M = d.management;
+    if (typeof M !== "object" || Array.isArray(M)) return "A BAD MANAGEMENT";
+    const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+    if (M.tableTip != null && !int(M.tableTip, 1, 30)) return "A BAD TABLE TIP";
+    if (M.counter20 != null && !int(M.counter20, 0, 20)) return "A BAD COUNTER SHARE";
+    const s = M.shifts;
+    if (s != null) {
+      if (typeof s !== "object" || Array.isArray(s)) return "A BAD SHIFT SHAPE";
+      if (s.std != null && !(int(s.std, 120, 720) && s.std % 30 === 0)) return "A BAD SHIFT DAY";
+      if (s.day != null && !(int(s.day, 240, 840) && s.day % 30 === 0)) return "A BAD OPEN-TO-CLOSE DAY";
+      if (s.cover != null && !(int(s.cover, 240, 1440) && s.cover % 30 === 0)) return "A BAD COVER DOUBLE";
+    }
+  }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
   if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
@@ -7264,8 +7294,24 @@ function buildCulture(def) {
     RELAX: nd.relax != null ? qn(nd.relax) : NUDGE.RELAX,
     AP: nd.mul100 != null ? nd.mul100 : NUDGE.AP,
   } : null;
+  // the culture's management norms, same discipline as nudge: author units
+  // (whole dollars, half-hour minutes) become the crab constants' own forms
+  // (cents, a SPAN table) here and never on the hot path. `shifts.std` is one
+  // author number because M and E are the same standard day by construction.
+  const md = def.management || null;
+  const ms = (md && md.shifts) || null;
+  const mgmt = md ? {
+    TT: md.tableTip != null ? md.tableTip * 100 : MGMT.TT,
+    C20: md.counter20 != null ? md.counter20 : MGMT.C20,
+    SPAN: ms ? {
+      M: ms.std != null ? ms.std : SHIFT_SPAN.M,
+      E: ms.std != null ? ms.std : SHIFT_SPAN.E,
+      D: ms.day != null ? ms.day : SHIFT_SPAN.D,
+      cover: ms.cover != null ? ms.cover : SHIFT_SPAN.cover,
+    } : SHIFT_SPAN,
+  } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt };
 }
 // Install one document set into the registry. `mine` marks the BUNDLED
 // cultureways - ours, shipped in cultureways.js - which install silently:
@@ -10729,7 +10775,24 @@ function bizTipShare(b) { return bizTipTwentieths(b) / TIP_TWENTIETHS_MAX; }   /
 // brings it back, and it lands entirely on TABLE service, so it widens the
 // counter/table gap instead of papering over it.
 const TABLE_TIP = 900;   // cents
-function tableTipOf(b) { return TABLE_TIP; }
+// THE CRAB'S MANAGEMENT NORMS (cultureway phase B, mirroring NUDGE): the
+// engine's own people carry no document, so these constants ARE their culture.
+// TT is the table tip in cents, C20 the jar's token share of it in twentieths
+// (the 3/20 that has always been TIP_COUNTER 0.15, exactly), SPAN the working
+// day's shape - the SAME object the schedule chain reads, so a crab town is
+// byte-for-byte the town before this table existed.
+const MGMT = { TT: TABLE_TIP, C20: 3, SPAN: SHIFT_SPAN };
+// which management norms govern this actor: their culture's, if it declared
+// any, else the crab table. Tippers are VISITORS (culture rides at k.culture)
+// and workers are RESIDENTS (at c.p.culture) - this is the one dispatch that
+// serves both sides of the counter, so it reads both homes.
+function mgmtOf(k) {
+  const id = k && (k.culture || (k.p && k.p.culture));
+  const cul = id && id !== "crab" ? CULTURES[id] : null;
+  return (cul && cul.mgmt) || MGMT;
+}
+// what THIS guest leaves on the table - their people's custom, not the shop's
+function tableTipOf(k) { return mgmtOf(k).TT; }
 // One tip, two pockets. `payTip` is the ONLY place a tip is split, so the
 // slider means exactly the same thing for the tip at the table and the tip in
 // the jar. The crab's cut lands in their WALLET - the housing ladder's fuel.
@@ -10835,7 +10898,7 @@ function payAndBenefit(c, cust) {
       : Math.max(0, idiv(131072 * cust.patience + cust.maxPatience, 2 * cust.maxPatience));   // exact round-half-up of 65536*p/maxP; the >= branch also keeps the suite's 0x7fffffff sentinel (patience is an i32 plane) out of the 2^53 window
     const TM = Math.max(0, Math.round(65536 * tipMult));
     const F = Math.floor(PR * TM / 65536);   // the two folded into one Q16 factor
-    const counterN = (seated || window._fullCounterTip) ? 20 : 3;   // TIP_COUNTER 0.15 = 3/20 exactly
+    const counterN = (seated || window._fullCounterTip) ? 20 : mgmtOf(cust).C20;   // TIP_COUNTER 0.15 = 3/20 exactly - the jar's share is the GUEST's custom (MGMT.C20 for every people that stays silent)
     let tipMc = Math.floor(menuPrice(cust.biz, cust.recipe) * F * counterN * (MC_PER_CENT / 2) / (65536 * 20));
     // A VISITOR PAYS OUT OF THEIR OWN POCKET. The wallet was checked before
     // they ever joined the line (visPick), so the price always clears; the TIP
@@ -12141,7 +12204,7 @@ function updateCustomers(dt) {
           qslot.has(k) ? qslot.get(k) * Q8 : PXQ[k.si],
           bizStaffed(k.biz) ? 1 : 0, serverFilthQ12(k),
           k.isCrab ? 1 : 0, k.visitor ? 1 : 0, k.happy ? 1 : 0,
-          k.wallet | 0, tableTipOf(k.biz),
+          k.wallet | 0, tableTipOf(k),
           (k.recipe ? (k.recipe.showerT || 5) : 5) * SEC,
           k.recipe && k.recipe.deep ? 1 : 0, bslot,
           k.spawnXQ == null ? MNULL : k.spawnXQ,
@@ -12257,7 +12320,7 @@ function updateCustomers(dt) {
         if (!k.isCrab) {
           // the table tip comes out of the same pocket the plate did: a guest
           // who has spent down to their last dollar leaves what they have
-          const tt = k.visitor ? Math.max(0, Math.min(tableTipOf(k.biz), k.wallet)) : tableTipOf(k.biz);
+          const tt = k.visitor ? Math.max(0, Math.min(tableTipOf(k), k.wallet)) : tableTipOf(k);
           if (k.visitor) { k.wallet -= tt; k.spent += tt; stayOf(k).tips += tt; }
           payTip(k.biz, k.server, tt * MC_PER_CENT, k.x, 130);   // table tip on the way out (tourists), split like any other; a whole-cent tip crosses the door unchanged
           if (window._stats) window._stats.tableTip = (window._stats.tableTip || 0) + tt;
