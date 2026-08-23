@@ -12297,6 +12297,45 @@ scenario("brains: a live brain spends the script's own draws, no more", () => {
   return true;
 });
 
+scenario("brains: the citizen brain agrees with the errand scorer it distilled", () => {
+  // THE AGREEMENT GATE for cit_errand.candidate, measured through the shadow
+  // infrastructure the bundle actually ships in: the script decides, the
+  // brain watches, zero stream perturbation. The shipped h48-x4-s42 artifact
+  // reads 99.82% on this town's 1,125 thinks (lever-diverse held-out: 98.01%
+  // with every supported class >= 45% recall - the pin that refused two
+  // higher-agreement candidates whose ball:fun class was dead). The floor is
+  // a floor: it catches a lobotomy, not a personality. MUTATION: zeroing the
+  // artifact's w2 collapses it to a constant class and this fails at ~30%.
+  const FLOOR = 0.90;
+  const sim = createSim({ seed: 4242 });
+  sim.runDays(4);
+  const s = JSON.parse(sim.G(`JSON.stringify((window._shadowStats && window._shadowStats.crab || {})["cit_errand.candidate"] || null)`));
+  if (!s || s.n < 300) return "citizen shadow saw only " + (s ? s.n : 0) + " thinks - not a measurement";
+  if (s.agree / s.n < FLOOR)
+    return `the citizen brain agrees with its teacher on ${(s.agree / s.n * 100).toFixed(1)}% of ${s.n} thinks - the floor is ${FLOOR * 100}%`;
+  return true;
+});
+
+scenario("brains: citizen shadow is inert - the crew cannot tell they are being watched", () => {
+  // The vis shadow-inertness receipt, re-sworn for the citizen surface the
+  // bundle ships armed: a shadowed town and a brainless town are
+  // BIT-IDENTICAL over three days - positions, tills, the lot. This is the
+  // scenario that lets the shadow ride the default bundle without a single
+  // fingerprint re-pin. MUTATION: one srand() in shadowCitObserve moves the
+  // day-3 books and this names them.
+  const fp = (stage) => {
+    const sim = createSim({ seed: 909 });
+    sim.G(stage);
+    sim.runDays(3);
+    return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
+      pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
+  };
+  const shadowed = fp(``);                 // the bundle's own arming
+  const brainless = fp(`BRAINS = {}`);
+  if (shadowed !== brainless) return "the citizen shadow moved the town: " + shadowed.slice(0, 120) + " vs " + brainless.slice(0, 120);
+  return true;
+});
+
 scenario("brains: zero delta IS the backbone, on the citizen brain's own thinks", () => {
   // Dream-replay rung 0's foundation: classifyD with no delta must argmax
   // exactly what classify argmaxes (L = base*256 is monotone), on REAL

@@ -228,7 +228,15 @@ export function collectCitizenRows({ towns = 32, days = 12, culture = "crab",
     const log = JSON.parse(sim.G("JSON.stringify(window._nnLog)"));
     ticksTotal += sim.G("T - window._nnT0");
     thinksTotal += log.length;
-    for (const r of log) rows.push({ town: i, seed, cls: r[0], f: r.slice(1) });
+    for (const r of log) {
+      // THE INTEGER TRIPWIRE, at the door: the registry's contract is ints in
+      // [0,32767], and a fraction here means a reader skipped its floor - the
+      // exact bug the wasm xcheck leg caught in citizen.shift.leave.rel.
+      for (let j = 1; j < r.length; j++)
+        if (!Number.isInteger(r[j]))
+          throw new Error(`observable "${inputs[j - 1]}" read ${r[j]} - the registry is integers only`);
+      rows.push({ town: i, seed, cls: r[0], f: r.slice(1) });
+    }
     if (onTown) onTown(i, seed, log.length);
   }
   return {

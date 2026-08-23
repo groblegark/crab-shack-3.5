@@ -7262,8 +7262,11 @@ const NEURO_OBSERVABLES = {
   "citizen.sick":       { units: "flag*4096", read: (c) => nclamp((c.p.sick ? 1 : 0) * 4096) },
   "citizen.duty":       { units: "flag*4096", read: (c) => nclamp((c.duty ? 1 : 0) * 4096) },
   "citizen.working":    { units: "flag*4096", read: (c) => nclamp((c.dsC === DS.working ? 1 : 0) * 4096) },
-  "citizen.shift.end.rel":   { units: "min<<4", read: (c) => nclamp(Math.max(0, effShift(c).end - tmin) * 16) },
-  "citizen.shift.leave.rel": { units: "min<<4", read: (c) => nclamp(Math.max(0, leaveGmin(c) - tmin) * 16) },
+  // floored BEFORE the shift: leaveGmin can carry a fractional walk-time
+  // minute, and the registry's contract is integers in [0, 32767] - the
+  // wasm cross-check leg is what caught a 714.666 leaking through here.
+  "citizen.shift.end.rel":   { units: "min<<4", read: (c) => nclamp(Math.floor(Math.max(0, effShift(c).end - tmin)) * 16) },
+  "citizen.shift.leave.rel": { units: "min<<4", read: (c) => nclamp(Math.floor(Math.max(0, leaveGmin(c) - tmin)) * 16) },
   "citizen.wage.gripe.q20":  { units: "Q20>>6", read: (c) => nclamp(Math.floor((wageGripe(c) || 0) / 64)) },
   "citizen.home.dist.px":    { units: "px<<3",  read: (c) => nclamp(Math.floor(Math.abs(c.x - homeX(c)) * 8)) },
   "citizen.ball.players":    { units: "n<<10",  read: () => nclamp(ballPlayers().length * 1024) },
