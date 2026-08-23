@@ -9897,7 +9897,7 @@ function pickErrand(c) {
   // nearest table - the two-post idiom stays geometry's). Shadow: the script
   // decides, the brain watches, only a harness tally moves.
   const bp = citBrainOf(c);
-  if (bp && bp.mode === "live") return brainCitPick(c, cand, bp);
+  if (bp && bp.mode === "live" && !citEngineOwned(c, cand)) return brainCitPick(c, cand, bp);
   let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
   // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
   // slice 4): strict > means the FIRST candidate at a score keeps it, and the
@@ -12238,6 +12238,21 @@ function citErrandClass(e) {
 function citBrainOf(c) {
   const b = BRAINS[(c.p && c.p.culture) || "crab"];
   return (b && b["cit_errand.candidate"]) || null;
+}
+// THE ENGINE-OWNED REGIME. Two rules were never up for learning, and the
+// live flip's own suite run is the receipt (14 scenarios named them): the
+// DIRE desperation fast-path (errandScore's "walk it, wherever it is" - a
+// brain that hesitates at DIRE re-breaks the dehydration line SUDSY's whole
+// saga measured), and the DROP NUDGE (the player's thumb is an ORDER-shaped
+// signal, not a taste to be second-guessed). When either regime is on the
+// board, the script scores; the brain governs the ordinary day. Draw-free
+// either way, so the lockstep receipt holds whoever decides.
+function citEngineOwned(c, cand) {
+  for (const e of cand) {
+    if (needLevel(c, e.need || "food") >= DIRE) return true;
+    if (nudgeMatch(c, e)) return true;
+  }
+  return false;
 }
 // The actor's own temperament, if her save carries one (dream-replay rung 0:
 // zero-filled this era, trained at sleep in rung 3). Shape-guarded against
