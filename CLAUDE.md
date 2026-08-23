@@ -18,6 +18,11 @@ single-process commands. Gates = the suite-312 manifest; matrices and
 science sweeps = their own manifests. Receipts land under
 design/cs35-research/kube-runs/.
 
+Scope note: this policy protects the OPERATOR'S MAC. A gasboat fleet pod
+(project `cs`) IS cluster compute — it may run sim workloads in-pod within
+its own resource limits, and should, since it has no AWS identity to drive
+tools/kube.mjs. The hook only exists on the operator's machine.
+
 ## The sim contract (load-bearing)
 - `tools/simlib.mjs` executes the REAL game files (font.js, ppu.js, sprites.js,
   crabs.js, game.js) inside a Node vm with stubbed browser APIs and a seeded
