@@ -6695,6 +6695,14 @@ function toggleMusic() {
 let AC = null;
 function beep(freq, dur, type, vol, when) {
   if (!soundOn || muted) return;
+  // A SCIENCE RUN IS SILENT. The lab's loop lives thirty days in one blocked
+  // task, and the audio clock barely moves while it does - so every till chime
+  // of the month lands on the same AC.currentTime and discharges as one blast
+  // when the loop yields. Dropped, not deferred: the month happened, the
+  // sounds didn't. (SCI.run also covers the scrub shuttles, whose loads pop
+  // the same way.) The completion ding fires after run clears - it survives.
+  if (SCI.run) return;
+  window._beeps = (window._beeps || 0) + 1;   // the probe's counter: scheduled, not dropped
   if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
   const t = AC.currentTime + (when || 0);
   const o = AC.createOscillator(), g = AC.createGain();
