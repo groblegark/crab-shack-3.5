@@ -14163,7 +14163,12 @@ cv.addEventListener("click", (ev) => {
       if (p.x >= 38 && p.x < 70) { tab = "shop"; shopTip = null; return; }
       // SAVE opens the towns shelf - NEW GAME lives there now, per slot
       if (p.x >= 128 && p.x < 158) { openSaveView(); sfx.ding(); return; }
-      if (p.x >= 168) { tab = tab === "menu" ? "crew" : "menu"; shopTip = null; sfx.ding(); return; }
+      if (p.x >= 168) {
+        // a second tap on MENU pages its books (the ..MORE idiom): the menu
+        // outgrew the panel the day a town could own three kitchens
+        if (tab === "menu") { menuPage++; } else { tab = "menu"; menuPage = 0; }
+        shopTip = null; sfx.ding(); return;
+      }
     }
     if (tab === "shop") {
       for (const b of BUTTONS)
@@ -15963,7 +15968,7 @@ const NAV_CHIP_W = 40;
 // else (the [ ] cycler, a tap in the world) snaps the strip to that crab's
 // page. ONE geometry table feeds the draw and the hit test, so a tile that is
 // not painted can never be clicked - the manageRects idiom.
-let crewPage = 0, _crewPageFollow = -1;
+let crewPage = 0, _crewPageFollow = -1, menuPage = 0;
 let crewDock = true;   // the selector, popped up (true) or down - the player's own call
 function crewStripGeom() {
   const n = crabs.length, limit = W - NAV_CHIP_W - 4;
@@ -16288,16 +16293,30 @@ function drawPanel() {
   if (tab === "menu") {
     smallText(ctx, "MENU - PRICE / COST", 4, ROW_Y, [230, 215, 195]);
     let my = ROW_Y + MROW + 1;
+    // THE MENU PAGES AT THE FOLD. Rows used to grow unbounded - a town owning
+    // three kitchens printed its books off the canvas. Rows-per-page is derived
+    // from the panel's real height; a second tap on the MENU tab turns the page.
+    const menuRows = [];
     for (const key of Object.keys(BIZ)) {
       if (!bizUnlocked(key) || bizOwner(key) !== "player") continue;   // your menu, your books
-      for (const r of BIZ[key].recipes) {
-        smallText(ctx, ITEM_NAMES[r.icon], 4, my, [190, 175, 160]);
-        smallText(ctx, "$" + $d(menuPrice(key, r)) + " / $" + INGREDIENT_COST[r.raw], 72, my,
-          bizPriceIdx(key) === PRICE_IDX_DEF ? [140, 200, 150] : [255, 190, 90]);
-        my += MROW;
-      }
+      for (const r of BIZ[key].recipes)
+        menuRows.push([ITEM_NAMES[r.icon],
+          "$" + $d(menuPrice(key, r)) + " / $" + INGREDIENT_COST[r.raw],
+          bizPriceIdx(key) === PRICE_IDX_DEF ? [140, 200, 150] : [255, 190, 90]]);
     }
-    smallText(ctx, "LOCALS PAY +25%", 4, my + 1, [170, 150, 135]);   // under the last menu row
+    const menuFit = Math.max(1, Math.floor((H - my - 10) / MROW) - 1);
+    const mPages = Math.max(1, Math.ceil(menuRows.length / menuFit));
+    if (menuPage >= mPages) menuPage = 0;   // the tap wraps here, where the count lives
+    const m0 = menuPage * menuFit;
+    for (const row of menuRows.slice(m0, m0 + menuFit)) {
+      smallText(ctx, row[0], 4, my, [190, 175, 160]);
+      smallText(ctx, row[1], 72, my, row[2]);
+      my += MROW;
+    }
+    if (mPages > 1)
+      smallText(ctx, "..MORE (" + (menuRows.length - menuFit) + ") TAP MENU " + (menuPage + 1) + "/" + mPages,
+        4, my + 1, [190, 170, 230]);
+    else smallText(ctx, "LOCALS PAY +25%", 4, my + 1, [170, 150, 135]);   // under the last menu row
     smallText(ctx, "TONIGHT AT 20:00", 132, ROW_Y, [230, 215, 195]);
     let by = ROW_Y + MROW + 1;
     // one predicate, three surfaces: this list, the BILL chip and the
