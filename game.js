@@ -5952,7 +5952,7 @@ function updateHome(c, dt) {
   // a day off is for the beach: after the lie-in, amble the sand near home
   // between errands instead of pacing the porch. A WALK-OUT spends the day
   // exactly the same way - that is the whole point of taking one.
-  if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
+  if (awayToday(c) && !c.p.sick && tmin >= rhythmOf(c).LIEIN && darkness() < 0.5) {
     if (c._offPause > 0) { c._offPause -= dtT; return; }
     if (c._offWt == null) {
       c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + Math.floor(srand() * 240 * Q8) / Q8 - 120));   // same draw, on the grain
@@ -9183,9 +9183,9 @@ function maybeQuip(c, dt) {
     let lines = isNight ? ["ZZZ..."] : TRAITS[c.p.trait].quips[quipContext(c)];
     if (c.p.homeless && quipContext(c) === "home" && !isNight)
       lines = ["SAVING FOR A PLACE", "SHELTER SOUP AGAIN", "I'LL BOUNCE BACK"];
-    if (offToday(c) && !c.p.sick && quipContext(c) === "home" && !isNight && tmin >= OFF_WAKE)
+    if (offToday(c) && !c.p.sick && quipContext(c) === "home" && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["DAY OFF!", "BEACH DAY", "THE SAND'S ALL MINE", "NOT COOKING TODAY"];
-    if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= OFF_WAKE)
+    if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["THEY'LL COPE", "I NEEDED THIS", "NOT TODAY", "SOMEONE ELSE'S TURN"];
     if ((c.p.bored || 0) >= WANDER_AT && !isNight && !walkoutToday(c))
       lines = ["SAME OLD SAME OLD", "IS IT HOME TIME", "NOTHING EVER HAPPENS", "I'D KILL FOR AN ARCADE"];
@@ -9792,7 +9792,7 @@ function updateSchedule(c, dt) {
     crabLog(c, "life", "TOOK A SICK DAY AND WENT HOME", 1200);   // DIARY
     startCommute(c, false);
   }
-  if (off && tmin >= OFF_WAKE && c.logOff !== day) { c.logOff = day; crabLog(c, "life", "TOOK THEIR DAY OFF", 0); }   // DIARY
+  if (off && tmin >= rhythmOf(c).LIEIN && c.logOff !== day) { c.logOff = day; crabLog(c, "life", "TOOK THEIR DAY OFF", 0); }   // DIARY
   if (c.dsC === DS.home && !off && tmin >= leaveGmin(c) && tmin < sh.end - 30 && !onSickDay(c)
       && !(c.restDay === day && c.restUntil > tmin)) {   // ordered home: a real break before the schedule re-dispatches
     startCommute(c, true);
@@ -9937,7 +9937,7 @@ function updateSchedule(c, dt) {
   // crab was at home, 83 in 137 were refused by this window and NOT ONE ever
   // passed it. Their time is their own; the thresholds stay strict.
   const ownTime = off || !!c.p.sick;
-  const errandWindow = ownTime ? tmin >= OFF_WAKE   // day off (or a sick day): the whole town is yours
+  const errandWindow = ownTime ? tmin >= rhythmOf(c).LIEIN   // day off (or a sick day): the whole town is yours
     : (tmin < leaveGmin(c) - 30 || tmin >= sh.end);   // workday: before leaving, or after shift
   const townAwake = townOpen() || (tmin >= 20 * 60 && tmin < 23 * 60) || (tmin >= 5.5 * 60 && tmin < 8 * 60);
   if (c.dsC === DS.home && townAwake && c.errandCd <= 0 && errandWindow) {
@@ -13566,7 +13566,7 @@ function crabStatus(c) {
     if (c.dsC === DS.toErrand) return "WALKED OUT - OFF TO " + BIZ[c.errandBiz].short;
     if (c.dsC === DS.errand) return "WALKED OUT - AT " + BIZ[c.errandBiz].name;
     if (c.dsC === DS.home && darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
-    if (c.dsC === DS.home) return tmin < OFF_WAKE ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
+    if (c.dsC === DS.home) return tmin < rhythmOf(c).LIEIN ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
   }
 
   if (offToday(c)) {   // sick beats off; off beats everything but the commute home
@@ -13578,7 +13578,7 @@ function crabStatus(c) {
     if (c.dsC === DS.toHome) return "DAY OFF - STROLLING HOME";
     if (c.dsC === DS.home) {
       if (darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
-      if (tmin < OFF_WAKE) return "DAY OFF - SLEEPING IN";
+      if (tmin < rhythmOf(c).LIEIN) return "DAY OFF - SLEEPING IN";
       return "DAY OFF - BEACHCOMBING";
     }
   }
