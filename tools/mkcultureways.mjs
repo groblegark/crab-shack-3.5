@@ -15,10 +15,10 @@ const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
 // from 48 towns x 14 days with the sim's own class prior intact. On the very
-// corpus the shipped v2 measured 95.71% on it reads 97.98%, and the act-early
+// corpus the shipped v2 measured 95.71% on it reads 97.82%, and the act-early
 // disagreements that cost the growth floor - the net buying small and early
-// where the script waits for the fat ticket - fall from 373 to 55 (2.30% of
-// thinks to 0.34%). The ladder before it: v1 was blind to price because every
+// where the script waits for the fat ticket - fall from 373 to 30 (2.30% of
+// thinks to 0.18%). The ladder before it: v1 was blind to price because every
 // collection town sat at the default board; v2 fixed the board and kept the
 // trainer's `none` downsampling, which was itself the act-early bias.
 // LIVE by owner ruling ("im ok with just shipping neuro crabs, there's no
