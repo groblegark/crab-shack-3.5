@@ -25,7 +25,7 @@ import { join } from "path";
 const PROFILE = process.env.AWS_PROFILE || "gasboat-prod";
 const NS = "crab-science";   // all runs, receipts, and SAs live here
 const env = { ...process.env, AWS_PROFILE: PROFILE };
-const sh = (cmd, opts = {}) => execSync(cmd, { encoding: "utf8", env, ...opts }).trim();
+const sh = (cmd, opts = {}) => (execSync(cmd, { encoding: "utf8", env, ...opts }) || "").trim();
 const shq = (cmd) => { try { return sh(cmd, { stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; } };
 const die = (msg) => { console.error(`kube: ${msg}`); process.exit(1); };
 
