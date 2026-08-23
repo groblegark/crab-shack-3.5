@@ -14,6 +14,11 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { createVisibleSim, renderCultureSheet } from "./render.mjs";
 import { ROOT } from "./sim.mjs";
+// the versioned observable registry, read off the engine source itself so the
+// card validator can never drift from what a card will actually resolve
+const OBSERVABLE_NAMES = [...readFileSync(join(ROOT, "game.js"), "utf8")
+  .match(/NEURO_OBSERVABLES\s*=\s*{[\s\S]*?\n};/)[0]
+  .matchAll(/"([a-z0-9_.]+)":/g)].map((m) => m[1]);
 
 const MAX_DOC_BYTES = 512 * 1024;
 
@@ -188,6 +193,23 @@ function localise(d, verdict) {
       if (st.walkins != null && !(typeof st.walkins === "number" && Number.isInteger(st.walkins) && st.walkins >= 0 && st.walkins <= 8))
         say("settlers.walkins", `${st.walkins} is outside 0-8 twentieths (0 = never, the default; capped so no document floods the town)`);
     }
+  }
+  // declarative cards: labels bound to REGISTERED observables, nothing else
+  if (d.cards != null) {
+    if (!Array.isArray(d.cards) || d.cards.length > 4) say("cards", "must be an array of at most 4 cards");
+    else d.cards.forEach((cd, i) => {
+      if (!cd || typeof cd !== "object" || Array.isArray(cd)) return say(`cards[${i}]`, "must be an object");
+      if (typeof cd.title !== "string" || !cd.title.length || cd.title.length > 18)
+        say(`cards[${i}].title`, "must be a string of 1-18 characters");
+      if (!Array.isArray(cd.rows) || !cd.rows.length || cd.rows.length > 6)
+        say(`cards[${i}].rows`, "must be 1-6 rows");
+      else cd.rows.forEach((r, j) => {
+        if (!r || typeof r.label !== "string" || !r.label.length || r.label.length > 10)
+          say(`cards[${i}].rows[${j}].label`, "must be a string of 1-10 characters");
+        if (!r || typeof r.obs !== "string" || !OBSERVABLE_NAMES.includes(r.obs))
+          say(`cards[${i}].rows[${j}].obs`, `${r && r.obs} is not a registered observable (see the registry: ${OBSERVABLE_NAMES.slice(0, 4).join(", ")}, ...)`);
+      });
+    });
   }
   const fw = d.foodways;
   if (fw && fw.ingredients) for (const k in fw.ingredients) {

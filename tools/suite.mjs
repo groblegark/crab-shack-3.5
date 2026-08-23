@@ -13432,6 +13432,36 @@ scenario("placement: a settled owner opens a declared shop on the east lot, and 
   return true;
 });
 
+// ---- DECLARATIVE CARDS (phase D): a culture's dossier card binds labels to
+// registered observables; the accessor resolves live values (data must bite),
+// an unknown observable is refused by name, and an undeclared guest gets null.
+scenario("cards: a declared card reads live values off the registry, and an unknown observable is refused by name", () => {
+  const sim = createSim({ seed: 31 });
+  const doc = (cards) => {
+    const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    if (cards) d.cards = cards;
+    return d;
+  };
+  const bad = sim.G(`cultureProblem(${JSON.stringify(doc([{ title: "THE LEDGER",
+    rows: [{ label: "MOOD", obs: "vibes.q20" }] }]))}, "boar")`);
+  if (!bad || !bad.includes("UNKNOWN OBSERVABLE VIBES.Q20")) return "a bad card was not refused by name: " + bad;
+  sim.G("installCultures(" + JSON.stringify({ boar: doc([{ title: "THE BOAR LEDGER",
+    rows: [{ label: "THIRST", obs: "need.thirst.q20" }, { label: "PURSE", obs: "wallet.cents" }] }]) }) + ", false)");
+  if (sim.G("!CULTURES.boar")) return "the carded culture did not install: " + sim.G("toast && toast.text");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const k = newVisitor(false); k.culture = "boar"; k.thirst = qn(0.5); k.wallet = 4321;
+    const crab = newVisitor(false);
+    return { card: cultureCards(k), crab: cultureCards(crab) };
+  })())`));
+  if (got.crab !== null) return "an undeclared guest grew a card: " + JSON.stringify(got.crab);
+  if (!got.card || got.card[0].title !== "THE BOAR LEDGER") return "the card did not resolve: " + JSON.stringify(got.card);
+  const rows = Object.fromEntries(got.card[0].rows);
+  if (rows.THIRST !== qn(0.5)) return "the card's THIRST is not the live Q20 value: " + rows.THIRST;
+  if (rows.PURSE !== 4321) return "the card's PURSE is not the live wallet: " + rows.PURSE;
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used

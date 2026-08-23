@@ -7134,6 +7134,23 @@ function cultureProblem(d, ownId) {
   }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
+  // DECLARATIVE CARDS (phase D): a culture may declare dossier cards whose
+  // rows bind labels to REGISTERED observables - data reading data, no code.
+  // The registry is the versioned neuro observable table, which is the point:
+  // one vocabulary for brains, inspectors and cards alike.
+  if (d.cards != null) {
+    if (!Array.isArray(d.cards) || d.cards.length > 4) return "A BAD CARD TABLE";
+    for (const cd of d.cards) {
+      if (!cd || typeof cd !== "object" || Array.isArray(cd)) return "A BAD CARD";
+      if (typeof cd.title !== "string" || !cd.title.length || cd.title.length > 18) return "A BAD CARD TITLE";
+      if (!Array.isArray(cd.rows) || !cd.rows.length || cd.rows.length > 6) return "A BAD CARD";
+      for (const r of cd.rows) {
+        if (!r || typeof r.label !== "string" || !r.label.length || r.label.length > 10) return "A BAD CARD ROW";
+        if (typeof r.obs !== "string" || !NEURO_OBSERVABLES[r.obs])
+          return "CARD ROW " + String(r.label).toUpperCase() + " READS AN UNKNOWN OBSERVABLE " + String(r.obs).toUpperCase();
+      }
+    }
+  }
   if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
   if (d.foodways != null) { const p = foodwayProblem(d, ownId); if (p) return p; }
   if (d.businesses != null) { const p = businessProblem(d); if (p) return p; }
@@ -16737,7 +16754,32 @@ function drawVisDossier(k) {
     smallText(ctx, e[3], x + 48, ly, LOG_CATS[e[2]] || [60, 55, 65]);
     ly += 8;
   }
+  // THE CULTURE'S OWN CARD (phase D, declarative): labels the document chose,
+  // values off the live registry. Drawn only if declared; a crab or an
+  // undeclared guest renders this dossier byte-for-byte as before.
+  const cds = cultureCards(k);
+  if (cds) {
+    const cd = cds[0];   // v1: the first card rides the dossier; pages later
+    ly += 2;
+    smallText(ctx, cd.title, x + 8, ly, [110, 100, 110]); ly += 8;
+    for (const [lab, val] of cd.rows) {
+      smallText(ctx, lab, x + 8, ly, [120, 110, 125]);
+      smallText(ctx, String(val), x + 64, ly, [40, 30, 40]);
+      ly += 8;
+    }
+  }
   dossierBar(dossierRects(h2), k, false);
+}
+// A declared card, resolved to live values for one actor - the accessor the
+// draw path consumes and the suite reads headless (data must bite: a card no
+// scenario can observe is dead data, and this is what the scenario observes).
+function cultureCards(k) {
+  const cul = k.culture && CULTURES[k.culture];
+  const cards = cul && cul.def && cul.def.cards;
+  if (!cards || !cards.length) return null;
+  const res = roomReserve(k);
+  return cards.map(cd => ({ title: cd.title,
+    rows: cd.rows.map(r => [r.label, NEURO_OBSERVABLES[r.obs].read(k, res)]) }));
 }
 function drawCustDossier(k) {
   if (k.visitor) { drawVisDossier(k); return; }

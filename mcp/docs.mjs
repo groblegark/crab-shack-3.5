@@ -143,6 +143,21 @@ A people, written as a document. Not code — data the engine reads:
             owner (ownership binds to a settler). A declared business is
             BUILT and PENDING — inspectable, not placed — until a plot
             exists; today it changes no town byte, by design.
+  cards     declarative dossier cards (up to 4): title (<=18) plus rows of
+            label (<=10) -> a REGISTERED observable name (the same versioned
+            registry brains declare inputs from — need.thirst.q20,
+            wallet.cents, ...). A card renders on the visitor dossier with
+            live values; an unknown observable is refused by name.
+
+PLACEMENT (phase D, engine capability): a pending business binds to an
+engine PLOT via placeBusiness(culture, biz, plot, owner) — the engine names
+its vacancies (one ships: "eastlot", the sand between the pier's foot and
+the hotel), the owner must be a settled resident of the declaring culture,
+station kinds must have engine art, and the shop opens at once on standard
+hours with the owner behind her own counter. Placements are TOWN state:
+they ride the save (rebuilt FROM the documents at load), and they die at a
+session reset or a document change. The matrix floor never places — a shop
+opens because somebody chose it.
 
 Two peoples ship today: the crabs (the engine's own, not overridable) and
 the pigs of the PORKRESENTATIVE PIGPUBLIC, who hold fish taboo, love a hot
