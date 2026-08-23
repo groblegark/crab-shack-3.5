@@ -11702,12 +11702,18 @@ function kernelVisPick(k) {
     recipe: bizRecipes(KVP_BIZ[slot])[ret & 15] };
 }
 function visGo(k, e) {
-  // DELIGHT IS COUNTED AT THE PICK, like its foreign twin: a cultured guest
-  // whose chosen treat carries a taste of 1.5+ found the thing they came for.
-  // visGo is the one door every decider walks through - script, kernel drain
-  // and brain alike - so the departure card reads the same whoever chose.
-  if (e.recipe && k.culture && k.culture !== "crab" && tasteW(k, e.recipe) >= 1.5)
-    stayOf(k).delight = (stayOf(k).delight || 0) + 1;
+  // DELIGHT IS COUNTED AT THE PICK, like its foreign twin - but it is a
+  // FOODWAYS word, not a taste word: the dish has to be the guest's own
+  // cuisine, found abroad (a pig loves a soak at 2.0 and the card should not
+  // call that finding her dish). visGo is the one door every decider walks
+  // through - script, kernel drain and brain alike - so the departure card
+  // reads the same whoever chose.
+  if (e.recipe && k.culture && k.culture !== "crab" && tasteW(k, e.recipe) >= 1.5) {
+    const cul = CULTURES[k.culture];
+    if (cul && cul.def.foodways && Array.isArray(cul.def.foodways.dishes)
+        && cul.def.foodways.dishes.some(d => d.id === e.recipe.id))
+      stayOf(k).delight = (stayOf(k).delight || 0) + 1;
+  }
   // the room is RESERVED the moment they set off for it - nobody sells the
   // last room twice, and a held room is not a room housekeeping can strip
   if (e.biz === "hotel" && !k.room) { const r = freeRoom(); if (!r) return; r.occupant = k; k.room = r; }
