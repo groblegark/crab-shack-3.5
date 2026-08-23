@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-both-19bb103-gsn3",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "19bb10323ff7df2d4ecb094a1d765ea5886cce0d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 82757,
+  "verdict": "39/39 passed in slice 4/8 (82.7s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (2825ms)\n  PASS  disease: sustained neglect breeds sickness (1705ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (640ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (18ms)\n  PASS  all crew dead: town survives, rehire recovers (949ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (633ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1778ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (920ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (126ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4070ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (603ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (4250ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (16748ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1215ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (38ms)\n  PASS  tip sharing + the table cap roundtrip save/load (859ms)\n  PASS  the lease card: every term fits on the card it is printed on (6ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1317ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (73ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (6299ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (5399ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3483ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (336ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (6ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (3502ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (2912ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (648ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (384ms)\n  PASS  a standing offer can be answered from the card that announces it (13ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (13ms)\n  PASS  the house limit stops a hire and never fires anybody (6768ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (8ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (750ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (686ms)\n  PASS  space: every position rides the Q8 grain, all day (1480ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3252ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (10ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (7874ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (65ms)\n39/39 passed in slice 4/8 (82.7s)\n"
+}

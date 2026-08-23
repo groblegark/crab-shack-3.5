@@ -12893,7 +12893,11 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   // bite: a corrupted temperament (dm) on the reloaded copy must change the
   // future, or the delta never reached the brain and the save is not the
   // complete description it claims to be.
-  const sim = createSim({ seed: 909 });
+  // fresh: false everywhere here - the harness's default ?fresh boot makes
+  // save() a deliberate no-op (and load() refuse), which is HOW the old
+  // version could read null and never notice: FRESH hid the write, the
+  // legacy key hid the read. A first-run boot on empty storage owns slot 1.
+  const sim = createSim({ seed: 909, fresh: false });
   sim.G("rep = 75000");   // past both gates: gulls and pigs may sail
   sim.runDays(6);
   if (!sim.G(`customers.some(k => k.visitor && k.culture && k.culture !== "crab")`))
@@ -12905,7 +12909,7 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
     return JSON.stringify(bp ? { out: bp.arch.out, hidden: bp.arch.hidden } : null); })()`));
   if (!arch) return "the first crab has no citizen brain - the temperament bite cannot be staged";
   const future = (envStr) => {
-    const s2 = createSim({ seed: 31 });
+    const s2 = createSim({ seed: 31, fresh: false });
     s2.G(`localStorage.setItem(slotKey(1), ${JSON.stringify(envStr)}); load();`);
     if (s2.G("day") < 6) return null;   // the vacuous trap: a load that didn't take is a fresh town
     s2.runDays(8);
