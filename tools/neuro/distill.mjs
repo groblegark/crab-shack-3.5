@@ -116,6 +116,10 @@ function stagePokes(stage, seed, townIdx) {
   return pokes;
 }
 
+// Math.max(...arr) blows the call stack past ~120k arguments, and a
+// collection is now bigger than that: fold instead of spreading.
+const maxOf = (arr, f) => { let m = -Infinity; for (const v of arr) { const x = f ? f(v) : v; if (x > m) m = x; } return m; };
+
 // ---- collection: the sim labels its own training set -------------------
 export function collectRows({ towns = 32, days = 12, culture = "crab", cultureDoc = null,
   seedBase = 1337, inputs = INPUTS, onTown = null, stage = "v3" } = {}) {
@@ -202,7 +206,7 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
   const NF = meta.inputs.length, NC = meta.classes.length, HID = hidden;
   const XS = 1 / 8192;
   const rnd = mulberry32(seed);
-  const maxTown = Math.max(...rows.map((r) => r.town));
+  const maxTown = maxOf(rows, (r) => r.town);
   const heldFrom = Math.floor((maxTown + 1) * 0.75);
   const test = rows.filter((r) => r.town >= heldFrom);
   let train = rows.filter((r) => r.town < heldFrom);
@@ -297,14 +301,14 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
   }
   // quantize (Q1=11, K1/K2 fitted so max|w| uses the int8 range)
   const Q1 = 11;
-  const max1 = Math.max(...w1.flat().map(Math.abs)) * XS;
+  const max1 = maxOf(w1, (r) => maxOf(r, Math.abs)) * XS;
   let K1 = 0;
   while (Math.round(max1 * 2 ** (K1 + 1)) <= 127) K1++;
   const R1 = K1 - Q1;
   if (R1 < 0) throw new Error(`R1 negative (${R1}) - hidden scale exceeds weight scale`);
   const w1q = w1.map((r) => r.map((v) => Math.max(-127, Math.min(127, Math.round(v * XS * 2 ** K1)))));
   const b1q = b1.map((v) => Math.round(v * 2 ** K1));
-  const max2 = Math.max(...w2.flat().map(Math.abs));
+  const max2 = maxOf(w2, (r) => maxOf(r, Math.abs));
   let K2 = 0;
   while (Math.round(max2 * 2 ** (K2 + 1)) <= 127) K2++;
   const w2q = w2.map((r) => r.map((v) => Math.max(-127, Math.min(127, Math.round(v * 2 ** K2)))));

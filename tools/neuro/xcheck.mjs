@@ -21,7 +21,8 @@ const brainPath = process.argv[2] || "tools/neuro/receipts/brain-vispick.json";
 const dataPath = process.argv[3] || "tools/neuro/receipts/data.json";
 const brain = JSON.parse(readFileSync(brainPath, "utf8"));
 const { rows } = JSON.parse(readFileSync(dataPath, "utf8"));
-const maxTown = Math.max(...rows.map((r) => r.town));
+// fold, don't spread: a collection is bigger than the argument limit
+let maxTown = 0; for (const r of rows) if (r.town > maxTown) maxTown = r.town;
 const heldFrom = Math.floor((maxTown + 1) * 0.75);
 const test = rows.filter((r) => r.town >= heldFrom);
 const NF = brain.arch.in, HID = brain.arch.hidden, NC = brain.arch.out;

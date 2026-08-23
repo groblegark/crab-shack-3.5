@@ -11,12 +11,19 @@ import { readFileSync, writeFileSync } from "fs";
 
 const pig = JSON.parse(readFileSync(new URL("./fixtures/cultures-pig.json", import.meta.url), "utf8"));
 const gull = JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json", import.meta.url), "utf8"));
-const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v2.json", import.meta.url), "utf8"));
+const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v3.json", import.meta.url), "utf8"));
 
-// The shipped crab policy: the price-diverse v2 artifact (95.7% held-out; the spike's v1 was blind to the repricing lever - the suite's own sweep caught it), LIVE by
-// owner ruling ("im ok with just shipping neuro crabs, there's no risk and
-// we always have their tests"). kind/mode wrap the artifact; provenance and
-// heldout ride along as documentation the validator ignores.
+// The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
+// from 48 towns x 14 days with the sim's own class prior intact. On the very
+// corpus the shipped v2 measured 95.71% on it reads 97.98%, and the act-early
+// disagreements that cost the growth floor - the net buying small and early
+// where the script waits for the fat ticket - fall from 373 to 55 (2.30% of
+// thinks to 0.34%). The ladder before it: v1 was blind to price because every
+// collection town sat at the default board; v2 fixed the board and kept the
+// trainer's `none` downsampling, which was itself the act-early bias.
+// LIVE by owner ruling ("im ok with just shipping neuro crabs, there's no
+// risk and we always have their tests"). kind/mode wrap the artifact;
+// provenance and heldout ride along as documentation the validator ignores.
 const crabPolicies = {
   "vis_pick.candidate": { ...crabBrain, kind: "brain", mode: "live" },
 };
