@@ -11169,6 +11169,7 @@ scenario("management: a cultureway's working norms land in the engine's own unit
   fx.management = { tableTip: 4, counter20: 0, shifts: { std: 300, day: 540, cover: 660 } };
   const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
   part.meta.id = "partpig";
+  delete part.foodways;   // the fixture's corn is PIG's priced import; a clone under another id may not claim it
   part.management = { tableTip: 12 };   // counter share and every span inherit crab values
   sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
