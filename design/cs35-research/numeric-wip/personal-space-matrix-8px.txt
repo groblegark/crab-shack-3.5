@@ -9,3 +9,4 @@
 == baseline sb=32 (8px)
 >> survived 0/16; eviction days: 10,11,11,11,12,12,12,12,13,13,14,14,14,15,16,18 (median 13)
 == growth sb=32 (8px)
+>> survived 7/16; eviction days: 10,11,11,13,13,14,14,16,19,31,31,31,31,31,31,31 (median 19)

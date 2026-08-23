@@ -2430,7 +2430,7 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // is a count) - the drift is trajectory-shaped, and at 8px the two-day
     // economy lands NEAR the base tree (serves 42->41/42->44, rage 4->3/4->4)
     // where 10px had pushed it visibly (38/43, rage 7). Baseline 0/48 intact
-    // (medians 12/12/12), growth 15/48 (4/4/7) vs base 14/48 (4/3/7).
+    // (medians 12/13/13), growth 15/48 (4/4/7) vs base 14/48 (4/3/7).
     1337: '{"day":3,"tmin":0,"coins":17937,"rep":52768,"catch":4,"serves":41,"crabServes":5,"rage":3,"till":21832,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21832],["REEF",19732],["SALTY",4100],["DRIFT",100],["KELP",1300]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[318,167]]}',
     4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
