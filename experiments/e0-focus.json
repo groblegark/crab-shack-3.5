@@ -26,5 +26,16 @@
       ],
       "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
     }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
   ]
 }
