@@ -12715,6 +12715,90 @@ scenario("science: a scrub lands on the day the run recorded", () => {
   return true;
 });
 
+// ---- PERSONAL SPACE: the standing crowd parts, movers brush past, and the
+// pier wait is a line. Matt's rule verbatim: "they should be able to overlap
+// somewhat while moving" - so these three pin the STILL half, the MOVING
+// half, and the one queue the parting must never touch (the boat's).
+scenario("personal space: a pile of standing loafers parts, and rests", () => {
+  // Three loafers on the same four pixels - the exact pile the probe caught
+  // live (MEW, NIPPY and EBB on one point, seed 1337 day 3). Needs zeroed and
+  // both clocks parked so the ONLY thing that can move them is visSeparate();
+  // the pile must open to personal space and then HOLD - a parting that
+  // vibrates (the stepper walking the push back) fails the second read.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 200000 });
+  sim.G(`window._vs = [0, 0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1200; k.wy = FLOOR_Y; k.target = 1200;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });`);
+  sim.runUntil("false", { maxSteps: 60 });   // 3 sim-seconds: 24px/s parts 10px twice over
+  const p1 = JSON.parse(sim.G(`JSON.stringify(window._vs.map(k => k.x))`));
+  sim.runUntil("false", { maxSteps: 40 });   // ...and 2 more prove the rest is a rest
+  const p2 = JSON.parse(sim.G(`JSON.stringify(window._vs.map(k => k.x))`));
+  for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
+    if (Math.abs(p2[i] - p2[j]) < 10)
+      return `loafers ${i} and ${j} still stand ${Math.abs(p2[i] - p2[j]).toFixed(1)}px apart (want >= 10)`;
+  for (let i = 0; i < 3; i++)
+    if (p1[i] !== p2[i]) return `loafer ${i} is still drifting after the parting: ${p1[i]} -> ${p2[i]}`;
+  return true;
+});
+scenario("personal space: a walker passes through the crowd, and the crowd holds", () => {
+  // The moving half of the rule: a stroller crosses a rested pile without
+  // being slowed OR shouldering anyone - movers are exempt on both sides of
+  // the push. The pile's positions must read byte-identical across the pass.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 200000 });
+  sim.G(`window._vs = [0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1200; k.wy = FLOOR_Y; k.target = 1200;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });`);
+  sim.runUntil("false", { maxSteps: 60 });   // let the pair rest first
+  const before = sim.G(`window._vs.map(k => PXQ[k.si]).join(",")`);
+  sim.G(`window._vw = (() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1100; k.wy = FLOOR_Y; k.target = 1320;
+    k.idleT = 0; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; })();`);
+  // 220px at a 42px/s stroll is ~105 ticks; 140 is the generous gate. If the
+  // crowd had a body to a mover this walk would stall against two standers.
+  if (!sim.runUntil("Math.abs(window._vw.x - 1320) < 4", { maxSteps: 140 }))
+    return "the walker never made it through the crowd: x=" + sim.G("window._vw.x");
+  const after = sim.G(`window._vs.map(k => PXQ[k.si]).join(",")`);
+  if (before !== after) return `the pass shouldered the crowd: [${before}] -> [${after}]`;
+  return true;
+});
+scenario("personal space: leavers line the pier, and the line never costs the boat", () => {
+  // The one queue visSeparate must NOT run (the deck is exempt) gets its
+  // spacing from visLeave instead: a place in line, counted at dispatch,
+  // spaced down the deck - and it collapses the moment she docks, so the
+  // pin is boarded-and-gone for all three, not just spacing.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 11.75 * 60 && !ferryHere()", { maxSteps: 400000 });
+  sim.G(`window._vl = [0, 0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1800; k.wy = FLOOR_Y; k.target = 1800;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });
+    for (const k of window._vl) visLeave(k);`);
+  const slots = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.pierSlot))`));
+  if (new Set(slots).size !== 3)
+    return "dispatch dealt the same place twice: slots " + slots.join(",");
+  sim.runUntil("false", { maxSteps: 400 });   // 250px of pier + the climb: ~20s, taken twice
+  const xs = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.x))`));
+  const legs = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.leg))`));
+  if (legs.some(l => l !== 1)) return "somebody never made the deck: legs " + legs.join(",");
+  for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
+    if (Math.abs(xs[i] - xs[j]) < 5)
+      return `the line is a stack: ${xs[i].toFixed(1)} vs ${xs[j].toFixed(1)}`;
+  // ...and the 13:00 boat takes everyone, wherever they stood in line
+  sim.runUntil("tmin > 14.5 * 60", { maxSteps: 8000 });
+  const gone = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => !!k.gone))`));
+  if (gone.some(g => !g)) return "a place in line cost somebody the boat: gone " + gone.join(",");
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
