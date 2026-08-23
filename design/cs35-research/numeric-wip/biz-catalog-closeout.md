@@ -133,6 +133,23 @@ ingredients table (validated in the same pass, before install).
    engine building templates needs building art before the renderer
    can draw a declared shop.
 
+## Notes found while landing
+
+- **The render harness keyed drafts as "draft"**, so rendering a copy of
+  a bundled culture manufactured an ingredient-theft refusal a real
+  same-id overlay never hits. It now installs a draft under its own
+  claimed `meta.id` (the game's actual overlay semantics); the explicit
+  install-key parameter still outranks the claim, so a hostile save doc
+  keyed `evil` claiming `meta.id: "pig"` stays refused.
+- **The design worked example (`design/cultureways/pigway.json`) still
+  carried top-level `tastes`** — the appeal slice migrated the shipped
+  fixtures but missed the exemplar, which had failed loud since. It now
+  validates end-to-end against the live `cultureProblem`, businesses
+  and all.
+- `recipeRowProblem` requires ≥1 step, so a stall-service recipe
+  (`showerT`, empty steps — the showers' shape) is not yet declarable
+  by a culture. Gap-listed with placement.
+
 ## Receipts
 
 (filled at gate time)
