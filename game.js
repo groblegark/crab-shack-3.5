@@ -14640,12 +14640,12 @@ function drawBrainPanel() {
     const ry = py + 19 + ci * 7;
     const on = ci === e.acted, wanted = ci === e.argmax && e.argmax !== e.acted;
     smallText(ctx, lbl, px + 5, ry, on ? [255, 255, 255] : wanted ? col : [110, 100, 130]);
-    const bw = Math.max(1, Math.round(48 * (e.logits[ci] - lo) / span));
-    rect(ctx, px + 58, ry + 1, 50, 3, [40, 30, 56]);
+    const bw = Math.max(1, Math.round(42 * (e.logits[ci] - lo) / span));
+    rect(ctx, px + 58, ry + 1, 44, 3, [40, 30, 56]);
     rect(ctx, px + 59, ry + 1, bw, 3, on ? col : [col[0] * 0.55 | 0, col[1] * 0.55 | 0, col[2] * 0.55 | 0]);
-    if (on) smallText(ctx, "<PICK", px + 111, ry, col);
+    if (on) smallText(ctx, "PICK", px + 105, ry, col);
     // the brain wanted it, the town couldn't sell it - personality meets stock
-    if (wanted) smallText(ctx, "N/A", px + 111, ry, [190, 80, 80]);
+    if (wanted) smallText(ctx, "N/A", px + 105, ry, [190, 80, 80]);
   }
   // BECAUSE: the three loudest inputs behind the acted class, sign and all
   if (!e.sal) e.sal = brainTvSaliency(bp, e.f, e.acted);
