@@ -4959,6 +4959,7 @@ const ITEM_NAMES = {
   taco: "FISH TACO", juice: "JUICE", cooler: "COOLER", plate_fish: "GRILL FISH",
   token: "TOKENS", plush: "CLAW PLUSH", tickets: "TICKET RUN", gold_plush: "GOLD PLUSH",
   soap: "SOAP", suds: "DELUXE SOAK", shine: "QUICK RINSE", dirty_dishes: "DIRTY DISHES",
+  corn: "CORN",
   linen: "FRESH LINEN", roomkey: "A ROOM FOR THE NIGHT",
 };
 
@@ -6986,6 +6987,8 @@ function foodwayProblem(d) {
         || r.learn !== Math.round(r.learn))) return "DISH " + r.id.toUpperCase() + " HAS A BAD LESSON FEE";
       if (typeof r.raw !== "string" || INGREDIENT_COST[r.raw] == null)
         return "DISH " + r.id.toUpperCase() + " WANTS AN INGREDIENT NO BOAT CARRIES";
+      if (!ITEMS[r.raw] && !(f.items && f.items[r.raw] && f.items[r.raw].art))
+        return "DISH " + r.id.toUpperCase() + "'S INGREDIENT HAS NO PICTURE";   // the cook CARRIES the raw
       if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return "DISH " + r.id.toUpperCase() + " HAS A BAD ICON";
       if (!ITEMS[r.icon] && !(f.items && f.items[r.icon] && f.items[r.icon].art))
         return "DISH " + r.id.toUpperCase() + " HAS NO PICTURE";
@@ -15707,7 +15710,7 @@ function manageRects() {
     pm: { x: x + 40, y: y + 92, w: 16, h: 15 },
     pp: { x: x + 96, y: y + 92, w: 16, h: 15 },
     meal: { x: x + 6, y: y + 110, w: 156, h: 14 },
-    learn: { x: x + 6, y: y + 130, w: 190, h: 14 },   // foodways: LEARN THE DISH (arm-then-confirm)
+    learn: { x: x + 6, y: y + 138, w: 190, h: 14 },   // foodways: LEARN THE DISH (arm-then-confirm), clear of the meal chip's subtitle
     // ---- SCHEDULE tab
     auto: { x: x + 6, y: y + 30, w: 104, h: 13 },
     sickPol: { x: x + 114, y: y + 30, w: 104, h: 13 },

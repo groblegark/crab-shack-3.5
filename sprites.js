@@ -166,6 +166,15 @@ defItem("taco", [
   ".KQQQQK..",
   "..KKKK...",
 ]);
+defItem("corn", [
+  "....G....",
+  "...GG....",
+  "..KAYK...",
+  ".KYAYAK..",
+  ".KAYAYK..",
+  ".KYAYAK..",
+  "..KKKK...",
+]);
 defItem("fruit", [
   "....KZ...",
   "...KZK...",
