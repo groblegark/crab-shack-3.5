@@ -12408,8 +12408,7 @@ scenario("brains: a temperament bends a mind, and both doors check it", () => {
   if (flip) return flip;
   // the envelope, by the round-trip scenario's own idiom: save() then read
   // the stored blob and craft it NODE-SIDE, handing it back through load()
-  sim.G("save()");
-  const env = JSON.parse(sim.G("localStorage.getItem(SAVE_KEY)"));
+  const env = JSON.parse(sim.G("JSON.stringify(save(true))"));   // hold=true returns the envelope without touching a slot
   if (!env || !env.personas) return "no envelope to test against";
   // door 2: saveProblem names the number
   const bad2 = JSON.parse(JSON.stringify(env));
@@ -12436,8 +12435,7 @@ scenario("saves: a ver-3 envelope is the zero delta", () => {
   // dr, no complaints - absence IS the zero delta (dream-replay rung 0).
   const sim = createSim({ seed: 1337 });
   sim.runDays(2);
-  sim.G("save()");
-  const env = JSON.parse(sim.G("localStorage.getItem(SAVE_KEY)"));
+  const env = JSON.parse(sim.G("JSON.stringify(save(true))"));   // hold=true returns the envelope without touching a slot
   if (!env || !env.personas) return "no envelope to test against";
   env._ver = 3;
   for (const p of env.personas) { delete p.dm; delete p.dr; }
