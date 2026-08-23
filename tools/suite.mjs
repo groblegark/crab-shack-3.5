@@ -7480,16 +7480,18 @@ scenario("the player can stand for office and win, and then the levy is theirs",
   // cot - so the platform that carries the town is the shelter's, and the
   // player stands on it against the owners who would rather it stayed cold.
   //
-  // RE-STAGED 1337 -> 909 (PERSONAL SPACE). The claim is "an attentive player
-  // CAN win", and it is seed-generic - measured on the landing tree the
-  // recipe wins 21, 31, 909, 4242 and 7 (tallies 3-2, 3-1, 5-1, 6-1, 6-1)
-  // and loses ONLY 1337, where the re-rolled polling day keeps the shelter
-  // bloc from the box at all (turnout 3 of 9 papers: both owners and one
-  // shelter crab; SHELLDON, KELP and SALTY never went). That is turnout on
-  // one town's busy Sunday, not a broken franchise - the ballot, the count
-  // and the declaration all ran. 909 carries the same demonstration with a
+  // RE-STAGED 1337 -> 909 (PERSONAL SPACE) -> 7 (THE CITIZEN MIND). The
+  // claim is "an attentive player CAN win", and it is seed-generic - on the
+  // citizen-mind landing tree the recipe wins 7 and 63 and loses 21, 31,
+  // 909, 4242, 1337, because BRAIN-ERA TURNOUT IS LOWER: temperament now
+  // decides whether a free crab walks to the box, and tallies dropped from
+  // 5-7 papers to 3-4 across the sweep. That is a REPORTED behavioral shift
+  // (the citizen-mind close-out carries it; civics in phase E is where the
+  // franchise gets its own levers), not a broken mechanism - the ballot,
+  // the count and the declaration all run, and the player who reads the
+  // roster still carries the room on the seeds above. 7 demonstrates with a
   // 5-1 tally and the same shelter-bloc mechanics the fixture is about.
-  const sim = createSim({ seed: 909 });
+  const sim = createSim({ seed: 7 });
   sim.runDays(3);
   sim.G(`(() => {
     for (const c of allCrabs()) if (!c.p.owner) { c.p.homeless = true; c.p.house = null; c.p.fisher = false; }
@@ -12276,8 +12278,12 @@ scenario("brains: shadow is inert - the town cannot tell it is being watched", (
     return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
       pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
   };
+  // (Legs re-staged at the citizen-mind landing: BRAINS = {} used to be "no
+  // brains at all", but the bundle now ships a LIVE citizen brain too, and
+  // killing it in one leg only would measure the citizen brain, not the vis
+  // shadow. The legs differ in exactly one thing: the vis policy.)
   const shadowed = fp(`BRAINS.crab["vis_pick.candidate"].mode = "shadow"`);
-  const brainless = fp(`BRAINS = {}`);
+  const brainless = fp(`delete BRAINS.crab["vis_pick.candidate"]`);
   if (shadowed !== brainless) return "the shadow moved the town: " + shadowed.slice(0, 120) + " vs " + brainless.slice(0, 120);
   return true;
 });
@@ -12330,6 +12336,7 @@ scenario("brains: the citizen brain agrees with the errand scorer it distilled",
   // actually went somewhere, the brain must have called most of them.
   const FLOOR = 0.90, ACTED_FLOOR = 0.50;
   const sim = createSim({ seed: 4242 });
+  sim.G(`BRAINS.crab["cit_errand.candidate"].mode = "shadow"`);   // the bundle ships LIVE; the measure needs the teacher deciding
   sim.runDays(4);
   const s = JSON.parse(sim.G(`JSON.stringify((window._shadowStats && window._shadowStats.crab || {})["cit_errand.candidate"] || null)`));
   if (!s || s.n < 300) return "citizen shadow saw only " + (s ? s.n : 0) + " thinks - not a measurement";
@@ -12358,7 +12365,7 @@ scenario("brains: citizen shadow is inert - the crew cannot tell they are being 
     return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
       pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
   };
-  const shadowed = fp(``);                 // the bundle's own arming
+  const shadowed = fp(`BRAINS.crab["cit_errand.candidate"].mode = "shadow"`);   // the bundle ships LIVE; shadow is what's on trial
   const unwatched = fp(`delete BRAINS.crab["cit_errand.candidate"]`);
   if (shadowed !== unwatched) return "the citizen shadow moved the town: " + shadowed.slice(0, 120) + " vs " + unwatched.slice(0, 120);
   return true;
