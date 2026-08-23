@@ -1,47 +1,27 @@
-# crab-science — batch town science on a cluster
+# crab-science — the parallel-run substrate (v2)
 
-Runs N deterministic Crab Shack towns sharded across indexed Job pods.
+Runs the arms of a committed EXPERIMENT MANIFEST as indexed Job pods.
 No custom image: a stock `node` container plus a `git` initContainer
-cloning the public repo at a **pinned commit** — the experiment is fully
-described by the chart values, and a result is citable as
-`(gitRef, towns × days, flags)`.
+cloning the public repo at a **pinned commit**. One pod = one arm =
+one ConfigMap receipt, banked through the API before exit.
 
-## Run one
-
-```sh
-REF=$(git rev-parse cs35-numeric-s01)   # pin the exact tree
-helm install sweep1 deploy/crab-science \
-  --namespace crab-science --create-namespace \
-  --set gitRef=$REF \
-  --set pods=8 --set townsPerPod=64 --set days=30
-```
-
-The growth sweep: add `--set extraArgs='{--buy,chef,table}' --set days=40`.
-
-## Read the result
-
-Each pod prints one JSON receipt (distributions + throughput, with the
-LIVED sim-days convention — a town evicted day 9 did nine days of work).
+**Do not drive this chart by hand — use the verb:**
 
 ```sh
-kubectl -n crab-science logs -l job-name=sweep1 --tail=1 | jq -s .
+export AWS_PROFILE=gasboat-prod
+node tools/kube.mjs run experiments/suite-312.json --wait
 ```
 
-Aggregate shards client-side (they are disjoint seed ranges, so
-histograms merge by addition). Wall-clock throughput per pod is in each
-receipt; machine-wide is towns-lived-days / max pod wall.
+kube.mjs validates (pushed SHA, committed manifest, gasboat context,
+live session), installs into the `crab-science` namespace, watches,
+collects receipts to `design/cs35-research/kube-runs/<release>/`, and
+cleans up with the karpenter scale-down check.
 
-## Sizing
+Manifest shape, measured baselines, and the lessons-with-scars live in
+**design/cs35-kube-runbook.md**. The policy that sends work here at all
+(any parallel node runs) is at the top of that file.
 
-One pod ≈ one node's worth of workers: set `jobsPerPod` = `resources.cpu`
-minus one. Towns are ~independent processes at ~2–5 lived sim-days/sec
-each (kernel armed, main realm — both default). 4,096 towns × 30 days ≈
-8 pods × 512 towns ≈ 25–45 min at 7 workers/pod.
-
-## What this is for
-
-The distribution science the single machine can't reach: eviction
-histograms at n=10⁴, rare-event hunting, parameter heatmaps
-(`extraArgs` carries any headless flag — hatches, `--wage`, `--set`),
-and, next, cultureway batches (towns sharing a cultureway are one
-coherent batch — the same property the GPU rung will want).
+v1 of this chart (pods x townsPerPod batch sharding, results read from
+pod logs) is superseded: log-based results died with karpenter's nodes,
+and the values-driven single workload couldn't express suite shards or
+science A/B arms. The manifest + receipt design is the fix.

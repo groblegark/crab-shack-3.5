@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-both-b7e6a66-t82q",
+  "armId": "wasm-1",
+  "index": 9,
+  "sha": "b7e6a662c1f8ec6f1a49916e592ac32d29977eab",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 182124,
+  "verdict": "39/39 passed in slice 1/8 (182.0s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (53649ms)\n  PASS  fast-forward (6x dt) stays stable (215ms)\n  PASS  save guard: a town born from a rejected save does not bury it (819ms)\n  PASS  job board: unpaid staff quit back to the pier (290ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (169ms)\n  PASS  boat: ownership and berth roundtrip through save/load (875ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (2973ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (14ms)\n  PASS  days off: wages skip exactly and the bill dips to match (941ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (799ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (3241ms)\n  PASS  labor policy: every new setting roundtrips save/load (589ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (1584ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (13788ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (554ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (62ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (983ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (46289ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (5566ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1061ms)\n  PASS  the town fund moves money and never mints it (10286ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (6993ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (16ms)\n  PASS  departures: nobody on the boat knows the town's name (821ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (2613ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (955ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (100ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (8ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (614ms)\n  PASS  nothing paints over an open card except another card (582ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (861ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (3944ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (11ms)\n  PASS  foodways: nothing is conjured - a bun is corn, and corn is a priced import (12ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (20ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (1788ms)\n  PASS  brains: a town full of thinking heads round-trips its save (7315ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (6092ms)\n  PASS  science: one recipe lives the same town twice (4541ms)\n39/39 passed in slice 1/8 (182.0s)\n"
+}

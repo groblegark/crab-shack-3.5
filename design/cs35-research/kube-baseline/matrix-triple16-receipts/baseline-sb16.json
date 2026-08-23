@@ -1,0 +1,67 @@
+{
+  "release": "cs-matrix-triple16-b7e6a66-6efy",
+  "armId": "baseline-sb16",
+  "index": 1,
+  "sha": "b7e6a662c1f8ec6f1a49916e592ac32d29977eab",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 38849,
+  "verdict": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"workload\":\"--days 30 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"8\":2,\"9\":2,\"10\":1,\"11\":3,\"13\":2,\"14\":3,\"15\":1,\"16\":1,\"19\":1},\"median\":13,\"min\":8,\"max\":19},\"lifetime\":{\"median\":3674,\"p10\":2350,\"p90\":4624,\"mean\":3502},\"throughput\":{\"livedSimDays\":195,\"wallSec\":38.79,\"simDaysPerSec\":5,\"loadavg\":[5.8,1.6,0.6]}}",
+  "failures": [],
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 16,
+    "jobs": 7,
+    "workload": "--days 30 --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 0,
+    "evicted": 16,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "8": 2,
+        "9": 2,
+        "10": 1,
+        "11": 3,
+        "13": 2,
+        "14": 3,
+        "15": 1,
+        "16": 1,
+        "19": 1
+      },
+      "median": 13,
+      "min": 8,
+      "max": 19
+    },
+    "lifetime": {
+      "median": 3674,
+      "p10": 2350,
+      "p90": 4624,
+      "mean": 3502
+    },
+    "throughput": {
+      "livedSimDays": 195,
+      "wallSec": 38.79,
+      "simDaysPerSec": 5,
+      "loadavg": [
+        5.8,
+        1.6,
+        0.6
+      ]
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"workload\":\"--days 30 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"8\":2,\"9\":2,\"10\":1,\"11\":3,\"13\":2,\"14\":3,\"15\":1,\"16\":1,\"19\":1},\"median\":13,\"min\":8,\"max\":19},\"lifetime\":{\"median\":3674,\"p10\":2350,\"p90\":4624,\"mean\":3502},\"throughput\":{\"livedSimDays\":195,\"wallSec\":38.79,\"simDaysPerSec\":5,\"loadavg\":[5.8,1.6,0.6]}}\n"
+}
