@@ -133,6 +133,9 @@ function doRun() {
   if (manifest.resources) overlay.resources = manifest.resources;
   if (manifest.nodeSelector) overlay.nodeSelector = manifest.nodeSelector;
   if (manifest.tolerations) overlay.tolerations = manifest.tolerations;
+  // the chart defaults to 3600s, which axed a healthy 24-arm science run at
+  // the hour mark with zero receipts — long arms must be able to say so.
+  if (manifest.activeDeadlineSeconds) overlay.activeDeadlineSeconds = manifest.activeDeadlineSeconds;
   const par = flag("--parallelism");
   if (par) overlay.parallelism = Number(par);
   const ovPath = `/tmp/kube-values-${release}.json`;

@@ -37,6 +37,9 @@ if (mode === "corpus") {
 
 const manifest = {
   name, note,
+  // measured, not assumed: healthy small arms passed 58m of wall; the chart's
+  // 3600s default axed them all with zero receipts. 3h leaves real margin.
+  activeDeadlineSeconds: 10800,
   resources: { requests: { cpu: "2", memory: "3Gi" }, limits: { cpu: "3", memory: "4Gi" } },
   arms,
   nodeSelector: { "karpenter.sh/nodepool": "ephemeral-pool" },

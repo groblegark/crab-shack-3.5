@@ -1,6 +1,7 @@
 {
   "name": "cit-science-corpus",
   "note": "Citizen-mind science, phase 1 (small-arm shape): 4 towns per arm, 2 workers, 4Gi pods. live-* arms carry the divergence log; script-* arms are the same instrument with the citizen policy off. Baselines REBUILT in this instrument per the runbook's same-instrument rule.",
+  "activeDeadlineSeconds": 10800,
   "resources": {
     "requests": {
       "cpu": "2",

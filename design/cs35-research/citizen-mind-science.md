@@ -57,6 +57,12 @@ manifests:
   `towns x days / (0.65 x workers)` vCPU-seconds-per-lived-day on m5 —
   and measure, don't assume laptop cores; the observed small-arm wall ran
   far past the naive figure.
+- **The deadline is part of the projection** — the chart defaults
+  `activeDeadlineSeconds: 3600`, which axed a fully healthy 24-arm run at
+  the hour mark with ZERO receipts (attempt 7). Long arms must carry their
+  own deadline in the manifest (kube.mjs now forwards
+  `activeDeadlineSeconds` to the overlay); size it from the wall-time
+  formula with real margin.
 
 ## The decomposition
 
