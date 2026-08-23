@@ -9703,24 +9703,73 @@ function ratGt(a, b, c, d) {
   if (qa !== qc) return qa > qc;
   return (a - qa * b) * d > (c - qc * d) * b;
 }
-function pickErrand(c) {
-  const staffed = bizStaffed;
-  const cand = [];
-  const take = (e) => cand.push(e);   // gather every stop, then score - see errandScore
-  // a day off is for spending: lower need thresholds, so the off crab eats
-  // out, soaks, and finally gets that arcade morning their shift always ate.
-  // Full retail, full queue rules - off crabs are customers, not staff.
-  // ...and a WALK-OUT is a day off the crab granted themselves, so it spends
-  // like one: the crab who walked out because they were bored out of their
-  // shell will absolutely spend it at the arcade, if the town has one.
-  const off = awayToday(c) && !c.p.sick;
-  // THE DROP NUDGE RELAXES THE BAR (see NUDGE): standing at a counter makes a
-  // crab likelier to want what it sells - it does not make them hungry.
-  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food");
+// ------------------------------------------------------- THE ERRAND REGISTRY
+// (cultureway phase D, substrate debt item 5.) The candidate CENSUS pickErrand
+// gathers is a registered, ordered list instead of one function's private
+// blocks. Three rules keep it byte-identical to the census it replaces:
+//   1. ORDER IS SEMANTIC. The tie-break note in pickErrand's argmax ("the
+//      FIRST candidate at a score keeps it") makes gather order part of the
+//      fingerprint, so entries register in the exact old take() order and
+//      registerErrand appends, never sorts.
+//   2. THE PRELUDE IS SHARED, PURE, AND HOISTED. off/wantFood/ball*/bath*
+//      were computed between blocks; every one is a pure read (no draws), so
+//      they hoist into one context object X handed to every gather.
+//   3. SCORING IS NOT HERE. errandScore and the argmax are untouched - the
+//      registry owns WHO IS ON THE BALLOT, never how the vote is counted.
+// A gather may draw from the counted stream (the flush-crab menu roll always
+// did); it draws in registration order, which is the old textual order.
+// Culture documents never register imperative gathers (the research ruling:
+// errand BODIES are engine capability) - the data path is dataErrand below.
+const ERRANDS = [];
+function registerErrand(def) {
+  // engine-facing: a bad registration is an engine bug, so it fails loud at
+  // boot rather than politely at import (cultureProblem owns the data door).
+  if (!def || typeof def.id !== "string" || !/^[a-z0-9_.]{1,24}$/.test(def.id))
+    throw new Error("registerErrand: bad id " + (def && def.id));
+  if (ERRANDS.some(e => e.id === def.id)) throw new Error("registerErrand: duplicate id " + def.id);
+  if (ERRANDS.length >= 32) throw new Error("registerErrand: the census is full (32)");
+  if (ERRAND_RANK[def.need] == null) throw new Error("registerErrand " + def.id + ": unknown need " + def.need);
+  if (typeof def.gather !== "function") throw new Error("registerErrand " + def.id + ": gather must be a function");
+  ERRANDS.push(def);
+  return def;
+}
+// THE DATA SHAPE (for civics, phase E - and for the suite to bite on today):
+// a declarative counter/post errand with no imperative body. Clamped here the
+// way cultureProblem clamps a section: named refusals, integer thresholds on
+// the Q20 grain, appeal in hundredths. `at`/`offAt` are Q20 need levels.
+function dataErrand(d) {
+  const bad = (m) => { throw new Error("A BAD ERRAND - " + m); };
+  if (!d || typeof d !== "object") bad("NOT AN OBJECT");
+  if (typeof d.id !== "string" || !/^[a-z0-9_.]{1,24}$/.test(d.id)) bad("A BAD ERRAND ID");
+  if (ERRAND_RANK[d.need] == null) bad(d.id + " SERVES AN UNKNOWN NEED");
+  const at = d.at | 0;
+  if (at !== d.at || at < 0 || at > Q20) bad(d.id + " AT " + d.at + " IS OFF THE Q20 GRAIN");
+  const offAt = d.offAt != null ? d.offAt | 0 : at;
+  if (offAt !== (d.offAt != null ? d.offAt : at) || offAt < 0 || offAt > Q20) bad(d.id + " OFFAT IS OFF THE Q20 GRAIN");
+  const ap100 = d.ap100 != null ? d.ap100 | 0 : 100;
+  if (ap100 < 1 || ap100 > 200) bad(d.id + " APPEAL " + d.ap100 + " IS OUTSIDE 1..200");
+  if (d.biz != null && !BIZ[d.biz]) bad(d.id + " NAMES AN UNKNOWN BIZ " + d.biz);
+  if (d.biz == null) bad(d.id + " NAMES NO BIZ");   // post-shaped data errands land with civics
+  return registerErrand({ id: d.id, need: d.need, kind: "biz", data: true,
+    gather: (c, take, X) => {
+      if ((needOf(c, d.need) || 0) < (X.off ? offAt : at) - nudgeRelax(c, d.need)) return;
+      if (!X.staffed(d.biz)) return;
+      const rs = bizRecipes(d.biz).filter(r => c.p.wallet >= localPrice(d.biz, r) + 200);
+      if (!rs.length) return;
+      rs.sort((a, b) => a.pay - b.pay);
+      take({ biz: d.biz, recipe: rs[0], need: d.need, ap100 });
+    } });
+}
+function needOf(c, need) {
+  return need === "food" ? c.p.hunger : need === "drink" ? c.p.thirst
+    : need === "clean" ? c.p.dirt : need === "fun" ? c.p.bored : 0;
+}
+// --- the native census, registered in the exact old take() order ---
+registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, take, X) => {
   // restaurant staff privilege: cook your own meal when the kitchen is
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
-  if (wantFood && !staffed("shack") && c.p.job === "shack" && !c.p.npc) {
+  if (X.wantFood && !X.staffed("shack") && c.p.job === "shack" && !c.p.npc) {
     const affordable = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
