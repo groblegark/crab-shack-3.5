@@ -3689,14 +3689,15 @@ scenario("sale: a saved-up crab buys the failed shop and it TRADES AGAIN", () =>
 
 scenario("sale: the player buys a failed business through the shopfront", () => {
   const sim = createSim({ seed: 63 });
-  // RE-STAGED (citizen mind, 2026-08-23): the rival is disarmed, because
-  // under brain citizens REEF's day-4 books afford the failed showers and
-  // she is FIRST IN THE QUEUE by her own scenario's contract - she bought
-  // it out from under this staging. The mechanism under test here is the
-  // shopfront BUY chip, so the queue-jumper steps out of the fixture.
-  sim.G("window._norival = 1");
+  // RE-STAGED (citizen mind, 2026-08-23): REEF is impoverished through each
+  // settlement, because under brain citizens her day-4 books afford the
+  // failed showers and she is FIRST IN THE QUEUE by her own scenario's
+  // contract - she bought it out from under this staging. The mechanism
+  // under test here is the shopfront BUY chip, so the queue-jumper's purse
+  // is held empty; her own priority keeps its own scenario.
   sim.runUntil("day >= 2 && tmin > 8 * 60", keep({ maxSteps: 400000 }));
-  for (let i = 0; i < 3; i++) missOneLease(sim, "showers");
+  for (let i = 0; i < 3; i++)
+    missOneLease(sim, "showers", `if (OWNERS.reef) { OWNERS.reef.till = 0; OWNERS.reef.credit = creditLimit(); } if (typeof rival === "object" && rival) rival.warchest = 0;`);
   if (!sim.G('forSale("showers")')) return "the shop never closed";
   const price = sim.G('salePrice("showers")');
   // the BUY chip lives on the shopfront the MANAGE chip lives on
