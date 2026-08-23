@@ -81,6 +81,7 @@ bad.art.body.poses.a[2] += "ZZ";
 bad.appeal.tastes.fish = 99;
 bad.appeal.nudge = { mul100: 9000 };
 bad.management = { tableTip: 900 };   // the cents habit - author units are whole dollars
+bad.depart = { weights: { wait: 9, nosuchrule: 4 } };
 bad.people.names.push("A NAME MUCH TOO LONG");
 const v = JSON.parse(textOf(await call("cultureway_validate", { document: bad })));
 const paths = (v.problems || []).map((p) => p.path).join(" ");
@@ -90,6 +91,8 @@ check("error names the over-long name", /people\.names\[\d+\]/.test(paths), path
 check("error names the out-of-range taste", /appeal\.tastes\.fish/.test(paths), paths);
 check("error names the out-of-range nudge thumb", /appeal\.nudge\.mul100/.test(paths), paths);
 check("error names the cents-habit table tip", /management\.tableTip/.test(paths), paths);
+check("error names the hot depart weight", /depart\.weights\.wait/.test(paths), paths);
+check("error names the unknown depart rule", /depart\.weights\.nosuchrule/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
 
 const sheet = await call("cultureway_render", { document: pig, scale: 2 });
