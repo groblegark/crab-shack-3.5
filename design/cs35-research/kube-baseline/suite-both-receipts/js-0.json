@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-both-b7e6a66-t82q",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "b7e6a662c1f8ec6f1a49916e592ac32d29977eab",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 133420,
+  "verdict": "39/39 passed in slice 0/8 (133.3s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (47888ms)\n  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (1ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1277ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (775ms)\n  PASS  queue hard cap holds for locals too (2821ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (3494ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (770ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (595ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1280ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (20947ms)\n  PASS  fish market: price + series roundtrip save/load (38ms)\n  PASS  census: rows derive live state, and sort + filter actually move (533ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (2684ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (6763ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (8658ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (11ms)\n  PASS  the beach ball is LIMITED fun (448ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (446ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (2901ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (1841ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4240ms)\n  PASS  an election is held on the week, and every voter is accounted for (4017ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (12ms)\n  PASS  departures: every character the card prints exists in the font (1116ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (465ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (201ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (141ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (21ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (2154ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (518ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2999ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (3660ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (645ms)\n  PASS  foodways: the pork bun opens a pig's purse, and the WEIGHTS open it (9ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (502ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2584ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (19ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (53ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (5795ms)\n39/39 passed in slice 0/8 (133.3s)\n"
+}

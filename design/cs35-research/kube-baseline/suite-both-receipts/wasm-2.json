@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-both-b7e6a66-t82q",
+  "armId": "wasm-2",
+  "index": 10,
+  "sha": "b7e6a662c1f8ec6f1a49916e592ac32d29977eab",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 89153,
+  "verdict": "39/39 passed in slice 2/8 (89.1s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1455ms)\n  PASS  homeless: eviction to shelter and back (1271ms)\n  PASS  save guard: an empty slot still receives the first town (17ms)\n  PASS  save/load: townsfolk keep wallets and houses (976ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (868ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (2380ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (918ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (564ms)\n  PASS  fishers feed themselves: breaks + the beach roast (2843ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (371ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (35170ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (612ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1559ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (5818ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (3145ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (655ms)\n  PASS  no card prints text on top of its own text (1105ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (3345ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (1959ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (1414ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (786ms)\n  PASS  the mayor wears the hat, and nobody else ever does (810ms)\n  PASS  departures: three ways to be turned away are three different counters (95ms)\n  PASS  departures: a stay survives a save and a reload (1850ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (2748ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1515ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (76ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (325ms)\n  PASS  the shack says where the money comes from, and only your shops do (404ms)\n  PASS  a shop's takings show on its owner's card the moment they land (996ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (2447ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (7ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (7ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (27ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (3392ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2235ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (6ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (4855ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (39ms)\n39/39 passed in slice 2/8 (89.1s)\n"
+}
