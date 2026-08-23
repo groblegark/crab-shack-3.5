@@ -1344,7 +1344,17 @@ scenario("juicebar economics: ledger flows, register income, staff retail", () =
 // The staging drives the real gesture - orderCrab, the same call the SEND chip
 // and the right-click both reach - and asserts the MECHANISM (nudgeTag set,
 // the errand actually taken) rather than a coincidence of position.
-function nudgeSim(thirst, dropFar) {
+// `iters` is the ERRAND WINDOW, in 30-tick slices, and the open-sand control
+// needs a short one. Measured on seed 44: the crab dropped AT the counter
+// takes the errand 210 ticks later; the crab dropped on open sand at the same
+// thirst takes one 14,760 ticks later - two sim-days on, at the 0.5 thirst
+// cap, for reasons that have nothing to do with a nudge. The control's window
+// used to be 60,000 ticks, 280x the mechanism it is controlling for, so
+// "unnudged crab bought a drink anyway" was only ever a question of which
+// trajectory got there first; the retrained crab brain is what finally rolled
+// it. 70 slices is 2,100 ticks - ten times the nudge's own response and a
+// seventh of the natural one.
+function nudgeSim(thirst, dropFar, iters = 2000) {
   const sim = createSim({ seed: 44 });
   sim.G('coins = 90000; tryBuy("juicebar"); crabs[1].p.job = "juicebar"; rosterGen++;');
   sim.runUntil('bizStaffed("juicebar") && tmin > 11 * 60', { maxSteps: 200000 });
@@ -1365,7 +1375,7 @@ function nudgeSim(thirst, dropFar) {
     tag = sim.G("crabs[0].nudgeTag || ''") || null;
   }
   let err = null;
-  for (let i = 0; i < 2000 && !err; i++) {
+  for (let i = 0; i < iters && !err; i++) {
     sim.runUntil("false", { maxSteps: 30 });
     err = sim.G("crabs[0].errandBiz || (crabs[0].errand && crabs[0].errand.biz) || ''") || null;
   }
@@ -1395,7 +1405,7 @@ scenario("the drop nudge: open sand nudges nothing", () => {
   // dropped 400px from the counter, the same crab at the same thirst gets no
   // nudge at all - which is what makes the first scenario's result the nudge's
   // doing rather than the hour, the seed or the walk
-  const r = nudgeSim(0.35, true);
+  const r = nudgeSim(0.35, true, 70);   // the errand window, bounded - see nudgeSim
   if (r.tag !== null) return "open sand set a nudge: " + r.tag;
   if (r.err === "juicebar") return "unnudged crab bought a drink anyway - the pin proves nothing";
   return true;
@@ -2363,22 +2373,33 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // tills, serves and rage IDENTICAL on both seeds. rep is now raw
     // MILLIREP in this digest (50.3247 float points -> 50324).
     // RE-BASELINED for NEURO AGENTS (the crab default thinks through the
-    // shipped v2 brain, LIVE by owner ruling). THE FIRST CROSSING IS NAMED,
-    // and it is the same think under both artifact generations: seed 1337,
-    // think 9, tick T=1358 (day 1), visitor NIPPY - the script sends her for
-    // her drink (thirst 809002 Q20, 134px), the brain drops her bag at the
-    // hotel first (logit 361983 vs shack:drink 313651; both candidates from
-    // the same visCandidates draws, the stream unshifted AT the crossing).
-    // Net-acts-early-on-rooms is the artifact's strongest class (hotel:room
-    // recall 98%), so the character is "guests settle in before they snack" -
-    // the trace is tools/neuro/trace-crossing.mjs, rerunnable. Everything
-    // downstream re-rolls behind that one different walk. Day-1 draws
-    // 1861 -> 1857 (NIPPY's drink draw and its knock-ons leave the day).
-    // Matrix referee: baseline 0/48 over three 16-seed blocks, growth over
-    // 48, four aggregates mixed-sign - the numbers live in the neuro-ladder
-    // close-out, measured on this tree.
-    1337: '{"day":3,"tmin":0,"coins":15939,"rep":54344,"catch":4,"serves":41,"crabServes":4,"rage":3,"till":21244,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21244],["REEF",22120],["SALTY",100],["DRIFT",1300],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[248,167]]}',
-    4242: '{"day":3,"tmin":0,"coins":14883,"rep":58433,"catch":2,"serves":49,"crabServes":3,"rage":5,"till":23912,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23912],["REEF",26988],["SALTY",100],["DRIFT",0],["KELP",2000]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,154],[450,155]]}',
+    // shipped v2 brain, LIVE by owner ruling). THE FIRST CROSSING WAS NAMED:
+    // seed 1337, think 9, tick T=1358 (day 1), visitor NIPPY - the script
+    // sends her for her drink (thirst 809002 Q20, 134px), the brain dropped
+    // her bag at the hotel first (logit 361983 vs shack:drink 313651). The
+    // character was "guests settle in before they snack".
+    //
+    // RE-BASELINED AGAIN for THE CRAB RETRAIN (v3: 42->48->7, the sim's own
+    // class prior, the five-lever collection), and the head is the SAME THINK
+    // UNCROSSING. Seed 1337, think 9, T=1358, NIPPY again - and the new
+    // artifact sends her for her drink, which is what the script does:
+    // shack:drink 348527 over hotel:room 275729, where v2 read 313651 against
+    // 361983. Same candidates, same visCandidates draws, stream unshifted AT
+    // the crossing; both sides are brains and both are draw-free, so the
+    // pairing argument is unchanged. Seed 4242's head is the twin: think 7,
+    // T=1059, visitor FLO, shack:food 438864 over hotel:room 347750 where v2
+    // read 347471 against 405318. The act-early-on-rooms personality that
+    // cost the growth floor is retired, and the trace says so in one line
+    // each: node tools/neuro/trace-crossing.mjs [seed] 4 --old
+    // tools/neuro/receipts/brain-crab-v2.json. Everything downstream re-rolls
+    // behind those two different walks. Day-1 draws 1857 -> 1863, day-2
+    // 2265 -> 1096 (the day's own shape; the script reads 1861/2399 and the
+    // v2 brain 1857/2265 on the same seed, so the swing is the stream's,
+    // not a leak - arrivals 20 against 21 and the town alive on both).
+    // Matrix referee: the numbers live in the crab-retrain close-out,
+    // measured on this tree against this tree's own pre-retrain build.
+    1337: '{"day":3,"tmin":0,"coins":14420,"rep":52674,"catch":4,"serves":42,"crabServes":5,"rage":4,"till":22815,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22815],["REEF",19733],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,167],[2072,154],[318,167]]}',
+    4242: '{"day":3,"tmin":0,"coins":14908,"rep":49696,"catch":3,"serves":42,"crabServes":4,"rage":4,"till":20858,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",20858],["REEF",20924],["SALTY",300],["DRIFT",700],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[464,155],[450,159.9]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3524,6 +3545,16 @@ scenario("sale: a saved-up crab buys the failed shop and it TRADES AGAIN", () =>
   // a fisher who has been saving takes it on instead of a boat
   sim.G(`{ const f = npcs.find(k => k.p.job === "fishing" && k.p.name !== "SUDSY");
     f.p.wallet = salePrice("showers") + SALE_CFG.RESERVE + 5; f.p.sick = null; window._buyer = f.p.name; }`);
+  // WATCH THE DEAL ITSELF, because a pocket read after the settlement is not
+  // the deal. See the float assertion below.
+  sim.G(`window._deal = null;
+    { const orig = buyBusiness;
+      buyBusiness = function (b, buyer) {
+        const before = buyer ? buyer.p.wallet : coins, p = salePrice(b);
+        const r = orig.apply(this, arguments);
+        if (r && b === "showers") window._deal = { price: p, before,
+          after: buyer ? buyer.p.wallet : coins, who: buyer ? buyer.p.name : "YOU" };
+        return r; }; }`);
   if (!sim.runUntil('!forSale("showers")', keep({ maxSteps: 400000 })))
     return "a crab with the savings never bought the shop";
   // WHOEVER HAD THE MONEY, not whoever the fixture happened to fund. This used
@@ -3544,14 +3575,25 @@ scenario("sale: a saved-up crab buys the failed shop and it TRADES AGAIN", () =>
   // IS the buyer's pocket, so the honest claim is what the SALE COST THEM: the
   // asking price less the float that stayed with them. Same arithmetic, on the
   // number that still exists.
+  // MEASURED ACROSS THE DEAL, not off the pocket afterwards. This used to read
+  // OWNERS[id].till once the sale had happened and assert it was at least the
+  // float - which is a claim about the whole settlement, not about the sale.
+  // It held until the retrained crab brain moved the sale two days later
+  // (REEF's hotel fills more slowly now that the net no longer books guests in
+  // before they snack, so he crosses price+RESERVE on day 5 instead of day 3),
+  // and on day 5 he buys the shop and PUTS UP CABANA 1 for $80 in the same
+  // settlement: $14,239 the instant the deal closed, $6,239 by the time the
+  // tick ended, against a float of $11,092. Nothing was wrong - a new owner is
+  // allowed to spend their own money the minute they have it. So the claim is
+  // now the exact one the sale makes: the buyer paid the asking price and the
+  // FLOAT CAME STRAIGHT BACK, which is a stronger statement than "at least"
+  // and cannot be defeated by whatever else the night does.
   const float = Math.floor(price * sim.G("SALE_CFG.FLOAT_FRAC"));
-  const till = sim.G("OWNERS['" + id + "'].till");
-  if (!(till >= float))
-    return "the new owner is not even holding the float: $" + till + " on a $" + price + " sale";
-  // (what the sale COST the buyer is asserted where it can be measured either
-  // side of the deal - see the two hotelier buy-out scenarios. This fixture
-  // discovers its sale after the fact, so the most it can honestly say is that
-  // the new owner opened with at least the float behind them.)
+  const deal = JSON.parse(sim.G("JSON.stringify(window._deal)"));
+  if (!deal) return "the sale did not go through buyBusiness at all";
+  if (deal.before - deal.after !== price - float)
+    return `the float did not come back: ${deal.who} went $${deal.before} -> $${deal.after}`
+      + ` on a $${price} sale with a $${float} float`;
   const who = JSON.parse(sim.G(`JSON.stringify((() => { const c = allCrabs().find(k => k.p.name === "${buyer}"); return [c.p.owner, c.p.job, c.p.employer, Math.round(c.p.wallet)]; })())`));
   // THE BUYER HOLDS THE LEASE, AND STANDS BEHIND A COUNTER OF THEIR OWN.
   //
@@ -6049,12 +6091,22 @@ scenario("rivalry: after a refusal she competes with the PLAYER'S OWN levers, an
   // comparison, and it is what a working lever actually looks like.
   const barShare = (mul) => {
     let bar = 0, shwr = 0;
-    // FIVE towns, not three (slice 5): the lever's step is ~9 drinks and a
-      // three-town pool's arm noise proved comparable after the mover-target
-      // exemption re-rolled every walk - dear beat level by 6 while cut beat
-      // both by 40. Two more towns push the pooled signal back past the
-      // noise; the claim itself is unchanged.
-      for (const seed of [909, 1337, 4242, 21, 77]) {
+    // EIGHT towns, not five, and five not three (slice 5): the lever's step is
+      // ~9 drinks a town and the pool's arm noise keeps creeping up on it.
+      // Slice 5 added the fourth and fifth towns after the mover-target
+      // exemption re-rolled every walk (dear beat level by 6 while cut beat
+      // both by 40). The crab retrain added the sixth, seventh and eighth for
+      // the same reason and with the same remedy: on the five-town pool the
+      // shipped artifacts read dear->level margins of 8 (the v2 brain) and 7
+      // (the v3 brain) against the script's own 31, which is a coin dressed as
+      // a measurement. On the eight-town pool the v3 brain reads 421/458/537 -
+      // margins 37 and 79 - and a twelve-town pool run outside the suite reads
+      // 642/687/790, a spread of 148 against the script's own 96. The claim is
+      // unchanged; only the instrument got stronger. (That twelve-town run is
+      // also what caught the artifact this pin refused: a sibling trained on
+      // the same data with a different seed read 785/773/843, over-buying at a
+      // DEAR board, and did not ship - the pin doing exactly its job.)
+      for (const seed of [909, 1337, 4242, 21, 77, 5, 13, 101]) {
       const s2 = createSim({ seed });
       // ...AND THE TOWN'S WAGE FLOOR IS PINNED OFF, for exactly the reason the
       // hotelier is. An elected floor lifts every packet in town, and crabs
@@ -6583,7 +6635,16 @@ scenario("hotel: a guest asleep in their room holds ONE state, and the card hold
   // frame is signed by what the card PRINTED and whether the guest's body was
   // blitted onto the boardwalk. A flicker is more than one signature.
   const sim = createSim({ seed: 1337 });
+  // ...and it waits for a night when NO FULL-SCREEN CARD OWNS THE VIEW.
+  // drawFollowCard returns early under the day's reckoning (reportT/departT),
+  // the ledger, the census and the save screen - by design, the little card
+  // must never sit on top of them - so a fixture that lands at 22:00 with the
+  // departures page still up photographs an empty card and reads it as a bug.
+  // The retrained crab brain moved seed 1337's second night onto exactly that
+  // moment (departT 3.9 at tmin 1320). The claim is about a SLEEPING GUEST'S
+  // CARD, so the staging waits for a frame where that card is drawable.
   const bed = sim.runUntil(`day >= 2 && tmin >= 22 * 60
+    && !dossier && !manage && !boardView && !saveView && reportT <= 0 && departT <= 0
     && BIZ.hotel.stalls.some(r => r.occupant && r.occupant.state === "inRoom")`, { maxSteps: 900000 });
   if (!bed) return "no guest ever got to bed - the fixture never reached a night in the hotel";
   const sigs = JSON.parse(sim.G(`(() => {
@@ -8762,8 +8823,15 @@ scenario("sickness: shift kind does not predict the roll across the roster", () 
   // build, because the build BEFORE this investigation is the build after it.
   // What it catches is a future read that is shaped like the wall clock again
   // - and the mechanism proof is the ordering probe above.
+  // SIX TOWNS, NOT TWO. The band is 0.4..2.5 and the arms were reading n=44
+  // and n=43 - the comment below says ~40 crab-nights an arm swings the ratio
+  // by a third on stream order alone, so a two-town pool was inside its own
+  // stated noise and the gate was a coin. The retrained crab brain rolled it
+  // to x0.37, four hundredths outside a band it never had the samples to
+  // defend. Four more towns, and the sample floor raised to match; the claim,
+  // the band and the full rig's x0.98 are unchanged.
   const rows = [];
-  for (const seed of [1337, 2674]) {
+  for (const seed of [1337, 2674, 909, 4242, 21, 77]) {
     const sim = createSim({ seed });
     sim.G("window._stats.rollLog = [];");
     sim.runUntil("day >= 2 && tmin >= 7 * 60", { maxSteps: 200000 });
@@ -8781,7 +8849,7 @@ scenario("sickness: shift kind does not predict the roll across the roster", () 
     return r.length ? { n: r.length, risk: r.reduce((s, x) => s + x.risk, 0) / r.length } : null; };
   const m = arm("M"), e = arm("E");
   if (!m || !e) return "one of the two shifts never appeared on the roster";
-  if (m.n + e.n < 60) return `only ${m.n + e.n} M/E rolls - not enough to say anything`;
+  if (m.n + e.n < 180) return `only ${m.n + e.n} M/E rolls - not enough to say anything`;
   const ratio = e.risk > 0 ? m.risk / e.risk : (m.risk > 0 ? Infinity : 1);
   // ~40 crab-nights an arm swings this by a third on stream order alone
   // (measured: 0.75 to 1.12 across trajectories at 180 an arm), so the window
@@ -8844,7 +8912,17 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   const roll = sim.G("cotRoster().length");
   if (roll <= beds) return "the fixture did not overfill the shelter: " + roll + " crabs, " + beds + " beds";
   if (sim.G("cotShort()") !== roll - 4) return "the waiting list is not the overflow: " + sim.G("cotShort()");
-  sim.runUntil("tmin >= 23.5 * 60", { maxSteps: 400000 });
+  // WAIT FOR THEM TO GET THERE, not for the clock. The fixture stands the roll
+  // at the shelter door at 20:30 and the town then sends some of them out
+  // again; a fixed 23:30 read photographs whoever is still on the boardwalk and
+  // counts them as bedded. Under the retrained crab brain DRIFT and KELP are
+  // both still `toHome` at 23:30 on this night and the arm read 0 rough where
+  // it wanted 1 - with the SAME outcome once they arrive (KELP, the newcomer,
+  // on the step) on both artifacts. The scenario's own note says it: the walk
+  // home is the housing scenario's business, this one is about what happens
+  // when they get there.
+  const bedtime = 'tmin >= 22 * 60 && cotRoster().every(c => c.dayState === "home" || c.p.rough)';
+  if (!sim.runUntil(bedtime, { maxSteps: 400000 })) return "the roll never got home to the shelter at all";
   const out = JSON.parse(sim.G(`JSON.stringify(cotRoster().map(c => [c.p.name, !!c.p.rough, c.p.nCot || 0]))`));
   const rough = out.filter(r => r[1]).map(r => r[0]);
   if (rough.length !== roll - 4) return "four beds, " + roll + " crabs, " + rough.length + " on the step: " + JSON.stringify(out);
@@ -8867,9 +8945,9 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // to measure want-of-a-bed alone. Slice 4's re-rolled day-3 made one crab
   // work late and keel over honestly; pinned, the only rough left is bedless.
   // MUTATION-TESTED below: with the beds revoked the same pinned night fails.
-  sim.runUntil("tmin >= 23.5 * 60", { maxSteps: 400000,
+  if (!sim.runUntil(bedtime, { maxSteps: 400000,
     onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); }'),
-    tickEvery: 40 });
+    tickEvery: 40 })) return "the counter-arm's roll never got home to the shelter";
   const out2 = JSON.parse(sim.G(`JSON.stringify(cotRoster().map(c => [c.p.name, !!c.p.rough]))`));
   const rough2 = out2.filter(r => r[1]).map(r => r[0]);
   if (rough2.length) return "a bed each and " + rough2.join(",") + " still slept outside";
@@ -10775,10 +10853,23 @@ scenario("the wage loan clears the back pay, mints nothing, and calls off the re
   // one bad night, and this is that night.
   const sim = createSim({ seed: 42 });
   sim.runDays(5, { tickEvery: 60, onTick: (G) => { if (G("coins") < 90000) G("coins = 160000"); } });
-  sim.runDays(6, { tickEvery: 2, onTick: (G) => {
-    const d = +G("day");
-    if (+G("tmin") > 19 * 60 + 30 && +G("lastRentDay") !== d) G(`coins = totalRent() + 5;`);
-  } });
+  // STARVE THE TILL UNTIL A PAYDAY IS ACTUALLY MISSED, one night at a time,
+  // and stop the moment one is - which keeps the scenario's "one bad night,
+  // not a run of them" while removing the bet. Payroll pays out of what is
+  // left ABOVE the rent reserve, so pinning the till to totalRent()+5 on the
+  // way into the settlement is what makes the night bad; whether that lands
+  // depends on whether anybody on the roster actually worked and clocked off
+  // after it, and the retrained crab brain's day 6 gave CLAWDIA the day off,
+  // so nobody was due and the fixture starved an empty roster. Measured on
+  // both artifacts: exactly one missed payday either way, the shipped brain's
+  // on the second night ($6,400 owed against a $9,000 line, the v2 brain's
+  // $2,300 on the first).
+  for (let i = 0; i < 8 && !+sim.G("backPayDue()") && !sim.G("gameOver"); i++) {
+    const d = +sim.G("day");
+    sim.runUntil(`day > ${d}`, { maxSteps: 200000, tickEvery: 2, onTick: (G) => {
+      if (+G("tmin") > 19 * 60 + 30 && +G("lastRentDay") !== +G("day")) G("coins = totalRent() + 5;");
+    } });
+  }
   const owed = +sim.G("backPayDue()");
   if (!(owed > 0)) return "the fixture never missed a payday, so there is nothing to borrow for";
   if (owed > +sim.G("creditLimit()"))
@@ -10879,12 +10970,14 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // drink-errand arrival, day 1 tmin 1182): SUDSY 440 -> 436, four grains
   // west; coins and every wallet identical. rep is raw millirep here.
   // RE-BASELINED for NEURO AGENTS (the live crab brain; traced NIPPY head,
-  // seed 1337 T=1358 - see the frozen day-2 fingerprint's receipt). The
-  // scenario's own claim is UNCHANGED and still proven: a save without a
-  // cultures key loads onto exactly the trajectory a fresh boot walks.
-  const want = '{"day":3,"coins":14883,"rep":58433,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,23912],["REEF",646,26988],["SALTY",2072,100],'
-    + '["DRIFT",318,0],["KELP",450,2000]],"vis":9,"catch":2}';
+  // seed 1337 T=1358) and again for THE CRAB RETRAIN (the same head
+  // uncrossing, plus seed 4242's FLO at T=1059 - see the frozen day-2
+  // fingerprint's receipt). The scenario's own claim is UNCHANGED and still
+  // proven: a save without a cultures key loads onto exactly the trajectory a
+  // fresh boot walks.
+  const want = '{"day":3,"coins":14908,"rep":49696,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,20858],["REEF",2136,20924],["SALTY",2072,300],'
+    + '["DRIFT",464,700],["KELP",450,2800]],"vis":7,"catch":3}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
@@ -11597,7 +11690,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1857, 2: 2265 };   // re-pointed for NEURO AGENTS behind the traced NIPPY head (think 9, T=1358: the brain sends her to the hotel, the script's drink draw and its knock-ons leave the day) - was 1861/2399 at the 3a re-baseline (SUDSY's drink-errand arrival, tmin 1182); the count is still THE SPEC, only its holder changed
+  const PIN = { 1: 1863, 2: 1096 };   // re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -11626,6 +11719,15 @@ scenario("brains: the shipped crab artifact agrees with the scorer it distilled"
   // stream perturbation. MUTATION: zeroing w2 collapses the brain to a
   // constant class and this fails at ~30%; the floor is set from the
   // shipped artifact's measured in-town rate with headroom for seed noise.
+  //
+  // WHAT THE SHIPPED ARTIFACT ACTUALLY READS HERE, so a future retrain can
+  // see the margin it is spending: the v3 crab brain agrees with its teacher
+  // on 98.21% of these 727 thinks (the v2 brain read 96.70%, the v1 spike's
+  // in-town figure was 96.70% too). In a growth town (seed 1337, chef+table,
+  // six days, 1,156 thinks) it reads 98.36% against v2's 95.67%, and the
+  // disagreement anatomy there is the retrain's whole point: ACT-EARLY 31 ->
+  // 0. The floor stays at 90 - it is a floor, not a target, and it is what
+  // catches a lobotomy rather than a personality.
   const FLOOR = 0.90;
   const sim = createSim({ seed: 4242 });
   sim.G(`BRAINS.crab["vis_pick.candidate"].mode = "shadow"`);
@@ -12192,8 +12294,16 @@ scenario("load: the furniture forgets its guests, and the BIT is where it forget
   // leaves a fresh morning opening onto a hotel that only the kernel can see
   // as full - the bit is the half the kernel reads.
   const s = createSim({ seed: 4242 });
-  s.runDays(6);                       // long enough to seat guests and let rooms
   const occupied = `(() => { let n = 0; for (let i = 0; i < FT_FLG.length; i++) if (FT_FLG[i] & 1) n++; return n; })()`;
+  s.runDays(6);                       // long enough to seat guests and let rooms
+  // ...and then WAIT FOR A GUEST rather than betting on one. Six days used to
+  // land on an occupied midnight every time; under the retrained crab brain
+  // seed 4242 reads 6,3,7,7,7,0,8,7 across its first eight midnights - day 7
+  // is simply the one nobody stayed over, and a staging that flips on which
+  // midnight it stops at is measuring the wrong thing. The claim is about the
+  // LOAD PATH clearing the occupancy bit; all it needs is a bit to clear.
+  if (!+s.G(occupied) && !s.runUntil(`${occupied} > 0`, { maxSteps: 400000 }))
+    return "staging failed: nothing in town was ever occupied";
   const before = +s.G(occupied);
   if (before < 1) return "staging failed: nothing in town was occupied after six days";
   // a DIFFERENT town's envelope, landed on top

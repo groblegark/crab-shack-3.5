@@ -9,7 +9,8 @@
 //
 // or as a CLI:
 //   node tools/neuro/distill.mjs --culture gull --doc design/cultureways/gullway.json \
-//        [--towns 32] [--days 12] [--hidden 24] [--epochs 25] [--seed 7] [--out artifact.json]
+//        [--towns 32] [--days 12] [--stage v3] [--hidden 24] [--epochs 25] [--seed 7] \
+//        [--lr-decay 0.9] [--none-ratio all] [--class-weights 1,1,1,1,1,1,1] [--out artifact.json]
 //
 // Collection installs the target culture with an arrival override (gate 0,
 // share 0.85) so the labeled species is common in the data — a TRAINING
@@ -42,9 +43,87 @@ function mulberry32(a) {
   };
 }
 
+// THE STAGING RECIPES — what the teacher is asked to teach ABOUT.
+//
+// "Teacher coverage is the training distribution" (the ladder close-out): an
+// observable that never moves in the collection towns is an observable the
+// trained net is BLIND to, and the lever behind it breaks in play. So the
+// staging enumerates the levers the economy actually pulls and makes the data
+// pull them. Both recipes are deterministic per town seed.
+//
+//   "v2"  the price-diverse recipe the shipped v2 artifact was distilled from:
+//         a half/half shopfront split and a third of boards off-default.
+//         Kept so that artifact reproduces from this file forever.
+//   "v3"  five levers instead of one — shopfront mix, boards, hours signs,
+//         wages, and the town's standing. Default.
+export const STAGES = ["v2", "v3"];
+const BIZES = ["shack", "juicebar", "showers", "arcade", "hotel"];
+
+function stagePokes(stage, seed, townIdx) {
+  const prnd = mulberry32(seed ^ 0x9e3779b9);
+  const pokes = [];
+  if (stage === "v2") {
+    if (townIdx % 2) pokes.push(`coins = 500000; tryBuy("arcade"); tryBuy("juicebar"); tryBuy("chef"); tryBuy("table"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "arcade"; rosterGen++`);
+    for (const b of BIZES)
+      if (prnd() < 0.34) pokes.push(`setBizPriceIdx(${JSON.stringify(b)}, ${14 + Math.floor(prnd() * 13)})`);
+    return pokes;
+  }
+  // ---- v3 -----------------------------------------------------------------
+  // LEVER 1, THE SHOPFRONT MIX. v2 ran half bare shacks and half full
+  // promenades, so `stop.open:arcade` was a town-level constant and the table
+  // count never moved. Four profiles and a variable table/menu ladder instead:
+  // juicebar and arcade each exist in some towns and not others, and where
+  // they exist the seating and the menu vary, which is what moves
+  // stop.roomfor and stop.afford.count.
+  // Weighted, not uniform: a class the teacher rarely demonstrates is a class
+  // the net cannot learn, and arcade:fun is the thinnest one in the corpus
+  // (only a promenade town has an arcade at all). One eighth bare, two
+  // kitchen, two juice, three promenade keeps the arcade's share of the rows
+  // near v2's while the bare towns still teach an empty beach.
+  const profile = [0, 1, 1, 2, 2, 3, 3, 3][Math.floor(prnd() * 8)];   // 0 bare, 1 kitchen, 2 juice, 3 promenade
+  const tables = Math.floor(prnd() * 5);             // 0..4 extra tables
+  const grill = prnd() < 0.4 ? 1 : 0, board = prnd() < 0.4 ? 1 : 0;
+  // LEVER 4, THE WAGE, first: a shop that cannot recruit refuses the hire
+  // BEFORE the money moves, so the board has to be set before tryBuy("chef").
+  const wage = 800 + Math.floor(prnd() * 27) * 100;  // the stepper's own 800..3400 band
+  const buys = [`coins = 900000`, `setBizWage("shack", ${wage})`];
+  if (profile >= 1) { buys.push(`tryBuy("chef")`); for (let t = 0; t < tables; t++) buys.push(`tryBuy("table")`); }
+  if (grill) buys.push(`tryBuy("grill")`);
+  if (board) buys.push(`tryBuy("board")`);
+  if (profile === 2 || profile === 3) buys.push(`tryBuy("juicebar")`, `if (crabs[0]) crabs[0].p.job = "juicebar"`);
+  if (profile === 3) buys.push(`tryBuy("arcade")`, `tryBuy("cadegear")`, `if (crabs[1]) crabs[1].p.job = "arcade"`);
+  buys.push(`rosterGen++`);
+  pokes.push(buys.join(";"));
+  // LEVER 2, THE PRICE BOARD (v2's one lever, widened): half the boards sit
+  // off-default across the full 14..26 index, so appeal, afford.count and
+  // taste.best all move, and the hotel's board moves room.price.cents with
+  // them.
+  for (const b of BIZES)
+    if (prnd() < 0.5) pokes.push(`setBizPriceIdx(${JSON.stringify(b)}, ${14 + Math.floor(prnd() * 13)})`);
+  // LEVER 3, THE HOURS SIGN. stop.open was effectively a function of the clock
+  // alone in v2 — one opening time for every town — so the net could learn the
+  // clock and never the sign. Two fifths of the signs move.
+  for (const b of BIZES)
+    if (prnd() < 0.4) {
+      const open = 6 * 60 + Math.floor(prnd() * 9) * 60;
+      const close = Math.min(24 * 60, open + 4 * 60 + Math.floor(prnd() * 11) * 60);
+      pokes.push(`setBizHours(${JSON.stringify(b)}, ${open}, ${close})`);
+    }
+  // LEVER 5, THE TOWN'S STANDING. Reputation sets the arrival volume, so it is
+  // the crowding dial: how often stop.roomfor and room.free read false, and how
+  // deep the queues in front of a stop get.
+  pokes.push(`rep = ${Math.floor(prnd() * 90000)}`);
+  return pokes;
+}
+
+// Math.max(...arr) blows the call stack past ~120k arguments, and a
+// collection is now bigger than that: fold instead of spreading.
+const maxOf = (arr, f) => { let m = -Infinity; for (const v of arr) { const x = f ? f(v) : v; if (x > m) m = x; } return m; };
+
 // ---- collection: the sim labels its own training set -------------------
 export function collectRows({ towns = 32, days = 12, culture = "crab", cultureDoc = null,
-  seedBase = 1337, inputs = INPUTS, onTown = null } = {}) {
+  seedBase = 1337, inputs = INPUTS, onTown = null, stage = "v3" } = {}) {
+  if (!STAGES.includes(stage)) throw new Error(`unknown collection stage "${stage}"; stages are ${STAGES.join(", ")}`);
   const CLS = Object.fromEntries(CLASSES.map((c, i) => [c, i]));
   const rows = [];
   let ticksTotal = 0, thinksTotal = 0;
@@ -57,21 +136,7 @@ export function collectRows({ towns = 32, days = 12, culture = "crab", cultureDo
       delete doc.policies;   // the script teaches; nothing else may decide
       sim.G(`loadCultures({ ${JSON.stringify(culture)}: ${JSON.stringify(doc)} })`);
     }
-    if (i % 2) sim.G(`coins = 500000; tryBuy("arcade"); tryBuy("juicebar"); tryBuy("chef"); tryBuy("table"); crabs[0].p.job = "juicebar"; crabs[1].p.job = "arcade"; rosterGen++;`);
-    // PRICE-DIVERSE STAGING — the lesson the first shipped artifact taught:
-    // every collection town sat at the default board, so stop.appeal never
-    // varied and the trained net was BLIND TO PRICE - it broke the rivalry's
-    // repricing lever (the suite's own sweep caught it). A third of boards
-    // per town now sit off-default across the full 14..26 index range, so
-    // the appeal observable actually moves in the data and the teacher's
-    // lessons cover the lever the economy pulls. Deterministic per town.
-    {
-      const prnd = mulberry32(seed ^ 0x9e3779b9);
-      const pokes = [];
-      for (const b of ["shack", "juicebar", "showers", "arcade", "hotel"])
-        if (prnd() < 0.34) pokes.push(`setBizPriceIdx(${JSON.stringify(b)}, ${14 + Math.floor(prnd() * 13)})`);
-      if (pokes.length) sim.G(pokes.join(";"));
-    }
+    for (const poke of stagePokes(stage, seed, i)) sim.G(poke);
     // THE SCRIPT IS THE TEACHER: disarm every brain in a collection sim, or
     // the live crab artifact decides the thinks and the wrapped reference
     // never runs - the first retrain collected ZERO rows this way. (This
@@ -101,28 +166,67 @@ export function collectRows({ towns = 32, days = 12, culture = "crab", cultureDo
     if (onTown) onTown(i, seed, log.length);
   }
   return {
-    meta: { registryVersion: 1, inputs, classes: CLASSES, culture, towns, days,
+    meta: { registryVersion: 1, inputs, classes: CLASSES, culture, towns, days, stage,
       rows: rows.length, thinksPerTick: +(thinksTotal / Math.max(1, ticksTotal)).toFixed(5) },
     rows,
   };
 }
 
 // ---- training + quantization (the spike's recipe, function-shaped) -----
-export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surface = "vis_pick.candidate" }) {
+//
+// TWO KNOBS THE RETRAIN ADDED, both defaulting to the v2 recipe exactly so
+// the shipped artifact stays reproducible from this file:
+//
+//   noneRatio    how many `none` rows to keep, as a multiple of the largest
+//                minority class. `null` (the default now) keeps EVERY none
+//                row, i.e. trains on the sim's own class prior; `3` is the v2
+//                recipe and reproduces that artifact bit-for-bit.
+//   classWeights per-class loss weights (default: none — all ones), normalized
+//                so the weighted mean over the training set is 1, which keeps
+//                the learning rate comparable across weightings.
+//
+// They are the same lever seen from two sides, and MEASURED (v2 collection,
+// 42->24->7, seed 7, 25 epochs) the downsampling was the whole act-early bias:
+//
+//   noneRatio 3  (v2)  95.711%  373 act-early     <- the shipped brain
+//   noneRatio 6        96.277%  161 act-early
+//   noneRatio 12       96.751%   88 act-early
+//   noneRatio null     96.936%   43 act-early
+//
+// Downsampling `none` shifts the trained posterior away from the sim's prior,
+// and a net that has been told waiting is rarer than it is ACTS where the
+// script waits. Weighting `none` up on top of the v2 sampling buys the same
+// correction (nonew=4 cuts act-early to 167) but costs accuracy, because it
+// distorts the loss instead of restoring the distribution: keeping the rows is
+// strictly the better half of the lever, and the weights stay available for a
+// surface whose classes are genuinely unbalanced in cost.
+export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surface = "vis_pick.candidate",
+  noneRatio = null, classWeights = null, lr0 = 0.05, lrDecay = 0.9 }) {
   const { meta, rows } = data;
   const NF = meta.inputs.length, NC = meta.classes.length, HID = hidden;
   const XS = 1 / 8192;
   const rnd = mulberry32(seed);
-  const maxTown = Math.max(...rows.map((r) => r.town));
+  const maxTown = maxOf(rows, (r) => r.town);
   const heldFrom = Math.floor((maxTown + 1) * 0.75);
   const test = rows.filter((r) => r.town >= heldFrom);
   let train = rows.filter((r) => r.town < heldFrom);
-  const minorMax = Math.max(1, ...Array.from({ length: NC - 1 }, (_, c) => train.filter((r) => r.cls === c + 1).length));
-  const noneKeep = minorMax * 3;
-  const nones = train.filter((r) => r.cls === 0);
-  const keep = new Set();
-  for (let i = 0; i < noneKeep && i < nones.length; i++) keep.add(Math.floor(rnd() * nones.length));
-  train = train.filter((r) => r.cls !== 0).concat(nones.filter((_, i) => keep.has(i)));
+  if (noneRatio != null) {
+    const minorMax = Math.max(1, ...Array.from({ length: NC - 1 }, (_, c) => train.filter((r) => r.cls === c + 1).length));
+    const noneKeep = minorMax * noneRatio;
+    const nones = train.filter((r) => r.cls === 0);
+    const keep = new Set();
+    for (let i = 0; i < noneKeep && i < nones.length; i++) keep.add(Math.floor(rnd() * nones.length));
+    train = train.filter((r) => r.cls !== 0).concat(nones.filter((_, i) => keep.has(i)));
+  }
+  // class weights, mean-normalized over the training set (all-ones is a no-op)
+  const CW = new Array(NC).fill(1);
+  if (classWeights) {
+    for (let c = 0; c < NC; c++) CW[c] = classWeights[c] == null ? 1 : classWeights[c];
+    let s = 0;
+    for (const r of train) s += CW[r.cls];
+    const k = train.length / Math.max(1e-9, s);
+    for (let c = 0; c < NC; c++) CW[c] *= k;
+  }
 
   const w1 = Array.from({ length: HID }, () => Array.from({ length: NF }, () => (rnd() * 2 - 1) * Math.sqrt(2 / NF)));
   const b1 = new Array(HID).fill(0);
@@ -149,7 +253,7 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
   const dw1 = w1.map((r) => r.map(() => 0)), db1 = b1.map(() => 0);
   const dw2 = w2.map((r) => r.map(() => 0)), db2 = b2.map(() => 0);
   for (let ep = 0; ep < epochs; ep++) {
-    const lr = 0.05 * Math.pow(0.9, ep);
+    const lr = lr0 * Math.pow(lrDecay, ep);
     for (let i = train.length - 1; i > 0; i--) {
       const j = Math.floor(rnd() * (i + 1));
       const t = train[i]; train[i] = train[j]; train[j] = t;
@@ -166,8 +270,9 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
         let s = 0;
         for (let o = 0; o < NC; o++) { p[o] = Math.exp(logits[o] - m); s += p[o]; }
         for (let o = 0; o < NC; o++) p[o] /= s;
+        const cw = CW[r.cls];
         for (let o = 0; o < NC; o++) {
-          const g = (p[o] - (o === r.cls ? 1 : 0)) / nb;
+          const g = cw * (p[o] - (o === r.cls ? 1 : 0)) / nb;
           db2[o] += g;
           const wo = dw2[o];
           for (let i = 0; i < HID; i++) wo[i] += g * h[i];
@@ -176,7 +281,7 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
           if (h[i] <= 0) continue;
           let g = 0;
           for (let o = 0; o < NC; o++) g += (p[o] - (o === r.cls ? 1 : 0)) * w2[o][i];
-          g /= nb;
+          g *= cw / nb;
           db1[i] += g;
           const wi = dw1[i];
           for (let j = 0; j < NF; j++) wi[j] += g * r.f[j] * XS;
@@ -196,14 +301,14 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
   }
   // quantize (Q1=11, K1/K2 fitted so max|w| uses the int8 range)
   const Q1 = 11;
-  const max1 = Math.max(...w1.flat().map(Math.abs)) * XS;
+  const max1 = maxOf(w1, (r) => maxOf(r, Math.abs)) * XS;
   let K1 = 0;
   while (Math.round(max1 * 2 ** (K1 + 1)) <= 127) K1++;
   const R1 = K1 - Q1;
   if (R1 < 0) throw new Error(`R1 negative (${R1}) - hidden scale exceeds weight scale`);
   const w1q = w1.map((r) => r.map((v) => Math.max(-127, Math.min(127, Math.round(v * XS * 2 ** K1)))));
   const b1q = b1.map((v) => Math.round(v * 2 ** K1));
-  const max2 = Math.max(...w2.flat().map(Math.abs));
+  const max2 = maxOf(w2, (r) => maxOf(r, Math.abs));
   let K2 = 0;
   while (Math.round(max2 * 2 ** (K2 + 1)) <= 127) K2++;
   const w2q = w2.map((r) => r.map((v) => Math.max(-127, Math.min(127, Math.round(v * 2 ** K2)))));
@@ -214,7 +319,8 @@ export function trainArtifact({ data, hidden = 24, epochs = 25, seed = 7, surfac
     arch: { in: NF, hidden: HID, out: NC },
     shifts: { R1 },
     w1: w1q, b1: b1q, w2: w2q, b2: b2q,
-    provenance: { surface, culture: meta.culture, data: { towns: meta.towns, days: meta.days, rows: meta.rows }, seed, epochs },
+    provenance: { surface, culture: meta.culture, data: { towns: meta.towns, days: meta.days, rows: meta.rows, stage: meta.stage || "v2" }, seed, epochs,
+      noneRatio, lrDecay, ...(classWeights ? { classWeights } : {}) },
   };
   const held = verifyArtifact(artifact, { rows: test });
   artifact.provenance.heldout = held;
@@ -258,13 +364,17 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const cultureDoc = docPath ? JSON.parse(readFileSync(docPath, "utf8")) : null;
   const data = collectRows({
     towns: parseInt(opt("--towns", "32")), days: parseInt(opt("--days", "12")),
-    culture, cultureDoc,
+    culture, cultureDoc, stage: opt("--stage", "v3"),
     onTown: (i, seed, n) => process.stderr.write(`town ${i} (${seed}): ${n} ${culture} thinks\n`),
   });
   console.log(JSON.stringify(data.meta));
+  const nr = opt("--none-ratio", "all");   // "all" = the sim's own class prior
   const { artifact, heldout, trainRows } = trainArtifact({
     data, hidden: parseInt(opt("--hidden", "24")),
     epochs: parseInt(opt("--epochs", "25")), seed: parseInt(opt("--seed", "7")),
+    lrDecay: parseFloat(opt("--lr-decay", "0.9")),
+    noneRatio: nr === "all" ? null : parseFloat(nr),
+    classWeights: opt("--class-weights", null) ? opt("--class-weights").split(",").map(Number) : null,
   });
   console.log(`trained on ${trainRows} rows; held-out agreement ${(heldout.agree * 100).toFixed(2)}% over ${heldout.n}`);
   const out = opt("--out", `tools/neuro/receipts/brain-${culture}.json`);
