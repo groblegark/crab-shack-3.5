@@ -297,8 +297,10 @@ return { dayRows, wall, labour, lifetime: G("$d(lifetime)"), stats: G("JSON.stri
 // `--_worker <seed>` runs one seed and sends the result back to the parent.
 const WORKER_SEED = opt("_worker", null);
 if (WORKER_SEED != null) {
-  process.send(runOnce(parseInt(WORKER_SEED)));
-  process.exit(0);
+  // exit in send's flush callback: a large payload (the science probes'
+  // divergence corpus) is not guaranteed on the wire when send() returns,
+  // and exiting first silently drops it ("worker failed (exit 0)").
+  process.send(runOnce(parseInt(WORKER_SEED)), () => process.exit(0));
 }
 
 // ---- seed matrix: sequential (--jobs 1) or a pool of forked workers ------
