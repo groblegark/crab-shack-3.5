@@ -6697,7 +6697,7 @@ const SAVE_KEY = "crabshack3_v1";        // the legacy single-slot key: migratio
 // 2 = the cents era (numeric slice 1). A cents save read by a pre-cents build
 // would inflate every balance a hundredfold; that build's own "FROM A NEWER
 // CRAB SHACK" gate is exactly the refusal needed, so the bump IS the guard.
-const SAVE_VER = 3;
+const SAVE_VER = 4;   // 4: personas may carry dm/dr (dream-replay rung 0); a ver-3 save is the zero delta
 const SLOTS = 5;
 const ACTIVE_KEY = SAVE_KEY + "_active";
 function slotKey(i) { return SAVE_KEY + "_s" + i; }
@@ -7247,6 +7247,44 @@ const NEURO_OBSERVABLES = {
   "room.wants":         { units: "flag*4096", read: (k) => nclamp((wantsRoom(k) ? 1 : 0) * 4096) },
   "room.free":          { units: "flag*4096", read: () => nclamp((freeRoom() ? 1 : 0) * 4096) },
   "room.price.cents":   { units: "cents<<3", read: () => nclamp((roomPrice() | 0) * 8) },
+  // THE CITIZEN BLOCK (cit_errand.candidate): readers take the CREW object c,
+  // not a visitor - a resident's needs live on c.p and their day has shape a
+  // guest's does not (shifts, wages, the ballot). Same registry, same version:
+  // adding names is additive, and an artifact only reads what it declared.
+  // Every read is an existing integer the teacher itself consults.
+  "citizen.hunger.q20": { units: "Q20>>6",   read: (c) => nclamp(Math.floor((c.p.hunger || 0) / 64)) },
+  "citizen.thirst.q20": { units: "Q20>>6",   read: (c) => nclamp(Math.floor((c.p.thirst || 0) / 64)) },
+  "citizen.dirt.q20":   { units: "Q20>>6",   read: (c) => nclamp(Math.floor((c.p.dirt || 0) / 64)) },
+  "citizen.bored.q20":  { units: "Q20>>6",   read: (c) => nclamp(Math.floor((c.p.bored || 0) / 64)) },
+  "citizen.tired.q20":  { units: "Q20>>6",   read: (c) => nclamp(Math.floor((c.p.tired || 0) / 64)) },
+  "citizen.wallet.cents": { units: "cents",  read: (c) => nclamp(c.p.wallet | 0) },
+  "citizen.away":       { units: "flag*4096", read: (c) => nclamp((awayToday(c) ? 1 : 0) * 4096) },
+  "citizen.sick":       { units: "flag*4096", read: (c) => nclamp((c.p.sick ? 1 : 0) * 4096) },
+  "citizen.duty":       { units: "flag*4096", read: (c) => nclamp((c.duty ? 1 : 0) * 4096) },
+  "citizen.working":    { units: "flag*4096", read: (c) => nclamp((c.dsC === DS.working ? 1 : 0) * 4096) },
+  // floored BEFORE the shift: leaveGmin can carry a fractional walk-time
+  // minute, and the registry's contract is integers in [0, 32767] - the
+  // wasm cross-check leg is what caught a 714.666 leaking through here.
+  "citizen.shift.end.rel":   { units: "min<<4", read: (c) => nclamp(Math.floor(Math.max(0, effShift(c).end - tmin)) * 16) },
+  "citizen.shift.leave.rel": { units: "min<<4", read: (c) => nclamp(Math.floor(Math.max(0, leaveGmin(c) - tmin)) * 16) },
+  "citizen.wage.gripe.q20":  { units: "Q20>>6", read: (c) => nclamp(Math.floor((wageGripe(c) || 0) / 64)) },
+  "citizen.home.dist.px":    { units: "px<<3",  read: (c) => nclamp(Math.floor(Math.abs(c.x - homeX(c)) * 8)) },
+  "citizen.ball.players":    { units: "n<<10",  read: () => nclamp(ballPlayers().length * 1024) },
+  "citizen.ball.cd":         { units: "ticks",  read: (c) => nclamp(c.ballCd | 0) },
+  "citizen.ball.dist.px":    { units: "px<<3",  read: (c) => nclamp(Math.floor(Math.abs(c.x - BALL_X) * 8)) },
+  "citizen.job.shack":       { units: "flag*4096", read: (c) => nclamp((c.p.job === "shack" ? 1 : 0) * 4096) },
+  "citizen.job.juicebar":    { units: "flag*4096", read: (c) => nclamp((c.p.job === "juicebar" ? 1 : 0) * 4096) },
+  "citizen.npc":             { units: "flag*4096", read: (c) => nclamp((c.p.npc ? 1 : 0) * 4096) },
+  "citizen.nudge.live":      { units: "flag*4096", read: (c) => nclamp((nudgeLive(c) ? 1 : 0) * 4096) },
+  "citizen.poll.open":       { units: "flag*4096", read: () => nclamp((pollOpen() ? 1 : 0) * 4096) },
+  "citizen.voted":           { units: "flag*4096", read: (c) => nclamp((hasVoted(c) ? 1 : 0) * 4096) },
+  "citizen.pot.warm":        { units: "flag*4096", read: () => nclamp((potWarm() ? 1 : 0) * 4096) },
+  "citizen.tap.dist.px":     { units: "px<<3", read: (c) => { let m = 32767;
+    for (let i = 0; i < WATER_TAPS.length; i++) { const d = Math.floor(Math.abs(c.x - WATER_TAPS[i].x) * 8); if (d < m) m = d; }
+    return nclamp(m); } },
+  "citizen.poll.dist.px":    { units: "px<<3", read: (c) => { let m = 32767;
+    for (let i = 0; i < POLL_PLACES.length; i++) { const d = Math.floor(Math.abs(c.x - POLL_PLACES[i].x) * 8); if (d < m) m = d; }
+    return nclamp(m); } },
 };
 // Parameterized (derived) observables, name:stop — the derivation is the
 // registry's own code (trusted, versioned), the document only picks the stop.
@@ -7260,6 +7298,12 @@ const NEURO_PARAM_OBS = {
   "stop.taste.best": { units: "tasteW*2048 over affordable",
     read: (b) => (k, res) => nclamp(Math.floor(bizRecipes(b).reduce((m, r) =>
       k.wallet >= menuPrice(b, r) + res ? Math.max(m, tasteW(k, r)) : m, 0) * 2048)) },
+  // ...and the citizen-priced trio: a resident pays localPrice, not the
+  // tourist menu, and reads staffing where a guest reads opening hours.
+  "cit.staffed":      { units: "flag*4096", read: (b) => () => nclamp((bizStaffed(b) ? 1 : 0) * 4096) },
+  "cit.afford.count": { units: "n<<10",
+    read: (b) => (c) => nclamp(bizRecipes(b).filter(r => c.p.wallet >= localPrice(b, r) + 200).length * 1024) },
+  "cit.dist.px":      { units: "px<<3", read: (b) => (c) => nclamp(Math.floor(Math.abs(c.x - BIZ[b].queueX) * 8)) },
 };
 // THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
 // with its declared output space. An artifact's classes must EQUAL the
@@ -7268,6 +7312,15 @@ const NEURO_SURFACES = {
   "vis_pick.candidate": {
     classes: ["none", "shack:food", "juicebar:drink", "shack:drink",
       "showers:clean", "arcade:fun", "hotel:room"],
+  },
+  // THE CITIZEN SURFACE: pickErrand's whole census of take() calls, one class
+  // per distinct kind of stop. THIRTEEN, not the design doc's sketched twelve:
+  // the census the doc said to take turned up selfcook:drink (the barkeep's
+  // own pour at a dark bar), and the census is the authority.
+  "cit_errand.candidate": {
+    classes: ["none", "shack:food", "selfcook:food", "soup:food",
+      "juicebar:drink", "shack:drink", "selfcook:drink", "tap:drink",
+      "showers:clean", "tap:clean", "arcade:fun", "ball:fun", "vote:vote"],
   },
 };
 // Resolve a declared pick list into reader functions, or throw the loud error.
@@ -7295,6 +7348,14 @@ function neuroResolve(picks) {
 function neuroVector(k, readers, out) {
   const res = roomReserve(k);
   for (let i = 0; i < readers.length; i++) out[i] = readers[i](k, res);
+  return out;
+}
+// The citizen assembly: no room reserve (a resident is not holding a bed
+// deposit), the actor is the CREW object. A citizen artifact declares
+// citizen.*/cit.* names; a misdeclared visitor name reads undefined-as-0
+// through nclamp - garbage a hostile file feeds only to itself.
+function neuroVectorCit(c, readers, out) {
+  for (let i = 0; i < readers.length; i++) out[i] = readers[i](c, 0);
   return out;
 }
 // THE HOSTILE-FILE NUMBERS, enforced at the door with the offending number
@@ -7365,10 +7426,43 @@ function buildBrain(sid, p) {
     }
     return best;
   };
+  // THE DELTA-AWARE CLASSIFIER (dream-replay rung 0). Effective logit
+  // L = base*256 + (delta's own last-layer pass): one w2d unit is 1/256 of a
+  // backbone weight, so the int8 clamp bounds a lifetime of dreaming to under
+  // half a backbone weight per connection - the storage type is the sanity
+  // rail. Everything stays exact in doubles: |base|*256 < 2^36, the delta
+  // pass < 2^31, so L < 2^37 « 2^53. dm null (or zero-filled) reproduces the
+  // backbone argmax exactly - base*256 is monotone - which is what lets a
+  // pre-delta save load as the shipped culture brain, bit for bit.
+  const classifyD = function (fv, dm) {
+    for (let i = 0; i < a.hidden; i++) {
+      let acc = p.b1[i];
+      const wi = p.w1[i];
+      for (let j = 0; j < a.in; j++) acc += wi[j] * fv[j];
+      acc = acc >> R1;
+      hi[i] = acc < 0 ? 0 : acc > 32767 ? 32767 : acc;
+    }
+    let best = 0, bestV = -9007199254740991;
+    for (let o = 0; o < a.out; o++) {
+      let acc = p.b2[o];
+      const wo = p.w2[o];
+      for (let i = 0; i < a.hidden; i++) acc += wo[i] * hi[i];
+      let L = acc * 256;
+      if (dm) {
+        let d = dm.b[o];
+        const off = o * a.hidden, dw = dm.w;
+        for (let i = 0; i < a.hidden; i++) d += dw[off + i] * hi[i];
+        L += d;
+      }
+      logits[o] = L;
+      if (L > bestV) { bestV = L; best = o; }
+    }
+    return best;
+  };
   // inputs/w1/b1/w2/R1 ride along for the BRAIN INSPECTOR (drawBrainPanel):
   // pure references to data already held by the closure, read by the view
   // only - nothing in the sim enumerates this object's keys.
-  return { mode: p.mode || "live", readers, classify, logits, f, classes: p.classes, classIdx,
+  return { mode: p.mode || "live", readers, classify, classifyD, logits, f, classes: p.classes, classIdx,
     inputs: p.inputs, arch: p.arch, w1: p.w1, b1: p.b1, w2: p.w2, R1: p.shifts.R1 };
 }
 // cultureId -> { surfaceId: builtBrain }. Rebuilt by loadCultures alongside
@@ -7619,6 +7713,20 @@ function tasteW(k, recipe) {
   return typeof w === "number" ? w : 1;
 }
 
+// A persona's dream-replay temperament (dm: last-layer delta, rung 0) is
+// weights-grade data and gets weights-grade checks: int8 rows, int32 biases,
+// hostile-file caps, the offending number in the message. Shape-vs-artifact
+// is the LOAD door's job (the live brain isn't known here); ranges are this
+// one's. Absent is fine - absent IS the zero delta.
+function deltaProblem(dm) {
+  if (dm == null) return null;
+  if (typeof dm !== "object" || Array.isArray(dm)) return "A TEMPERAMENT ISN'T A DELTA";
+  if (!Array.isArray(dm.w) || dm.w.length > 8192) return "A TEMPERAMENT'S w IS " + (Array.isArray(dm.w) ? dm.w.length + " ROWS, MAX 8192" : "NOT AN ARRAY");
+  if (!Array.isArray(dm.b) || dm.b.length > 64) return "A TEMPERAMENT'S b IS " + (Array.isArray(dm.b) ? dm.b.length + " ROWS, MAX 64" : "NOT AN ARRAY");
+  for (const v of dm.w) if (!(Number.isInteger(v) && v >= -128 && v <= 127)) return "A TEMPERAMENT WEIGHT READS " + v + " - int8 ONLY";
+  for (const v of dm.b) if (!(Number.isInteger(v) && v >= -2147483648 && v <= 2147483647)) return "A TEMPERAMENT BIAS READS " + v + " - int32 ONLY";
+  return null;
+}
 // The one gate every save passes - stored, migrated or imported. Returns null
 // when the blob really is a CRAB SHACK 3 town, else a short reason to show on
 // canvas. Nothing in the game may be mutated before this says yes.
@@ -7626,8 +7734,12 @@ function saveProblem(s) {
   if (!s || typeof s !== "object" || Array.isArray(s)) return "NOT A SAVE FILE";
   if (s._ver != null && (typeof s._ver !== "number" || s._ver > SAVE_VER)) return "FROM A NEWER CRAB SHACK";
   if (!Array.isArray(s.personas) || !s.personas.length) return "NO CREW - NOT A CRAB SHACK 3 SAVE";
-  for (const p of s.personas)
+  for (const p of s.personas) {
     if (!p || typeof p !== "object" || typeof p.name !== "string") return "THE CREW RECORD IS DAMAGED";
+    const why = deltaProblem(p.dm);
+    if (why) return why;
+    if (p.dr != null && !(Number.isInteger(p.dr) && p.dr >= 0 && p.dr <= 4294967295)) return "A DREAM CURSOR IS OUT OF RANGE";
+  }
   if (s.day != null && (typeof s.day !== "number" || !isFinite(s.day) || s.day < 1)) return "BAD DAY COUNTER";
   if (s.coins != null && (typeof s.coins !== "number" || !isFinite(s.coins))) return "BAD TILL";
   return null;
@@ -8431,6 +8543,23 @@ function load(slot, envIn) {
   // CULTUREWAYS read BEFORE the visitors below, so a record's color/acc
   // clamps can check the tables it actually indexes (CS3.5 step 1)
   loadCultures(s.cultures);
+  // THE TEMPERAMENT DOOR (dream-replay rung 0). Ranges passed saveProblem;
+  // here, with the brains actually built, each persona's delta is checked
+  // against the artifact it would ride. A mismatch is STRIPPED LOUDLY with
+  // both shapes named - the crab keeps her life and loses only a temperament
+  // sized for a brain this town no longer runs (the registryVersion rule,
+  // applied to the delta). Absent deltas are the zero delta and cost nothing.
+  for (const c of allCrabs()) {
+    const dm = c.p && c.p.dm;
+    if (!dm) continue;
+    const bp = citBrainOf(c);
+    const want = bp ? bp.arch.out * bp.arch.hidden : 0;
+    if (!bp || dm.w.length !== want || dm.b.length !== bp.arch.out) {
+      toast = { text: "A TEMPERAMENT DIDN'T FIT - " + (c.p.name || "?") + " CARRIES " + dm.w.length
+        + " WEIGHTS, THE BRAIN TAKES " + want, t: 8 };
+      delete c.p.dm; delete c.p.dr;
+    }
+  }
   // FOODWAYS: what the town's kitchens learned and what its departure cards
   // taught. Clamped strings; unknown dish ids survive verbatim (WAD
   // fall-through - a save that names a culture we don't hold keeps its
@@ -9761,6 +9890,14 @@ function pickErrand(c) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
+  // THE CITIZEN BRAIN SEAM (cit_errand.candidate). Candidates and their draws
+  // are already banked above, whoever decides - the brain replaces only the
+  // scorer, the brainVisPick idiom verbatim. Live: the brain picks the CLASS,
+  // the script's own score still picks the instance within it (nearest tap,
+  // nearest table - the two-post idiom stays geometry's). Shadow: the script
+  // decides, the brain watches, only a harness tally moves.
+  const bp = citBrainOf(c);
+  if (bp && bp.mode === "live" && !citEngineOwned(c, cand)) return brainCitPick(c, cand, bp);
   let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
   // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
   // slice 4): strict > means the FIRST candidate at a score keeps it, and the
@@ -9771,6 +9908,7 @@ function pickErrand(c) {
     const s = errandScore(c, e);
     if (ratGt(s.n, s.d, bestN, bestD)) { bestN = s.n; bestD = s.d; best = e; }
   }
+  if (bp && bp.mode === "shadow") shadowCitObserve(c, cand, bp, best);
   return best;
 }
 function startSelfCook(c, e) {
@@ -12085,6 +12223,93 @@ function shadowObserve(k, bp, e) {
   if (cls === actual) s.agree++;
   else if (s.ring.length < 16) s.ring.push({ t: T, want: bp.classes[cls], got: bp.classes[actual] });
 }
+// -------------------------------------------------- the citizen mind
+// One string vocabulary between a candidate and a class, like errandTag is
+// for nudges: derived from the take() fields, so it cannot drift from
+// pickErrand's own census without policyProblem noticing the class list.
+function citErrandClass(e) {
+  if (e.vote) return "vote:vote";
+  if (e.ball) return "ball:fun";
+  if (e.soup) return "soup:food";
+  if (e.tap != null) return "tap:" + e.need;
+  if (e.selfCook) return "selfcook:" + e.need;
+  return (e.biz || "shack") + ":" + e.need;
+}
+function citBrainOf(c) {
+  const b = BRAINS[(c.p && c.p.culture) || "crab"];
+  return (b && b["cit_errand.candidate"]) || null;
+}
+// THE ENGINE-OWNED REGIME. Two rules were never up for learning, and the
+// live flip's own suite run is the receipt (14 scenarios named them): the
+// DIRE desperation fast-path (errandScore's "walk it, wherever it is" - a
+// brain that hesitates at DIRE re-breaks the dehydration line SUDSY's whole
+// saga measured), and the DROP NUDGE (the player's thumb is an ORDER-shaped
+// signal, not a taste to be second-guessed). When either regime is on the
+// board, the script scores; the brain governs the ordinary day. Draw-free
+// either way, so the lockstep receipt holds whoever decides.
+function citEngineOwned(c, cand) {
+  // ...and the SICK regime whole: illness is the mortality ladder, and every
+  // rung of its care (the soup's gates, the rinse, "a starving sick crab
+  // eats") was measured to the percent. Life-support is not a personality.
+  if (c.p.sick) return true;
+  for (const e of cand) {
+    if (needLevel(c, e.need || "food") >= DIRE) return true;
+    if (nudgeMatch(c, e)) return true;
+  }
+  return false;
+}
+// The actor's own temperament, if her save carries one (dream-replay rung 0:
+// zero-filled this era, trained at sleep in rung 3). Shape-guarded against
+// the LIVE brain here - the belt; the loud strip happens at the load door.
+function citDelta(c, bp) {
+  const dm = c.p.dm;
+  if (!dm || !Array.isArray(dm.w) || !Array.isArray(dm.b)) return null;
+  if (dm.w.length !== bp.arch.out * bp.arch.hidden || dm.b.length !== bp.arch.out) return null;
+  return dm;
+}
+// LIVE: the brain ranks the classes; within the winning class the script's
+// own exact-rational score still picks the instance, so the nearest tap and
+// the nearest ballot table stay the town's choice, not the net's. A candidate
+// the script refuses outright (the DETOUR_MAX morning rule's n<0) is not a
+// candidate for the brain either - clamps are engine-owned.
+function brainCitPick(c, cand, bp) {
+  neuroVectorCit(c, bp.readers, bp.f);
+  bp.classifyD(bp.f, citDelta(c, bp));
+  let best = null, bestL = bp.logits[0];   // class 0 = none, the sitting champion
+  for (let ci = 1; ci < bp.classes.length; ci++) {
+    if (bp.logits[ci] <= bestL) continue;   // ties: the earlier class keeps it
+    let e = null, eN = 0, eD = 1;
+    for (const cd of cand) {
+      if (bp.classIdx[citErrandClass(cd)] !== ci) continue;
+      const s = errandScore(c, cd);
+      if (s.n < 0) continue;
+      if (!e || ratGt(s.n, s.d, eN, eD)) { e = cd; eN = s.n; eD = s.d; }
+    }
+    if (!e) continue;                       // the brain wants what the day can't offer
+    bestL = bp.logits[ci]; best = e;
+  }
+  brainTvCapture(c, bp, best ? bp.classIdx[citErrandClass(best)] : 0);
+  return best;
+}
+// SHADOW: same inertness contract as shadowObserve - reads declared
+// observables, writes a harness tally and spectator telemetry, zero draws.
+function shadowCitObserve(c, cand, bp, best) {
+  neuroVectorCit(c, bp.readers, bp.f);
+  const cls = bp.classifyD(bp.f, citDelta(c, bp));
+  const actual = best ? (bp.classIdx[citErrandClass(best)] != null ? bp.classIdx[citErrandClass(best)] : 0) : 0;
+  brainTvCapture(c, bp, actual);
+  const all = window._shadowStats = window._shadowStats || {};
+  const cul = all[(c.p && c.p.culture) || "crab"] = all[(c.p && c.p.culture) || "crab"] || {};
+  const s = cul["cit_errand.candidate"] = cul["cit_errand.candidate"] || { n: 0, agree: 0, acted: 0, actedAgree: 0, ring: [] };
+  s.n++;
+  if (cls === actual) s.agree++;
+  else if (s.ring.length < 16) s.ring.push({ t: T, want: bp.classes[cls], got: bp.classes[actual] });
+  // the acted tally, because this surface's prior is ~97% "none": a
+  // lobotomized constant-none brain BEATS a plain agreement floor here, so
+  // the floor that catches a lobotomy is agreement ON THE THINKS THE
+  // TEACHER ACTED ON - measured by mutation, not assumed.
+  if (actual !== 0) { s.acted++; if (cls === actual) s.actedAgree++; }
+}
 // THE COMPILED SCORER's marshal + drain (kernel phase 4). Fills the per-think
 // planes with the same facts the reference reads - the taste row is the
 // Layer-0 cultureway hook table crossing the boundary as pure data - calls
@@ -13566,7 +13791,11 @@ cv.addEventListener("click", (ev) => {
     }
     if (tapSendChip(p)) return;   // the SEND chip sits on the card: it is tested before the card opens
     // the MIND> chip too - same rule, first refusal over the card-opens-dossier tap
-    if (sel && brainOf(sel) && p.x >= 5 && p.x < 32 && p.y >= 51 && p.y < 59) { brainTv = !brainTv; sfx.ding(); return; }
+    // (a resident's chip sits at x36, one slot past SEND; a visitor's at x5)
+    if (sel && brainOf(sel)) {
+      const mx = sel.p ? 36 : 5;
+      if (p.x >= mx && p.x < mx + 27 && p.y >= 51 && p.y < 59) { brainTv = !brainTv; sfx.ding(); return; }
+    }
     if (sel && p.x >= 2 && p.x < 130 && p.y >= 2 && p.y < 60) { dossier = sel; sfx.ding(); return; }
   }
   // the little sun: fast-forward to morning
@@ -14958,6 +15187,12 @@ function drawFollowCard() {
   text(ctx, fitText(p.name, moodX - 32), 29, 5, [40, 30, 40]);
   smallText(ctx, mood, moodX, 6, mcol);
   smallText(ctx, "MORE>", 126 - smallTextWidth("MORE>"), 52, [150, 140, 160]);   // its own row: the need bars own y44-49
+  // the resident's door to the brain inspector: SEND owns x4-34 on this card,
+  // so the MIND> chip takes the next slot over - same row, same idiom
+  if (brainOf(c)) {
+    rect(ctx, 36, 51, 27, 8, brainTv ? [190, 120, 230] : [60, 45, 80]);
+    smallText(ctx, "MIND>", 38, 52, [255, 255, 255]);
+  }
   smallText(ctx, TRAITS[p.trait].label + " " + MODES[p.mode].label, 29, 13, [120, 90, 60]);
   smallText(ctx, crabStatus(c).slice(0, 26), 29, 21, [30, 110, 60]);
   // SHIFT reads the hours they ACTUALLY work today, so an OT day shows the
@@ -15028,10 +15263,25 @@ const BRAINTV_CLS = {   // surface classes -> [label, meter color]
   "showers:clean":  ["A WASH",      [96, 170, 220]],
   "arcade:fun":     ["THE CADE",    [190, 120, 230]],
   "hotel:room":     ["A BED",       [96, 200, 120]],
+  // the citizen surface's own stops (shared names above keep their meters)
+  "selfcook:food":  ["STAFF MEAL",  [235, 160, 60]],
+  "soup:food":      ["THE POT",     [200, 140, 90]],
+  "selfcook:drink": ["STAFF POUR",  [235, 200, 90]],
+  "tap:drink":      ["THE TAP",     [80, 200, 190]],
+  "tap:clean":      ["A RINSE",     [96, 170, 220]],
+  "ball:fun":       ["THE BALL",    [190, 120, 230]],
+  "vote:vote":      ["THE BALLOT",  [96, 200, 120]],
 };
-// a thinker = a selected VISITOR whose culture ships a vis_pick brain
+// a thinker = a selected VISITOR whose culture ships a vis_pick brain, or a
+// selected RESIDENT whose culture ships a citizen brain - the panel is the
+// same instrument either way, THE MIND OF PINCH beside THE MIND OF MAUDE.
 function brainOf(k) {
-  if (!k || k.p || !k.visitor) return null;
+  if (!k) return null;
+  if (k.p) {
+    const b = BRAINS[k.p.culture || "crab"];
+    return (b && b["cit_errand.candidate"]) || null;
+  }
+  if (!k.visitor) return null;
   const b = BRAINS[k.culture || "crab"];
   return (b && b["vis_pick.candidate"]) || null;
 }
@@ -15061,6 +15311,31 @@ function brainTvObs(name, v) {
     case "stop.dist.px":       return [stop + " AWAY", ((v / 8) | 0) + "PX"];
     case "stop.appeal.q16":    return [stop + " PRICES", "X" + (v * 8 / 65536).toFixed(2)];
     case "stop.taste.best":    return [stop + " TASTE", (v / 2048).toFixed(1)];
+    case "citizen.hunger.q20": return ["HUNGER", pct];
+    case "citizen.thirst.q20": return ["THIRST", pct];
+    case "citizen.dirt.q20":   return ["GRIME", pct];
+    case "citizen.bored.q20":  return ["BOREDOM", pct];
+    case "citizen.tired.q20":  return ["WEARINESS", pct];
+    case "citizen.wallet.cents": return ["WALLET", "$" + $d(v)];
+    case "citizen.away":       return ["DAY OFF", yn];
+    case "citizen.sick":       return ["POORLY", yn];
+    case "citizen.duty":       return ["ON DUTY", yn];
+    case "citizen.working":    return ["AT WORK", yn];
+    case "citizen.shift.end.rel":   return ["SHIFT LEFT", ((v / 16) | 0) + "M"];
+    case "citizen.shift.leave.rel": return ["LEAVES IN", ((v / 16) | 0) + "M"];
+    case "citizen.wage.gripe.q20":  return ["WAGE GRIPE", pct];
+    case "citizen.home.dist.px":    return ["HOME AWAY", ((v / 8) | 0) + "PX"];
+    case "citizen.ball.players":    return ["BALL GAME", ((v / 1024) | 0) + " IN"];
+    case "citizen.ball.cd":         return ["BALL REST", "" + v];
+    case "citizen.nudge.live":      return ["THE THUMB", yn];
+    case "citizen.poll.open":       return ["POLLS OPEN", yn];
+    case "citizen.voted":           return ["HAS VOTED", yn];
+    case "citizen.pot.warm":        return ["POT WARM", yn];
+    case "citizen.tap.dist.px":     return ["TAP AWAY", ((v / 8) | 0) + "PX"];
+    case "citizen.poll.dist.px":    return ["POLL AWAY", ((v / 8) | 0) + "PX"];
+    case "cit.staffed":        return [stop + " STAFFED", yn];
+    case "cit.afford.count":   return [stop + " AFFORDS", ((v / 1024) | 0) + " DISHES"];
+    case "cit.dist.px":        return [stop + " AWAY", ((v / 8) | 0) + "PX"];
     default:                   return [name.toUpperCase().slice(0, 12), "" + v];
   }
 }
@@ -15089,7 +15364,7 @@ function drawBrainPanel() {
   const bp = brainOf(sel);
   if (!bp) {   // honest about what it needs, in its own voice
     frame(16);
-    smallText(ctx, sel && !sel.p ? "RUNS ON INSTINCT - NO BRAIN" : "SELECT A VISITOR TO SEE A MIND",
+    smallText(ctx, sel ? "RUNS ON INSTINCT - NO BRAIN" : "SELECT SOMEBODY TO SEE A MIND",
       px + 5, py + 5, [150, 140, 160]);
     return;
   }
@@ -15099,8 +15374,11 @@ function drawBrainPanel() {
     smallText(ctx, "HASN'T HAD A THOUGHT YET", px + 5, py + 5, [150, 140, 160]);
     return;
   }
-  frame(104);
-  smallText(ctx, fitSmall("THE MIND OF " + sel.name.split(" ")[0], pw - 34), px + 5, py + 4, [225, 215, 255]);
+  // the frame grows with the surface: 7 visitor classes read at the shipped
+  // 104; the citizen's thirteen get six more meter rows of the same 7px
+  const base = py + 19 + bp.classes.length * 7 + 2;
+  frame(104 + (bp.classes.length - 7) * 7);
+  smallText(ctx, fitSmall("THE MIND OF " + ((sel.p ? sel.p.name : sel.name) || "?").split(" ")[0], pw - 34), px + 5, py + 4, [225, 215, 255]);
   if (e.mode === "shadow") smallText(ctx, "SHADOW", px + pw - 4 - smallTextWidth("SHADOW"), py + 4, [235, 200, 90]);
   const ago = Math.max(0, (tmin - e.tmin) | 0);
   smallText(ctx, ago <= 0 ? "THINKING RIGHT NOW" : "LAST THOUGHT " + fmtClock(e.tmin | 0) + " - " + ago + "M AGO",
@@ -15124,20 +15402,20 @@ function drawBrainPanel() {
   // BECAUSE: the three loudest inputs behind the acted class, sign and all
   if (!e.sal) e.sal = brainTvSaliency(bp, e.f, e.acted);
   const order = e.sal.map((c, j) => [Math.abs(c), c, j]).sort((a, b) => b[0] - a[0]);
-  smallText(ctx, "BECAUSE", px + 5, py + 70, [120, 110, 145]);
+  smallText(ctx, "BECAUSE", px + 5, base, [120, 110, 145]);
   for (let r = 0; r < 3 && r < order.length; r++) {
     const [, c, j] = order[r];
     const [lbl, val] = brainTvObs(bp.inputs[j], e.f[j]);
-    const ry = py + 77 + r * 7;
+    const ry = base + 7 + r * 7;
     smallText(ctx, c >= 0 ? "+" : "-", px + 5, ry, c >= 0 ? [96, 200, 120] : [235, 90, 90]);
     smallText(ctx, fitSmall(lbl, 62), px + 11, ry, [180, 170, 205]);
     smallText(ctx, val, px + pw - 4 - smallTextWidth(val), ry, [225, 215, 255]);
   }
   // LATELY: the last sixteen calls, oldest left, in the classes' own colors
-  smallText(ctx, "PAST", px + 5, py + 98, [120, 110, 145]);
+  smallText(ctx, "PAST", px + 5, base + 28, [120, 110, 145]);
   for (let i = 0; i < e.ring.length; i++) {
     const col = (BRAINTV_CLS[bp.classes[e.ring[i]]] || [0, [150, 140, 160]])[1];
-    rect(ctx, px + 25 + i * 6, py + 98, 4, 4, col);
+    rect(ctx, px + 25 + i * 6, base + 28, 4, 4, col);
   }
 }
 

@@ -108,7 +108,8 @@ const TOOLS = [
     description: "Distill a decision surface into a small deterministic integer brain: the sim's reference script labels its own data, a seeded trainer fits and quantizes it, and you get back a policies-section artifact (in SHADOW mode — promote to live yourself) plus agreement receipts. Slow: tens of seconds at defaults.",
     inputSchema: { type: "object",
       properties: {
-        surface: { type: "string", default: "vis_pick.candidate" },
+        surface: { type: "string", default: "vis_pick.candidate",
+          description: "vis_pick.candidate (a visitor's next stop) or cit_errand.candidate (a resident's off-counter life)" },
         culture: { type: "string", default: "crab", description: "whose thinks to learn from; a non-crab culture needs `document`" },
         document: { type: "object", description: "the cultureway document, when culture is not crab" },
         towns: { type: "number", default: 8, description: "capped at 32" },

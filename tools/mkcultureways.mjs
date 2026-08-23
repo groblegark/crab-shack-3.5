@@ -14,6 +14,7 @@ const gull = JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json
 const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v3.json", import.meta.url), "utf8"));
 const crabVoiceSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-voice.json", import.meta.url), "utf8"));
 const crabVoice = { registers: crabVoiceSrc.registers };   // the _comment stays in the fixture
+const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
 // from 48 towns x 14 days with the sim's own class prior intact. On the very
@@ -28,6 +29,12 @@ const crabVoice = { registers: crabVoiceSrc.registers };   // the _comment stays
 // provenance and heldout ride along as documentation the validator ignores.
 const crabPolicies = {
   "vis_pick.candidate": { ...crabBrain, kind: "brain", mode: "live" },
+  // THE CITIZEN MIND (dream-replay rung 1): pickErrand distilled - a
+  // resident's whole off-counter life. Shadow-proven (commit 3418e84: inert
+  // by scenario, 99.82% in-town agreement, acted floor, mutations bitten),
+  // then LIVE with the full fingerprint ceremony + the triple-16 matrix -
+  // the crew make up their own minds now.
+  "cit_errand.candidate": { ...crabCitBrain, kind: "brain", mode: "live" },
 };
 
 const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the island.

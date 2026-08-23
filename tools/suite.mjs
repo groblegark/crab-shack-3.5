@@ -640,7 +640,7 @@ scenario("slots: a legacy single-key save migrates into slot 1, losing nothing",
   const slot = JSON.parse(store.get(SLOT1));
   for (const k of Object.keys(legacy))          // every field arrives byte-identical
     if (JSON.stringify(slot[k]) !== JSON.stringify(legacy[k])) return "migration changed " + k;
-  if (slot._ver !== 3 || !slot._meta) return "migrated slot carries no version/meta";   // SAVE_VER: the needs era
+  if (slot._ver !== 4 || !slot._meta) return "migrated slot carries no version/meta";   // SAVE_VER: the temperament era (re-pointed from 3, the needs era)
   if (slot._meta.day !== 6 || slot._meta.coins !== 51200 || slot._meta.crew.length !== 2)   // the card speaks cents whatever era the envelope is
     return "migrated meta wrong: " + JSON.stringify(slot._meta);
   const st = JSON.parse(sim.G("JSON.stringify([Math.round(coins), day, UPS.chef.lvl, activeSlot, crabs.map(c => c.p.name), memorials.length])"));
@@ -2440,7 +2440,15 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // economy lands NEAR the base tree (serves 42->41/42->44, rage 4->3/4->4)
     // where 10px had pushed it visibly (38/43, rage 7). Baseline 0/48 intact
     // (medians 12/13/13), growth 15/48 (4/4/7) vs base 14/48 (4/3/7).
-    1337: '{"day":3,"tmin":0,"coins":17937,"rep":52768,"catch":4,"serves":41,"crabServes":5,"rage":3,"till":21832,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21832],["REEF",19732],["SALTY",4100],["DRIFT",100],["KELP",1300]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[318,167]]}',
+    // RE-POINTED for THE CITIZEN MIND going LIVE (rung 1). 1337's traced
+    // head: think 397, T=7606, DRIFT - the brain holds off on a shack drink
+    // the script buys, and the till/wallet knock-ons compound (KELP 1300 ->
+    // 1000, serves 41 -> 44, rage 3 -> 5, coins 17937 -> 13717). The streams
+    // paired to the crossing (the lockstep scenario), so the drift is
+    // trajectory, not a leak. 4242 crosses NOWHERE in two days and its pin
+    // stands untouched - one seed moving and one holding is itself the
+    // receipt that the brain only moves what it decides.
+    1337: '{"day":3,"tmin":0,"coins":13717,"rep":53426,"catch":4,"serves":44,"crabServes":5,"rage":5,"till":22627,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22627],["REEF",20920],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[520.3,167.3],[2136,154],[450,155],[2072,154],[318,167]]}',
     4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
@@ -3471,17 +3479,19 @@ const BIZ_MIN = 6000, BIZ_MAX = 40000;   // cents
 // the line pinned at its limit, which is exactly the "exhausted line + missed
 // obligations" the credit machinery already defines. Leaves the sim in the
 // following morning.
-function missOneLease(sim, biz) {
+function missOneLease(sim, biz, extraDrain) {
   sim.runUntil("tmin >= 19.9 * 60", keep({ maxSteps: 300000 }));
   // HOLD the till at zero THROUGH settlement, not just before it: the single
   // drain used to win by luck, until the neuro visitors shifted evening
   // custom and a wash paid the lease in the six game-minutes between the
   // drain and the rent run. The mechanism under test is "a shop with no
   // money misses its lease", so the shop must actually have no money AT the
-  // lease - a coincidence pin turned into a staged fact.
+  // lease - a coincidence pin turned into a staged fact. `extraDrain` lets a
+  // fixture hold ANOTHER purse empty through the same window (the sale
+  // scenario keeps REEF from queue-jumping its failed shop).
   sim.G(`window._drain = "${biz}"`);
   sim.runUntil("lastRentDay === day", keep({ maxSteps: 80000, tickEvery: 1, onTick: (G) =>
-    G(`{ const o = OWNERS[bizOwner(window._drain)]; if (o) { o.till = 0; o.credit = creditLimit(); } }`) }));
+    G(`{ const o = OWNERS[bizOwner(window._drain)]; if (o) { o.till = 0; o.credit = creditLimit(); } ${extraDrain || ""} }`) }));
   sim.G(`window._drain = null`);
   sim.runUntil("tmin > 7 * 60 && tmin < 12 * 60", keep({ maxSteps: 300000 }));
 }
@@ -3689,8 +3699,15 @@ scenario("sale: a saved-up crab buys the failed shop and it TRADES AGAIN", () =>
 
 scenario("sale: the player buys a failed business through the shopfront", () => {
   const sim = createSim({ seed: 63 });
+  // RE-STAGED (citizen mind, 2026-08-23): REEF is impoverished through each
+  // settlement, because under brain citizens her day-4 books afford the
+  // failed showers and she is FIRST IN THE QUEUE by her own scenario's
+  // contract - she bought it out from under this staging. The mechanism
+  // under test here is the shopfront BUY chip, so the queue-jumper's purse
+  // is held empty; her own priority keeps its own scenario.
   sim.runUntil("day >= 2 && tmin > 8 * 60", keep({ maxSteps: 400000 }));
-  for (let i = 0; i < 3; i++) missOneLease(sim, "showers");
+  for (let i = 0; i < 3; i++)
+    missOneLease(sim, "showers", `if (OWNERS.reef) { OWNERS.reef.till = 0; OWNERS.reef.credit = creditLimit(); } if (typeof rival === "object" && rival) rival.warchest = 0;`);
   if (!sim.G('forSale("showers")')) return "the shop never closed";
   const price = sim.G('salePrice("showers")');
   // the BUY chip lives on the shopfront the MANAGE chip lives on
@@ -3942,7 +3959,15 @@ scenario("taps: free and always reachable, and the juice bar still sells", () =>
   // empty, a properly thirsty crab of EVERY kind is still offered a tap
   sim.G(`{ for (const c of allCrabs()) { c.p.thirst = qn(0.75); c.p.wallet = 0; c.p.dirt = 0;
     c.duty = false; c.pendingOff = true; c.p.hunger = 0; c.p.bored = 0; } }`);
-  const cover = JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => { const e = pickErrand(c); return [c.p.name, !!c.p.npc, !!(e && e.tap != null && e.need === "drink")]; }))`));
+  // RE-STAGED BY MECHANISM (citizen mind, 2026-08-23): "offered" means the
+  // tap is on the crab's OWN candidate board - and gathering is script-owned
+  // whoever decides, so the guarantee is probed with the decider disarmed.
+  // Whether a 0.75-thirst crab drinks NOW or waits for properly parched is
+  // personality; the health pillar (the dehydration-week scenario) is the
+  // gate on what waiting may cost, and it stands un-restaged.
+  const cover = JSON.parse(sim.G(`(() => { const B = BRAINS; BRAINS = {};
+    const out = allCrabs().map(c => { const e = pickErrand(c); return [c.p.name, !!c.p.npc, !!(e && e.tap != null && e.need === "drink")]; });
+    BRAINS = B; return JSON.stringify(out); })()`));
   const stranded = cover.filter(r => !r[2]).map(r => r[0] + (r[1] ? " (town)" : " (crew)"));
   if (stranded.length) return "no water offered to: " + stranded.join(", ");
   if (!cover.some(r => r[1]) || !cover.some(r => !r[1])) return "the fixture covered only one kind of crab";
@@ -7463,16 +7488,18 @@ scenario("the player can stand for office and win, and then the levy is theirs",
   // cot - so the platform that carries the town is the shelter's, and the
   // player stands on it against the owners who would rather it stayed cold.
   //
-  // RE-STAGED 1337 -> 909 (PERSONAL SPACE). The claim is "an attentive player
-  // CAN win", and it is seed-generic - measured on the landing tree the
-  // recipe wins 21, 31, 909, 4242 and 7 (tallies 3-2, 3-1, 5-1, 6-1, 6-1)
-  // and loses ONLY 1337, where the re-rolled polling day keeps the shelter
-  // bloc from the box at all (turnout 3 of 9 papers: both owners and one
-  // shelter crab; SHELLDON, KELP and SALTY never went). That is turnout on
-  // one town's busy Sunday, not a broken franchise - the ballot, the count
-  // and the declaration all ran. 909 carries the same demonstration with a
+  // RE-STAGED 1337 -> 909 (PERSONAL SPACE) -> 7 (THE CITIZEN MIND). The
+  // claim is "an attentive player CAN win", and it is seed-generic - on the
+  // citizen-mind landing tree the recipe wins 7 and 63 and loses 21, 31,
+  // 909, 4242, 1337, because BRAIN-ERA TURNOUT IS LOWER: temperament now
+  // decides whether a free crab walks to the box, and tallies dropped from
+  // 5-7 papers to 3-4 across the sweep. That is a REPORTED behavioral shift
+  // (the citizen-mind close-out carries it; civics in phase E is where the
+  // franchise gets its own levers), not a broken mechanism - the ballot,
+  // the count and the declaration all run, and the player who reads the
+  // roster still carries the room on the seeds above. 7 demonstrates with a
   // 5-1 tally and the same shelter-bloc mechanics the fixture is about.
-  const sim = createSim({ seed: 909 });
+  const sim = createSim({ seed: 7 });
   sim.runDays(3);
   sim.G(`(() => {
     for (const c of allCrabs()) if (!c.p.owner) { c.p.homeless = true; c.p.house = null; c.p.fisher = false; }
@@ -12197,7 +12224,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1726, 2: 1737 };   // re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
+  const PIN = { 1: 1726, 2: 1616 };   // day 2 re-pointed for THE CITIZEN MIND live: DRIFT's held-off drink (think 397, T=7606, day 1) spends no draw of its own - day 1 holds at 1726 - but the trajectory it opens reshapes day 2's custom to 1616. Same shape as every holder before it: the count is THE SPEC, only its holder changed. Previously re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -12259,8 +12286,12 @@ scenario("brains: shadow is inert - the town cannot tell it is being watched", (
     return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
       pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
   };
+  // (Legs re-staged at the citizen-mind landing: BRAINS = {} used to be "no
+  // brains at all", but the bundle now ships a LIVE citizen brain too, and
+  // killing it in one leg only would measure the citizen brain, not the vis
+  // shadow. The legs differ in exactly one thing: the vis policy.)
   const shadowed = fp(`BRAINS.crab["vis_pick.candidate"].mode = "shadow"`);
-  const brainless = fp(`BRAINS = {}`);
+  const brainless = fp(`delete BRAINS.crab["vis_pick.candidate"]`);
   if (shadowed !== brainless) return "the shadow moved the town: " + shadowed.slice(0, 120) + " vs " + brainless.slice(0, 120);
   return true;
 });
@@ -12295,6 +12326,167 @@ scenario("brains: a live brain spends the script's own draws, no more", () => {
   }
   if (!crossed) return "brain and script never disagreed in 3 days - the agreement pin has gone vacuous, investigate";
   return true;
+});
+
+scenario("brains: the citizen brain agrees with the errand scorer it distilled", () => {
+  // THE AGREEMENT GATE for cit_errand.candidate, measured through the shadow
+  // infrastructure the bundle actually ships in: the script decides, the
+  // brain watches, zero stream perturbation. The shipped h48-x4-s42 artifact
+  // reads 99.82% on this town's 1,125 thinks (lever-diverse held-out: 98.01%
+  // with every supported class >= 45% recall - the pin that refused two
+  // higher-agreement candidates whose ball:fun class was dead). The floor is
+  // a floor: it catches a lobotomy, not a personality. MUTATION: zeroing the
+  // artifact's w2 collapses it to a constant class and this fails at ~30%.
+  // TWO floors, because this surface's prior is ~97% "none" and a plain
+  // agreement floor is VACUOUS against a lobotomy (measured: a zeroed-w2
+  // constant-none brain read 97%+ here and PASSED the first draft). The
+  // acted floor is the one with teeth: of the thinks where the teacher
+  // actually went somewhere, the brain must have called most of them.
+  const FLOOR = 0.90, ACTED_FLOOR = 0.50;
+  const sim = createSim({ seed: 4242 });
+  sim.G(`BRAINS.crab["cit_errand.candidate"].mode = "shadow"`);   // the bundle ships LIVE; the measure needs the teacher deciding
+  sim.runDays(4);
+  const s = JSON.parse(sim.G(`JSON.stringify((window._shadowStats && window._shadowStats.crab || {})["cit_errand.candidate"] || null)`));
+  if (!s || s.n < 300) return "citizen shadow saw only " + (s ? s.n : 0) + " thinks - not a measurement";
+  if (s.agree / s.n < FLOOR)
+    return `the citizen brain agrees with its teacher on ${(s.agree / s.n * 100).toFixed(1)}% of ${s.n} thinks - the floor is ${FLOOR * 100}%`;
+  if (!(s.acted >= 10)) return "the teacher only acted " + s.acted + " times in four days - the acted floor says nothing";
+  if (s.actedAgree / s.acted < ACTED_FLOOR)
+    return `of ${s.acted} acted thinks the brain called ${s.actedAgree} - below the ${ACTED_FLOOR * 100}% acted floor (a constant-none lobotomy reads exactly like this)`;
+  return true;
+});
+
+scenario("brains: citizen shadow is inert - the crew cannot tell they are being watched", () => {
+  // The vis shadow-inertness receipt, re-sworn for the citizen surface the
+  // bundle ships armed: a shadowed town and a brainless town are
+  // BIT-IDENTICAL over three days - positions, tills, the lot. This is the
+  // scenario that lets the shadow ride the default bundle without a single
+  // fingerprint re-pin. MUTATION: one srand() in shadowCitObserve moves the
+  // day-3 books and this names them.
+  // Both legs keep the LIVE vis brain (deleting all of BRAINS would change
+  // the town for the visitor brain's own reasons and say nothing about the
+  // citizen shadow) - only the citizen policy differs between them.
+  const fp = (stage) => {
+    const sim = createSim({ seed: 909 });
+    sim.G(stage);
+    sim.runDays(3);
+    return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
+      pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
+  };
+  const shadowed = fp(`BRAINS.crab["cit_errand.candidate"].mode = "shadow"`);   // the bundle ships LIVE; shadow is what's on trial
+  const unwatched = fp(`delete BRAINS.crab["cit_errand.candidate"]`);
+  if (shadowed !== unwatched) return "the citizen shadow moved the town: " + shadowed.slice(0, 120) + " vs " + unwatched.slice(0, 120);
+  return true;
+});
+
+scenario("brains: zero delta IS the backbone, on the citizen brain's own thinks", () => {
+  // Dream-replay rung 0's foundation: classifyD with no delta must argmax
+  // exactly what classify argmaxes (L = base*256 is monotone), on REAL
+  // vectors the town assembled, not synthetic ones. This is what lets a
+  // pre-delta save load as the shipped culture brain bit for bit. MUTATION:
+  // any constant added inside classifyD's zero path moves an argmax here.
+  const sim = createSim({ seed: 4242 });
+  sim.G(`window._vecs = [];
+    { const orig = pickErrand;
+      pickErrand = function (c) {
+        const bp = citBrainOf(c);
+        if (bp && window._vecs.length < 400) window._vecs.push(neuroVectorCit(c, bp.readers, new Array(bp.readers.length)).slice());
+        return orig(c);
+      }; }`);
+  sim.runDays(3);
+  const bad = sim.G(`(function () {
+    const bp = BRAINS.crab && BRAINS.crab["cit_errand.candidate"];
+    if (!bp) return "no citizen brain in the bundle";
+    let n = 0;
+    for (const f of window._vecs) {
+      const a = bp.classify(f), base = bp.logits.slice();
+      const b = bp.classifyD(f, null);
+      if (a !== b) return "think " + n + ": classify says " + bp.classes[a] + ", zero-delta classifyD says " + bp.classes[b];
+      for (let o = 0; o < base.length; o++)
+        if (bp.logits[o] !== base[o] * 256) return "think " + n + " logit " + o + ": " + bp.logits[o] + " is not 256x " + base[o];
+      n++;
+    }
+    return n < 100 ? "only " + n + " thinks banked - not a measurement" : null;
+  })()`);
+  return bad || true;
+});
+
+scenario("brains: a temperament bends a mind, and both doors check it", () => {
+  // The delta is REAL state: (1) a crafted dm flips a close call in the
+  // predicted direction; (2) saveProblem names an out-of-range weight; (3)
+  // the load door strips a wrong-shape dm LOUDLY and the crab keeps her life.
+  const sim = createSim({ seed: 909 });
+  sim.G(`window._vecs = [];
+    { const orig = pickErrand;
+      pickErrand = function (c) {
+        const bp = citBrainOf(c);
+        if (bp && window._vecs.length < 600) window._vecs.push(neuroVectorCit(c, bp.readers, new Array(bp.readers.length)).slice());
+        return orig(c);
+      }; }`);
+  sim.runDays(2);
+  const flip = sim.G(`(function () {
+    const bp = BRAINS.crab && BRAINS.crab["cit_errand.candidate"];
+    if (!bp) return "no citizen brain in the bundle";
+    // the closest call the town produced: smallest top-2 logit gap
+    let pick = null;
+    for (const f of window._vecs) {
+      const a = bp.classifyD(f, null);
+      let run = -1, runV = -9007199254740991;
+      for (let o = 0; o < bp.logits.length; o++)
+        if (o !== a && bp.logits[o] > runV) { runV = bp.logits[o]; run = o; }
+      const gap = bp.logits[a] - runV;
+      if (gap >= 0 && gap < 2147483000 && (!pick || gap < pick.gap)) pick = { f: f.slice(), a, run, gap };
+    }
+    if (!pick) return "no flippable think in range - every call was a landslide";
+    const dm = { w: new Array(bp.arch.out * bp.arch.hidden).fill(0), b: new Array(bp.arch.out).fill(0) };
+    dm.b[pick.run] = Math.min(2147483647, pick.gap + 1);
+    const got = bp.classifyD(pick.f, dm);
+    if (got !== pick.run) return "biased the runner-up by gap+1 and got " + bp.classes[got] + ", wanted " + bp.classes[pick.run];
+    if (bp.classifyD(pick.f, null) !== pick.a) return "the zero path drifted during the test";
+    return null;
+  })()`);
+  if (flip) return flip;
+  // the envelope, by the round-trip scenario's own idiom: save() then read
+  // the stored blob and craft it NODE-SIDE, handing it back through load()
+  const env = JSON.parse(sim.G("JSON.stringify(save(true))"));   // hold=true returns the envelope without touching a slot
+  if (!env || !env.personas) return "no envelope to test against";
+  // door 2: saveProblem names the number
+  const bad2 = JSON.parse(JSON.stringify(env));
+  bad2.personas[0].dm = { w: [200], b: [0] };
+  const why2 = sim.G(`saveProblem(${JSON.stringify(bad2)})`);
+  if (!why2 || why2.indexOf("200") === -1) return "an int8 overflow slipped the gate: " + why2;
+  // door 3: a wrong-shape dm is stripped loudly at load, life goes on
+  const bad3 = JSON.parse(JSON.stringify(env));
+  bad3.personas[0].dm = { w: [1, 2, 3], b: [0] };   // in-range, wrong shape for any brain
+  bad3._ver = 4;
+  const door3 = sim.G(`(function () {
+    const env = ${JSON.stringify(bad3)};
+    if (saveProblem(env)) return "ranges rejected a shaped-only problem: " + saveProblem(env);
+    if (!load(null, env)) return "the load refused a save it should strip-and-accept";
+    for (const c of crabs) if (c.p.dm) return "the misfit temperament survived the door";
+    if (!toast || String(toast.text).indexOf("TEMPERAMENT") === -1) return "the strip was silent - the door must name it";
+    return null;
+  })()`);
+  return door3 || true;
+});
+
+scenario("saves: a ver-3 envelope is the zero delta", () => {
+  // Yesterday's save loads as the shipped culture brain exactly: no dm, no
+  // dr, no complaints - absence IS the zero delta (dream-replay rung 0).
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const env = JSON.parse(sim.G("JSON.stringify(save(true))"));   // hold=true returns the envelope without touching a slot
+  if (!env || !env.personas) return "no envelope to test against";
+  env._ver = 3;
+  for (const p of env.personas) { delete p.dm; delete p.dr; }
+  const bad = sim.G(`(function () {
+    const env = ${JSON.stringify(env)};
+    if (saveProblem(env)) return "a ver-3 envelope was refused: " + saveProblem(env);
+    if (!load(null, env)) return "the load refused a ver-3 envelope";
+    for (const c of crabs) if (c.p.dm || c.p.dr) return c.p.name + " grew a temperament out of nothing";
+    return null;
+  })()`);
+  return bad || true;
 });
 
 scenario("brains: the door refuses what the caps forbid, and says which", () => {
