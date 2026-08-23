@@ -16339,10 +16339,19 @@ function drawPanel() {
       smallText(ctx, "OVERTIME " + otN + "X AT " + OT_RATE + "X", 132, by, [190, 175, 160]);
       smallText(ctx, "$" + $d(otBill), 224, by, [235, 160, 130]); by += MROW;
     }
-    for (const key of Object.keys(BIZ)) {
-      if (!bizUnlocked(key) || bizOwner(key) !== "player") continue;   // only rents YOU pay tonight
-      smallText(ctx, BIZ[key].short + " RENT", 132, by, [190, 175, 160]);
-      smallText(ctx, "$" + $d(BIZ[key].rent), 224, by, [235, 160, 130]); by += MROW;
+    {   // rents: one row each while they fit, one summed row when they don't
+      const rents = Object.keys(BIZ).filter(k => bizUnlocked(k) && bizOwner(k) === "player");
+      const room = Math.floor((H - by - 14) / MROW);   // leave the loan its row
+      if (rents.length <= room) {
+        for (const key of rents) {
+          smallText(ctx, BIZ[key].short + " RENT", 132, by, [190, 175, 160]);
+          smallText(ctx, "$" + $d(BIZ[key].rent), 224, by, [235, 160, 130]); by += MROW;
+        }
+      } else {
+        const sum = rents.reduce((t, k) => t + BIZ[k].rent, 0);
+        smallText(ctx, "RENTS (" + rents.length + " LOTS)", 132, by, [190, 175, 160]);
+        smallText(ctx, "$" + $d(sum), 224, by, [235, 160, 130]); by += MROW;
+      }
     }
     if (credit.bal > 0) {
       smallText(ctx, "LOAN PAYMENT", 132, by, [190, 175, 160]);
