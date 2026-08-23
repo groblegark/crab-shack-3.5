@@ -13760,7 +13760,11 @@ cv.addEventListener("click", (ev) => {
     }
     if (tapSendChip(p)) return;   // the SEND chip sits on the card: it is tested before the card opens
     // the MIND> chip too - same rule, first refusal over the card-opens-dossier tap
-    if (sel && brainOf(sel) && p.x >= 5 && p.x < 32 && p.y >= 51 && p.y < 59) { brainTv = !brainTv; sfx.ding(); return; }
+    // (a resident's chip sits at x36, one slot past SEND; a visitor's at x5)
+    if (sel && brainOf(sel)) {
+      const mx = sel.p ? 36 : 5;
+      if (p.x >= mx && p.x < mx + 27 && p.y >= 51 && p.y < 59) { brainTv = !brainTv; sfx.ding(); return; }
+    }
     if (sel && p.x >= 2 && p.x < 130 && p.y >= 2 && p.y < 60) { dossier = sel; sfx.ding(); return; }
   }
   // the little sun: fast-forward to morning
@@ -15152,6 +15156,12 @@ function drawFollowCard() {
   text(ctx, fitText(p.name, moodX - 32), 29, 5, [40, 30, 40]);
   smallText(ctx, mood, moodX, 6, mcol);
   smallText(ctx, "MORE>", 126 - smallTextWidth("MORE>"), 52, [150, 140, 160]);   // its own row: the need bars own y44-49
+  // the resident's door to the brain inspector: SEND owns x4-34 on this card,
+  // so the MIND> chip takes the next slot over - same row, same idiom
+  if (brainOf(c)) {
+    rect(ctx, 36, 51, 27, 8, brainTv ? [190, 120, 230] : [60, 45, 80]);
+    smallText(ctx, "MIND>", 38, 52, [255, 255, 255]);
+  }
   smallText(ctx, TRAITS[p.trait].label + " " + MODES[p.mode].label, 29, 13, [120, 90, 60]);
   smallText(ctx, crabStatus(c).slice(0, 26), 29, 21, [30, 110, 60]);
   // SHIFT reads the hours they ACTUALLY work today, so an OT day shows the
@@ -15222,10 +15232,25 @@ const BRAINTV_CLS = {   // surface classes -> [label, meter color]
   "showers:clean":  ["A WASH",      [96, 170, 220]],
   "arcade:fun":     ["THE CADE",    [190, 120, 230]],
   "hotel:room":     ["A BED",       [96, 200, 120]],
+  // the citizen surface's own stops (shared names above keep their meters)
+  "selfcook:food":  ["STAFF MEAL",  [235, 160, 60]],
+  "soup:food":      ["THE POT",     [200, 140, 90]],
+  "selfcook:drink": ["STAFF POUR",  [235, 200, 90]],
+  "tap:drink":      ["THE TAP",     [80, 200, 190]],
+  "tap:clean":      ["A RINSE",     [96, 170, 220]],
+  "ball:fun":       ["THE BALL",    [190, 120, 230]],
+  "vote:vote":      ["THE BALLOT",  [96, 200, 120]],
 };
-// a thinker = a selected VISITOR whose culture ships a vis_pick brain
+// a thinker = a selected VISITOR whose culture ships a vis_pick brain, or a
+// selected RESIDENT whose culture ships a citizen brain - the panel is the
+// same instrument either way, THE MIND OF PINCH beside THE MIND OF MAUDE.
 function brainOf(k) {
-  if (!k || k.p || !k.visitor) return null;
+  if (!k) return null;
+  if (k.p) {
+    const b = BRAINS[k.p.culture || "crab"];
+    return (b && b["cit_errand.candidate"]) || null;
+  }
+  if (!k.visitor) return null;
   const b = BRAINS[k.culture || "crab"];
   return (b && b["vis_pick.candidate"]) || null;
 }
@@ -15255,6 +15280,31 @@ function brainTvObs(name, v) {
     case "stop.dist.px":       return [stop + " AWAY", ((v / 8) | 0) + "PX"];
     case "stop.appeal.q16":    return [stop + " PRICES", "X" + (v * 8 / 65536).toFixed(2)];
     case "stop.taste.best":    return [stop + " TASTE", (v / 2048).toFixed(1)];
+    case "citizen.hunger.q20": return ["HUNGER", pct];
+    case "citizen.thirst.q20": return ["THIRST", pct];
+    case "citizen.dirt.q20":   return ["GRIME", pct];
+    case "citizen.bored.q20":  return ["BOREDOM", pct];
+    case "citizen.tired.q20":  return ["WEARINESS", pct];
+    case "citizen.wallet.cents": return ["WALLET", "$" + $d(v)];
+    case "citizen.away":       return ["DAY OFF", yn];
+    case "citizen.sick":       return ["POORLY", yn];
+    case "citizen.duty":       return ["ON DUTY", yn];
+    case "citizen.working":    return ["AT WORK", yn];
+    case "citizen.shift.end.rel":   return ["SHIFT LEFT", ((v / 16) | 0) + "M"];
+    case "citizen.shift.leave.rel": return ["LEAVES IN", ((v / 16) | 0) + "M"];
+    case "citizen.wage.gripe.q20":  return ["WAGE GRIPE", pct];
+    case "citizen.home.dist.px":    return ["HOME AWAY", ((v / 8) | 0) + "PX"];
+    case "citizen.ball.players":    return ["BALL GAME", ((v / 1024) | 0) + " IN"];
+    case "citizen.ball.cd":         return ["BALL REST", "" + v];
+    case "citizen.nudge.live":      return ["THE THUMB", yn];
+    case "citizen.poll.open":       return ["POLLS OPEN", yn];
+    case "citizen.voted":           return ["HAS VOTED", yn];
+    case "citizen.pot.warm":        return ["POT WARM", yn];
+    case "citizen.tap.dist.px":     return ["TAP AWAY", ((v / 8) | 0) + "PX"];
+    case "citizen.poll.dist.px":    return ["POLL AWAY", ((v / 8) | 0) + "PX"];
+    case "cit.staffed":        return [stop + " STAFFED", yn];
+    case "cit.afford.count":   return [stop + " AFFORDS", ((v / 1024) | 0) + " DISHES"];
+    case "cit.dist.px":        return [stop + " AWAY", ((v / 8) | 0) + "PX"];
     default:                   return [name.toUpperCase().slice(0, 12), "" + v];
   }
 }
@@ -15283,7 +15333,7 @@ function drawBrainPanel() {
   const bp = brainOf(sel);
   if (!bp) {   // honest about what it needs, in its own voice
     frame(16);
-    smallText(ctx, sel && !sel.p ? "RUNS ON INSTINCT - NO BRAIN" : "SELECT A VISITOR TO SEE A MIND",
+    smallText(ctx, sel ? "RUNS ON INSTINCT - NO BRAIN" : "SELECT SOMEBODY TO SEE A MIND",
       px + 5, py + 5, [150, 140, 160]);
     return;
   }
@@ -15293,8 +15343,11 @@ function drawBrainPanel() {
     smallText(ctx, "HASN'T HAD A THOUGHT YET", px + 5, py + 5, [150, 140, 160]);
     return;
   }
-  frame(104);
-  smallText(ctx, fitSmall("THE MIND OF " + sel.name.split(" ")[0], pw - 34), px + 5, py + 4, [225, 215, 255]);
+  // the frame grows with the surface: 7 visitor classes read at the shipped
+  // 104; the citizen's thirteen get six more meter rows of the same 7px
+  const base = py + 19 + bp.classes.length * 7 + 2;
+  frame(104 + (bp.classes.length - 7) * 7);
+  smallText(ctx, fitSmall("THE MIND OF " + ((sel.p ? sel.p.name : sel.name) || "?").split(" ")[0], pw - 34), px + 5, py + 4, [225, 215, 255]);
   if (e.mode === "shadow") smallText(ctx, "SHADOW", px + pw - 4 - smallTextWidth("SHADOW"), py + 4, [235, 200, 90]);
   const ago = Math.max(0, (tmin - e.tmin) | 0);
   smallText(ctx, ago <= 0 ? "THINKING RIGHT NOW" : "LAST THOUGHT " + fmtClock(e.tmin | 0) + " - " + ago + "M AGO",
@@ -15318,20 +15371,20 @@ function drawBrainPanel() {
   // BECAUSE: the three loudest inputs behind the acted class, sign and all
   if (!e.sal) e.sal = brainTvSaliency(bp, e.f, e.acted);
   const order = e.sal.map((c, j) => [Math.abs(c), c, j]).sort((a, b) => b[0] - a[0]);
-  smallText(ctx, "BECAUSE", px + 5, py + 70, [120, 110, 145]);
+  smallText(ctx, "BECAUSE", px + 5, base, [120, 110, 145]);
   for (let r = 0; r < 3 && r < order.length; r++) {
     const [, c, j] = order[r];
     const [lbl, val] = brainTvObs(bp.inputs[j], e.f[j]);
-    const ry = py + 77 + r * 7;
+    const ry = base + 7 + r * 7;
     smallText(ctx, c >= 0 ? "+" : "-", px + 5, ry, c >= 0 ? [96, 200, 120] : [235, 90, 90]);
     smallText(ctx, fitSmall(lbl, 62), px + 11, ry, [180, 170, 205]);
     smallText(ctx, val, px + pw - 4 - smallTextWidth(val), ry, [225, 215, 255]);
   }
   // LATELY: the last sixteen calls, oldest left, in the classes' own colors
-  smallText(ctx, "PAST", px + 5, py + 98, [120, 110, 145]);
+  smallText(ctx, "PAST", px + 5, base + 28, [120, 110, 145]);
   for (let i = 0; i < e.ring.length; i++) {
     const col = (BRAINTV_CLS[bp.classes[e.ring[i]]] || [0, [150, 140, 160]])[1];
-    rect(ctx, px + 25 + i * 6, py + 98, 4, 4, col);
+    rect(ctx, px + 25 + i * 6, base + 28, 4, 4, col);
   }
 }
 
