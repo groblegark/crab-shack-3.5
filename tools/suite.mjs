@@ -11837,6 +11837,110 @@ scenario("cultureways: the apron is refused - a pig is never converted", () => {
   return true;
 });
 
+scenario("settlers: a culture that declares the apron settles on hire, and keeps herself", () => {
+  // Phase B debt item 2, the persona factory. RASHER's document declares
+  // settlers.apron, so the very hire that used to be refused now converts
+  // her - and the settler keeps her name, her culture, her colorway, her hat
+  // and the walking mode (no pig ever indexes the crab buggy rack). Then she
+  // PERSISTS: through save/load (p.culture rides the persona wholesale) and
+  // through the draw path (her body blits from the pig tables, not the crab
+  // rack). The refusal scenario above stays green beside this one: the door
+  // is the document's declaration, not the engine's opinion of pigs.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.settlers = { apron: true };
+  env.cultures = { pig: fx };
+  env.visitors = [
+    { n: "RASHER", cu: "pig", c: 3, a: "strawhat", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  const before = b.G("crabs.length");
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = crabs.find(c => c.p.name === "RASHER");
+    if (!pig) return { hired: false };
+    // the draw probe: her body art must come off the pig tables
+    const pigArts = new Set(); for (const cw of CULTURES.pig.arts) for (const p of ["a","b","s"]) pigArts.add(cw[p]);
+    let pigBlits = 0; const oW = wblit;
+    wblit = (art, wx, y2, flip) => { if (pigArts.has(art)) pigBlits++; return oW(art, wx, y2, flip); };
+    try { drawCrab(pig); } finally { wblit = oW; }
+    return { hired: true, cu: pig.p.culture, color: pig.p.color, acc: pig.p.acc,
+      mode: pig.p.mode, gone: !customers.some(k => k.name === "RASHER"),
+      apron: settlerApron({ culture: "pig" }), crabApron: settlerApron({}),
+      pigBlits, diary: pig.p.log.some(e => String(e[3]).includes("APRON")) }; })())`));
+  if (!got.hired) return "RASHER was not hired - the settler door stayed shut";
+  if (got.cu !== "pig") return "the settler lost her culture: " + got.cu;
+  if (got.color !== 3 || got.acc !== "strawhat") return "the settler lost her face: color " + got.color + " acc " + got.acc;
+  if (got.mode !== "walk") return "the settler's mode is " + got.mode + ", not walk - the buggy rack is a crash away";
+  if (!got.gone) return "she was hired AND stayed a visitor - duplicated";
+  if (!got.apron || !got.crabApron) return "settlerApron dispatch wrong: pig " + got.apron + " crab " + got.crabApron;
+  if (!got.pigBlits) return "the settled pig drew from the crab rack, not her own tables";
+  if (!got.diary) return "the hire never reached her diary";
+  if (b.G("crabs.length") !== before + 1) return "roster count wrong after the hire";
+  // ...and she survives the loader: save, fresh session, still a pig at her post
+  b.G("save()");
+  const c = createSim({ seed: 79, storage: store, fresh: false });
+  const back = JSON.parse(c.G(`JSON.stringify((() => {
+    const pig = crabs.find(cc => cc.p.name === "RASHER");
+    return { there: !!pig, cu: pig && pig.p.culture, mode: pig && pig.p.mode,
+      acc: pig && pig.p.acc }; })())`));
+  if (!back.there) return "the settler vanished across save/load";
+  if (back.cu !== "pig" || back.mode !== "walk" || back.acc !== "strawhat")
+    return "the settler came back wrong: " + JSON.stringify(back);
+  return true;
+});
+
+scenario("settlers: the walk-in manifest draws nothing until a share is declared, then mints the people", () => {
+  // Phase B debt item 3, THE FINGERPRINT RULE from cultureRolls applied to
+  // walk-ins: with no declaring document, walkinCulture() consumes ZERO
+  // draws (the cursor proves it) and newCustomer builds the pre-cultures
+  // crab walk-in. With a pig share declared, the same two doors mint pigs:
+  // the walk-in builder AND the migrated-save seeder. The share clamp is
+  // the mutation surface: 20/20 would flood the town and must be refused.
+  const sim = createSim({ seed: 21 });
+  const silent = JSON.parse(sim.G(`JSON.stringify((() => {
+    const c0 = simCursor(); const id = walkinCulture(); const c1 = simCursor();
+    const w = newCustomer("shack");
+    return { id, moved: c0 !== c1, cu: w.culture, name: w.name }; })())`));
+  if (silent.id !== "crab" || silent.moved) return "an undeclared manifest drew from the stream";
+  if (silent.cu !== null) return "a crab walk-in carries a culture: " + silent.cu;
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.settlers = { walkins: 8 };   // 8/20: the cap, so a handful of rolls lands a pig fast
+  sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
+  const declared = JSON.parse(sim.G(`JSON.stringify((() => {
+    const got = { rolled: false, pig: null, seeded: null };
+    for (let i = 0; i < 40 && !got.pig; i++) {
+      const c0 = simCursor(); const id = walkinCulture();
+      if (simCursor() === c0) return { err: "a declared manifest never drew" };
+      got.rolled = true;
+      if (id === "pig") {
+        const w = newCustomer("shack");
+        got.pig = { cu: w.culture, named: CULTURES.pig.def.people.names.includes(w.name),
+          color: w.color < CULTURES.pig.colorways, acc: CULTURES.pig.accKeys.includes(w.acc) };
+      }
+    }
+    // ...and the migrated-save seeder reads the same manifest
+    customers = customers.filter(k => !k.visitor);
+    seedVisitors();
+    got.seeded = customers.some(k => k.visitor && k.culture === "pig");
+    return got; })())`));
+  if (declared.err) return declared.err;
+  if (!declared.pig) return "8/20 never rolled a pig in 40 tries - the share is not being read";
+  if (declared.pig.cu !== "pig" || !declared.pig.named || !declared.pig.color || !declared.pig.acc)
+    return "the pig walk-in was mis-minted: " + JSON.stringify(declared.pig);
+  if (!declared.seeded) return "the seeder ignored the manifest (no pig in a 12-strong migrated crowd at 8/20)";
+  // the clamp: a flood share is refused with its name
+  const why = sim.G('cultureProblem(Object.assign(JSON.parse(' + JSON.stringify(JSON.stringify(fx)) + '), { settlers: { walkins: 20 } }))');
+  if (why !== "A BAD WALK-IN SHARE") return "the flood share was not refused by name: " + why;
+  return true;
+});
+
 scenario("cultureways: the arrival gate holds shut below rep 80 and opens above", () => {
   // Twin towns from ONE day-1 save, both pinned to rep 40 - one carries the
   // pig culture, one doesn't. Below the gate the manifest must consume ZERO

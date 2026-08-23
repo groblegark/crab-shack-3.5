@@ -339,6 +339,14 @@
     }
    }
   },
+  "settlers": {
+   "description": "Phase B (debt items 2-3): may this people STAY? apron: a visitor of this culture accepts a job offer and converts to a resident through the persona factory, keeping her name, face, hat and culture - the settled resident works shifts, draws wages and sleeps in town housing exactly as crab crew do (drawn from her own document's tables; poses the document lacks fall back to the walk frames). Default false: her register's refuseHire line stands. walkins: this people's share of anonymous walk-ins and migrated-save seeding, in TWENTIETHS (0-8; 0 = never, the default and byte-identical to today - the roll is skipped entirely, no draw). Ownership of a declared business binds to a settler in a later slice.",
+   "type": "object",
+   "properties": {
+    "apron": { "type": "boolean" },
+    "walkins": { "type": "integer", "minimum": 0, "maximum": 8 }
+   }
+  },
   "arrival": {
    "type": "object",
    "properties": {

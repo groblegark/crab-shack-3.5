@@ -179,6 +179,16 @@ function localise(d, verdict) {
         say("management.shifts.cover", `${s.cover} is not a half-hour count of minutes in 240-1440 (the crab value is 720)`);
     }
   }
+  const st = d.settlers;
+  if (st) {
+    if (typeof st !== "object" || Array.isArray(st)) say("settlers", "must be an object with apron and/or walkins");
+    else {
+      if (st.apron != null && typeof st.apron !== "boolean")
+        say("settlers.apron", `${st.apron} is not a boolean - may this people take a job and stay, yes or no`);
+      if (st.walkins != null && !(typeof st.walkins === "number" && Number.isInteger(st.walkins) && st.walkins >= 0 && st.walkins <= 8))
+        say("settlers.walkins", `${st.walkins} is outside 0-8 twentieths (0 = never, the default; capped so no document floods the town)`);
+    }
+  }
   const fw = d.foodways;
   if (fw && fw.ingredients) for (const k in fw.ingredients) {
     const w = fw.ingredients[k];
