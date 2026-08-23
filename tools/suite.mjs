@@ -12919,14 +12919,18 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   const a = future(env), b = future(env);
   if (a === null || b === null) return "the load did not take - day never reached the saved town's";
   if (a !== b) return "two loads of one save diverged: " + a.slice(0, 100) + " vs " + b.slice(0, 100);
-  // The bite: one crew temperament, maximally biased toward class 0, valid by
-  // every range check and exactly the live artifact's shape - the reloaded
-  // town must live a DIFFERENT life, or dm is dead freight in the envelope.
+  // The bite: EVERY crew temperament, maximally biased toward the LAST class
+  // (an acting class - class 0 is "none", the 94%-prior sitting champion, and
+  // a bias toward doing nothing is a whisper this check once mistook for
+  // silence). Valid by every range check, exactly the live artifact's shape;
+  // the reloaded town must live a DIFFERENT life, or dm is dead freight.
   const evil = JSON.parse(env);
-  if (!Array.isArray(evil.personas) || !evil.personas[0]) return "the envelope has no crew to corrupt";
-  evil.personas[0].dm = { w: new Array(arch.out * arch.hidden).fill(0),
-    b: [3000000].concat(new Array(arch.out - 1).fill(0)) };
-  evil.personas[0].dr = 1;
+  if (!Array.isArray(evil.personas) || !evil.personas.length) return "the envelope has no crew to corrupt";
+  for (const p of evil.personas) {
+    p.dm = { w: new Array(arch.out * arch.hidden).fill(0),
+      b: new Array(arch.out - 1).fill(0).concat([2000000000]) };
+    p.dr = 1;
+  }
   const c = future(JSON.stringify(evil));
   if (c === null) return "the corrupted load did not take";
   if (c === a) return "a corrupted temperament left the future untouched - the delta never reached the brain";

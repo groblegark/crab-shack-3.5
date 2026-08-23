@@ -1,0 +1,30 @@
+{
+  "name": "e0-focus",
+  "note": "The E0 scenarios alone (goldens, hostile battery, thinking-heads round-trip) - the mutation-demo instrument: run against a deliberately broken tree, these must go RED for the right named reason; run against the fixed tree, green. Full-suite verdicts still come from suite-312.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "arms": [
+    {
+      "id": "js-e0",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "layer 1: the golden programs answer to the pin, and the pin is the law",
+        "layer 1: hostile programs are refused by name, before anything runs",
+        "brains: a town full of thinking heads round-trips its save"
+      ],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "wasm-e0",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "layer 1: the golden programs answer to the pin, and the pin is the law",
+        "layer 1: hostile programs are refused by name, before anything runs",
+        "brains: a town full of thinking heads round-trips its save"
+      ],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ]
+}
