@@ -12248,6 +12248,10 @@ function citBrainOf(c) {
 // board, the script scores; the brain governs the ordinary day. Draw-free
 // either way, so the lockstep receipt holds whoever decides.
 function citEngineOwned(c, cand) {
+  // ...and the SICK regime whole: illness is the mortality ladder, and every
+  // rung of its care (the soup's gates, the rinse, "a starving sick crab
+  // eats") was measured to the percent. Life-support is not a personality.
+  if (c.p.sick) return true;
   for (const e of cand) {
     if (needLevel(c, e.need || "food") >= DIRE) return true;
     if (nudgeMatch(c, e)) return true;

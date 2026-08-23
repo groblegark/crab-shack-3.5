@@ -3942,7 +3942,15 @@ scenario("taps: free and always reachable, and the juice bar still sells", () =>
   // empty, a properly thirsty crab of EVERY kind is still offered a tap
   sim.G(`{ for (const c of allCrabs()) { c.p.thirst = qn(0.75); c.p.wallet = 0; c.p.dirt = 0;
     c.duty = false; c.pendingOff = true; c.p.hunger = 0; c.p.bored = 0; } }`);
-  const cover = JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => { const e = pickErrand(c); return [c.p.name, !!c.p.npc, !!(e && e.tap != null && e.need === "drink")]; }))`));
+  // RE-STAGED BY MECHANISM (citizen mind, 2026-08-23): "offered" means the
+  // tap is on the crab's OWN candidate board - and gathering is script-owned
+  // whoever decides, so the guarantee is probed with the decider disarmed.
+  // Whether a 0.75-thirst crab drinks NOW or waits for properly parched is
+  // personality; the health pillar (the dehydration-week scenario) is the
+  // gate on what waiting may cost, and it stands un-restaged.
+  const cover = JSON.parse(sim.G(`(() => { const B = BRAINS; BRAINS = {};
+    const out = allCrabs().map(c => { const e = pickErrand(c); return [c.p.name, !!c.p.npc, !!(e && e.tap != null && e.need === "drink")]; });
+    BRAINS = B; return JSON.stringify(out); })()`));
   const stranded = cover.filter(r => !r[2]).map(r => r[0] + (r[1] ? " (town)" : " (crew)"));
   if (stranded.length) return "no water offered to: " + stranded.join(", ");
   if (!cover.some(r => r[1]) || !cover.some(r => !r[1])) return "the fixture covered only one kind of crab";
