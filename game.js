@@ -6702,7 +6702,7 @@ function beep(freq, dur, type, vol, when) {
   // when the loop yields. Dropped, not deferred: the month happened, the
   // sounds didn't. (SCI.run also covers the scrub shuttles, whose loads pop
   // the same way.) The completion ding fires after run clears - it survives.
-  if (SCI.run) return;
+  // MUTATION C: the burst is back
   window._beeps = (window._beeps || 0) + 1;   // the probe's counter: scheduled, not dropped
   if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
   const t = AC.currentTime + (when || 0);
@@ -13830,7 +13830,7 @@ function panelTap(p) {
     // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
     // tiles are not painted (see drawPanel), so they must not answer either -
     // a tap that lands on an invisible crew tile is a ghost hire-and-follow.
-    if (bigCardUp()) return;
+    // MUTATION B: ghost tiles answer
     if (!crewDock) {   // popped down: one slim chip brings it back, nothing else answers
       const r = crewDockRect();
       if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { crewDock = true; sfx.ding(); }
@@ -15987,10 +15987,8 @@ function crewStripGeom() {
   const pages = Math.ceil(n / per);
   // a NEW selection snaps the strip to its crab's page; a standing one leaves
   // the player's own paging alone
-  if (followIdx !== _crewPageFollow) {
-    _crewPageFollow = followIdx;
-    if (followIdx >= 0) crewPage = Math.floor(followIdx / per);
-  }
+  // MUTATION A: the snap is gone
+  _crewPageFollow = followIdx;
   if (crewPage >= pages) crewPage = pages - 1;
   const tiles = [];
   for (let s = 0; s < per; s++) {
