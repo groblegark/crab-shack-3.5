@@ -150,6 +150,49 @@ ingredients table (validated in the same pass, before install).
   (`showerT`, empty steps — the showers' shape) is not yet declarable
   by a culture. Gap-listed with placement.
 
-## Receipts
+## Receipts (2026-08-23, branch biz-catalog, rebased onto the management tip)
 
-(filled at gate time)
+- suite 299/299 main realm kernel OFF and 299/299 kernel WASM (297 at my
+  base; +1 the catalog mechanism scenario = 298 pre-rebase both backends;
+  +1 the sibling's mgmt scenario after the rebase; the hostile gate grew
+  SIX catalog rows with EXPECTED refusals)
+- mcp/test-server.mjs 45/45 (44 pre-rebase: +1 valid-shop build, +4 named
+  hostile paths; +1 mgmt from the sibling)
+- byte-identity: `headless --days 10 --seeds 4` — identical vs base
+  7f95e0a pre-rebase AND vs base 3add29a post-rebase; no pinned
+  fingerprint moved, no draw-count moved (the mechanism scenario compares
+  cursor-inclusive town fingerprints WITH the declaration installed)
+- mutations BIT, tree restored green after each:
+  - rent clamp loosened (500 → 999999999): first attempt DID NOT BITE —
+    the hostile row's document had other crimes, so refusal survived for
+    the wrong reason (the vacuous-mutation lesson, live). The rows now
+    carry the EXPECTED refusal and each catalog doc is valid except for
+    its one sin; re-run: "a bad business rent was refused for the wrong
+    reason: BIZ MUDSPA HAS NO STATIONS" → red, as owed.
+  - build misread (rent built from z.wage): "mudspa.rent built as 2200,
+    want 3000"
+  - reload cleanup severed: "an uninstalled culture's catalog lingered
+    across a load"
+- the byte pin: the same culture with a declared business + an unused
+  priced import runs cursor-identical to itself without them, 2 days
+- rebase notes: buildCulture now returns `mgmt` AND `businesses` (both
+  sibling tails composed); the mgmt scenario's partpig clone needed the
+  same `delete part.foodways` the appeal scenario's did (a fixture that
+  declares an owned ingredient makes every different-id clone a thief);
+  the blind union initially ate the mgmt scenario's `return true; });`
+  — caught by the suite's own syntax error, restored.
+
+## Files
+
+game.js (INGREDIENT_COST literal, NATIVE_INGREDIENTS/CULTURE_INGREDIENTS,
+cultureProblem ownId + businesses, foodwayProblem ingredients,
+recipeRowProblem extraction, buildCulture businesses, cultureBusinesses,
+installCultures ingredient install, loadCultures cleanup),
+tools/fixtures/cultures-pig.json (corn), cultureways.js (regenerated),
+design/cultureways/cultureway.schema.json (businesses +
+foodways.ingredients), design/cultureways/pigway.json (worked example:
+ingredients + THE WALLOW; also migrated off top-level tastes),
+mcp/culture.mjs (localiser), mcp/render.mjs (draft keyed by claimed id),
+mcp/docs.mjs (foodways + businesses rows), mcp/test-server.mjs,
+tools/suite.mjs (mechanism scenario + hostile rows with expected
+refusals).
