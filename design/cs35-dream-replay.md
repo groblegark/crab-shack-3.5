@@ -320,3 +320,17 @@ remains in force exactly as §6 states it.
    trade was explained): "saven it." ~700 B/actor of dream memory rides
    the save, so load-equals-run stays exact with no asterisks and the
    science center's timeline scrubbing keeps its footing.
+
+## RULED (Matt, 2026-08-23, main conversation): THE RAILS COME DOWN
+
+Verbatim: "yeah time to revisit that i feel; now we've proved other systems we
+can give more fine grained control to the nn; life support, patient care,
+everything." The engine-owned regime (citEngineOwned: DIRE, sickness care,
+nudge response — "life-support is not a personality") is to be RETIRED as
+routing and retained as TESTS: the situations become observable inputs the
+brain sees, the outcomes become hindsight-teacher training signal (rung 4,
+already ungated), and the old rails' guarantees become behavior pins the brain
+must PASS (a starving sick crab is fed; a player's nudge is honored; DIRE is
+survived) rather than code paths that bypass it. Ship on the trunk at the
+one-architecture migration, shadow-first, per-class flips with lifetime and
+matrix receipts. (Recorded by the orchestrator from Matt's message.)
