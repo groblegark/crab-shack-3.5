@@ -3309,6 +3309,53 @@ tree before it (same eviction list, same `lifetime $53892`) and not one frozen
 fingerprint moved. A player lever that the regression detectors cannot see is
 the cheapest kind of feature there is.
 
+## NEURO AGENTS SHIP (Matt, 2026-08-22): the town thinks in integers now
+
+> "amazing; yes, proceed" — and then: "im ok with just shipping neuro crabs,
+> there's no risk and we always have their tests"
+
+The neuro ladder's first four rungs are LIVE. A **brain** is a policies-section
+artifact in a cultureway document: int8 weights, int16 activations, exact int32
+accumulation, one floor per layer, integer ReLU, lowest-index tie-break — no
+floats inside skulls, bit-identical across engines by the same argument as
+money. A brain DECLARES its own feature vector as ordered picks from a
+versioned **observable registry** (the owner's ruling: weird feature vectors,
+customizable per brain and per culture), and **brains never draw** — they rank
+the candidates the shared construction built, so the stream leaves in the same
+order whoever decides.
+
+**Two live deciders ship**: the crab default (95.7% held-out agreement with the
+scorer it distilled, 1.3 KB) and THE WINDWARD ROOST — the gulls are BUNDLED
+now, rep-60 gate, the first people whose brain is their own. Modes: `off |
+shadow | live`; **shadow** runs the artifact beside the decider and tallies
+agreement into the harness channel, proven inert by pin (a shadowed town is
+bit-identical to a brainless one). The MCP server closes the loop:
+`policy_distill` returns a shadow-mode artifact with receipts; promotion to
+live is the author's own act and pays the full re-baseline.
+
+**THE RE-BASELINE, per the standard**: first crossing NAMED and stable across
+artifact generations — seed 1337, think 9, T=1358, visitor NIPPY: the script
+sends her for her drink, the brain checks her in first. Nine pins walked by
+mechanism (the succession market RACING assertions was the recurring costume:
+REEF buys a failed shop within one game-minute now). Baseline floor 0/48
+across three blocks, medians in band. **AND THE HONEST NUMBER: growth escapes
+read 8/48 vs the pre-neuro 13/48, with baseline lifetime tilted down in all
+three blocks** — the brain's act-early personality (buys small and early where
+the script waits for the fat ticket; disagreements are none→drink/clean) tilts
+marginal spend toward NPC services. ~1.7σ, named loudly per the erosion rule,
+NOT tuned; the lever if wanted is a class-weighted distill or dropping the
+crab to shadow. Full receipts:
+design/cs35-research/numeric-wip/neuro-ladder-closeout.md.
+
+**THE DISTILLATION RULES, learned the measured way**: the script is the
+teacher (collection disarms every brain — the live artifact was deciding the
+thinks and the reference collected zero rows); and teacher coverage is the
+training distribution (the first artifact was BLIND TO PRICE because every
+collection town sat at the default board — the rivalry's own lever sweep
+caught it; a third of collection boards now sit off-default). Distill
+behavior, never optimize outcomes — that rule is what keeps
+incentives-not-puppeteering true inside a skull.
+
 ## SEND: ORDERING A CRAB IS ONE SENTENCE ON BOTH DEVICES (Matt, 2026-08-22)
 
 > "also needs to be drivable via the phone"
