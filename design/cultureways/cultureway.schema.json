@@ -307,6 +307,22 @@
     }
    }
   },
+  "management": {
+   "description": "The culture's working norms, in AUTHOR units converted once at install. tableTip is what a guest of this people leaves on the table, in whole dollars (crab: 9); counter20 is the jar's token share of that tip at the counter, in twentieths (crab: 3 = the old 0.15); shifts shape their working day in half-hour minutes - std is the M/E standard day (crab: 360), day the owner-operator's open-to-close cap (crab: 600), cover the covering double (crab: 720). Fields left out inherit the crab values. The town's WAGE_STD is deliberately NOT here: it is the town's arithmetic grid, and a culture's customary wage joins this section in the settlers slice, when someone exists to read it.",
+   "type": "object",
+   "properties": {
+    "tableTip": { "type": "integer", "minimum": 1, "maximum": 30 },
+    "counter20": { "type": "integer", "minimum": 0, "maximum": 20 },
+    "shifts": {
+     "type": "object",
+     "properties": {
+      "std": { "type": "integer", "minimum": 120, "maximum": 720, "multipleOf": 30 },
+      "day": { "type": "integer", "minimum": 240, "maximum": 840, "multipleOf": 30 },
+      "cover": { "type": "integer", "minimum": 240, "maximum": 1440, "multipleOf": 30 }
+     }
+    }
+   }
+  },
   "arrival": {
    "type": "object",
    "properties": {

@@ -141,6 +141,24 @@ function localise(d, verdict) {
     if (n.relax != null && !(typeof n.relax === "number" && isFinite(n.relax) && n.relax >= 0 && n.relax <= 0.5))
       say("appeal.nudge.relax", `${n.relax} is outside 0-0.5 (the crab value is 0.12)`);
   }
+  const mg = d.management;
+  if (mg) {
+    const int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (mg.tableTip != null && !(int(mg.tableTip) && mg.tableTip >= 1 && mg.tableTip <= 30))
+      say("management.tableTip", `${mg.tableTip} is outside 1-30 whole dollars (the crab value is 9)`);
+    if (mg.counter20 != null && !(int(mg.counter20) && mg.counter20 >= 0 && mg.counter20 <= 20))
+      say("management.counter20", `${mg.counter20} is outside 0-20 twentieths (the crab value is 3 = the old 0.15)`);
+    const s = mg.shifts;
+    if (s) {
+      const halfHour = (v, lo, hi) => int(v) && v >= lo && v <= hi && v % 30 === 0;
+      if (s.std != null && !halfHour(s.std, 120, 720))
+        say("management.shifts.std", `${s.std} is not a half-hour count of minutes in 120-720 (the crab value is 360)`);
+      if (s.day != null && !halfHour(s.day, 240, 840))
+        say("management.shifts.day", `${s.day} is not a half-hour count of minutes in 240-840 (the crab value is 600)`);
+      if (s.cover != null && !halfHour(s.cover, 240, 1440))
+        say("management.shifts.cover", `${s.cover} is not a half-hour count of minutes in 240-1440 (the crab value is 720)`);
+    }
+  }
   return hits;
 }
 
