@@ -14483,7 +14483,7 @@ function drawCustCard(k) {
     smallText(ctx, "VISITOR - " + visStayLabel(k), 29, 13, [120, 90, 60]);
     smallText(ctx, custStatus(k).slice(0, 26), 29, 21, [30, 110, 60]);
     smallText(ctx, "$" + $d(k.wallet) + " LEFT OF $" + $d(k.purse)
-      + (k.room ? "  ROOM " + k.roomN : ""), 29, 28, [140, 110, 40]);
+      + (k.room ? "  ROOM " + (k.roomN || hotelRooms().indexOf(k.room) + 1) : ""), 29, 28, [140, 110, 40]);
     visBars(k, 6, 37, 118);
     // the phone's door to the brain inspector: MORE> already reads as a tap,
     // so its row carries the sibling chip - lit while the panel is open
