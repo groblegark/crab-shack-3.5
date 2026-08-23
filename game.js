@@ -12265,11 +12265,12 @@ function updateVisitor(k, dt) {
 const _vsepStill = [];
 function vsepPush(k, dq) {
   const i = k.si, x0 = PXQ[i];
-  let x1 = x0 + dq;   // clamped to the promenade: a wall absorbs what it must
+  let x1 = x0 + dq;   // clamped to the promenade...
   if (x1 < VIS_ROAM[0] * Q8) x1 = VIS_ROAM[0] * Q8;
   else if (x1 > VIS_ROAM[1] * Q8) x1 = VIS_ROAM[1] * Q8;
   PXQ[i] = x1;
   if (k.target != null) k.target += (x1 - x0) / Q8;   // exact: Q8 is a power of two
+  return x1 - x0 < 0 ? x0 - x1 : x1 - x0;   // ...and what the wall ate, the caller re-serves
 }
 function visSeparate() {
   if (window._novsep) return;   // the arm-off hatch, attribution's friend
@@ -12299,7 +12300,11 @@ function visSeparate() {
       const dir = dxq < 0 ? -1 : 1;
       if (pa && pb) {
         const half = Math.min(stepq, (need + 1) >> 1);
-        vsepPush(a, -dir * half); vsepPush(b, dir * half);
+        const gotA = vsepPush(a, -dir * half), gotB = vsepPush(b, dir * half);
+        // two loafers pinned on the same wall (the promenade's end draws a
+        // crowd): whatever the wall ate from one side, the partner serves
+        if (gotB < half) vsepPush(a, -dir * (half - gotB));
+        else if (gotA < half) vsepPush(b, dir * (half - gotA));
       } else if (pa) vsepPush(a, -dir * Math.min(stepq, need));
       else vsepPush(b, dir * Math.min(stepq, need));
     }

@@ -14,8 +14,8 @@ window._ovlTick = () => {
   const bodies = [];
   for (const c of allCrabs()) if (!c.hidden && c.csC !== CS.drive && !c.errandCust)
     bodies.push({ x: c.x, y: c.y, still: !c._stepped, kind: "crab", name: c.name, st: c.csC });
-  for (const k of customers) if (k.visitor && !k.gone && !k.hidden && k.stC !== VS.ferryIn && k.stC !== VS.ferryOut && k.stC !== VS.inRoom)
-    bodies.push({ x: k.x, y: k.y, still: true, kind: "vis", name: k.name, st: k.stC });
+  for (const k of customers) if (k.visitor && !k.gone && !k.hidden && k.stC !== VS.inRoom && !k._vmoved && PWYQ[k.si] >= FLOOR_MIN * Q8)
+    bodies.push({ x: k.x, y: PWYQ[k.si] / Q8, still: true, kind: "vis", name: k.name, st: k.stC });
   for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) {
     const a = bodies[i], b = bodies[j];
     const dx = a.x - b.x, dy = 1.8 * (a.y - b.y);
