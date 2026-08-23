@@ -1,0 +1,13 @@
+{
+  "name": "crewux-focus",
+  "note": "The crew-UX patch's three scenarios by name filter (parent mode, JOBS=1). Cheap targeted runs for the mutation demos; the full suite still gates the landing.",
+  "resources": {
+    "requests": { "cpu": "1", "memory": "3Gi" },
+    "limits": { "cpu": "1", "memory": "4Gi" }
+  },
+  "arms": [
+    { "id": "roster",  "entry": "tools/suite.mjs", "args": ["roster outgrows"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "surface", "entry": "tools/suite.mjs", "args": ["one reading surface"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "silent",  "entry": "tools/suite.mjs", "args": ["science run is silent"], "env": { "SIMLIB_REALM": "main" } }
+  ]
+}
