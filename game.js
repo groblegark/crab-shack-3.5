@@ -6823,6 +6823,32 @@ function foodwayDishes(b) {
   }
   return out;
 }
+// A dish the manage card may OFFER: declared for this business by an
+// installed culture, not yet learned, and the demand actually taught - a
+// departure card has to have said so (dishWord). Earned, never automatic.
+function learnableDishes(b) {
+  const out = [];
+  for (const id in CULTURES) {
+    const cul = CULTURES[id];
+    if (!cul || !dishWord[id] || !cul.def.foodways || !Array.isArray(cul.def.foodways.dishes)) continue;
+    for (const d of cul.def.foodways.dishes)
+      if (d.biz === b && !learnedDishes.includes(d.id)) out.push(d);
+  }
+  return out;
+}
+// THE ACT. A one-time lesson fee out of the till (the mainland does not
+// teach for free), and the dish is on the board from the next order taken -
+// its ingredients priced per serve through the same import machinery as
+// every fish the pier didn't land. Nothing is conjured.
+function learnDish(d) {
+  const fee = 100 * (d.learn || 0);
+  if (coins < fee) { toast = { text: "THE LESSON COSTS $" + $d(fee) + " - THE TILL CAN'T COVER IT", t: 6 }; sfx.angry(); return false; }
+  if (fee) expense(fee, BIZ[d.biz].door, 118, "THE RECIPE");
+  learnedDishes.push(d.id);
+  toast = { text: (ITEM_NAMES[d.icon] || d.id.toUpperCase()) + " IS ON THE BOARD - " + BIZ[d.biz].short + " LEARNED THE DISH", t: 7 };
+  sfx.buy(); save();
+  return true;
+}
 // THE MENU SEAM. Every consumer of a kitchen's recipe list - the visitor
 // scorer, the kernel marshal, staff meals, walk-ins, the observables, the
 // manage card - reads through here. Returns the BIZ table's own array
@@ -12748,7 +12774,7 @@ cv.addEventListener("click", (ev) => {
     // the management card swallows every click; only its controls act
     const pt = evPos(ev), R = manageRects(), b = BIZ[manage], h = b.hours;
     const hit = (r) => pt.x >= r.x && pt.x < r.x + r.w && pt.y >= r.y && pt.y < r.y + r.h;
-    for (const t of MANAGE_TABS) if (hit(R.tab[t])) { manageTab = t; sfx.ding(); return; }
+    for (const t of MANAGE_TABS) if (hit(R.tab[t])) { manageTab = t; learnArm = null; sfx.ding(); return; }
     if (manageTab === "HOURS") {
       if (hit(R.om)) { setBizHours(manage, h.open - 30, h.close); sfx.buy(); save(); return; }
       if (hit(R.op)) { setBizHours(manage, Math.min(h.open + 30, h.close - HOURS_SPAN_MIN), h.close); sfx.buy(); save(); return; }
@@ -12760,6 +12786,14 @@ cv.addEventListener("click", (ev) => {
         b.mealPol = MEAL_POLS[(MEAL_POLS.indexOf(b.mealPol) + 1) % MEAL_POLS.length];
         sfx.ding(); save(); return;
       }
+      if (hit(R.learn)) {   // foodways: arm on the first tap, learn on the second
+        const ld = learnableDishes(manage)[0];
+        if (ld) {
+          if (learnArm !== ld.id) { learnArm = ld.id; sfx.ding(); return; }
+          learnArm = null; learnDish(ld); return;
+        }
+      }
+      learnArm = null;   // any other tap on the card disarms the lesson
     } else if (manageTab === "SCHEDULE") {
       if (hit(R.auto)) {
         b.autoLabor = !b.autoLabor; sfx.buy(); save();
@@ -15616,6 +15650,7 @@ function manageBizCycler() {
   return manageTab !== "TOWN" && manageTab !== "HALL" && ownedBizList().length > 1;
 }
 let manageTab = "HOURS";
+let learnArm = null;   // foodways: the dish id armed on the manage card (view state, two taps to learn)
 // HALL tab view state (transient, like the census sort): which of the three
 // reading surfaces you are on - the town's books, the last ballot's result, or
 // the ROLL, which is every voter's own reason in their own words. The roll gets
@@ -15666,6 +15701,7 @@ function manageRects() {
     pm: { x: x + 40, y: y + 92, w: 16, h: 15 },
     pp: { x: x + 96, y: y + 92, w: 16, h: 15 },
     meal: { x: x + 6, y: y + 110, w: 156, h: 14 },
+    learn: { x: x + 6, y: y + 130, w: 190, h: 14 },   // foodways: LEARN THE DISH (arm-then-confirm)
     // ---- SCHEDULE tab
     auto: { x: x + 6, y: y + 30, w: 104, h: 13 },
     sickPol: { x: x + 114, y: y + 30, w: 104, h: 13 },
@@ -15818,6 +15854,17 @@ function drawManage() {
       smallText(ctx, b.mealPol === "retail" ? "CREW PAY MENU PRICE AT THE PANTRY"
         : b.mealPol === "atcost" ? "CREW PAY ONLY THE INGREDIENTS"
         : "ON THE HOUSE - THE TILL EATS THE COST", R.meal.x + 4, R.meal.y + R.meal.h + 2, [110, 100, 110]);
+      // FOODWAYS: the departure cards taught a demand and the kitchen can
+      // answer it. One dish at a time, the BUY chips' own arm-then-confirm.
+      const ld = learnableDishes(key)[0];
+      if (ld) {
+        const armed = learnArm === ld.id;
+        const fee = 100 * (ld.learn || 0);
+        chip(R.learn, fitSmall((armed ? "SURE? " : "LEARN ") + (ITEM_NAMES[ld.icon] || ld.id.toUpperCase())
+          + (fee ? " - $" + $d(fee) : ""), R.learn.w - 26), armed ? "TAP!" : "TAP", armed);
+        smallText(ctx, fitSmall("THE GUESTS KEEP ASKING - INGREDIENTS RUN $"
+          + $d(ingredientCost(ld.raw)) + " A PLATE", R.learn.w), R.learn.x + 4, R.learn.y + R.learn.h + 2, [110, 100, 110]);
+      }
     }
     // THE RIVALRY, in numbers, on the management screen where the owner asked
     // for them: what she wants, what she is paying, and what she is doing to

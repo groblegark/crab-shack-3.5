@@ -1,180 +1,513 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://groblegark.github.io/crab-shack-3.5/cultureway.schema.json",
-  "title": "Cultureway document, schema 2",
-  "description": "One culture as data. Additive over the shipped v1 shape (tools/fixtures/cultures-pig.json); unknown sections are ignored by the engine (forward-compat by construction). Authoritative clamps live in game.js cultureProblem - this schema mirrors them for authoring-time validation and MUST NOT be looser.",
-  "type": "object",
-  "required": ["meta", "people", "art"],
-  "additionalProperties": true,
-  "properties": {
-    "meta": {
-      "type": "object",
-      "required": ["id", "name", "ver"],
-      "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,15}$" },
-        "name": { "type": "string", "maxLength": 40 },
-        "ver": { "type": "integer", "minimum": 1 },
-        "schema": { "type": "integer", "const": 2 }
-      }
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://groblegark.github.io/crab-shack-3.5/cultureway.schema.json",
+ "title": "Cultureway document, schema 2",
+ "description": "One culture as data. Additive over the shipped v1 shape (tools/fixtures/cultures-pig.json); unknown sections are ignored by the engine (forward-compat by construction). Authoritative clamps live in game.js cultureProblem - this schema mirrors them for authoring-time validation and MUST NOT be looser.",
+ "type": "object",
+ "required": [
+  "meta",
+  "people",
+  "art"
+ ],
+ "additionalProperties": true,
+ "properties": {
+  "meta": {
+   "type": "object",
+   "required": [
+    "id",
+    "name",
+    "ver"
+   ],
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[a-z][a-z0-9_]{0,15}$"
     },
-    "people": {
-      "type": "object",
-      "required": ["names"],
-      "properties": {
-        "names": {
-          "type": "array", "minItems": 1, "maxItems": 40,
-          "items": { "type": "string", "minLength": 1, "maxLength": 12 }
-        }
-      }
+    "name": {
+     "type": "string",
+     "maxLength": 40
     },
-    "art": {
-      "type": "object",
-      "required": ["palette", "colorways", "body"],
-      "properties": {
-        "palette": {
-          "type": "object", "maxProperties": 16,
-          "propertyNames": { "minLength": 1, "maxLength": 1 },
-          "additionalProperties": { "$ref": "#/$defs/rgb" }
-        },
-        "colorNames": { "type": "array", "items": { "type": "string", "maxLength": 20 } },
-        "colorways": {
-          "type": "array", "minItems": 1, "maxItems": 8,
-          "items": { "type": "object", "additionalProperties": { "$ref": "#/$defs/rgb" } }
-        },
-        "body": {
-          "type": "object",
-          "required": ["w", "h", "slots", "anchors", "poses"],
-          "properties": {
-            "w": { "type": "integer", "minimum": 4, "maximum": 32 },
-            "h": { "type": "integer", "minimum": 4, "maximum": 32 },
-            "slots": { "type": "array", "minItems": 1, "items": { "type": "string", "maxLength": 1 } },
-            "anchors": {
-              "type": "object",
-              "required": ["hat", "carry", "mark", "bar"],
-              "properties": {
-                "hat": { "$ref": "#/$defs/xy" },
-                "carry": { "$ref": "#/$defs/xy" },
-                "mark": { "$ref": "#/$defs/xy" },
-                "bar": { "type": "object", "required": ["w"], "properties": { "w": { "type": "integer", "minimum": 1, "maximum": 32 } } }
-              }
-            },
-            "poses": {
-              "type": "object",
-              "required": ["a", "b", "w", "s"],
-              "additionalProperties": { "$ref": "#/$defs/rows" }
-            }
-          }
-        },
-        "accessories": {
-          "type": "object", "maxProperties": 8,
-          "additionalProperties": {
-            "type": "object", "required": ["dx", "dy", "rows"],
-            "properties": {
-              "dx": { "type": "integer", "minimum": -16, "maximum": 16 },
-              "dy": { "type": "integer", "minimum": -16, "maximum": 16 },
-              "rows": { "$ref": "#/$defs/rows" }
-            }
-          }
-        },
-        "items": {
-          "type": "object", "maxProperties": 16,
-          "additionalProperties": { "type": "object", "required": ["rows"], "properties": { "rows": { "$ref": "#/$defs/rows" } } }
-        },
-        "bather": { "type": "array", "maxItems": 16, "items": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "type": "integer" } } }
-      }
+    "ver": {
+     "type": "integer",
+     "minimum": 1
     },
-    "world": {
-      "type": "object",
-      "description": "PLACE art - reserved (accepted and ignored until the renderer exists). Backdrop layers, terrain, building templates, props, lighting."
-    },
-    "voice": {
-      "type": "object",
-      "required": ["registers"],
-      "properties": {
-        "registers": {
-          "type": "array", "minItems": 1, "maxItems": 4,
-          "items": {
-            "type": "object", "required": ["id", "acc"],
-            "properties": {
-              "id": { "type": "string", "maxLength": 16 },
-              "acc": { "type": "string", "maxLength": 16 },
-              "purseMul": { "type": "number", "minimum": 0.5, "maximum": 1.5 },
-              "diary": { "$ref": "#/$defs/lines38" },
-              "depart": { "$ref": "#/$defs/lines50" },
-              "dossier": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/line50" } },
-              "foreign": { "$ref": "#/$defs/line50" },
-              "refuseHire": { "$ref": "#/$defs/line50" }
-            }
-          }
-        }
-      }
-    },
-    "tastes": {
-      "type": "object", "maxProperties": 64,
-      "additionalProperties": { "type": "number", "minimum": 0.5, "maximum": 2.0 }
-    },
-    "arrival": {
-      "type": "object",
-      "properties": {
-        "repGate": { "type": "integer", "minimum": 0, "maximum": 100 },
-        "shareMax": { "type": "number", "minimum": 0, "maximum": 0.5 },
-        "shareRamp": { "type": "integer", "minimum": 1, "maximum": 1000 }
-      }
-    },
-    "foodways": {
-      "type": "object",
-      "description": "Phase B (proposal): recipes in BIZ-shaped rows, author-side whole dollars crossing the cents boundary at load; knowledge gates; exposure drift.",
-      "properties": {
-        "recipes": {
-          "type": "array", "maxItems": 32,
-          "items": {
-            "type": "object", "required": ["id", "pay", "steps"],
-            "properties": {
-              "id": { "type": "string", "maxLength": 12 },
-              "icon": { "type": "string", "maxLength": 12 },
-              "pay": { "type": "integer", "minimum": 0, "maximum": 100000 },
-              "raw": { "type": "string", "maxLength": 12 },
-              "steps": {
-                "type": "array", "minItems": 1, "maxItems": 6,
-                "items": { "type": "array", "minItems": 3, "maxItems": 3 }
-              },
-              "knowledge": { "enum": ["innate", "taught", "menu"] }
-            }
-          }
-        },
-        "exposure": {
-          "type": "object",
-          "properties": {
-            "visitsToShift": { "type": "integer", "minimum": 1, "maximum": 20 },
-            "shiftStep": { "type": "number", "minimum": 0.05, "maximum": 0.5 }
-          }
-        }
-      }
-    },
-    "management": {
-      "type": "object",
-      "description": "Phase B (proposal): the culture's norms - wage/tip/shift/meal-policy defaults."
-    },
-    "conduct": {
-      "type": "object",
-      "description": "Layer-0 rule table (proposal); Layer-1 expressions join per-field when a rule needs a formula.",
-      "properties": {
-        "hireable": { "type": "boolean" },
-        "tabooFloor": { "type": "number", "minimum": 0.5, "maximum": 1.0 },
-        "foreignThreshold": { "type": "number", "minimum": 0.5, "maximum": 1.0 }
-      }
-    },
-    "civics": {
-      "type": "object",
-      "description": "Phase E - institutions, offices, policy step-tables, calendar phases, errand defs, invariants. Schema lands with the capability APIs."
+    "schema": {
+     "type": "integer",
+     "const": 2
     }
+   }
   },
-  "$defs": {
-    "rgb": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "integer", "minimum": 0, "maximum": 255 } },
-    "xy": { "type": "object", "required": ["x", "y"], "properties": { "x": { "type": "integer" }, "y": { "type": "integer" } } },
-    "rows": { "type": "array", "minItems": 1, "maxItems": 32, "items": { "type": "string", "minLength": 1, "maxLength": 32 } },
-    "line50": { "type": "string", "maxLength": 50, "pattern": "^[^\"]*$" },
-    "lines38": { "type": "object", "additionalProperties": { "type": "string", "maxLength": 38, "pattern": "^[^\"]*$" } },
-    "lines50": { "type": "object", "additionalProperties": { "type": "string", "maxLength": 50, "pattern": "^[^\"]*$" } }
+  "people": {
+   "type": "object",
+   "required": [
+    "names"
+   ],
+   "properties": {
+    "names": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 40,
+     "items": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12
+     }
+    }
+   }
+  },
+  "art": {
+   "type": "object",
+   "required": [
+    "palette",
+    "colorways",
+    "body"
+   ],
+   "properties": {
+    "palette": {
+     "type": "object",
+     "maxProperties": 16,
+     "propertyNames": {
+      "minLength": 1,
+      "maxLength": 1
+     },
+     "additionalProperties": {
+      "$ref": "#/$defs/rgb"
+     }
+    },
+    "colorNames": {
+     "type": "array",
+     "items": {
+      "type": "string",
+      "maxLength": 20
+     }
+    },
+    "colorways": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 8,
+     "items": {
+      "type": "object",
+      "additionalProperties": {
+       "$ref": "#/$defs/rgb"
+      }
+     }
+    },
+    "body": {
+     "type": "object",
+     "required": [
+      "w",
+      "h",
+      "slots",
+      "anchors",
+      "poses"
+     ],
+     "properties": {
+      "w": {
+       "type": "integer",
+       "minimum": 4,
+       "maximum": 32
+      },
+      "h": {
+       "type": "integer",
+       "minimum": 4,
+       "maximum": 32
+      },
+      "slots": {
+       "type": "array",
+       "minItems": 1,
+       "items": {
+        "type": "string",
+        "maxLength": 1
+       }
+      },
+      "anchors": {
+       "type": "object",
+       "required": [
+        "hat",
+        "carry",
+        "mark",
+        "bar"
+       ],
+       "properties": {
+        "hat": {
+         "$ref": "#/$defs/xy"
+        },
+        "carry": {
+         "$ref": "#/$defs/xy"
+        },
+        "mark": {
+         "$ref": "#/$defs/xy"
+        },
+        "bar": {
+         "type": "object",
+         "required": [
+          "w"
+         ],
+         "properties": {
+          "w": {
+           "type": "integer",
+           "minimum": 1,
+           "maximum": 32
+          }
+         }
+        }
+       }
+      },
+      "poses": {
+       "type": "object",
+       "required": [
+        "a",
+        "b",
+        "w",
+        "s"
+       ],
+       "additionalProperties": {
+        "$ref": "#/$defs/rows"
+       }
+      }
+     }
+    },
+    "accessories": {
+     "type": "object",
+     "maxProperties": 8,
+     "additionalProperties": {
+      "type": "object",
+      "required": [
+       "dx",
+       "dy",
+       "rows"
+      ],
+      "properties": {
+       "dx": {
+        "type": "integer",
+        "minimum": -16,
+        "maximum": 16
+       },
+       "dy": {
+        "type": "integer",
+        "minimum": -16,
+        "maximum": 16
+       },
+       "rows": {
+        "$ref": "#/$defs/rows"
+       }
+      }
+     }
+    },
+    "items": {
+     "type": "object",
+     "maxProperties": 16,
+     "additionalProperties": {
+      "type": "object",
+      "required": [
+       "rows"
+      ],
+      "properties": {
+       "rows": {
+        "$ref": "#/$defs/rows"
+       }
+      }
+     }
+    },
+    "bather": {
+     "type": "array",
+     "maxItems": 16,
+     "items": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+       "type": "integer"
+      }
+     }
+    }
+   }
+  },
+  "world": {
+   "type": "object",
+   "description": "PLACE art - reserved (accepted and ignored until the renderer exists). Backdrop layers, terrain, building templates, props, lighting."
+  },
+  "voice": {
+   "type": "object",
+   "required": [
+    "registers"
+   ],
+   "properties": {
+    "registers": {
+     "type": "array",
+     "minItems": 1,
+     "maxItems": 4,
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "acc"
+      ],
+      "properties": {
+       "id": {
+        "type": "string",
+        "maxLength": 16
+       },
+       "acc": {
+        "type": "string",
+        "maxLength": 16
+       },
+       "purseMul": {
+        "type": "number",
+        "minimum": 0.5,
+        "maximum": 1.5
+       },
+       "diary": {
+        "$ref": "#/$defs/lines38"
+       },
+       "depart": {
+        "$ref": "#/$defs/lines50"
+       },
+       "dossier": {
+        "type": "array",
+        "maxItems": 6,
+        "items": {
+         "$ref": "#/$defs/line50"
+        }
+       },
+       "foreign": {
+        "$ref": "#/$defs/line50"
+       },
+       "refuseHire": {
+        "$ref": "#/$defs/line50"
+       }
+      }
+     }
+    }
+   }
+  },
+  "tastes": {
+   "type": "object",
+   "maxProperties": 64,
+   "additionalProperties": {
+    "type": "number",
+    "minimum": 0.5,
+    "maximum": 2.0
+   }
+  },
+  "arrival": {
+   "type": "object",
+   "properties": {
+    "repGate": {
+     "type": "integer",
+     "minimum": 0,
+     "maximum": 100
+    },
+    "shareMax": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 0.5
+    },
+    "shareRamp": {
+     "type": "integer",
+     "minimum": 1,
+     "maximum": 1000
+    }
+   }
+  },
+  "foodways": {
+   "type": "object",
+   "description": "Phase B (LIVE 2026-08-22): dishes in BIZ-shaped rows a kitchen here can LEARN - author-side whole dollars crossing the cents boundary at load, ingredients priced through the import machinery (nothing conjured), items carrying their own 9-wide pixel art on the global palette. The demand must be TAUGHT (a departure card with a foreign settle) before the manage card offers the lesson.",
+   "additionalProperties": false,
+   "properties": {
+    "dishes": {
+     "type": "array",
+     "maxItems": 32,
+     "items": {
+      "type": "object",
+      "required": [
+       "id",
+       "biz",
+       "icon",
+       "pay",
+       "raw",
+       "steps"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 24,
+        "description": "must not shadow the house menu's own recipe ids"
+       },
+       "biz": {
+        "type": "string",
+        "maxLength": 12,
+        "description": "a kitchen business that exists; every step's station must exist there"
+       },
+       "icon": {
+        "type": "string",
+        "maxLength": 24,
+        "description": "a native item or one declared in items{} with art"
+       },
+       "pay": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 200,
+        "description": "author dollars; the cent is born at menuPrice"
+       },
+       "learn": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 500,
+        "description": "one-time lesson fee in author dollars (0 = free)"
+       },
+       "raw": {
+        "type": "string",
+        "maxLength": 12,
+        "description": "an ingredient the trade machinery prices (INGREDIENT_COST)"
+       },
+       "steps": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 6,
+        "items": {
+         "type": "array",
+         "minItems": 3,
+         "maxItems": 3,
+         "prefixItems": [
+          {
+           "type": "string",
+           "description": "station at the dish's biz"
+          },
+          {
+           "type": "number",
+           "minimum": 0.5,
+           "maximum": 30,
+           "description": "seconds"
+          },
+          {
+           "type": "string",
+           "maxLength": 24,
+           "description": "item carried out of the step"
+          }
+         ]
+        }
+       }
+      }
+     }
+    },
+    "items": {
+     "type": "object",
+     "maxProperties": 64,
+     "description": "display names + optional 9-wide pixel art (global palette chars, '.' transparent); may not shadow the native pantry",
+     "additionalProperties": {
+      "type": "object",
+      "required": [
+       "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 18
+       },
+       "art": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 12,
+        "items": {
+         "type": "string",
+         "minLength": 1,
+         "maxLength": 12
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "management": {
+   "type": "object",
+   "description": "Phase B (proposal): the culture's norms - wage/tip/shift/meal-policy defaults."
+  },
+  "conduct": {
+   "type": "object",
+   "description": "Layer-0 rule table (proposal); Layer-1 expressions join per-field when a rule needs a formula.",
+   "properties": {
+    "hireable": {
+     "type": "boolean"
+    },
+    "tabooFloor": {
+     "type": "number",
+     "minimum": 0.5,
+     "maximum": 1.0
+    },
+    "foreignThreshold": {
+     "type": "number",
+     "minimum": 0.5,
+     "maximum": 1.0
+    }
+   }
+  },
+  "civics": {
+   "type": "object",
+   "description": "Phase E - institutions, offices, policy step-tables, calendar phases, errand defs, invariants. Schema lands with the capability APIs."
   }
+ },
+ "$defs": {
+  "rgb": {
+   "type": "array",
+   "minItems": 3,
+   "maxItems": 3,
+   "items": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 255
+   }
+  },
+  "xy": {
+   "type": "object",
+   "required": [
+    "x",
+    "y"
+   ],
+   "properties": {
+    "x": {
+     "type": "integer"
+    },
+    "y": {
+     "type": "integer"
+    }
+   }
+  },
+  "rows": {
+   "type": "array",
+   "minItems": 1,
+   "maxItems": 32,
+   "items": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 32
+   }
+  },
+  "line50": {
+   "type": "string",
+   "maxLength": 50,
+   "pattern": "^[^\"]*$"
+  },
+  "lines38": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string",
+    "maxLength": 38,
+    "pattern": "^[^\"]*$"
+   }
+  },
+  "lines50": {
+   "type": "object",
+   "additionalProperties": {
+    "type": "string",
+    "maxLength": 50,
+    "pattern": "^[^\"]*$"
+   }
+  }
+ }
 }
