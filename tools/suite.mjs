@@ -11097,6 +11097,11 @@ scenario("cultureways: broken art is refused with a message and the town still l
     ["a lavish table tip", mut(d => d.management = { tableTip: 900 })],   // author units are DOLLARS - 900 is the cents habit, refused
     ["a fractional counter share", mut(d => d.management = { counter20: 3.5 })],
     ["a shift off the half-hour", mut(d => d.management = { shifts: { std: 361 } })],
+    ["a re-priced native ingredient", mut(d => d.foodways.ingredients.fish_raw = 1)],
+    ["a stolen ingredient", mut(d => d.meta.id = "boar")],   // the fixture's corn is PIG's price; claiming it as boar is theft
+    ["a business shadowing the catalog", mut(d => d.businesses = { shack: 1 })],
+    ["a bad business rent", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X", kind: "shopfront", rent: 99999 } })],
+    ["a business naming an owner", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X", kind: "shopfront", rent: 30, owner: "player" } })],
   ];
   for (const [what, d] of cases) {
     const why = b.G("cultureProblem(" + JSON.stringify(d) + ")");
@@ -11190,6 +11195,65 @@ scenario("management: a cultureway's working norms land in the engine's own unit
   if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own norms";
   if (!got.silentIsCrab) return "a culture that declared no management grew norms anyway";
   if (!got.windowIsFresh) return "the shift-window memo served a cultured worker a crab window (or vice versa)";
+scenario("the biz catalog: a declared shop and a priced import build pending, and change no town byte", () => {
+  // Phase B, "the BIZ catalog to data". A culture may declare WHOLE SHOPS -
+  // catalog SUBSTANCE only (recipes, stations as TYPE+capacity, economics in
+  // author dollars), never map coordinates (placement is the town's, phase D)
+  // and never an owner (ownership binds to a settler) - and may price its own
+  // imports (foodways.ingredients; corn left the engine literal for the
+  // pigway this slice). The build converts dollars ONCE at the x100 boundary
+  // and the result is PENDING: built, inspectable, not placed, not in BIZ.
+  // The pin that matters: the same culture WITH a declared business and an
+  // unused priced import runs BYTE-IDENTICAL to itself WITHOUT them.
+  const boar = (extras) => {
+    const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    return Object.assign(d, extras);
+  };
+  const SHOP = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
+    kind: "shopfront", rent: 30, wage: 22, stalls: 3, stations: { trough: 2, ladle: 1 },
+    source: "trough", out: "ladle",
+    recipes: [{ id: "wallow", icon: "suds", pay: 12, raw: "fruit", steps: [["ladle", 2.0, "suds"]] }] } };
+  const fp = (doc) => {
+    const sim = createSim({ seed: 31 });
+    sim.G("installCultures(" + JSON.stringify({ boar: doc }) + ", false)");
+    if (sim.G("!CULTURES.boar")) return { fail: "boar did not install: " + sim.G("toast && toast.text") };
+    sim.runDays(2);
+    return sim.G(`JSON.stringify({ day, coins, rep, fund: townFund.bal,
+      crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), c.p.wallet]),
+      vis: customers.filter(k => k.visitor && !k.gone).map(k => [k.name, Math.round(k.x), k.wallet]),
+      draws: KRNG ? KRNG[0] : rngDraws })`);
+  };
+  const plain = fp(boar({}));
+  if (plain.fail) return plain.fail;
+  // the declared catalog, on a fresh sim: units, pendings, and the engine's own table untouched
+  const sim = createSim({ seed: 31 });
+  sim.G("installCultures(" + JSON.stringify({ boar: boar({ businesses: SHOP, foodways: { ingredients: { mud: 2 } } }) }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const z = CULTURES.boar && CULTURES.boar.businesses && CULTURES.boar.businesses.mudspa;
+    return { z, list: cultureBusinesses().length, inBIZ: !!BIZ.mudspa, keys: BIZ_KEYS.length,
+      mud: INGREDIENT_COST.mud, mudBy: CULTURE_INGREDIENTS.mud,
+      corn: ingredientCost("corn"), cornBy: CULTURE_INGREDIENTS.corn,
+      cornNative: NATIVE_INGREDIENTS.has("corn") };
+  })())`));
+  if (!got.z) return "the declared business did not build";
+  for (const [k, want] of [["rent", 3000], ["wage", 2200], ["pending", true], ["owner", null],
+    ["stalls", 3], ["kind", "shopfront"], ["source", "trough"]])
+    if (got.z[k] !== want) return `mudspa.${k} built as ${got.z[k]}, want ${want}`;
+  if (got.list !== 1) return "cultureBusinesses lists " + got.list + ", want 1";
+  if (got.inBIZ || got.keys !== 5) return "a PENDING business leaked into the town's own catalog";
+  if (got.mud !== 2 || got.mudBy !== "boar") return "the boar's own import did not join the pier's list";
+  if (got.corn !== 300 || got.cornBy !== "pig" || got.cornNative)
+    return "corn is priced " + got.corn + " owned by " + got.cornBy + " - the pigway's declaration did not land";
+  // an uninstall clears the guest's catalog and prices; the bundled pig's corn stands
+  const cleared = JSON.parse(sim.G(`JSON.stringify((loadCultures(null),
+    { list: cultureBusinesses().length, mud: INGREDIENT_COST.mud, corn: ingredientCost("corn") }))`));
+  if (cleared.list !== 0 || cleared.mud !== undefined) return "an uninstalled culture's catalog lingered across a load";
+  if (cleared.corn !== 300) return "the reload lost the pigway's corn";
+  // and the byte pin: the whole declaration is inert until placement exists
+  const declared = fp(boar({ businesses: SHOP, foodways: { ingredients: { mud: 2 } } }));
+  if (declared.fail) return declared.fail;
+  if (plain !== declared) return "a PENDING business moved a town byte";
   return true;
 });
 
