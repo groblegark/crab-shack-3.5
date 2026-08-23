@@ -11549,6 +11549,15 @@ scenario("brains: the shipped crab artifact agrees with the scorer it distilled"
   // stream perturbation. MUTATION: zeroing w2 collapses the brain to a
   // constant class and this fails at ~30%; the floor is set from the
   // shipped artifact's measured in-town rate with headroom for seed noise.
+  //
+  // WHAT THE SHIPPED ARTIFACT ACTUALLY READS HERE, so a future retrain can
+  // see the margin it is spending: the v3 crab brain agrees with its teacher
+  // on 98.21% of these 727 thinks (the v2 brain read 96.70%, the v1 spike's
+  // in-town figure was 96.70% too). In a growth town (seed 1337, chef+table,
+  // six days, 1,156 thinks) it reads 98.36% against v2's 95.67%, and the
+  // disagreement anatomy there is the retrain's whole point: ACT-EARLY 31 ->
+  // 0. The floor stays at 90 - it is a floor, not a target, and it is what
+  // catches a lobotomy rather than a personality.
   const FLOOR = 0.90;
   const sim = createSim({ seed: 4242 });
   sim.G(`BRAINS.crab["vis_pick.candidate"].mode = "shadow"`);

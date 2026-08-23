@@ -1,0 +1,36 @@
+== baseline block 0, v3:
+>> survived 0/16; eviction days: 6,8,9,9,10,10,11,11,11,12,12,13,13,14,14,15 (median 11)
+>> lifetime $50263; housing boat/house/cot 9/66/51; crew housed 3/32; purse $13245; walkouts 60; quits 2; roomLets 962; unhoused 444; hotelier 9/16; beds 64 (+0); cabanas 28; rough 53; roomShort 162
+== baseline block 0, v2:
+>> survived 0/16; eviction days: 7,8,8,8,9,9,9,11,11,12,13,14,14,14,18,20 (median 11)
+>> lifetime $52808; housing boat/house/cot 15/59/60; crew housed 1/32; purse $17294; walkouts 57; quits 3; roomLets 1053; unhoused 517; hotelier 13/16; beds 65 (+1); cabanas 32; rough 46; roomShort 213
+== baseline block 16, v3:
+>> survived 0/16; eviction days: 9,9,10,10,11,11,11,12,12,13,13,13,14,15,16,18 (median 12)
+>> lifetime $55984; housing boat/house/cot 12/58/58; crew housed 2/32; purse $15173; walkouts 75; quits 2; roomLets 1012; unhoused 577; hotelier 11/16; beds 64 (+0); cabanas 26; rough 56; roomShort 174
+== baseline block 16, v2:
+>> survived 0/16; eviction days: 6,8,9,10,11,11,11,11,12,12,12,13,15,15,17,21 (median 12)
+>> lifetime $54383; housing boat/house/cot 13/49/57; crew housed 3/32; purse $14793; walkouts 56; quits 0; roomLets 1072; unhoused 468; hotelier 13/16; beds 65 (+1); cabanas 30; rough 58; roomShort 179
+== baseline block 32, v3:
+>> survived 0/16; eviction days: 5,7,10,11,11,11,11,12,12,12,13,13,16,17,19,24 (median 12)
+>> lifetime $59220; housing boat/house/cot 14/60/59; crew housed 5/32; purse $18782; walkouts 72; quits 1; roomLets 1201; unhoused 494; hotelier 15/16; beds 64 (+0); cabanas 34; rough 52; roomShort 212
+== baseline block 32, v2:
+>> survived 0/16; eviction days: 8,9,11,11,11,11,12,12,12,12,13,13,13,15,16,17 (median 12)
+>> lifetime $56263; housing boat/house/cot 15/69/50; crew housed 1/32; purse $16959; walkouts 70; quits 2; roomLets 1162; unhoused 493; hotelier 13/16; beds 64 (+0); cabanas 37; rough 49; roomShort 229
+== growth block 0, v3:
+>> survived 4/16; eviction days: 6,9,10,11,11,11,11,13,13,13,14,20,41,41,41,41 (median 13)
+>> lifetime $128371; housing boat/house/cot 19/83/53; crew housed 24/48; purse $21412; walkouts 100; quits 2; roomLets 1883; unhoused 698; hotelier 11/16; beds 64 (+0); cabanas 42; rough 116; roomShort 241
+== growth block 0, v2:
+>> survived 1/16; eviction days: 7,8,8,9,9,9,11,11,11,12,12,13,13,16,33,41 (median 11)
+>> lifetime $74206; housing boat/house/cot 19/62/60; crew housed 9/36; purse $19566; walkouts 68; quits 5; roomLets 1332; unhoused 556; hotelier 15/16; beds 65 (+1); cabanas 37; rough 67; roomShort 223
+== growth block 16, v3:
+>> survived 3/16; eviction days: 9,10,10,10,11,12,13,13,13,14,15,15,18,41,41,41 (median 13)
+>> lifetime $111641; housing boat/house/cot 22/75/52; crew housed 18/44; purse $20507; walkouts 98; quits 2; roomLets 1753; unhoused 717; hotelier 13/16; beds 64 (+0); cabanas 40; rough 71; roomShort 234
+== growth block 16, v2:
+>> survived 3/16; eviction days: 6,9,10,10,11,11,12,12,12,13,15,17,17,41,41,41 (median 12)
+>> lifetime $107454; housing boat/house/cot 19/68/57; crew housed 18/44; purse $20114; walkouts 82; quits 0; roomLets 1697; unhoused 673; hotelier 14/16; beds 66 (+2); cabanas 38; rough 78; roomShort 212
+== growth block 32, v3:
+>> survived 7/16; eviction days: 5,10,11,11,11,12,14,18,18,41,41,41,41,41,41,41 (median 18)
+>> lifetime $185821; housing boat/house/cot 29/91/50; crew housed 45/60; purse $28063; walkouts 136; quits 3; roomLets 2636; unhoused 906; hotelier 15/16; beds 67 (+3); cabanas 54; rough 141; roomShort 294
+== growth block 32, v2:
+>> survived 4/16; eviction days: 9,10,11,11,11,12,12,12,13,13,17,17,41,41,41,41 (median 13)
+>> lifetime $131759; housing boat/house/cot 23/83/51; crew housed 25/49; purse $24912; walkouts 114; quits 4; roomLets 2001; unhoused 718; hotelier 15/16; beds 64 (+0); cabanas 45; rough 78; roomShort 233
