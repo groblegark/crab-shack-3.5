@@ -5510,10 +5510,12 @@ scenario("the roster outgrows the panel and every crab stays a tap away", () => 
   sim.runDays(2);
   const out = JSON.parse(sim.G(`(() => {
     const c0 = crabs[0];
+    // staged minimally: exactly the fields the strip's draw and geometry read
+    // (a deep clone of a live crab risks a cyclic ref and proves nothing more)
     while (crabs.length < 12) {
-      const nc = JSON.parse(JSON.stringify(c0));
-      nc.p.name = "STAGED " + crabs.length;
-      crabs.push(nc);
+      crabs.push({ x: c0.x, y: c0.y, duty: false,
+        p: { name: "STAGED " + crabs.length, color: crabs.length % 4, acc: "none",
+             culture: "crab", trait: c0.p.trait, mode: c0.p.mode, sick: false } });
     }
     crabs[7].p.culture = "pig"; crabs[7].p.color = 0;   // the pig in slot eight
     sel = null; followIdx = -1; dossier = null; manage = null; boardView = false;
