@@ -10639,16 +10639,21 @@ scenario("the town splits on a wage floor along the seam it actually falls on", 
   // the neuro visitor flow re-rolled the hiring and day 6 arrived with no
   // boss paying under the floor, which proves nothing either way. The claim
   // is about how the SPLIT scores, so the split's precondition is a fact.
-  // (PERSONAL SPACE re-roll: day 6 arrived with no non-owner FISHER either -
-  // the conscript is any townsfolk off a payroll, fishers first, because the
-  // stage only needs A body under the floor, not a fisher's body.)
+  // (PERSONAL SPACE re-roll: day 6 now arrives with the townsfolk ALREADY
+  // hired - SALTY and DRIFT hold organic payroll jobs, and there is no
+  // fisher to conscript. The stage only needs A body on somebody else's
+  // payroll under the top floor: use an existing employee and set their
+  // shop's wage to the minimum; conscript a jobless townsfolk only if the
+  // re-roll someday arrives with an empty payroll again.)
   const staged = sim.G(`(() => {
+    const e = npcs.find(c => !c.p.owner && BIZ[c.p.job] && c.p.employer);
+    if (e) { setBizWage(e.p.job, WAGE_MIN); return e.p.name; }
     const f = npcs.find(c => c.p.job === "fishing" && !c.p.owner)
       || npcs.find(c => !c.p.owner && !BIZ[c.p.job]);
     if (!f) return "";
     f.p.job = "showers"; f.p.employer = "sudsy"; f.workBiz = "showers"; f.fishSpot = null;
     setBizWage("showers", WAGE_MIN); return f.p.name; })()`);
-  if (!staged) return "no townsfolk off a payroll to stage under the floor";
+  if (!staged) return "no townsfolk to stage under the floor at all";
   const got = JSON.parse(sim.G(`(() => {
     const hi = { mech: "rents", rate: 0, bowls: 0, wage: FLOOR_STEPS };
     const lo = { mech: "rents", rate: 0, bowls: 0, wage: 0 };
