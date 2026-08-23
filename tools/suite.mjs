@@ -1824,18 +1824,16 @@ scenario("tired: the morning and evening shifts end the week level", () => {
   }
   if (n < 4) return `only ${n} seeds produced both shifts`;
   const gap = Math.abs(sumM / n - sumE / n) / Q20;   // the bar's own units
-  // RE-POINTED 0.04 -> 0.055 (PERSONAL SPACE), and READ THIS BEFORE RE-POINTING
-  // AGAIN. The six-seed mean has been creeping the ORIGINAL fault's direction
-  // (M more tired than E) across re-rolls that never touched sleep: -0.007 as
-  // shipped, 0.031 on the pre-change tree, 0.041 on this one (M 0.406->0.403,
-  // E 0.375->0.362 - E IMPROVED, M held; no crab sleeps differently, the
-  // rosters' days re-rolled). Each step is inside the +/-0.06 single-seed
-  // noise this header documents, but three in the same direction is a pattern
-  // taps already taught us to name: if the next trajectory change moves this
-  // mean up AGAIN, do not touch this gate - measure the M shift's sleep
-  // window directly (the darkness() bracket vs the 07:15 rise this scenario
-  // exists to guard) and find what is eating the morning crab's night.
-  return gap <= 0.055 ? true
+  // KNOWLEDGE FROM THE PERSONAL-SPACE RADIUS CURVE (gate UNCHANGED at 0.04;
+  // the shipping 8px tree reads 0.008, E 0.413 vs M 0.405). Worth keeping:
+  // the six-seed mean is a RE-ROLL-SENSITIVE statistic - the pre-change tree
+  // read 0.031 (M heavier) and the curve's retired 10px arm read 0.041, all
+  // without anybody touching sleep. If a trajectory change trips this gate,
+  // check the DIRECTION against the original fault (M losing its morning)
+  // before treating it as sleep regression - and if successive re-rolls keep
+  // landing M-heavy, measure the darkness() bracket vs the 07:15 rise
+  // directly rather than widening this gate.
+  return gap <= 0.04 ? true
     : `the shift you draw still decides your fatigue: mean gap ${gap.toFixed(3)} over ${n} seeds (M ${(sumM/n/Q20).toFixed(3)}, E ${(sumE/n/Q20).toFixed(3)})`;
 });
 
@@ -2409,30 +2407,32 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // not a leak - arrivals 20 against 21 and the town alive on both).
     // Matrix referee: the numbers live in the crab-retrain close-out,
     // measured on this tree against this tree's own pre-retrain build.
-    // RE-BASELINED for PERSONAL SPACE (visSeparate + the line down the pier).
-    // THE FIRST CROSSING IS NAMED ON BOTH SEEDS, and it is the mechanism
-    // itself taking its first step - the capped parting push, -307 Q8, which
-    // is exactly idiv(VSEP_SPD*Q8*1, TICK_HZ) = 1.2px:
-    //   * 1337, day 1 tick T=2277 (14:35): CLACKERS, roaming at x=1567.30,
-    //     parts from a fellow loafer. Plane digest (PXQ+PYQ+PWYQ, FNV) at
-    //     T=2276 is IDENTICAL to the pre-change tree: 3460661955 on both.
-    //   * 4242, day 1 tick T=2140 (14:08): MISTY, same site, same -307, at
-    //     the same popular x=1567.30. Digest at T=2139: 1713200050 on both.
+    // RE-BASELINED for PERSONAL SPACE (visSeparate + the line down the pier),
+    // SHIPPED AT VSEP_RXQ = 8px ON A RULED, MEASURED CURVE: growth 14/48 on
+    // the base tree, 9/48 at 10px, 15/48 at 8px, same instrument, same three
+    // blocks - the radius was chosen ON that curve by ruling, and the curve
+    // itself is the receipt that no dial was turned quietly (the 10px arm's
+    // full ceremony, heads and digests included, lives in the close-out).
+    // THE FIRST CROSSING IS NAMED ON BOTH SEEDS at the shipping radius:
+    //   * 1337, day 1 tick T=2278 (14:35): CLACKERS is the day's SECOND
+    //     leaver and is dealt PLACE 1 in the line down the pier - at 8px the
+    //     loafer pair that led the 10px arm never gets close enough to part,
+    //     so the pier line itself is the head. Plane digest (PXQ+PYQ+PWYQ,
+    //     FNV) at T=2277 is IDENTICAL to the pre-change tree: 2302384068 on
+    //     both, and his changed wait spot reshapes the rest of day 1 (draw
+    //     count 1863 -> 1726, the rng pin's receipt).
+    //   * 4242, day 1 tick T=2141 (14:08): MISTY's first parting, -307 Q8
+    //     (exactly idiv(VSEP_SPD*Q8*1, TICK_HZ)), one tick LATER and 2px
+    //     closer than the 10px arm's same site - the softer radius is the
+    //     same mechanism arriving later, which is what softer means. Digest
+    //     at T=2140: 2390089313 on both trees.
     // No new draws anywhere (the parting is pure arithmetic; the pier place
-    // is a count), so the drift is trajectory-shaped: parted loafers stand
-    // on different pixels when their think fires, and the day re-rolls
-    // behind it - serves 42->38/42->43, rage 4->7/4->4, coins both up, and
-    // the midnight positions are simply different walks home. The matrix
-    // refereed the change (personal-space-closeout.md): baseline 0/48 intact
-    // (medians 12/13/12), growth 9/48 (4/2/3) against 14/48 (4/3/7) measured
-    // with the same instrument on the same blocks on the base tree - and the
-    // delta is ATTRIBUTED, not assumed: --novsep on the biggest-moving block
-    // (sb=32) reproduces the base tree's 7/16 with byte-identical eviction
-    // days, so the whole cost is the parting itself (a crowd that takes up
-    // space stands farther from the counters), and the pier line is inert.
-    // Nothing was tuned; the cost is reported in the close-out for ruling.
-    1337: '{"day":3,"tmin":0,"coins":16115,"rep":51170,"catch":4,"serves":38,"crabServes":5,"rage":7,"till":19647,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19647],["REEF",20920],["SALTY",4400],["DRIFT",100],["KELP",400]],"pos":[[520,154],[108,154],[564.8,167.1],[2136,154],[450,167],[2072,154],[364.5,167.4]]}',
-    4242: '{"day":3,"tmin":0,"coins":17628,"rep":50918,"catch":3,"serves":43,"crabServes":4,"rage":4,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",20923],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
+    // is a count) - the drift is trajectory-shaped, and at 8px the two-day
+    // economy lands NEAR the base tree (serves 42->41/42->44, rage 4->3/4->4)
+    // where 10px had pushed it visibly (38/43, rage 7). Baseline 0/48 intact
+    // (medians 12/12/12), growth 15/48 (4/4/7) vs base 14/48 (4/3/7).
+    1337: '{"day":3,"tmin":0,"coins":17937,"rep":52768,"catch":4,"serves":41,"crabServes":5,"rage":3,"till":21832,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21832],["REEF",19732],["SALTY",4100],["DRIFT",100],["KELP",1300]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[318,167]]}',
+    4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3379,22 +3379,20 @@ scenario("routes: furniture avoidance keeps warps + unsticks near zero", () => {
   // time; nothing wedges. Note lane travel now routes around a PARKED crab,
   // which removed a standing 36-a-week jam at the shower counter - the
   // remaining ones are in the home area, off-lane by construction.
-  // RE-POINTED warps 2 -> 4 (PERSONAL SPACE), and TRACED first, all three,
-  // per this scenario's own standard. The re-rolled town warps 3x in 5 days
-  // (was 0 here; unsticks 2 -> 0), and the mechanism is named: KELP, day 3
-  // 16:24, grinding against PINCHY parked at (1382,167) - the floor's BOTTOM
-  // EDGE, where the wide berth has no y-room to swing a mover sideways - for
-  // exactly the 30-game-minute budget, then the valve fires ("EXCUSE ME")
-  // and he passes. DRIFT hits the same parked-crab spot day 5; SALTY's is at
-  // a station. Nothing bounces off FURNITURE all day (this scenario's fault
-  // class); the walls are parked crabs at the y-clamped edge, a standoff
-  // geometry as old as the berth, and the valve is doing precisely its job.
-  // Visitors take no part: they neither block crabs nor bounce (the personal
-  // space pass is visitor-vs-visitor only). If a future re-roll pushes this
-  // past 4, trace whether the parked crab is at FLOOR_MAX again - three
-  // sightings of the same edge geometry would earn the berth a y-clamp case,
-  // not this gate another point.
-  if (w > 4) return `${w} bounce-budget warps in 5 days (was 21, then 0, now 3 traced; gate 4)`;
+  // KNOWLEDGE FROM THE PERSONAL-SPACE RADIUS CURVE (gate UNCHANGED at 2; the
+  // shipping 8px tree reads 1 warp + 1 unstick here). The 10px arm of that
+  // curve read 3 warps and every one was TRACED before the arm was retired:
+  // KELP, day 3 16:24, grinding against PINCHY parked at (1382,167) - the
+  // floor's BOTTOM EDGE, where the wide berth has no y-room to swing a mover
+  // sideways - for exactly the 30-game-minute budget, then the valve fired
+  // ("EXCUSE ME") and he passed. DRIFT hit the same parked-crab spot day 5.
+  // Nothing bounced off FURNITURE (this scenario's fault class); the walls
+  // were parked crabs at the y-clamped edge, a standoff geometry as old as
+  // the berth. If a future re-roll trips this gate, check the parked crab's
+  // y against FLOOR_MAX first - repeat sightings of that edge geometry earn
+  // the berth a y-clamp case, not this gate a point. Visitors take no part
+  // either way: the personal-space pass is visitor-vs-visitor only.
+  if (w > 2) return `${w} bounce-budget warps in 5 days (was 21, measured 0; gate 2)`;
   if (w + u > 26) return `${w} warps + ${u} unsticks in 5 days (measured 19; gate 26)`;
   return true;
 });
@@ -11169,13 +11167,13 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // fingerprint's receipt). The scenario's own claim is UNCHANGED and still
   // proven: a save without a cultures key loads onto exactly the trajectory a
   // fresh boot walks.
-  // RE-BASELINED for PERSONAL SPACE (visSeparate): seed 4242's traced head is
-  // MISTY's first parting, day 1 T=2140, x=1567.30, push -307 Q8 - plane
+  // RE-BASELINED for PERSONAL SPACE at the RULED 8px: seed 4242's traced head
+  // is MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8 - plane
   // digest identical either side of it (the frozen day-2 fingerprint carries
   // the full receipt). Same two-day town as that fixture, same drift.
-  const want = '{"day":3,"coins":17628,"rep":50918,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,21443],["REEF",2136,20923],["SALTY",2072,0],'
-    + '["DRIFT",318,0],["KELP",450,2800]],"vis":6,"catch":3}';
+  const want = '{"day":3,"coins":17546,"rep":50824,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,22428],["REEF",2136,20921],["SALTY",2072,0],'
+    + '["DRIFT",318,0],["KELP",450,2800]],"vis":7,"catch":3}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
@@ -12057,7 +12055,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1863, 2: 1039 };   // re-pointed for PERSONAL SPACE (visSeparate): day 1 UNCHANGED at 1863 - the parting is pure arithmetic and adds NO draw; the first push (CLACKERS, T=2277) merely stands loafers on different pixels, and day 2's conditional draws land differently behind it (1096 -> 1039, the trajectory's shape, not a leak). Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
+  const PIN = { 1: 1726, 2: 1737 };   // re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
