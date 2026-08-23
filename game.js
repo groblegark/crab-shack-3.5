@@ -6080,6 +6080,11 @@ const PXQ  = KERN ? new Int32Array(_kb, _k0,        POOL_MAX) : new Int32Array(P
 const VP_PX = new Int32Array(POOL_MAX), VP_PY = new Int32Array(POOL_MAX), VP_WY = new Int32Array(POOL_MAX),
       VP_RX = new Int32Array(POOL_MAX), VP_RY = new Int32Array(POOL_MAX), VP_RW = new Int32Array(POOL_MAX);
 let vpTicks = 1, vpSwapped = false;   // ticks advanced at the last snapshot; swap-window latch
+let vpCamDt = 0;   // the camera's clock: wall seconds x the speed chips, UNQUANTIZED - dt is
+                   // whole ticks and reads zero on five of six 120Hz frames, so a camera
+                   // lerping on it stands still while the interpolated crab glides, then
+                   // lurches on the tick frame (the play-test's follow stutter, measured
+                   // +0.46px x5 then -2.3px). camX is view float; its clock can be too.
 const VP_SNAPQ = 2048;   // 8px of Q8 grains: beyond any plausible step, a slot SNAPS - a warped crab must not smear
 const KB_SI    = KERN ? new Int32Array(_kb, _k0 + 4480, POOL_MAX) : null,
       KB_FLAGS = KERN ? new Int32Array(_kb, _k0 + 5120, POOL_MAX) : null,
@@ -17819,10 +17824,10 @@ function followCam(dt) {
     if (window._probeCam) (window._camProbe = window._camProbe || []).push([followed.x, camX, dt]);   // debug seam, _vpLerped family
   }
 }
-window._dbgFollow = (i) => { followIdx = i; followNpc = null; followCust = null; };   // debug seam: the card click, addressable
+window._dbgFollow = (i) => { followIdx = i; followNpc = null; followCust = null; return { n: crabs.length, f: followIdx, scr: screen }; };   // debug seam: the card click, addressable
 function viewFrame(dt) {
   window._viewCalls = (window._viewCalls || 0) + 1;
-  followCam(dt);
+  followCam(vpCamDt);   // the camera's own clock (headless never enters viewFrame; the suite drives followCam directly)
   drawBG();
   drawTown();
   drawBus();
@@ -18419,6 +18424,7 @@ function frame(now) {
   const rawTicks = (msAcc - msAcc % 50) / 50;
   msAcc -= rawTicks * 50;
   dtT = rawTicks * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // ticks this frame
+  vpCamDt = (rawMs / 1000) * TURBO * (ffSleep ? 6 : FF_SPEED[ffMode]);   // same scaling, no quantizer
   const dt = dtT / TICK_HZ;   // seconds, for the view-side timers that still read them
   // the interpolation's prev image: the state the LAST render stood on,
   // taken only when this frame actually advances the world
