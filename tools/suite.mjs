@@ -411,6 +411,55 @@ scenario("save/load roundtrip preserves state", () => {
   return before === after ? true : `mismatch: ${before} vs ${after}`;
 });
 
+// THE SLOT IS EARNED, NOT ASSUMED. Proven in a real browser before the guard
+// existed: opening `?lab` and closing the tab buried a day-4 save under the
+// lab's own day-1 town, and a save the loader REJECTED was buried by the
+// fresh town born from its failure. These three pin the guard from both
+// sides - the two paths that must write NOTHING, and the first-town path
+// that must keep writing (the overcorrection is as real a bug as the bug).
+scenario("save guard: a lab session never buries the slot it booted over", () => {
+  const donor = createSim({ seed: 91 });
+  donor.runDays(2);
+  const staged = donor.G("JSON.stringify(save(true))");
+  const store = new Map([["crabshack3_v1_s1", staged], ["crabshack3_v1_active", "1"]]);
+  const lab = createSim({ seed: 92, storage: store, search: "?lab" });
+  // (screen is not asserted: the harness itself forces screen="play" after
+  // boot, so LAB-ness is the honest precondition here)
+  if (lab.G("LAB") !== true) return "the lab did not boot as a lab";
+  if (lab.G("slotOwned") !== false) return "a lab boot earned the slot it never read";
+  lab.G("save()");   // the unload handler's exact call
+  const after = store.get("crabshack3_v1_s1");
+  return after === staged ? true
+    : "the lab buried slot 1: the staged day-" + JSON.parse(staged).day + " town became day " + JSON.parse(after).day;
+});
+
+scenario("save guard: a town born from a rejected save does not bury it", () => {
+  const donor = createSim({ seed: 93 });
+  donor.runDays(2);
+  const env = JSON.parse(donor.G("JSON.stringify(save(true))"));
+  env.personas = [];   // the loader refuses this - everything else is recoverable
+  const staged = JSON.stringify(env);
+  const store = new Map([["crabshack3_v1_s1", staged], ["crabshack3_v1_active", "1"]]);
+  const sim = createSim({ seed: 94, storage: store, fresh: false });
+  if (sim.G("day") !== 1) return "the rejected save loaded anyway";
+  if (sim.G("slotOwned") !== false) return "a town born from a rejected save earned its victim's slot";
+  sim.G("save()");
+  const after = store.get("crabshack3_v1_s1");
+  return after === staged ? true
+    : "the fresh town buried the rejected (recoverable) save in slot 1: " + after.length + " bytes over " + staged.length;
+});
+
+scenario("save guard: an empty slot still receives the first town", () => {
+  const store = new Map();
+  const sim = createSim({ seed: 95, storage: store, fresh: false });
+  if (sim.G("slotOwned") !== true) return "an empty active slot was not earned at boot - first towns would never autosave";
+  sim.G("save()");
+  const raw = store.get("crabshack3_v1_s1");
+  if (!raw) return "the first town's autosave wrote nothing - the guard overcorrected";
+  const o = JSON.parse(raw);
+  return o.day === 1 && Array.isArray(o.personas) && o.personas.length ? true : "slot 1 holds something that is not the first town";
+});
+
 scenario("npc: SUDSY runs her showers, player books untouched", () => {
   const sim = createSim({ seed: 77 });
   const coins0 = sim.G("Math.round(coins)");
