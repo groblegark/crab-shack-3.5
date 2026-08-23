@@ -1,42 +1,46 @@
-# The experiment IS these values. A result quoted from a run should cite:
-# gitRef, towns x days, the flags, and the receipt's own fingerprint line.
+# crab-science v2 — the general parallel-run substrate.
+#
+# A RUN is (gitRef SHA, a committed experiment manifest, arm count). The
+# manifest (see experiments/*.json) is a JSON array of ARMS; indexed pod i
+# runs arms[i] via tools/kube-arm.mjs and banks one ConfigMap receipt.
+# Do not hand-edit installs together: use tools/kube.mjs, which validates
+# the SHA is pushed, the manifest is committed AT that SHA, sets these
+# values, watches, collects, and cleans up (with the karpenter
+# scale-down check - stray nodes are real money).
+#
+# A result quoted from a run should cite: gitRef, the manifest path, and
+# the receipt's own verdict line.
 
 repo: https://github.com/groblegark/crab-shack-3.5.git
-# Pin the exact commit the science runs on - never a branch name, so the
-# receipt stays reproducible after the branch moves.
-gitRef: c059220000000000000000000000000000000000  # <- set at install; see README
+# Pin the exact commit - never a branch name, so the receipt stays
+# reproducible after the branch moves. kube.mjs sets this.
+gitRef: 0000000000000000000000000000000000000000
 
-# Sharding: pods x townsPerPod towns total. Pod i simulates seeds
-# [seedbase + i*townsPerPod, ...). Towns are deterministic per seed, so
-# any shard shape gives the same science - shape only changes wall time.
-pods: 8
-townsPerPod: 64
-seedbase: 0
-
-# Per-town workload (passed to batch.mjs / headless verbatim)
-days: 30
-# Extra worker flags, e.g. ["--buy", "chef,table"] for the growth sweep,
-# or hatches like ["--norival"] for attribution science.
-extraArgs: []
-
-# Workers per pod - match resources.cpu. batch.mjs forks one headless
-# worker per core; the kernel and main realm are armed by default.
-jobsPerPod: 7
+# Repo-relative path of the experiment manifest, committed at gitRef.
+manifest: experiments/suite-312.json
+# Number of arms in that manifest == Job completions. kube.mjs reads the
+# manifest and sets this; a mismatch means idle pods or unrun arms.
+arms: 1
+# Cap concurrent pods (default: all arms at once). Spend guardrail.
+parallelism: null
 
 image:
   node: node:26-slim
   git: alpine/git:2.45.2
 
+# Sized for the MANIFEST's declared resources by kube.mjs (a suite slice is
+# ~2 cpu; a matrix arm forks workers and wants 7-8).
 resources:
   requests:
-    cpu: "7"
+    cpu: "2"
     memory: 2Gi
   limits:
-    cpu: "8"
+    cpu: "2"
     memory: 4Gi
 
-# Job housekeeping
-backoffLimit: 2
+# Job housekeeping. backoffLimit stays LOW: a red arm is a verdict, not a
+# flake to burn retries (and money) on.
+backoffLimit: 1
 ttlSecondsAfterFinished: 86400
 activeDeadlineSeconds: 3600
 

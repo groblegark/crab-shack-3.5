@@ -13224,7 +13224,8 @@ const argv = process.argv.slice(2);
 const flags = {};
 const filters = [];
 for (let i = 0; i < argv.length; i++) {
-  if (argv[i] === "--jobs" || argv[i] === "--timings-out" || argv[i] === "--_run") flags[argv[i]] = argv[++i];
+  if (argv[i] === "--jobs" || argv[i] === "--timings-out" || argv[i] === "--_run" || argv[i] === "--slice") flags[argv[i]] = argv[++i];
+  else if (argv[i] === "--count") flags["--count"] = true;
   else filters.push(argv[i]);
 }
 let JOBS = Math.max(1, parseInt(flags["--jobs"] || "1") || 1);   // let: the watchdog's re-queue drains alone
@@ -13241,6 +13242,38 @@ if (flags["--_run"] != null) {
     process.send({ idx, pass: out === true, msg: out === true ? null : String(out), ms: Date.now() - s });
   }
   process.exit(0);
+}
+
+if (flags["--count"]) {
+  // The registration count, for shard planners (kube arms size their slices
+  // without running anything). Filters apply, so `--count kernel` answers
+  // "how many kernel scenarios" too.
+  const c = filters.length ? results.filter(r => filters.some(f => r.name.includes(f))).length : results.length;
+  console.log(c);
+  process.exit(0);
+}
+
+if (flags["--slice"] != null) {
+  // ---- standalone shard mode for kube pods: run indices i, i+N, i+2N...
+  // in-process, no IPC (a pod has no parent to judge), print each verdict,
+  // exit red on any failure. The watchdog lives with the pod's own
+  // activeDeadlineSeconds - a wedge here is the Job's to kill, loudly.
+  const m = /^(\d+)\/(\d+)$/.exec(flags["--slice"]);
+  if (!m) { console.error("--slice wants i/N, e.g. 3/8"); process.exit(2); }
+  const [i0, N] = [Number(m[1]), Number(m[2])];
+  if (!(N > 0 && i0 >= 0 && i0 < N)) { console.error("--slice out of range"); process.exit(2); }
+  let p = 0, f = 0;
+  const t0s = Date.now();
+  for (let idx = i0; idx < results.length; idx += N) {
+    const { name, fn } = results[idx];
+    const s = Date.now();
+    let out;
+    try { out = fn(); } catch (e) { out = "EXCEPTION: " + (e.stack || e).toString().split("\n").slice(0, 4).join(" / "); }
+    if (out === true) { p++; console.log(`  PASS  ${name} (${Date.now() - s}ms)`); }
+    else { f++; console.log(`  FAIL  ${name}: ${String(out)}`); }
+  }
+  console.log(`${p}/${p + f} passed in slice ${i0}/${N} (${((Date.now() - t0s) / 1000).toFixed(1)}s)`);
+  process.exit(f ? 1 : 0);
 }
 
 const list = filters.length ? results.filter(r => filters.some(f => r.name.includes(f))) : results;
