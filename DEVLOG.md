@@ -8,7 +8,189 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-22, latest — THE CRABS LEARN TO WAIT
+## 2026-08-23, latest — THE WEEK WE BLEW UP THE BOX
+
+A confession entry, because the ledger demands it: in two days of
+building everything below, we crashed the development machine **five
+times**. Not the game — the game is made of integers and never crashed
+once. The *machine*, which we kept asking to run six copies of the
+test fleet and three forty-eight-town histories at the same time, until
+it did the only dignified thing left and turned itself off.
+
+So there is a new law, and it is absolute: **the box edits, the cluster
+runs.** Every simulation now executes on rented computers far away —
+a run is a pinned commit plus a manifest of jobs, fanned out across
+indexed pods, and every pod banks its verdict as a little sealed
+receipt *before* it exits, because the rented computers get taken away
+mid-sentence and stdout dies with them. The koan the sprint came home
+with: **receipts are the verdict, Job status is a mood** — we watched a
+run report two failures while all sixteen receipts sat there, green,
+banked by pods that were killed at teardown *after* finishing their
+work. The full test fleet — six hundred twenty-four checks, both
+engines — runs in about nine cluster-minutes and costs this machine
+nothing at all.
+
+And because a law nobody enforces is a suggestion, the law has teeth:
+a guard now inspects every command before it runs and refuses any that
+so much as *names* a simulation script. The guard's first two victims
+were its own author — once on a test probe, and once, within the
+minute, when the orchestrator tried to write the documentation *about*
+the guard in a shell command that mentioned the forbidden names. It
+ate its own paperwork. We have decided this is proof it works.
+
+*(In flight as we write: the town's first real science experiment —
+the thinking crabs below are measurably richer than the scripted ones,
+and forty-eight paired towns are running on the cluster right now to
+find out exactly which thoughts the money is made of. And on the
+drawing board, with the arithmetic already proven: crabs that learn
+from their own days while they sleep. Deterministically. Same dream
+on every engine, to the last digit.)*
+
+---
+
+## 2026-08-23 — THE ISLAND KEEPS ITS CUSTOMS IN WRITING
+
+Five landings in two days, one idea: things the engine used to *know*
+about crabs, it now *reads* — from the same kind of document the pigs
+and gulls arrived in. The island is becoming a culture like any other,
+just the one that happens to be home.
+
+- **What draws a body** — the taste for fish over tacos, and the pull
+  of a spot the player set someone down at — is now one culture-owned
+  appeal table, not two hard-coded mechanisms wearing different hats.
+- **The tip is the tipper's custom.** How much lands on the table and
+  what share goes in the counter jar belongs to the *guest's* people
+  now, not to the till. (The number crosses into the fast engine as
+  data it already carried — nobody re-taught the machine to count.)
+- **The island speaks from its own table.** Every diary line and
+  departure-card phrase the crabs say now lives in the crab document,
+  byte-equal to the old literals — proven by a test that runs two whole
+  town-days and compares every printed word. A culture can also now put
+  its thumb on the departure scales, gently, in writing, with clamps.
+- **A culture can declare a whole shop.** Recipes, stations, rent,
+  stalls — the format is done and validated; declared shops wait,
+  politely, for the town to grant them a *plot* (that machinery is in
+  flight as we write). And a culture prices its own imports now:
+  **corn belongs to the pigs.** The engine's ingredient list had a
+  comment admitting the corn was never really its own; the pigway
+  claims it, and no other culture can shadow another's pantry.
+- **The apron is the culture's to take.** The old iron rule — "A PIG
+  DOES NOT TAKE THE APRON" — turns out to be nothing but the default a
+  silent document keeps. The pig documents now declare settlement:
+  a pig may take a job, and stay, and keep her name, her hat, and her
+  register while she does it. The floor-measuring test towns never
+  hire while a pig is ashore, so the ledgers moved not one cent — this
+  one is for the *player* who makes it happen.
+
+Every one of these landed byte-identical to the town before it, by
+receipt. The town did not change. What changed is where the town is
+*written down.*
+
+---
+
+## 2026-08-23 — THE CREW MAKE UP THEIR OWN MINDS
+
+The visitors have been thinking for days. Now the **crew** think —
+the residents, the workers, the crabs with names on the payroll —
+thirteen kinds of decision (work the shift, chase the ball, a bowl of
+soup, *vote*), a brain that agrees with the town's old written rules
+**97.96%** of the time, and here is the astonishing part: the town is
+**better off for the disagreements**. Nineteen towns in forty-eight
+escape the rent trap with thinking crew, against fifteen with the old
+rules — and in the middle block of test towns the median eviction
+moved from day twelve to day *thirty-one*.
+
+It did not start well, and the record keeps the start. The first live
+run failed fourteen tests, and the failures drew a precise map of what
+should never have been up for negotiation: SUDSY returned to her old
+dehydration habit, the player's set-a-crab-down nudge was ignored, and
+a starving, sick crab was offered a *wash*. The fix is a doctrine now,
+written into the engine: **life-support is not a personality.** In an
+emergency, when the player points, and when a crab is ill, the old
+rules decide — the brain gets everything else. Seven of the ten
+failures healed on the spot.
+
+Press **t** on a crew crab and you can watch: THE MIND OF PINCHY,
+same instrument panel as the visitors get. And one honest oddity,
+reported rather than corrected, because franchise law belongs to a
+later chapter: **thinking crabs vote less.** Election tallies that ran
+five-to-seven papers under the old rules run three-to-four now.
+Temperament decides who walks to the ballot box, and it turns out some
+of them have better things to do. We are watching this one.
+
+Quietly, inside this landing, a door was installed: every minded crab
+now carries a small blank slate — 364 bytes of *her own* — that rides
+her save file. It is all zeros today, and all zeros behaves exactly
+like the shipped brain, to the bit. It is where, one day soon, what
+she learns in her sleep will live.
+
+---
+
+## 2026-08-23, before dawn — PERSONAL SPACE
+
+An embarrassing discovery, made only because three cultures now stand
+on the same pier: **visitors were never in the collision system at
+all.** Crabs kept a respectful distance from crabs — that code works,
+always has — but a pig, a gull, and two tourists could and did occupy
+the same square foot of promenade like a stack of playing cards. It
+took a crowd to make the old hole visible.
+
+Now bodies take room. Standing visitors part, softly, over a second or
+so, until everyone has their eight pixels; anyone *walking* passes
+through the crowd unbothered, because a stroll is not a land claim.
+Anchored folk — a queue, a seat — hold their ground and the roamers
+step aside. And leavers waiting for the ferry no longer pile onto one
+plank: they take dealt places down the deck. **The ferry queue is a
+line down the pier now,** which is the most civilization we have ever
+gotten from thirty lines of integer arithmetic.
+
+The eight pixels were *measured*, not chosen. At ten pixels of
+personal space the growth ledger dropped from fourteen escapes in
+forty-eight to nine — a crowd that stands farther from the counters
+buys less, forever, and the tax lands on every purchase decision
+through the pick's own distance term. At eight pixels: **fifteen in
+forty-eight**, a hair *better* than before the feature existed. The
+three-point curve is banked in the ledger as proof that nobody tuned
+anything — we just refused to pay six escapes for two pixels.
+
+![Before: a stack of playing cards](devlog/img/2026-08-22-crowd-before.png)
+
+![After: the same moment, and everyone has shoulders](devlog/img/2026-08-22-crowd-after.png)
+
+---
+
+## 2026-08-22, after dark — THE MIND OF MAUDE
+
+You can read a crab's mind now. Select any thinking visitor and press
+**t** — or tap the little **MIND>** chip on her card, if you are
+playing on a phone — and an instrument panel unfolds: every option her
+brain just weighed, as a bank of meters, with the one she picked lit
+up and tagged. Below it, a **BECAUSE** section that reads her actual
+inputs back in plain words — SHACK OPEN: YES, SHACK ROOM: YES,
+THIRST: 100% — and a strip of her last sixteen decisions, and an
+honest clock: LAST THOUGHT 16:46 — brains do not think every moment,
+and the panel refuses to pretend otherwise.
+
+The banked frame tells a complete story with no narration: MAUDE,
+parched, at 19:00. The shack is open. The shack has room. The shack
+cannot fix *parched* at this hour — and the meter that wins is
+**A BED**. You can watch the sensible tragedy of it happen.
+
+![MAUDE, parched, mid-wait: the brain holds](devlog/img/2026-08-22-brain-inspector-wait.png)
+
+![The same mind at 19:00: A BED, because THIRST 100%](devlog/img/2026-08-22-brain-inspector-pick.png)
+
+The panel is pure spectator glass — it copies what the brain already
+computed and can neither draw a random number nor nudge a decision;
+the fleet checked the copies against the brain's own arithmetic to the
+bit. And one small courtesy shipped alongside: the visitor card used
+to say ROOM UNDEFINED for the hour between a guest *reserving* her
+room and *checking into* it. The guest knew her number the whole time.
+Now the card asks her instead of the paperwork.
+
+---
+
+## 2026-08-22 — THE CRABS LEARN TO WAIT
 
 Last time we told you the crabs were thinking. We now have to report
 what some of them were thinking, which was, roughly: *buy something.
