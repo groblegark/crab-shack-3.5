@@ -11459,6 +11459,124 @@ scenario("management: a cultureway's working norms land in the engine's own unit
   return true;
 });
 
+scenario("the body: a cultureway's physiology lands in the engine's own units, and only for its own folk", () => {
+  // Census C2. buildCulture converts twentieths ROUND-HALF-UP into the exact
+  // Q20 forms the crab constants hold (the 1.19% flooring incident is why
+  // rounding direction is pinned by literal here: 402*26 = 10452, and
+  // half-up division by 20 gives 523 where flooring gives 522); bodyOf hands
+  // the table only to that culture's own, reading BOTH homes; everyone else
+  // gets BODY verbatim (===). Rows deal in sorted-id order at install, and
+  // the kernel table carries the same numbers when armed.
+  const sim = createSim({ seed: 9 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.body = { rates: { hunger: 26, tired: 12 }, wants: { drink: 30 } };
+  const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  part.meta.id = "partpig";
+  delete part.foodways;   // the fixture's corn is PIG's priced import; a clone under another id may not claim it
+  part.body = { rates: { hunger: 22 } };
+  sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const p = CULTURES.pig.phys, q = CULTURES.partpig.phys;
+    return {
+      full: { hu: p.R.hunger, ti: p.R.tired, th: p.R.thirst, wd: p.W.drink, wf: p.W.food, ts: p.T.shift, row: p.ROW },
+      want: { hu: 523, ti: 101, th: VIS_RATE.thirst, wd: 629145, wf: VIS_WANT.food, ts: 377488, row: 2 },
+      part: { hu: q.R.hunger, th: q.R.thirst, wf: q.W.food, ts: q.T.shift, row: q.ROW },
+      partWant: { hu: 442, th: VIS_RATE.thirst, wf: VIS_WANT.food, ts: TIRED_SHIFT, row: 1 },
+      pigGuest: bodyOf({ culture: "pig" }).R.hunger === 523,
+      pigWorkerNight: bodyOf({ p: { culture: "pig" } }).T.night === 31457,
+      crabIsCrab: bodyOf(null) === BODY && bodyOf({ p: {} }) === BODY && bodyOf({ culture: "gull" }) === BODY,
+      silentIsCrab: (() => { const g = CULTURES.gull; return !g || g.phys === null; })(),
+      kernelRow: typeof KM_BODY !== "undefined" && KM_BODY
+        ? KM_BODY[0] === VIS_RATE.hunger && KM_BODY[5] === VIS_WANT.food
+          && KM_BODY[2 * 9] === 523 && KM_BODY[2 * 9 + 4] === 101 && KM_BODY[2 * 9 + 6] === 629145
+          && KM_BODY[1 * 9] === 442
+        : "unarmed",
+    };
+  })())`));
+  for (const k in got.want)
+    if (got.full[k] !== got.want[k]) return `body.${k} built as ${got.full[k]}, want ${got.want[k]}`;
+  for (const k in got.partWant)
+    if (got.part[k] !== got.partWant[k]) return `partial body.${k} built as ${got.part[k]}, want ${got.partWant[k]}`;
+  if (!got.pigGuest) return "a pig guest's decay clock did not follow her culture";
+  if (!got.pigWorkerNight) return "a pig worker's nightfall cost did not follow her culture";
+  if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own body";
+  if (!got.silentIsCrab) return "a culture that declared no body grew a physiology anyway";
+  if (got.kernelRow !== true && got.kernelRow !== "unarmed") return "the kernel body table does not carry the built rows";
+  return true;
+});
+
+scenario("the body: the clamps refuse a hostile physiology, each by name", () => {
+  // the hostile-file posture: field bounds both directions, the AGGREGATE
+  // cheat gate (inflating every need mints spend from a text file), a need
+  // the chassis does not have (the D1 boundary, refused loudly), and a
+  // non-integer. Each refusal carries its NAMED message.
+  const sim = createSim({ seed: 9 });
+  const base = JSON.stringify(PIG_FIXTURE);
+  for (const [body, name] of [
+    [`{ rates: { hunger: 9 } }`, "A BODY THAT NEVER HUNGERS"],
+    [`{ rates: { hunger: 41 } }`, "A BODY BUILT TO STARVE"],
+    [`{ rates: { hunger: 25, thirst: 25, dirt: 25, bored: 25, tired: 25 } }`, "A BODY TOO HUNGRY FOR THE PIER"],
+    [`{ rates: { sleep: 20 } }`, "A NEED THIS BODY DOES NOT HAVE"],
+    [`{ rates: { hunger: "26" } }`, "A BAD BODY RATE"],
+    [`{ wants: { drink: 9 } }`, "A WANT THAT NEVER QUIETS"],
+    [`{ wants: { drink: 31 } }`, "A WANT PAST FEELING"],
+    [`{ wants: { spa: 20 } }`, "A NEED THIS BODY DOES NOT HAVE"],
+    [`[]`, "A BAD BODY"]]) {
+    const got = sim.G(`(() => { const d = JSON.parse(${JSON.stringify(base)});
+      d.body = ${body}; return cultureProblem(d, "pig") || "TOOK"; })()`);
+    if (got !== name) return `a hostile body was not refused by name: ${body} -> ${got}`;
+  }
+  return true;
+});
+
+scenario("the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all", () => {
+  // The kernel face, exercised where it counts: a LIVE pig visitor with a
+  // declared body staged into a save, then the same store lived through
+  // half a day on the reference and on the wasm kernel - every need grain,
+  // both positions, the shared cursor, equal. And the identity claim pinned:
+  // a body of all 20s converts to EXACTLY the crab constants, so declaring
+  // it changes no byte of the same staged town.
+  const stage = (body) => {
+    const store = new Map();
+    const a = createSim({ seed: 77, storage: store, fresh: false });
+    a.runDays(1);
+    a.G("save()");
+    const env = JSON.parse(store.get(SLOT1));
+    const doc = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    if (body) doc.body = body;
+    env.cultures = { pig: doc };
+    env.visitors = [
+      { n: "RASHER", cu: "pig", c: 3, a: "none", x: 900, y: 150, s: "roam",
+        w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+        hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} },
+      { n: "MISTY", c: 1, a: "cap", x: 940, y: 150, s: "roam",
+        w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+        hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
+    return store;
+  };
+  const live = (store, kern) => {
+    const sim = createSim({ seed: 78, storage: new Map(store), fresh: false, kernel: kern });
+    sim.runDays(2);
+    return sim.G(`JSON.stringify({ day, coins, cursor: simCursor(),
+      vis: customers.filter(k => k.visitor && !k.gone).map(k =>
+        [k.name, Math.round(k.x), k.wallet, k.hunger, k.thirst, k.dirt, k.bored, k.tired]) })`);
+  };
+  const declared = stage({ rates: { hunger: 26, tired: 12 }, wants: { drink: 30 } });
+  const ref = live(declared, "off"), kern = live(declared, "wasm");
+  if (ref !== kern) return "a declared body diverged across backends:\nref  " + ref + "\nkern " + kern;
+  const plain = live(stage(null), "off"), twenties = live(stage({
+    rates: { hunger: 20, thirst: 20, dirt: 20, bored: 20, tired: 20 },
+    wants: { food: 20, drink: 20, clean: 20, fun: 20 } }), "off");
+  if (plain !== twenties) return "a body of all 20s is not the same town as no body at all";
+  // and the declared clock actually TICKS differently: RASHER's hunger must
+  // outrun the crab tourist's beside her (26/20 vs 20/20 of the same rate)
+  const got = JSON.parse(ref);
+  const rasher = got.vis.find(v => v[0] === "RASHER"), misty = got.vis.find(v => v[0] === "MISTY");
+  if (rasher && misty && rasher[3] < 1048576 && rasher[3] <= misty[3])
+    return "a 1.3x hunger clock did not outrun the crab clock: " + rasher[3] + " vs " + misty[3];
+  return true;
+});
+
 scenario("the biz catalog: a declared shop and a priced import build pending, and change no town byte", () => {
   // Phase B, "the BIZ catalog to data". A culture may declare WHOLE SHOPS -
   // catalog SUBSTANCE only (recipes, stations as TYPE+capacity, economics in

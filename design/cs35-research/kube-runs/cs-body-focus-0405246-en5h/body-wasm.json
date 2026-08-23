@@ -1,0 +1,20 @@
+{
+  "release": "cs-body-focus-0405246-en5h",
+  "armId": "body-wasm",
+  "index": 1,
+  "sha": "0405246eb29596d5a2857ff339f344a34ca94b28",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "the body:"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 5236,
+  "verdict": "3/3 passed in 5.1s",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (47ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (16ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (5070ms)\n\n3/3 passed in 5.1s\n"
+}

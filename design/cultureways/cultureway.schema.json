@@ -392,6 +392,34 @@
     }
    }
   },
+  "body": {
+   "description": "Census C2, THE CULTURAL BODY: per-need decay-rate and want-threshold multipliers in TWENTIETHS (20 = 1x the crab constants; converted once at install, ROUND-HALF-UP, so all-20s is byte-identical to declaring nothing). rates: how fast each need accrues - per-field 10-40 (0.5x-2.0x), and the five rates together may not sum past 120 (mean 1.2x): inflating every need mints spend from a text file, so the aggregate is the cheat gate (A BODY TOO HUNGRY FOR THE PIER). wants: how full a need must be before a guest acts, 10-30 twentieths of the crab thresholds. The need SET is the engine's five, always - a key this body does not have is refused. Resident tired COSTS (shift, errand, nightfall) ride the tired multiplier; recovery (bed, cot, nap, the sand's 3/2) stays the engine's - WHERE you sleep, not WHO you are.",
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "rates": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "hunger": { "type": "integer", "minimum": 10, "maximum": 40 },
+      "thirst": { "type": "integer", "minimum": 10, "maximum": 40 },
+      "dirt": { "type": "integer", "minimum": 10, "maximum": 40 },
+      "bored": { "type": "integer", "minimum": 10, "maximum": 40 },
+      "tired": { "type": "integer", "minimum": 10, "maximum": 40 }
+     }
+    },
+    "wants": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "food": { "type": "integer", "minimum": 10, "maximum": 30 },
+      "drink": { "type": "integer", "minimum": 10, "maximum": 30 },
+      "clean": { "type": "integer", "minimum": 10, "maximum": 30 },
+      "fun": { "type": "integer", "minimum": 10, "maximum": 30 }
+     }
+    }
+   }
+  },
   "foodways": {
    "type": "object",
    "description": "Phase B (LIVE 2026-08-22): dishes in BIZ-shaped rows a kitchen here can LEARN - author-side whole dollars crossing the cents boundary at load, ingredients priced through the import machinery (nothing conjured), items carrying their own 9-wide pixel art on the global palette. The demand must be TAUGHT (a departure card with a foreign settle) before the manage card offers the lesson.",
@@ -693,10 +721,6 @@
      }
     }
    }
-  },
-  "management": {
-   "type": "object",
-   "description": "Phase B (proposal): the culture's norms - wage/tip/shift/meal-policy defaults."
   },
   "conduct": {
    "type": "object",

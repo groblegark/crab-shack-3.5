@@ -1,0 +1,67 @@
+{
+  "release": "cs-body-sensitivity-0405246-k3qh",
+  "armId": "h10-sb32",
+  "index": 15,
+  "sha": "0405246eb29596d5a2857ff339f344a34ca94b28",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json",
+    "--bodymul",
+    "{\"rates\":{\"hunger\":10}}"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 57166,
+  "verdict": "{\"towns\":16,\"seedbase\":32,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --bodymul {\\\"rates\\\":{\\\"hunger\\\":10}} --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":4,\"evicted\":12,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"8\":2,\"9\":1,\"11\":3,\"13\":4,\"14\":2},\"median\":13,\"min\":8,\"max\":14},\"lifetime\":{\"median\":3588,\"p10\":2116,\"p90\":12862,\"mean\":5569},\"throughput\":{\"livedSimDays\":262,\"wallSec\":57.12,\"simDaysPerSec\":4.6,\"loadavg\":[5.2,1.8,0.6]}}",
+  "failures": [],
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 32,
+    "jobs": 7,
+    "workload": "--days 30 --buy chef,table --bodymul {\"rates\":{\"hunger\":10}} --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 4,
+    "evicted": 12,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "8": 2,
+        "9": 1,
+        "11": 3,
+        "13": 4,
+        "14": 2
+      },
+      "median": 13,
+      "min": 8,
+      "max": 14
+    },
+    "lifetime": {
+      "median": 3588,
+      "p10": 2116,
+      "p90": 12862,
+      "mean": 5569
+    },
+    "throughput": {
+      "livedSimDays": 262,
+      "wallSec": 57.12,
+      "simDaysPerSec": 4.6,
+      "loadavg": [
+        5.2,
+        1.8,
+        0.6
+      ]
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":32,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --bodymul {\\\"rates\\\":{\\\"hunger\\\":10}} --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":4,\"evicted\":12,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"8\":2,\"9\":1,\"11\":3,\"13\":4,\"14\":2},\"median\":13,\"min\":8,\"max\":14},\"lifetime\":{\"median\":3588,\"p10\":2116,\"p90\":12862,\"mean\":5569},\"throughput\":{\"livedSimDays\":262,\"wallSec\":57.12,\"simDaysPerSec\":4.6,\"loadavg\":[5.2,1.8,0.6]}}\n"
+}

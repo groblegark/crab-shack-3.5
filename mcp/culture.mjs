@@ -184,6 +184,36 @@ function localise(d, verdict) {
         say("management.shifts.cover", `${s.cover} is not a half-hour count of minutes in 240-1440 (the crab value is 720)`);
     }
   }
+  const bd = d.body;
+  if (bd) {
+    const int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (typeof bd !== "object" || Array.isArray(bd)) say("body", "must be an object with rates and/or wants");
+    else {
+      const R_NEEDS = ["hunger", "thirst", "dirt", "bored", "tired"], W_NEEDS = ["food", "drink", "clean", "fun"];
+      if (bd.rates != null) {
+        let sum = 0;
+        for (const n of R_NEEDS) {
+          const v = bd.rates[n];
+          if (v != null && !(int(v) && v >= 10 && v <= 40))
+            say(`body.rates.${n}`, `${v} is outside 10-40 twentieths (20 = the crab rate exactly)`);
+          sum += v != null && int(v) ? v : 20;
+        }
+        if (sum > 120)
+          say("body.rates", `the five rates sum to ${sum}, past the aggregate cap of 120 (mean 1.2x) - inflating every need mints spend from a text file (A BODY TOO HUNGRY FOR THE PIER)`);
+        for (const n in bd.rates) if (!R_NEEDS.includes(n))
+          say(`body.rates.${n}`, "is not one of the engine's five needs - the need set is not a culture's to grow (A NEED THIS BODY DOES NOT HAVE)");
+      }
+      if (bd.wants != null) {
+        for (const n of W_NEEDS) {
+          const v = bd.wants[n];
+          if (v != null && !(int(v) && v >= 10 && v <= 30))
+            say(`body.wants.${n}`, `${v} is outside 10-30 twentieths (20 = the crab threshold exactly)`);
+        }
+        for (const n in bd.wants) if (!W_NEEDS.includes(n))
+          say(`body.wants.${n}`, "is not one of the engine's four wants (A NEED THIS BODY DOES NOT HAVE)");
+      }
+    }
+  }
   const st = d.settlers;
   if (st) {
     if (typeof st !== "object" || Array.isArray(st)) say("settlers", "must be an object with apron and/or walkins");
