@@ -7363,21 +7363,61 @@ const NEURO_PARAM_OBS = {
 // THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
 // with its declared output space. An artifact's classes must EQUAL the
 // surface's list — order included — or its output indices mean nothing.
-const NEURO_SURFACES = {
-  "vis_pick.candidate": {
-    classes: ["none", "shack:food", "juicebar:drink", "shack:drink",
-      "showers:clean", "arcade:fun", "hotel:room"],
-  },
-  // THE CITIZEN SURFACE: pickErrand's whole census of take() calls, one class
-  // per distinct kind of stop. THIRTEEN, not the design doc's sketched twelve:
-  // the census the doc said to take turned up selfcook:drink (the barkeep's
-  // own pour at a dark bar), and the census is the authority.
-  "cit_errand.candidate": {
-    classes: ["none", "shack:food", "selfcook:food", "soup:food",
-      "juicebar:drink", "shack:drink", "selfcook:drink", "tap:drink",
-      "showers:clean", "tap:clean", "arcade:fun", "ball:fun", "vote:vote"],
-  },
-};
+// THE DECISION-SURFACE REGISTRY (phase D grows the seed the neuro ladder
+// planted). A surface is a named choice point a policy may own: its class
+// list is the contract every artifact validates against, `script` names the
+// engine default that answers when no policy is declared, and registration
+// is the only door - policyProblem refuses any surface not in this map, so
+// a registered surface is the whole meaning of "a policy slot exists".
+const NEURO_SURFACES = {};
+function registerSurface(sid, spec) {
+  // engine-facing: a bad surface is an engine bug, loud at boot
+  if (typeof sid !== "string" || !/^[a-z0-9_.]{1,32}$/.test(sid))
+    throw new Error("registerSurface: bad id " + sid);
+  if (NEURO_SURFACES[sid]) throw new Error("registerSurface: duplicate " + sid);
+  if (!spec || !Array.isArray(spec.classes) || spec.classes.length < 2 || spec.classes.length > 32)
+    throw new Error("registerSurface " + sid + ": classes must be 2..32");
+  if (spec.classes.some(c => typeof c !== "string" || !c.length))
+    throw new Error("registerSurface " + sid + ": classes must be non-empty strings");
+  if (typeof spec.script !== "string" || !spec.script.length)
+    throw new Error("registerSurface " + sid + ": script must name the engine default");
+  NEURO_SURFACES[sid] = spec;
+  return spec;
+}
+registerSurface("vis_pick.candidate", {
+  classes: ["none", "shack:food", "juicebar:drink", "shack:drink",
+    "showers:clean", "arcade:fun", "hotel:room"],
+  script: "visPick",   // the engine default: candidates, draws and scoring stay script
+  doc: "what a visitor does with their next free thought",
+});
+// THE CITIZEN SURFACE: pickErrand's whole census of take() calls, one class
+// per distinct kind of stop. THIRTEEN, not the design doc's sketched twelve:
+// the census the doc said to take turned up selfcook:drink (the barkeep's
+// own pour at a dark bar), and the census is the authority.
+registerSurface("cit_errand.candidate", {
+  classes: ["none", "shack:food", "selfcook:food", "soup:food",
+    "juicebar:drink", "shack:drink", "selfcook:drink", "tap:drink",
+    "showers:clean", "tap:clean", "arcade:fun", "ball:fun", "vote:vote"],
+  script: "pickErrand",   // candidates, draws and the argmax stay script
+  doc: "what a resident does with their next free thought",
+});
+// Which policy answers for a culture on a surface - the declared one, or the
+// registered engine default. Table/script/brain all resolve here; the brain
+// path keeps its own fast lane (brainOf) and this accessor never replaces it,
+// it EXPLAINS it: inspection, MCP docs, and the phase-E slot dispatch read
+// this one answer instead of re-deriving it.
+function policyOf(cultureId, sid) {
+  const surf = NEURO_SURFACES[sid];
+  if (!surf) return null;
+  const cul = CULTURES[cultureId];
+  const ps = cul && cul.def && cul.def.policies && cul.def.policies[sid]
+    || (typeof BUNDLED_POLICIES !== "undefined" && BUNDLED_POLICIES
+        && BUNDLED_POLICIES[cultureId] && BUNDLED_POLICIES[cultureId][sid]) || null;
+  if (!ps || (ps.mode || "live") === "off")
+    return { kind: "script", mode: "live", impl: surf.script, declared: false };
+  return { kind: ps.kind, mode: ps.mode || "live", impl: ps.kind === "brain" ? "artifact" : surf.script,
+    declared: true };
+}
 // Resolve a declared pick list into reader functions, or throw the loud error.
 function neuroResolve(picks) {
   if (!Array.isArray(picks) || !picks.length) throw new Error("input declaration must be a non-empty array of observable names");

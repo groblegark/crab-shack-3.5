@@ -13302,6 +13302,36 @@ scenario("hooks: all four points fire with primitive ctx, and a faulty hook is u
   return true;
 });
 
+// ---- POLICY SLOTS (phase D): a surface is registered or it does not exist,
+// and policyOf answers "who decides" for any culture on any surface - the
+// declared policy, or the registered engine default by name.
+scenario("policies: the slot registry answers who decides, and refuses surfaces that were never registered", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    crab: policyOf("crab", "vis_pick.candidate"),
+    pig: policyOf("pig", "vis_pick.candidate"),
+    ghost: policyOf("crab", "own_settle.lever"),
+    surf: Object.keys(NEURO_SURFACES) })`));
+  if (!got.surf.includes("vis_pick.candidate")) return "the visitor surface is not registered";
+  if (!got.crab || !got.crab.declared || got.crab.kind !== "brain")
+    return "the crab's bundled brain did not resolve: " + JSON.stringify(got.crab);
+  if (!got.pig || got.pig.declared || got.pig.kind !== "script" || got.pig.impl !== "visPick")
+    return "an undeclared culture did not fall to the engine script: " + JSON.stringify(got.pig);
+  if (got.ghost !== null) return "an unregistered surface resolved: " + JSON.stringify(got.ghost);
+  // an artifact naming an unregistered surface is refused at the door, named
+  const msg = sim.G(`policyProblem({ "own_settle.lever": { kind: "table" } })`);
+  if (!msg || !msg.includes("UNKNOWN SURFACE")) return "an unregistered surface was not refused: " + msg;
+  // registration clamps, loud
+  for (const [bad, name] of [
+    [`registerSurface("vis_pick.candidate", { classes: ["a","b"], script: "x" })`, "duplicate"],
+    [`registerSurface("x.y", { classes: ["a"], script: "x" })`, "2..32"],
+    [`registerSurface("x.y", { classes: ["a","b"] })`, "engine default"]]) {
+    const m = sim.G(`(() => { try { ${bad}; return "TOOK"; } catch (e) { return e.message; } })()`);
+    if (m === "TOOK" || !m.includes(name)) return "a bad surface was not refused: " + m;
+  }
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
