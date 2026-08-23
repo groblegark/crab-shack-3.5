@@ -14,6 +14,7 @@ import { DOCS, readDoc, searchDocs, ORIENTATION } from "./docs.mjs";
 import { simRun, simSweep, simSuite, simScenarioList } from "./sim.mjs";
 import { cultureValidate, cultureTest, cultureDiff, loadBundled, renderCultureSheet, guardDoc } from "./culture.mjs";
 import { createVisibleSim, renderHistogram } from "./render.mjs";
+import { policyDistill, policyVerify } from "./policy.mjs";
 
 const SERVER = { name: "crab-science", version: "0.1.0" };
 
@@ -95,13 +96,37 @@ const TOOLS = [
       properties: { document: { type: "object" }, scale: { type: "number", default: 4 } } } },
 
   { name: "cultureway_get",
-    description: "Fetch a bundled cultureway document to read or copy. Currently: 'pig'.",
+    description: "Fetch a bundled cultureway document to read or copy. Currently: 'pig' and 'gull' (the gulls carry a live brain in their policies section — a worked example of the policy loop).",
     inputSchema: { type: "object", properties: { id: { type: "string", default: "pig" } } } },
 
   { name: "cultureway_diff",
     description: "Compare two cultureway documents — tastes, purse classes, art size, registers, arrival — to see what you actually made different. Pass one document and it compares against the pigs.",
     inputSchema: { type: "object", required: ["document"],
       properties: { document: { type: "object" }, against: { type: "object", description: "defaults to the bundled pig" } } } },
+
+  { name: "policy_distill",
+    description: "Distill a decision surface into a small deterministic integer brain: the sim's reference script labels its own data, a seeded trainer fits and quantizes it, and you get back a policies-section artifact (in SHADOW mode — promote to live yourself) plus agreement receipts. Slow: tens of seconds at defaults.",
+    inputSchema: { type: "object",
+      properties: {
+        surface: { type: "string", default: "vis_pick.candidate" },
+        culture: { type: "string", default: "crab", description: "whose thinks to learn from; a non-crab culture needs `document`" },
+        document: { type: "object", description: "the cultureway document, when culture is not crab" },
+        towns: { type: "number", default: 8, description: "capped at 32" },
+        days: { type: "number", default: 6, description: "capped at 12" },
+        hidden: { type: "number", default: 24, description: "hidden width, capped at 64" },
+        epochs: { type: "number", default: 15, description: "capped at 40" },
+        seed: { type: "number", default: 7, description: "training seed (the ARTIFACT is what ships; training is seeded but its determinism is a nicety)" },
+      } } },
+
+  { name: "policy_verify",
+    description: "Verify a brain artifact: the engine's own validator (clamps, caps, registry version — actionable messages), then a fresh agreement measure against the reference script on newly simulated towns.",
+    inputSchema: { type: "object",
+      properties: {
+        artifact: { type: "object", description: "a policies-section brain entry" },
+        document: { type: "object", description: "or a whole cultureway document whose policies carry one" },
+        culture: { type: "string", default: "crab" },
+        towns: { type: "number", default: 3 }, days: { type: "number", default: 4 },
+      } } },
 ];
 
 // ---- transport -----------------------------------------------------------
@@ -179,13 +204,15 @@ async function callTool(name, a = {}) {
     }
     case "cultureway_get": {
       const d = loadBundled(a.id || "pig");
-      return d ? text(d) : text({ error: `no bundled cultureway "${a.id}"`, known: ["pig"] });
+      return d ? text(d) : text({ error: `no bundled cultureway "${a.id}"`, known: ["pig", "gull"] });
     }
     case "cultureway_diff": {
       const other = a.against || loadBundled("pig");
       return text({ a: (a.document.meta || {}).id || "draft", b: (other.meta || {}).id || "pig",
                     diff: cultureDiff(a.document, other) });
     }
+    case "policy_distill": return text(await policyDistill(a));
+    case "policy_verify": return text(await policyVerify(a));
     default: throw new Error(`unknown tool: ${name}`);
   }
 }

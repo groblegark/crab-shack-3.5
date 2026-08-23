@@ -11522,6 +11522,13 @@ scenario("brains: the door refuses what the caps forbid, and says which", () => 
   // The hostile-file numbers, exercised: every refusal must carry the
   // offending number or name, because an actionable message is the
   // difference between a clamp and a trap (the culture-id lesson).
+  // MUTATION HONESTY: the caps are LAYERED - removing the params cap alone
+  // is vacuous (under in<=64, hidden<=256, out=7 the params ceiling is
+  // 18,176, below 32,768 - defense-in-depth for future surfaces), and
+  // removing the hidden cap alone falls through to the params cap with a
+  // DIFFERENT message, which this scenario's message match catches
+  // ("48951 PARAMS IS OVER THE 32768 CAP" where 1..256 was expected).
+  // Sneaking an oversize brain in requires removing both walls at once.
   const sim = createSim({ seed: 1337 });
   const probe = (patch) => sim.G(`(() => {
     const base = JSON.parse(JSON.stringify(BUNDLED_POLICIES.crab));
