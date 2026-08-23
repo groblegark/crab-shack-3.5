@@ -17,6 +17,14 @@ spec:
       labels:
         app.kubernetes.io/name: crab-science
         app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        # Batch arms run to completion or their receipts die with them:
+        # karpenter consolidation evicted 8/8 trunk-spike pods mid-train
+        # ("Evicted pod: Underutilized") and backoffLimit 1 turned one
+        # repack wave into a failed Job. Do-not-disrupt exempts the pod
+        # from voluntary consolidation; the pool still scales down the
+        # moment the pod completes.
+        karpenter.sh/do-not-disrupt: "true"
     spec:
       restartPolicy: Never
       serviceAccountName: {{ .Release.Name }}-runner
