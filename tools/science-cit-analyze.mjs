@@ -34,13 +34,17 @@ for (const p of parsed.sort((x, y) => x.armId.localeCompare(y.armId)))
   console.log(p.armId.padEnd(28), `exit=${p.exit}`,
     p.survived != null ? `survived ${p.survived}/${p.of} [${p.evictions.join(",")}]` : "(no survived line)");
 
-// variant totals: armId convention <variant>-sb<NN>
+// variant totals: armId convention <variant>-t<offset> (4-town arms; offset
+// 0..15 -> block sb0, 16..31 -> sb16, 32..47 -> sb32). Legacy -sb<NN> ids
+// (16-town arms) parse too.
 const byVariant = {};
 for (const p of parsed) {
-  const m = /^(.*)-sb(\d+)$/.exec(p.armId);
+  const m = /^(.*)-(?:t|sb)(\d+)$/.exec(p.armId);
   if (!m || p.survived == null) continue;
+  const block = String(Math.floor(+m[2] / 16) * 16);
   const v = byVariant[m[1]] = byVariant[m[1]] || { survived: 0, of: 0, blocks: {} };
-  v.survived += p.survived; v.of += p.of; v.blocks[m[2]] = p.survived;
+  v.survived += p.survived; v.of += p.of;
+  v.blocks[block] = (v.blocks[block] || 0) + p.survived;
 }
 console.log("\nvariant totals:");
 for (const [v, t] of Object.entries(byVariant))
