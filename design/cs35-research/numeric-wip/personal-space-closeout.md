@@ -118,6 +118,30 @@ economy question that scenario keeps circling; it exists on re-rolls of the
 same structural town (seed 17, arcade×taps geometry) independent of this
 feature. Filed here for the owner's queue, untouched by this branch.
 
+## Two more trajectory gates at 8px, both diagnosed to the floor first
+
+- **always-open anti-exploit**: the three-seed mean read 1.101 vs gate 1.10 —
+  by 0.001, on one town at 1.241 (hard ceiling 1.35 never approached; the
+  exploit this guards measured 1.58–1.84). The five-seed band — the width the
+  scenario's own 3a receipt was calibrated on — reads mean 1.063 on this tree
+  and 0.944 on the base tree, mixed shape, first move, no mechanism. The
+  fixture was widened to those five seeds; gates untouched.
+- **rivalry price-sweep**: dear 459 > mid 426 on the 8-town pool. Diagnosed
+  the whole ladder: a 12-town pool still inverted (683/637/710); the same 12
+  towns with `--novsep` read 667/678/761 — **byte-identical to the base
+  tree** (the parting alone re-rolls the arms; the pier line inert here too);
+  per-town the inversion is 8 towns of +5..11 vs 4 of −3..12 — no collapsed
+  town, no confounder to pin. The load-bearing finding: the BASE tree's own
+  dear→mid margin is 11 drinks/12 towns today vs the 45 documented in the
+  scenario's earlier 12-town run — **the dear end's price resistance thinned
+  on mainline across landings that never touched price** (pre-existing
+  erosion, same class as the tired creep; named for the owner's queue). A
+  pin on a ~1-drink/town step under ~7-drinks/town re-roll noise pins noise,
+  so the dear end was demoted to a watch-number and the pin now asserts the
+  lever's noise-proof teeth: a cheap board out-sells BOTH dearer boards by
+  K=30 (measured cheap margins 52..116 across trees; the honest mutation —
+  an inert player board, flat — still fails it loudly).
+
 ## Pins that bite (mutation table, all four verified red then restored)
 
 M1 target-follow off → the pile parts and walks straight back (rest pin
