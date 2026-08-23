@@ -24,6 +24,25 @@ import { readFileSync, writeFileSync } from "fs";
 
 export const CLASSES = ["none", "shack:food", "juicebar:drink", "shack:drink",
   "showers:clean", "arcade:fun", "hotel:room"];
+// THE CITIZEN SURFACE (cit_errand.candidate) - must equal NEURO_SURFACES'
+// list in game.js, order included, or the artifact's indices mean nothing.
+export const CIT_CLASSES = ["none", "shack:food", "selfcook:food", "soup:food",
+  "juicebar:drink", "shack:drink", "selfcook:drink", "tap:drink",
+  "showers:clean", "tap:clean", "arcade:fun", "ball:fun", "vote:vote"];
+export const CIT_INPUTS = [
+  "citizen.hunger.q20", "citizen.thirst.q20", "citizen.dirt.q20",
+  "citizen.bored.q20", "citizen.tired.q20", "citizen.wallet.cents",
+  "clock.tmin",
+  "citizen.away", "citizen.sick", "citizen.duty", "citizen.working",
+  "citizen.shift.end.rel", "citizen.shift.leave.rel",
+  "citizen.wage.gripe.q20", "citizen.home.dist.px",
+  "citizen.ball.players", "citizen.ball.cd", "citizen.nudge.live",
+  "citizen.poll.open", "citizen.voted", "citizen.pot.warm",
+  "citizen.tap.dist.px", "citizen.poll.dist.px",
+  ...["shack", "juicebar", "showers", "arcade"].flatMap((b) => [
+    `cit.staffed:${b}`, `cit.afford.count:${b}`, `cit.dist.px:${b}`,
+  ]),
+];
 export const INPUTS = [
   "need.hunger.q20", "need.thirst.q20", "need.dirt.q20", "need.bored.q20",
   "wallet.cents", "room.reserve.cents", "clock.tmin", "self.cultured",
@@ -167,6 +186,51 @@ export function collectRows({ towns = 32, days = 12, culture = "crab", cultureDo
   }
   return {
     meta: { registryVersion: 1, inputs, classes: CLASSES, culture, towns, days, stage,
+      rows: rows.length, thinksPerTick: +(thinksTotal / Math.max(1, ticksTotal)).toFixed(5) },
+    rows,
+  };
+}
+
+// ---- the CITIZEN collection: pickErrand labels its own training set -----
+// Same discipline as collectRows: brains disarmed (the script must be the
+// one deciding while it labels), the engine's own registry assembles the
+// vector, the engine's own citErrandClass maps a candidate to its class -
+// there is no second mapper to drift. Residents are crab-native today, so
+// culture stays a filter with one live value; the settlers phase widens it.
+export function collectCitizenRows({ towns = 32, days = 12, culture = "crab",
+  seedBase = 1337, inputs = CIT_INPUTS, onTown = null, stage = "v3" } = {}) {
+  if (!STAGES.includes(stage)) throw new Error(`unknown collection stage "${stage}"; stages are ${STAGES.join(", ")}`);
+  const CLS = Object.fromEntries(CIT_CLASSES.map((c, i) => [c, i]));
+  const rows = [];
+  let ticksTotal = 0, thinksTotal = 0;
+  for (let i = 0; i < towns; i++) {
+    const seed = seedBase + i * 7919;
+    const sim = createSim({ seed, realm: "main" });
+    for (const poke of stagePokes(stage, seed, i)) sim.G(poke);
+    sim.G("BRAINS = {}");   // the script is the teacher; nothing else may decide
+    sim.G(`
+      window._nnLog = []; window._nnT0 = T;
+      window._nnReaders = neuroResolve(${JSON.stringify(inputs)});
+      window._nnF = new Array(${inputs.length});
+      const __origPick = pickErrand;
+      pickErrand = function (c) {
+        const e = __origPick(c);
+        if (((c.p && c.p.culture) || "crab") === ${JSON.stringify(culture)}) {
+          neuroVectorCit(c, window._nnReaders, window._nnF);
+          const cls = e ? (${JSON.stringify(CLS)}[citErrandClass(e)] ?? 0) : 0;
+          window._nnLog.push([cls, ...window._nnF]);
+        }
+        return e;
+      };`);
+    sim.runDays(days);
+    const log = JSON.parse(sim.G("JSON.stringify(window._nnLog)"));
+    ticksTotal += sim.G("T - window._nnT0");
+    thinksTotal += log.length;
+    for (const r of log) rows.push({ town: i, seed, cls: r[0], f: r.slice(1) });
+    if (onTown) onTown(i, seed, log.length);
+  }
+  return {
+    meta: { registryVersion: 1, inputs, classes: CIT_CLASSES, culture, towns, days, stage,
       rows: rows.length, thinksPerTick: +(thinksTotal / Math.max(1, ticksTotal)).toFixed(5) },
     rows,
   };
