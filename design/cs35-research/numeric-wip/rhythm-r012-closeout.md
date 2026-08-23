@@ -59,10 +59,27 @@ culture's** — darkness() untouched.
 - The polls stay host-derived; a nocturnal electorate's 2-hour window is a
   phase-E charter question (recorded in the design, not solved here).
 
-## Gates
+## Gates (all on the cluster, receipts banked under kube-runs/)
 
-- rhythm-focus (both backends, cluster): PENDING — filled below at run time.
-- Mutations (targeted manifest, commit-then-revert): PENDING.
-- Full suite-318 + phased-gates MCP battery on the final SHA: PENDING.
-- Byte-identity: the suite's frozen fingerprint/rng/digest pins ride the full
-  run; no fixture declares rhythm (that silence is the byte-identity).
+- **rhythm-focus, green** (cs-rhythm-focus-3ea17eb): 3/3 both backends, 6/6
+  merged — the build/inheritance/identity scenario, the ten named refusals
+  (including the composed-inheritance traps and A SIGN ACROSS MIDNIGHT), and
+  the doctrine scenario (BOAR JUICE opens on the boar sign 11:00–23:00, its M
+  window anchors 660–1020, the covering double keeps the trading window, and
+  the native shack's memoized window is the same object with the same 8:00
+  geometry).
+- **Mutations, both BITE** (commit-then-revert, pushed per run because pods
+  clone the ref): A — arc clamp neutered (cs-rhythm-focus-4491ea7) → the
+  refusal scenario RED on both backends; B — build misreads the lie-in as the
+  wake (cs-rhythm-focus-a860b6d) → the mechanism scenario RED on both
+  backends naming the built value. Tree restored green after each
+  (git reset, force-push).
+- **Full battery at the final SHA 8c632fd**: suite **642/642** (20/20 arms,
+  321 per backend = 318 + the three rhythm scenarios; receipts
+  cs-suite-318-8c632fd-e4y9, every arm exitCode 0 / failures []) and the
+  **MCP battery green** (cs-phased-gates-8c632fd-pmg5, exit 0). The frozen
+  fingerprint/rng/digest pins rode the full run untouched — no fixture
+  declares rhythm, and that silence is the byte-identity.
+- A machine sleep interrupted the session mid-battery; the cluster finished
+  without us and the receipts told the story on resume — the substrate
+  working exactly as designed.
