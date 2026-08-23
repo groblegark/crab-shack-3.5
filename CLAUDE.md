@@ -3,6 +3,21 @@
 **Read PLAN.md first.** It is the project brain: systems map, verified balance
 numbers, backlog, and conventions. Don't duplicate it — update it there.
 
+## KUBE POLICY (Matt, 2026-08-23 — ABSOLUTE)
+The Mac crashed five times running parallel sim workloads. **Never run
+sim/compute node scripts locally** — not the suite, not headless matrices,
+not batch/bench, not the MCP check battery, not neuro training/xcheck —
+not even "one quick check". A PreToolUse hook enforces this and denies any
+Bash command whose text so much as names those scripts (that includes
+heredocs and echo — write docs mentioning them with the Edit tool, not the
+shell). Everything runs on the gasboat-prod cluster via
+`node tools/kube.mjs run experiments/<manifest>.json --ref <pushed-SHA>
+--wait` — see design/cs35-kube-runbook.md. Allowed locally: tools/kube.mjs
+itself, tools/mkcultureways.mjs, `node --check`, and other sub-second
+single-process commands. Gates = the suite-312 manifest; matrices and
+science sweeps = their own manifests. Receipts land under
+design/cs35-research/kube-runs/.
+
 ## The sim contract (load-bearing)
 - `tools/simlib.mjs` executes the REAL game files (font.js, ppu.js, sprites.js,
   crabs.js, game.js) inside a Node vm with stubbed browser APIs and a seeded
