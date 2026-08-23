@@ -13805,6 +13805,76 @@ function evPos(ev) {
   return { x: (ev.clientX - r.left) * (cv.width / r.width), y: (ev.clientY - r.top) * (cv.height / r.height) };
 }
 function clampCam(x) { return Math.max(0, Math.min(WORLD_W - W, x)); }
+// THE PANEL'S TAP, a named door so the suite can press it - the listener and
+// the scenarios go through the same code (the manageRects idiom for input).
+function panelTap(p) {
+
+    // THE TWO SCREEN CHIPS ANSWER FIRST. They live in the crew row now (see
+    // navRects), at its right-hand end, so they must be tested before the crew
+    // tiles that share that band - otherwise a tap on MANAGE selects whichever
+    // crab the tiles think is under it.
+    if (navTapChip(p)) return;
+    if (p.y < TAB_Y - 1) {
+      // ONE UNBROKEN CHAIN, HIGHEST x FIRST, and every band matches the thing
+      // drawn in it. Written out as boundaries rather than a `>` ladder with a
+      // new case wedged in at the top: that is how the pause chip ended up
+      // eating SND's clicks, because a band inserted above the chain silently
+      // takes its pixels from whatever was underneath.
+      if (p.x >= 234) { ffMode = ffMode === 3 ? 0 : 3; sfx.ding(); return; }   // >>>>
+      if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
+      if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
+      if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
+      if (p.x >= 168) { toggleMusic(); return; }                               // MUS
+      if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
+    }
+    // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
+    // tiles are not painted (see drawPanel), so they must not answer either -
+    // a tap that lands on an invisible crew tile is a ghost hire-and-follow.
+    if (bigCardUp()) return;
+    if (!crewDock) {   // popped down: one slim chip brings it back, nothing else answers
+      const r = crewDockRect();
+      if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { crewDock = true; sfx.ding(); }
+      return;
+    }
+    if (p.y >= TAB_Y && p.y < TAB_Y + TAB_H) {
+      // LEAVING THE SHOP TAB DISARMS IT. A tooltip that is off screen must
+      // never still be the thing a tap would buy - come back to the tab and
+      // the first tap reads again, exactly as it did the first time.
+      // ...and a second tap on the CREW tab POPS THE SELECTOR DOWN (Matt,
+      // 2026-08-23) - the tab you are already on is free to be the handle.
+      if (p.x >= 4 && p.x < 36) {
+        if (tab === "crew") { crewDock = false; sfx.ding(); } else tab = "crew";
+        shopTip = null; return;
+      }
+      if (p.x >= 38 && p.x < 70) { tab = "shop"; shopTip = null; return; }
+      // SAVE opens the towns shelf - NEW GAME lives there now, per slot
+      if (p.x >= 128 && p.x < 158) { openSaveView(); sfx.ding(); return; }
+      if (p.x >= 168) {
+        // a second tap on MENU pages its books (the ..MORE idiom): the menu
+        // outgrew the panel the day a town could own three kitchens
+        if (tab === "menu") { menuPage++; } else { tab = "menu"; menuPage = 0; }
+        shopTip = null; sfx.ding(); return;
+      }
+    }
+    if (tab === "shop") {
+      for (const b of BUTTONS)
+        if (p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h) { tapShopButton(buttonKey(b)); return; }
+    } else if (tab === "crew") {   // menu tab: no invisible crew cards to click
+      const G = crewStripGeom();
+      if (G.chip && p.x >= G.chip.x && p.x < G.chip.x + G.chip.w
+          && p.y >= G.chip.y && p.y < G.chip.y + G.chip.h) {
+        crewPage = (G.page + 1) % G.pages; sfx.ding(); return;
+      }
+      for (const t of G.tiles) {
+        if (p.x >= t.x && p.x < t.x + CARD && p.y >= ROW_Y && p.y < ROW_Y + CARD) {
+          followIdx = followIdx === t.i ? -1 : t.i; followNpc = null; followCust = null;
+          _crewPageFollow = followIdx;   // the strip's own tap never yanks the page
+          sel = followIdx >= 0 ? crabs[t.i] : null; return;
+        }
+      }
+    }
+    return;
+}
 
 cv.addEventListener("click", (ev) => {
   if (window.MergeMode && MergeMode.active()) return;
@@ -14122,73 +14192,7 @@ cv.addEventListener("click", (ev) => {
     }
   }
   // panel
-  if (p.y >= PANEL_Y) {
-    // THE TWO SCREEN CHIPS ANSWER FIRST. They live in the crew row now (see
-    // navRects), at its right-hand end, so they must be tested before the crew
-    // tiles that share that band - otherwise a tap on MANAGE selects whichever
-    // crab the tiles think is under it.
-    if (navTapChip(p)) return;
-    if (p.y < TAB_Y - 1) {
-      // ONE UNBROKEN CHAIN, HIGHEST x FIRST, and every band matches the thing
-      // drawn in it. Written out as boundaries rather than a `>` ladder with a
-      // new case wedged in at the top: that is how the pause chip ended up
-      // eating SND's clicks, because a band inserted above the chain silently
-      // takes its pixels from whatever was underneath.
-      if (p.x >= 234) { ffMode = ffMode === 3 ? 0 : 3; sfx.ding(); return; }   // >>>>
-      if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
-      if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
-      if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
-      if (p.x >= 168) { toggleMusic(); return; }                               // MUS
-      if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
-    }
-    // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
-    // tiles are not painted (see drawPanel), so they must not answer either -
-    // a tap that lands on an invisible crew tile is a ghost hire-and-follow.
-    if (bigCardUp()) return;
-    if (!crewDock) {   // popped down: one slim chip brings it back, nothing else answers
-      const r = crewDockRect();
-      if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { crewDock = true; sfx.ding(); }
-      return;
-    }
-    if (p.y >= TAB_Y && p.y < TAB_Y + TAB_H) {
-      // LEAVING THE SHOP TAB DISARMS IT. A tooltip that is off screen must
-      // never still be the thing a tap would buy - come back to the tab and
-      // the first tap reads again, exactly as it did the first time.
-      // ...and a second tap on the CREW tab POPS THE SELECTOR DOWN (Matt,
-      // 2026-08-23) - the tab you are already on is free to be the handle.
-      if (p.x >= 4 && p.x < 36) {
-        if (tab === "crew") { crewDock = false; sfx.ding(); } else tab = "crew";
-        shopTip = null; return;
-      }
-      if (p.x >= 38 && p.x < 70) { tab = "shop"; shopTip = null; return; }
-      // SAVE opens the towns shelf - NEW GAME lives there now, per slot
-      if (p.x >= 128 && p.x < 158) { openSaveView(); sfx.ding(); return; }
-      if (p.x >= 168) {
-        // a second tap on MENU pages its books (the ..MORE idiom): the menu
-        // outgrew the panel the day a town could own three kitchens
-        if (tab === "menu") { menuPage++; } else { tab = "menu"; menuPage = 0; }
-        shopTip = null; sfx.ding(); return;
-      }
-    }
-    if (tab === "shop") {
-      for (const b of BUTTONS)
-        if (p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h) { tapShopButton(buttonKey(b)); return; }
-    } else if (tab === "crew") {   // menu tab: no invisible crew cards to click
-      const G = crewStripGeom();
-      if (G.chip && p.x >= G.chip.x && p.x < G.chip.x + G.chip.w
-          && p.y >= G.chip.y && p.y < G.chip.y + G.chip.h) {
-        crewPage = (G.page + 1) % G.pages; sfx.ding(); return;
-      }
-      for (const t of G.tiles) {
-        if (p.x >= t.x && p.x < t.x + CARD && p.y >= ROW_Y && p.y < ROW_Y + CARD) {
-          followIdx = followIdx === t.i ? -1 : t.i; followNpc = null; followCust = null;
-          _crewPageFollow = followIdx;   // the strip's own tap never yanks the page
-          sel = followIdx >= 0 ? crabs[t.i] : null; return;
-        }
-      }
-    }
-    return;
-  }
+  if (p.y >= PANEL_Y) { panelTap(p); return; }
   // THE NAV STRIP is painted over the bottom rows of the world, so it answers
   // for them: the map, then the town underneath. (Its CHIPS moved into the
   // panel and are answered there - see the panel branch above.)

@@ -5570,12 +5570,12 @@ scenario("one reading surface owns the screen", () => {
     const tabsDrawn = printed.some(t => t === "CREW" || t === "SHOP");
     // ...and the dead tiles answer no taps: a tap on tile one hires nobody
     const before = followIdx;
-    handleTap({ x: 6, y: ROW_Y + 4 });
+    panelTap({ x: 6, y: ROW_Y + 4 });
     const ghost = followIdx !== before;
     manage = null;
     // the manual pop-down: dock it, the restore chip answers, tabs return
     crewDock = false; drawPanel();
-    handleTap({ x: crewDockRect().x + 2, y: crewDockRect().y + 2 });
+    panelTap({ x: crewDockRect().x + 2, y: crewDockRect().y + 2 });
     const restored = crewDock;
     return JSON.stringify({ tabsDrawn, ghost, restored });
   })()`));
