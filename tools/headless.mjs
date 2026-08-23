@@ -326,10 +326,19 @@ function runParallel(seedList, jobs) {
       child.on("message", (msg) => { out[idx] = msg; });
       child.on("error", reject);
       child.on("exit", (code) => {
-        if (code !== 0 || out[idx] === undefined)
-          return reject(new Error(`worker for seed ${seedList[idx]} failed (exit ${code})`));
-        if (++done === seedList.length) return resolve(out);
-        launch();
+        // the exit event can BEAT the final IPC message's delivery in this
+        // process's event loop (seen on slow pod cores: the first finishing
+        // worker read as failed while its result sat undelivered, killing
+        // whole kube arms at first-town-completion time). A clean exit gets
+        // a grace window for the message to land before being judged.
+        const judge = () => {
+          if (code !== 0 || out[idx] === undefined)
+            return reject(new Error(`worker for seed ${seedList[idx]} failed (exit ${code})`));
+          if (++done === seedList.length) return resolve(out);
+          launch();
+        };
+        if (code === 0 && out[idx] === undefined) setTimeout(judge, 500);
+        else judge();
       });
     };
     for (let i = 0; i < Math.min(jobs, seedList.length); i++) launch();

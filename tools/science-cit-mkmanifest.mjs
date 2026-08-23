@@ -16,7 +16,7 @@ const OFFSETS = Array.from({ length: 12 }, (_, i) => i * 4);   // 0,4,...,44
 const arm = (id, extra) => ({
   id, entry: "tools/headless.mjs", env: { SIMLIB_REALM: "main" },
   args: ["--days", "30", "--seeds", "4", "--seedbase", String(extra.offset),
-    "--jobs", "2", "--workermem", "600", "--buy", "chef,table", ...extra.flags, "--quiet"],
+    "--jobs", "2", "--workermem", "900", "--buy", "chef,table", ...extra.flags, "--quiet"],
 });
 
 let name, note, arms = [];
@@ -40,7 +40,7 @@ const manifest = {
   // measured, not assumed: healthy small arms passed 58m of wall; the chart's
   // 3600s default axed them all with zero receipts. 3h leaves real margin.
   activeDeadlineSeconds: 10800,
-  resources: { requests: { cpu: "2", memory: "3Gi" }, limits: { cpu: "3", memory: "4Gi" } },
+  resources: { requests: { cpu: "2", memory: "9Gi" }, limits: { cpu: "3", memory: "10Gi" } },
   arms,
   nodeSelector: { "karpenter.sh/nodepool": "ephemeral-pool" },
   tolerations: [{ key: "gasboat.ephemeral", operator: "Equal", value: "true", effect: "NoSchedule" }],
