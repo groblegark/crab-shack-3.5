@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-both-0db35bd-m5zu",
+  "armId": "js-3",
+  "index": 3,
+  "sha": "0db35bd23733879eafcca9577be25179850cf6c1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 186558,
+  "verdict": "39/39 passed in slice 3/8 (186.5s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (2668ms)\n  PASS  mid-shift job toggle is safe (1117ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1814ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (990ms)\n  PASS  crew never staff npc-owned shops (700ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (20ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (1042ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (57405ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (73ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (371ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (1608ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (10ms)\n  PASS  sale: the player buys a failed business through the shopfront (2923ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (42ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (8144ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (33140ms)\n  PASS  no surface prints off the canvas (1370ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (14ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1355ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (5933ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (1159ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1138ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2042ms)\n  PASS  departures: a display card moves nothing in the town (1539ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3022ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (37985ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (862ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (8ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (465ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1783ms)\n  PASS  crab voice: two whole days with the table off are the same town (2148ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (1672ms)\n  PASS  foodways: the validator names its refusals (7ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (1536ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2180ms)\n  PASS  the kernel and the reference agree, byte for byte (1615ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1342ms)\n  PASS  science: the seed is the town - a different one lives differently (5221ms)\n39/39 passed in slice 3/8 (186.5s)\n"
+}

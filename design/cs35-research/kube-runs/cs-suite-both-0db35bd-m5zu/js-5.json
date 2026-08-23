@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-both-0db35bd-m5zu",
+  "armId": "js-5",
+  "index": 5,
+  "sha": "0db35bd23733879eafcca9577be25179850cf6c1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 168612,
+  "verdict": "39/39 passed in slice 5/8 (168.5s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (15875ms)\n  PASS  disease: care cures, neglect can kill (29249ms)\n  PASS  npc: SUDSY dines at the player shack (3150ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1540ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (30963ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (981ms)\n  PASS  the drop nudge: open sand nudges nothing (2280ms)\n  PASS  tired: fatigue scales with the hours actually worked (1880ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (8ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (29ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (683ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (3853ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (4940ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (3831ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (20113ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (16ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (15ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (11948ms)\n  PASS  visitors: the wallet is real money, and it runs out (716ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (5374ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (1055ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1540ms)\n  PASS  departures: the card waits behind the day report, then pages itself (1000ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (357ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (1860ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1519ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (1017ms)\n  PASS  the help card teaches the machine and does not spoil the ending (13ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (11ms)\n  PASS  every track in the playlist is a file that exists (11ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (7673ms)\n  PASS  cultureways: a save without cultures changes nothing (962ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (12ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (576ms)\n  PASS  seam: a headless day never enters the view (1078ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1467ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (205ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (10668ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (51ms)\n39/39 passed in slice 5/8 (168.5s)\n"
+}
