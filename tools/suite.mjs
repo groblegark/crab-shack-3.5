@@ -13243,7 +13243,12 @@ scenario("errands: a data errand joins the ballot, wins when it should, and its 
     const held = { hunger: c.p.hunger, thirst: c.p.thirst, dirt: c.p.dirt, bored: c.p.bored };
     c.p.hunger = 0; c.p.thirst = 0; c.p.dirt = 0; c.p.bored = 0;
     const before = pickErrand(c);
-    dataErrand({ id: "test.treat", need: "drink", biz: "shack", at: 0, ap100: 150 });
+    // need "clean" at the SHACK: a class no citizen artifact carries
+    // ("shack:clean"), so this also exercises the rail - a ballot the brain
+    // has no word for belongs to the script, and the script's argmax is what
+    // lets a registered stop win. (need "drink" here would be a KNOWN class,
+    // and the live brain would correctly refuse it for a zero-thirst crab.)
+    dataErrand({ id: "test.treat", need: "clean", biz: "shack", at: 0, ap100: 150 });
     const wallet0 = c.p.wallet; c.p.wallet = Math.max(c.p.wallet, 5000);
     const after = pickErrand(c);
     ERRANDS.pop();   // the stage strikes its set: the census is back to native

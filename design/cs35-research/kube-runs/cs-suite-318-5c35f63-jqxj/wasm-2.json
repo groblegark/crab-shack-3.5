@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-318-5c35f63-jqxj",
+  "armId": "wasm-2",
+  "index": 12,
+  "sha": "5c35f6300945f4ceebd9ac94c9c975ba47dcf7e3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 124839,
+  "verdict": "32/32 passed in slice 2/10 (124.8s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1595ms)\n  PASS  disease: sustained neglect breeds sickness (1439ms)\n  PASS  housing: npcs sleep at the shelter, then move up (490ms)\n  PASS  queue hard cap holds for locals too (1945ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (2738ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1098ms)\n  PASS  tired: the morning and evening shifts end the week level (17419ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (11765ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (33830ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (2884ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (19653ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (4924ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (948ms)\n  PASS  the lease card: every term fits on the card it is printed on (7ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (8985ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (1346ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (584ms)\n  PASS  the town hall survives a save and a reload, ledger and all (2196ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (8ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (252ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (919ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (377ms)\n  PASS  a hire is something you can see happen (199ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (248ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (1944ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (7ms)\n  PASS  pigs: they actually get off the boat in a town nobody staged (2787ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (226ms)\n  PASS  brains: a live brain spends the script's own draws, no more (1563ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1173ms)\n  PASS  load: the same envelope lands the same way however often you land it (1204ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (6ms)\n32/32 passed in slice 2/10 (124.8s)\n"
+}
