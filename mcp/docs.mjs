@@ -128,6 +128,16 @@ A people, written as a document. Not code — data the engine reads:
             in a later slice.
   arrival   repGate (how well-regarded the town must be before word reaches
             them), shareMax, shareRamp
+  body      THE CULTURAL BODY: multipliers in twentieths of the crab
+            constants (20 = 1x exactly; converted once at install,
+            round-half-up). rates {hunger thirst dirt bored tired} 10-40:
+            how fast each need accrues — and the five together may not sum
+            past 120, because inflating every need mints spend from a text
+            file. wants {food drink clean fun} 10-30: how full a need must
+            be before a guest acts on it. The need SET is the engine's five,
+            always — an unknown key is refused. Resident tired costs ride
+            the tired multiplier; recovery (bed, cot, nap, the sand's 3/2)
+            stays the engine's: WHERE you sleep, not WHO you are.
   foodways  dishes in the BIZ recipe shape a kitchen here can LEARN (author
             whole dollars; the demand must be TAUGHT by a departure card
             before the manage card offers the lesson), items carrying their

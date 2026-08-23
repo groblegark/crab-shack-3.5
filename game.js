@@ -6206,7 +6206,13 @@ const KM_OPEN  = KERN ? new Int32Array(_kb, 31168, 8) : null,
       KM_PAY   = KERN ? new Int32Array(_kb, 31680, 64) : null,
       KM_DRINK = KERN ? new Int32Array(_kb, 31936, 64) : null,
       KM_TASTE = KERN ? new Float64Array(_kb, 32192, 64) : null,
-      KM_VPOUT = KERN ? new Int32Array(_kb, 32704, 8) : null;
+      KM_VPOUT = KERN ? new Int32Array(_kb, 32704, 8) : null,
+      // the body table (census C2): 16 rows x 9 int32 (5 decay rates + 4 want
+      // thresholds, Q20), at the map's free run past the ring. Row 0 is the
+      // crab constants; fillBodyRows deals the rest at install. vis_tick and
+      // vis_pick take the actor's ROW as an argument (the tiredDrain idiom) -
+      // no per-actor plane, no spawn/load/reset lifecycle to get wrong.
+      KM_BODY  = KERN ? new Int32Array(_kb, 38592, 144) : null;
 // ...phase 5's marshal + ring views (armed only): the per-biz stall fid
 // lists cust_step's waitStall scan walks, and the event ring it emits into
 const KMS_FID = KERN ? new Int32Array(_kb, 38016, 80) : null,
@@ -7118,6 +7124,46 @@ function cultureProblem(d, ownId) {
       if (s.cover != null && !(int(s.cover, 240, 1440) && s.cover % 30 === 0)) return "A BAD COVER DOUBLE";
     }
   }
+  // THE BODY (census C2): per-need decay and want-threshold multipliers in
+  // TWENTIETHS (20 = 1x crab). The field clamps are generous because profile
+  // shifts are self-limiting (the thirst-leads incident cost 30% takings);
+  // the AGGREGATE rail is the cheat gate - inflating every need mints spend
+  // from a text file, so the sum of the five rate muls is capped at 120
+  // (mean 1.2x). The need SET stays the engine's (the D1 boundary): a key
+  // this body does not have is refused, never silently carried.
+  if (d.body != null) {
+    const B = d.body;
+    if (typeof B !== "object" || Array.isArray(B)) return "A BAD BODY";
+    for (const part of ["rates", "wants"]) if (B[part] != null
+      && (typeof B[part] !== "object" || Array.isArray(B[part]))) return "A BAD BODY";
+    if (B.rates != null) {
+      let sum = 0;
+      for (const n of ["hunger", "thirst", "dirt", "bored", "tired"]) {
+        const v = B.rates[n];
+        if (v != null) {
+          if (typeof v !== "number" || !Number.isInteger(v)) return "A BAD BODY RATE";
+          if (v < 10) return "A BODY THAT NEVER HUNGERS";
+          if (v > 40) return "A BODY BUILT TO STARVE";
+        }
+        sum += v != null ? v : 20;
+      }
+      if (sum > 120) return "A BODY TOO HUNGRY FOR THE PIER";
+      for (const n in B.rates) if (!["hunger", "thirst", "dirt", "bored", "tired"].includes(n))
+        return "A NEED THIS BODY DOES NOT HAVE";
+    }
+    if (B.wants != null) {
+      for (const n of ["food", "drink", "clean", "fun"]) {
+        const v = B.wants[n];
+        if (v != null) {
+          if (typeof v !== "number" || !Number.isInteger(v)) return "A BAD BODY WANT";
+          if (v < 10) return "A WANT THAT NEVER QUIETS";
+          if (v > 30) return "A WANT PAST FEELING";
+        }
+      }
+      for (const n in B.wants) if (!["food", "drink", "clean", "fun"].includes(n))
+        return "A NEED THIS BODY DOES NOT HAVE";
+    }
+  }
   // SETTLERS (cultureway phase B, debt items 2-3): may this people STAY?
   // `apron` - a visitor of this culture accepts the town's job offer and the
   // persona factory converts her (settlerApron reads the built entry, no
@@ -7687,6 +7733,28 @@ function buildCulture(def) {
       };
     }
   }
+  // THE BODY, built once (census C2): twentieths become the crab constants'
+  // own Q20 forms here, ROUND-HALF-UP - the VIS_RATE comment makes flooring
+  // a named sin (all five floored ran the town 1.19% slow), and rhu is the
+  // exact-integer idiom, no float division. 20/20 reproduces every crab
+  // value EXACTLY, so "declares nothing" and "declares all-20s" are the same
+  // arithmetic, not a special case. ROW is dealt at install (fillBodyRows) -
+  // 0 until then, which is the crab row by construction. The resident tired
+  // COSTS ride the same tired multiplier; the drains (bed, cot, nap) stay
+  // engine - recovery is WHERE you sleep, not WHO you are, the same rule
+  // that keeps the on-sand 3/2 an engine fact.
+  let phys = null;
+  if (def.body) {
+    const br = def.body.rates || {}, bw = def.body.wants || {};
+    const rhu = (v, m) => { const x = v * m + 10; return (x - x % 20) / 20; };
+    const mul = (o, n) => o[n] != null ? o[n] : 20;
+    phys = { R: {}, W: {}, T: {
+      shift: rhu(TIRED_SHIFT, mul(br, "tired")),
+      errand: rhu(TIRED_ERRAND, mul(br, "tired")),
+      night: rhu(TIRED_NIGHT, mul(br, "tired")) }, ROW: 0 };
+    for (const n in VIS_RATE) phys.R[n] = rhu(VIS_RATE[n], mul(br, n));
+    for (const n in VIS_WANT) phys.W[n] = Math.max(1, Math.min(Q20 - 1, rhu(VIS_WANT[n], mul(bw, n))));
+  }
   // SETTLERS, built once (phase B): the apron answer and the walk-in share.
   // Null when undeclared - and settlerApron/walkinCulture treat null as
   // "today's behavior", so a silent document is byte-inert by construction.
@@ -7694,7 +7762,7 @@ function buildCulture(def) {
     ? { apron: !!def.settlers.apron, walkins: def.settlers.walkins != null ? def.settlers.walkins : 0 }
     : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -7902,12 +7970,13 @@ function loadCultures(raw) {
   for (const k in CULTURE_INGREDIENTS) { delete INGREDIENT_COST[k]; delete CULTURE_INGREDIENTS[k]; }
   rawCultures = null;
   installCultures(typeof BUNDLED_CULTUREWAYS !== "undefined" ? BUNDLED_CULTUREWAYS : null, true);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) { rebuildBrains(); return; }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) { rebuildBrains(); fillBodyRows(); return; }
   // the RAW key round-trips even when a culture fails the gate: a load must
   // never destroy data it merely could not use
   rawCultures = raw;
   installCultures(raw, false);
   rebuildBrains();
+  fillBodyRows();
 }
 // Resolve a customer/visitor's culture entry for the DRAW path. Crab - and
 // every walk-in, which has no culture field at all - resolves to null, and
@@ -9697,7 +9766,7 @@ function updateSchedule(c, dt) {
     // bounded below one grain, deterministic.
     {
       const den = ownStdSpan(c) * GMIN * (onOT ? 2 : 1);
-      const R = (c.p.tiredRem || 0) + TIRED_SHIFT * dtT * (onOT ? 3 : 1);
+      const R = (c.p.tiredRem || 0) + bodyOf(c).T.shift * dtT * (onOT ? 3 : 1);
       const move = (R - R % den) / den, t1 = (c.p.tired || 0) + move;
       if (t1 >= Q20) { c.p.tired = Q20; c.p.tiredRem = 0; }   // the bar is full; overflow is lost, as it always was
       else { c.p.tired = t1; c.p.tiredRem = R % den; }
@@ -10332,7 +10401,7 @@ function updateSelfCook(c, dt) {
 }
 function startErrand(c, e) {
   c.dsC = DS.toErrand; c.errandBiz = e.biz; c.errand = e;
-  c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);   // errand legwork tires, a little
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.errand);   // errand legwork tires, a little
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
   // and only then slid back out to their own place - which is the one thing
@@ -10353,7 +10422,7 @@ function startTapStop(c, e) {
   // enters the state, so they never count themselves.
   const slot = e.vote ? POLL_PLACES[e.poll].x + 4 + VOTE_DX * Math.min(4, pollVoters(e.poll).length) : null;
   c.dsC = DS.atTap; c.tapStop = e; c.tapT = 0;
-  c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_ERRAND);
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.errand);
   if (slot != null) setT(c, slot, VOTE_Y);
   else setT(c, e.soup ? SOUP_X : WATER_TAPS[e.tap].x + 6, 163);
 }
@@ -11877,6 +11946,42 @@ const VIS_WANT = { food: qn(0.45), drink: qn(0.40), clean: qn(0.45), fun: qn(0.4
 // 4 towns of 6.
 const VIS_RANK = { food: 4, drink: 3, clean: 2.4, fun: 1.5 };
 const VIS_BED_DRAIN = 0.30;      // a hotel bed drains tiredness at TIRED_DRAIN.bed
+// THE CRAB'S BODY (census C2, mirroring MGMT): the engine's people carry no
+// document, so these constants ARE their physiology - the visitor decay
+// rates and want thresholds above, and the resident tired costs. ROW 0 is
+// this table's seat in the kernel's body table (fillBodyRows writes it), so
+// an undeclaring town is byte-for-byte the town before the table existed.
+const BODY = { R: VIS_RATE, W: VIS_WANT,
+  T: { shift: TIRED_SHIFT, errand: TIRED_ERRAND, night: TIRED_NIGHT }, ROW: 0 };
+// whose physiology runs this actor: their culture's built table if it
+// declared a body, else the crab's BY IDENTITY. Reads both culture homes
+// (visitors at k.culture, residents at c.p.culture - the mgmtOf lesson),
+// because needs, like tips, ride the person and not the counter.
+function bodyOf(k) {
+  const id = k && (k.culture || (k.p && k.p.culture));
+  const cul = id && id !== "crab" ? CULTURES[id] : null;
+  return (cul && cul.phys) || BODY;
+}
+// Deal the kernel's body rows: row 0 is the crab table, rewritten on every
+// fill; declaring cultures take rows 1.. in SORTED id order - deterministic
+// whatever order bundled and save documents installed in. Past the table's
+// 16 rows a document's body is DROPPED LOUDLY rather than silently served
+// row 0: the two backends must never disagree about whose body is whose.
+function fillBodyRows() {
+  const ids = Object.keys(CULTURES).filter((id) => id !== "crab" && CULTURES[id].phys).sort();
+  let row = 1;
+  for (const id of ids) {
+    if (row >= 16) { CULTURES[id].phys = null; toast = { text: "A CULTUREWAY DIDN'T LOAD - TOO MANY BODIES", t: 8 }; continue; }
+    CULTURES[id].phys.ROW = row++;
+  }
+  if (!KM_BODY) return;
+  const put = (r, p) => { const o = r * 9;
+    KM_BODY[o] = p.R.hunger; KM_BODY[o + 1] = p.R.thirst; KM_BODY[o + 2] = p.R.dirt;
+    KM_BODY[o + 3] = p.R.bored; KM_BODY[o + 4] = p.R.tired;
+    KM_BODY[o + 5] = p.W.food; KM_BODY[o + 6] = p.W.drink; KM_BODY[o + 7] = p.W.clean; KM_BODY[o + 8] = p.W.fun; };
+  put(0, BODY);
+  for (const id of ids) if (CULTURES[id].phys) put(CULTURES[id].phys.ROW, CULTURES[id].phys);
+}
 // THE STROLL IS LOCAL. An early draft picked a target anywhere in this span
 // and a visitor spent most of their holiday walking the length of the town
 // instead of buying anything (1.6 purchases a visit). A stroll is a few
@@ -12465,13 +12570,14 @@ function visCandidates(k) {
     return rs[rs.length - 1];
   };
   const plate = (rs) => { const f = rs.filter(r => !DRINKS[r.id]); return treat(f.length ? f : rs); };
-  if (k.hunger >= VIS_WANT.food) add("shack", "food", plate);
-  if (k.thirst >= VIS_WANT.drink) {
+  const BW = bodyOf(k).W;   // want thresholds are the guest's OWN (census C2); crab = VIS_WANT by identity
+  if (k.hunger >= BW.food) add("shack", "food", plate);
+  if (k.thirst >= BW.drink) {
     if (visOpen("juicebar")) add("juicebar", "drink", treat);
     else add("shack", "drink", (rs) => cheap(rs.filter(r => DRINKS[r.id]).length ? rs.filter(r => DRINKS[r.id]) : rs));
   }
-  if (k.dirt >= VIS_WANT.clean) add("showers", "clean", treat);
-  if (k.bored >= VIS_WANT.fun) add("arcade", "fun", treat);
+  if (k.dirt >= BW.clean) add("showers", "clean", treat);
+  if (k.bored >= BW.fun) add("arcade", "fun", treat);
   // A BED IS AN ERRAND LIKE ANY OTHER, and putting it in this scorer rather
   // than in a separate "it's five o'clock" block is what makes the hotel work
   // at all. It sits at the far east end of the promenade, and the desk is only
@@ -12712,7 +12818,7 @@ function kernelVisPick(k) {
   }
   const cultured = k.culture && k.culture !== "crab" ? 1 : 0;
   const ret = KERN.exports.vis_pick(k.si, k.wallet, res, tmin, cultured,
-    wantsRoom(k) ? 1 : 0, freeRoom() ? 1 : 0, roomPrice());
+    wantsRoom(k) ? 1 : 0, freeRoom() ? 1 : 0, roomPrice(), bodyOf(k).ROW);
   const st = stayOf(k);
   if (KM_VPOUT[0]) st.shut = (st.shut || 0) + KM_VPOUT[0];
   if (KM_VPOUT[1]) st.full = (st.full || 0) + KM_VPOUT[1];
@@ -12771,7 +12877,7 @@ function visStep(k, tx, ty, dt) {
 let _ktMist = 0, _ktDrain = 0;   // vis_tick's per-frame args, set by updateCustomers when armed
 function visTick(k, dt) {
   if (KERN) {   // the compiled body; the JS below stays the reference
-    const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain);
+    const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain, bodyOf(k).ROW);
     // the object side drains IN PLACE, exactly where the reference did it:
     // the mist ledger, the checkout, the sand-wake flags and diary line
     if (r & 1) stayOf(k).mistMin += dtT;
@@ -12798,15 +12904,16 @@ function visTick(k, dt) {
   if (k.stC === VS.onSand) {
     // THE SAND BANKS NOTHING (sleepRough's rule, verbatim): exhaustion
     // prevents its own cure, and a night out here is a night of it.
-    k.dirt = Math.min(Q20, k.dirt + ((VIS_RATE.dirt * dtT * 3) >> 1));   // 1.5x, exactly 3/2
+    k.dirt = Math.min(Q20, k.dirt + ((bodyOf(k).R.dirt * dtT * 3) >> 1));   // 1.5x, exactly 3/2 - the multiplier is the sand's, the rate is the body's
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) {
       k.stC = VS.roam; k.rough = false; k.roughFlag = false; k.target = null;
       visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
     }
     return;
   }
+  const BR = bodyOf(k).R;   // the decay clock runs at the guest's own rates (census C2)
   for (const n of ["hunger", "thirst", "dirt", "bored", "tired"])
-    k[n] = Math.min(Q20, (k[n] || 0) + VIS_RATE[n] * dtT);
+    k[n] = Math.min(Q20, (k[n] || 0) + BR[n] * dtT);
 }
 function updateVisitor(k, dt) {
   if (k.stC === VS.ashore) {
@@ -19196,7 +19303,7 @@ function simClock(dt, rawMs) {
     for (const c of allCrabs()) {
       logNightly(c);   // DIARY: the nights tally, the day's catch as one line, and what they took to bed
       c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + Math.floor(qn(0.15) * ((c.p.tired || 0) > qn(0.5) ? 1.5 : 1)));   // a dry night - drier after a hard day
-      if (c.workedToday) { c.p.tired = Math.min(Q20, (c.p.tired || 0) + TIRED_NIGHT); c.workedToday = false; }   // the day's work catches up at dusk; idlers owe nothing
+      if (c.workedToday) { c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.night); c.workedToday = false; }   // the day's work catches up at dusk; idlers owe nothing
       if (c.p.homeless) {
         // shelter is free; move into a free house once savings allow
         const used = new Set(allCrabs().filter(k => !k.p.homeless).map(k => k.p.house));

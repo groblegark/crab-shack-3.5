@@ -124,12 +124,13 @@ static int32_t *const VP_OUT   = (int32_t *)32704;   /* out: shut full broke for
 #define VS_ONSAND 16
 #define VS_ROAM 17
 #define Q20 1048576
-/* visitor need accrual per tick, Q20 grains (game.js VIS_RATE, verbatim) */
-#define RATE_HUNGER 402
-#define RATE_THIRST 192
-#define RATE_DIRT 315
-#define RATE_BORED 157
-#define RATE_TIRED 168
+/* THE BODY TABLE (census C2): 16 rows x 9 int32 - 5 decay rates then 4 want
+   thresholds, Q20 grains. Row 0 is the crab constants (game.js VIS_RATE /
+   VIS_WANT, written by fillBodyRows at install); declaring cultures take
+   rows 1.. in sorted-id order. The actor's row arrives as an ARGUMENT on
+   vis_tick and vis_pick (the tiredDrain idiom) - the kernel never knows a
+   culture's name, only her row. */
+static int32_t *const BODYT = (int32_t *)38592;
 
 __attribute__((export_name("abi_check")))
 int32_t abi_check(int32_t toBiz, int32_t inRoom, int32_t onSand, int32_t roam) {
@@ -323,7 +324,8 @@ void collide_solids(int32_t n, int32_t nf, int32_t ns, int32_t dtT) {
      bit1 the checkout window is open (JS calls checkOut)
      bit2 woke on the sand (VSTC is already roam; JS clears rough/target, logs) */
 __attribute__((export_name("vis_tick")))
-int32_t vis_tick(int32_t si, int32_t dtT, int32_t tmin, int32_t mistHot, int32_t tiredDrain) {
+int32_t vis_tick(int32_t si, int32_t dtT, int32_t tmin, int32_t mistHot, int32_t tiredDrain, int32_t brow) {
+  const int32_t *B = BODYT + brow * 9;   /* the actor's own rates (row 0 = crab) */
   int32_t stC = VSTC[si], r = 0;
   if (stC != VS_INROOM && tmin >= 990 && mistHot) r |= 1;   /* 16.5*60 */
   if (stC == VS_INROOM) {
@@ -333,15 +335,15 @@ int32_t vis_tick(int32_t si, int32_t dtT, int32_t tmin, int32_t mistHot, int32_t
     return r;
   }
   if (stC == VS_ONSAND) {
-    int64_t d = (int64_t)VDIR[si] + ((RATE_DIRT * (int64_t)dtT * 3) >> 1);
+    /* the 3/2 is the sand's, the dirt rate is the body's (B[2]) */
+    int64_t d = (int64_t)VDIR[si] + (((int64_t)B[2] * dtT * 3) >> 1);
     VDIR[si] = d > Q20 ? Q20 : (int32_t)d;
     if (tmin >= 450 && tmin < 720) { VSTC[si] = VS_ROAM; r |= 4; }
     return r;
   }
   int32_t *const P[5] = { VHUN, VTHI, VDIR, VBOR, VTIR };
-  const int32_t RT[5] = { RATE_HUNGER, RATE_THIRST, RATE_DIRT, RATE_BORED, RATE_TIRED };
   for (int i = 0; i < 5; i++) {
-    int64_t v = (int64_t)P[i][si] + (int64_t)RT[i] * dtT;
+    int64_t v = (int64_t)P[i][si] + (int64_t)B[i] * dtT;
     P[i][si] = v > Q20 ? Q20 : (int32_t)v;
   }
   return r;
@@ -564,7 +566,8 @@ int32_t cust_step(int32_t si, int32_t dtT, int32_t slotQ8, int32_t staffed,
 
 __attribute__((export_name("vis_pick")))
 int32_t vis_pick(int32_t si, int32_t wallet, int32_t res, int32_t tmin, int32_t cultured,
-                 int32_t wantsRoomF, int32_t freeRoomF, int32_t roomPrice) {
+                 int32_t wantsRoomF, int32_t freeRoomF, int32_t roomPrice, int32_t brow) {
+  const int32_t *BW = BODYT + brow * 9 + 5;   /* the guest's own want thresholds (row 0 = crab) */
   VP_OUT[0] = VP_OUT[1] = VP_OUT[2] = VP_OUT[3] = 0;
   int32_t candSlot[6], candNeed[6], candR[6], candN = 0;
   int32_t idx[VP_RMAX];
@@ -579,14 +582,14 @@ int32_t vis_pick(int32_t si, int32_t wallet, int32_t res, int32_t tmin, int32_t 
     candSlot[candN] = SLOT; candNeed[candN] = NEED; candR[candN] = PICKER; candN++; \
   } while (0)
 
-  if (VHUN[si] >= 471859)   /* VIS_WANT.food = qn(0.45) */
+  if (VHUN[si] >= BW[0])   /* VIS_WANT.food, the guest's own (crab qn(0.45) = 471859) */
     K_ADD(0, NEED_FOOD, k_treat(0, idx, n), {
       /* plate: prefer the food half of the menu, whole menu when it is all drinks */
       int32_t f[VP_RMAX]; int32_t fn = 0;
       for (int32_t i = 0; i < n; i++) if (!MR_DRINK[0 * VP_RMAX + idx[i]]) f[fn++] = idx[i];
       if (fn) { for (int32_t i = 0; i < fn; i++) idx[i] = f[i]; n = fn; }
     });
-  if (VTHI[si] >= 419430) {   /* VIS_WANT.drink = qn(0.40) */
+  if (VTHI[si] >= BW[1]) {   /* VIS_WANT.drink, the guest's own (crab qn(0.40) = 419430) */
     if (MB_OPEN[1]) K_ADD(1, NEED_DRINK, k_treat(1, idx, n), {});
     else K_ADD(0, NEED_DRINK, k_cheap(0, idx, n), {
       int32_t f[VP_RMAX]; int32_t fn = 0;
@@ -594,8 +597,8 @@ int32_t vis_pick(int32_t si, int32_t wallet, int32_t res, int32_t tmin, int32_t 
       if (fn) { for (int32_t i = 0; i < fn; i++) idx[i] = f[i]; n = fn; }
     });
   }
-  if (VDIR[si] >= 471859) K_ADD(2, NEED_CLEAN, k_treat(2, idx, n), {});   /* qn(0.45) */
-  if (VBOR[si] >= 471859) K_ADD(3, NEED_FUN, k_treat(3, idx, n), {});
+  if (VDIR[si] >= BW[2]) K_ADD(2, NEED_CLEAN, k_treat(2, idx, n), {});   /* the guest's own clean want */
+  if (VBOR[si] >= BW[3]) K_ADD(3, NEED_FUN, k_treat(3, idx, n), {});
   if (wantsRoomF && wallet >= roomPrice && MB_OPEN[4]
       && MB_TOURQ[4] < TOURIST_QUEUE_MAX && MB_ALLQ[4] < QUEUE_MAX && freeRoomF) {
     candSlot[candN] = 4; candNeed[candN] = NEED_ROOM; candR[candN] = 0; candN++;
