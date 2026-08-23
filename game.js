@@ -6684,6 +6684,18 @@ const ACTIVE_KEY = SAVE_KEY + "_active";
 function slotKey(i) { return SAVE_KEY + "_s" + i; }
 function nowMs() { try { return Date.now(); } catch (e) { return 0; } }   // headless sandboxes may not have a clock
 let activeSlot = 1;                      // autosave goes here; persisted in ACTIVE_KEY
+// OWNERSHIP, because the autosave writes whatever town is IN MEMORY, and the
+// town in memory is not always the slot's town. Proven the hard way, twice in
+// one browser session: opening `?lab` and closing the tab buried a day-4 save
+// under the lab's fresh day-1 town, and a save the loader REJECTED (one bad
+// field - everything else recoverable) was buried the same way by the fresh
+// town born from its own failure. So the session must EARN the slot before
+// save() will write it: loading from the slot earns it, booting onto an EMPTY
+// slot earns it (a first town must still autosave), and the player's own
+// deliberate acts earn it (starting a new game, PLAY THIS DAY). A lab session
+// never earns it by itself, and neither does a town born from a rejected
+// envelope - those write nothing, however the tab closes.
+let slotOwned = false;
 // ============================================================== THE RNG SEAM
 // CS3.5 numeric-core slice 0: every sim draw goes through this ONE function -
 // the same stream, the same order, byte-identical to calling Math.random()
@@ -7303,7 +7315,7 @@ function migrateLegacy() {
 // the same object forever (a second envelope builder would drift the day
 // somebody adds a field to one of them).
 function save(hold) {
-  if (!hold && (FRESH || wiping || SCI.run)) return;   // a science run never writes a slot
+  if (!hold && (FRESH || wiping || SCI.run || !slotOwned)) return;   // a science run never writes a slot - and neither does a session that hasn't earned one (see slotOwned)
   const lv = {}; for (const k in UPS) lv[k] = UPS[k].lvl;
   const env = {
     coins, lifetime, lv, day, tmin, lastRentDay, gameOver, memorials, rep, townCatch, t: nowMs(),   // (no `rate`: nothing accrues offline)
@@ -7649,6 +7661,10 @@ function load(slot, envIn) {
   // first thing that reads it, not merely before the first thing you notice.
   simStreamAdopt(s.rs != null ? s.rs : cursorFromEnvelope(s));
   if (s.sd != null) _foundSeed = s.sd >>> 0;
+  // A town loaded FROM A SLOT is that slot's town, so the session owns the
+  // slot from here. An envelope handed in directly (the lab's shuttle) earns
+  // nothing - a scrubbed keyframe is somebody's town, not this slot's.
+  if (!envIn) slotOwned = true;
   resetSession();
   const preCents = !s._num;
   if (preCents) centsEnvelope(s);
@@ -12546,7 +12562,10 @@ cv.addEventListener("click", (ev) => {
   }
   if (screen === "intro") {
     const p = evPos(ev);
-    if (p.x >= W / 2 - 56 && p.x < W / 2 + 56 && p.y >= 152 && p.y < 170) { screen = "play"; sfx.ding(); }
+    // Pressing START is the player CHOOSING this fresh town - the deliberate
+    // act that earns the slot even when boot withheld it (a rejected save sat
+    // there). From here the autosave is theirs to receive.
+    if (p.x >= W / 2 - 56 && p.x < W / 2 + 56 && p.y >= 152 && p.y < 170) { screen = "play"; slotOwned = true; sfx.ding(); }
     return;
   }
   // the ending swallows the click that starts the next town - but not until it
@@ -18513,6 +18532,7 @@ function sciPlay() {
   SCI.days = []; SCI.at = -1;
   startMusic(); sfx.buy();
   toast = { text: "DAY " + d + " OF THAT TOWN IS YOURS NOW", t: 8 };
+  slotOwned = true;                      // "YOURS NOW" is the deliberate act - the lab earns the slot only here
   save();                                // it becomes an ordinary town, in the ordinary slot
 }
 // ---- the bench itself. 5x7 for headings, 3x5 for the rows; every string that
@@ -18714,6 +18734,14 @@ loadCultures(null);
 // whatever the player last left behind. (The peoples above still arrive -
 // pigs sail to a science town like any other.)
 hasSave = LAB ? false : load();
+// An EMPTY active slot is earned at boot: a first town must still autosave.
+// A slot that HOLDS an envelope the loader refused stays unearned - the day-1
+// town about to be built below must not bury a save somebody might fix.
+if (!LAB && !hasSave) {
+  let raw = null;
+  try { raw = localStorage.getItem(slotKey(activeSlot)); } catch (e) {}
+  if (raw == null) slotOwned = true;
+}
 if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
   coins = 15000;   // cents - a few bux in your pocket - rent is due tonight: ingredients + first rent buffer

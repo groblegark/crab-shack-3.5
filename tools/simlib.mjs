@@ -88,7 +88,7 @@ function armKernel() {
   return { exports: inst.exports, memory: inst.exports.memory };
 }
 
-export function createSim({ seed = 1337, storage = null, fresh = true, screenH = 0, realm = REALM_DEFAULT, kernel = KERNEL_DEFAULT } = {}) {
+export function createSim({ seed = 1337, storage = null, fresh = true, screenH = 0, realm = REALM_DEFAULT, kernel = KERNEL_DEFAULT, search = null } = {}) {
   const ctxStub = new Proxy({}, {
     get: (t, k) => {
       if (k === "createImageData") return (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h });
@@ -104,7 +104,10 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
   seededMath.random = mulberry32(seed);
   const sandbox = {
     document: { createElement: () => mkCanvas(), getElementById: () => mkCanvas(), addEventListener: noop, hidden: false },
-    location: { search: fresh ? "?fresh" : "" },
+    // `search` (when given) is the URL verbatim - it lets a scenario boot the
+    // game the way a BROWSER path boots it (`?lab`, `?lab&seed=..`), which is
+    // how the save-slot guard gets tested against the paths that bit it.
+    location: { search: search != null ? search : (fresh ? "?fresh" : "") },
     localStorage: {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
       setItem: (k, v) => store.set(k, String(v)),
