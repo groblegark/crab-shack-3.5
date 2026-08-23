@@ -17816,8 +17816,10 @@ function followCam(dt) {
   if (followed) {
     const t = clampCam(followed.x - W / 2 + 8);
     camX += (t - camX) * Math.min(1, dt * 5);
+    if (window._probeCam) (window._camProbe = window._camProbe || []).push([followed.x, camX, dt]);   // debug seam, _vpLerped family
   }
 }
+window._dbgFollow = (i) => { followIdx = i; followNpc = null; followCust = null; };   // debug seam: the card click, addressable
 function viewFrame(dt) {
   window._viewCalls = (window._viewCalls || 0) + 1;
   followCam(dt);
