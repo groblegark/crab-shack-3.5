@@ -494,6 +494,9 @@ var BUNDLED_CULTUREWAYS = {
    "shareRamp": 80
   },
   "foodways": {
+   "ingredients": {
+    "corn": 3
+   },
    "dishes": [
     {
      "id": "porkbun",

@@ -179,6 +179,37 @@ function localise(d, verdict) {
         say("management.shifts.cover", `${s.cover} is not a half-hour count of minutes in 240-1440 (the crab value is 720)`);
     }
   }
+  const fw = d.foodways;
+  if (fw && fw.ingredients) for (const k in fw.ingredients) {
+    const w = fw.ingredients[k];
+    if (typeof w !== "number" || !Number.isInteger(w) || w < 1 || w > 50)
+      say(`foodways.ingredients.${k}`, `${w} is outside 1-50 author dollars per unit`);
+    if (["fish_raw", "fruit", "token", "soap", "linen"].includes(k))
+      say(`foodways.ingredients.${k}`, "shadows the pier's own price list - the native pantry is never re-priced");
+  }
+  if (d.businesses && typeof d.businesses === "object") for (const id in d.businesses) {
+    const z = d.businesses[id], at = `businesses.${id}`;
+    if (!/^[a-z][a-z0-9_]{0,11}$/.test(id)) say(at, "business ids are a-z, digits, _ - max 12 chars");
+    if (["shack", "arcade", "juicebar", "hotel", "showers"].includes(id))
+      say(at, "shadows the town's own catalog");
+    if (!z || typeof z !== "object") { say(at, "must be an object"); continue; }
+    if (z.owner != null) say(`${at}.owner`, "a declared business may not name an owner - ownership binds to a settler when settlers exist");
+    if (z.rent != null && !(Number.isInteger(z.rent) && z.rent >= 1 && z.rent <= 500))
+      say(`${at}.rent`, `${z.rent} is outside 1-500 author dollars per day`);
+    if (z.wage != null && !(Number.isInteger(z.wage) && z.wage >= 10 && z.wage <= 100))
+      say(`${at}.wage`, `${z.wage} is outside 10-100 author dollars`);
+    const sts = (z.stations && typeof z.stations === "object") ? z.stations : null;
+    if (!sts) say(`${at}.stations`, "required: station TYPE -> capacity 1-4 (max 6 kinds); coordinates are the town's, never yours");
+    for (const s of ["source", "out"])
+      if (sts && z[s] != null && !sts[z[s]])
+        say(`${at}.${s}`, `"${z[s]}" is not one of this business's own stations`);
+    if (Array.isArray(z.recipes)) z.recipes.forEach((r, i) => {
+      if (r && Array.isArray(r.steps)) r.steps.forEach((st, j) => {
+        if (sts && Array.isArray(st) && typeof st[0] === "string" && !sts[st[0]])
+          say(`${at}.recipes[${i}].steps[${j}]`, `station "${st[0]}" is not one this business declares`);
+      });
+    });
+  }
   return hits;
 }
 

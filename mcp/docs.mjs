@@ -119,6 +119,21 @@ A people, written as a document. Not code — data the engine reads:
             exists to be paid it.
   arrival   repGate (how well-regarded the town must be before word reaches
             them), shareMax, shareRamp
+  foodways  dishes in the BIZ recipe shape a kitchen here can LEARN (author
+            whole dollars; the demand must be TAUGHT by a departure card
+            before the manage card offers the lesson), items carrying their
+            own 9-wide pixel art, and ingredients — YOUR OWN PRICED IMPORTS
+            (1-50 author dollars per unit, max 16; the native pantry and
+            another people's prices are never re-priced)
+  businesses whole shops, declared: catalog SUBSTANCE only — name/short/sign,
+            kind (palapa|shopfront), rent 1-500 $/day, optional wage 10-100,
+            stations as TYPE -> capacity (1-4, max 6 kinds), stall/table
+            COUNTS, source/out, and 1-8 recipes validated exactly like
+            foodway dishes against the business's OWN stations. Never map
+            coordinates (placement is the town's, phase D) and never an
+            owner (ownership binds to a settler). A declared business is
+            BUILT and PENDING — inspectable, not placed — until a plot
+            exists; today it changes no town byte, by design.
 
 Two peoples ship today: the crabs (the engine's own, not overridable) and
 the pigs of the PORKRESENTATIVE PIGPUBLIC, who hold fish taboo, love a hot

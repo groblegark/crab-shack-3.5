@@ -75,10 +75,15 @@ export function createVisibleSim({ seed = 1337, screenH = 240, cultures = null, 
 // the accessories, on a contact sheet. This is the picture that makes
 // "does my culture LOOK right?" answerable without launching a game.
 export function renderCultureSheet(doc, { scale = 4 } = {}) {
-  const sim = createVisibleSim({ seed: 1337, cultures: { draft: doc } });
+  // install the draft under its own claimed id when it has a legal one -
+  // overlay-by-id is the game's real install semantics, and a draft of a
+  // bundled culture must be allowed to own what that culture owns (its
+  // priced ingredients); a synthetic "draft" key would read as a stranger
+  const kid = (doc && doc.meta && /^[a-z][a-z0-9_]{0,15}$/.test(doc.meta.id)) ? doc.meta.id : "draft";
+  const sim = createVisibleSim({ seed: 1337, cultures: { [kid]: doc } });
   const built = sim.G(`(function () {
-    if (!CULTURES.draft) return null;
-    const c = CULTURES.draft, b = c.def.art.body;
+    if (!CULTURES[${JSON.stringify(kid)}]) return null;
+    const c = CULTURES[${JSON.stringify(kid)}], b = c.def.art.body;
     return JSON.stringify({ w: b.w, h: b.h, ways: c.arts.length,
       poses: ["a", "b", "w", "s"],
       accs: Object.keys(c.def.art.accessories || {}) });
@@ -95,7 +100,7 @@ export function renderCultureSheet(doc, { scale = 4 } = {}) {
   // accessories may hang above the body (a tall hat has a negative dy), so
   // the cell has to be tall enough for the worst overhang on the sheet
   const over = sim.G(`(function () {
-    const c = CULTURES.draft; let up = 0, wide = 0;
+    const c = CULTURES[${JSON.stringify(kid)}]; let up = 0, wide = 0;
     for (const k in c.acc) { const a = c.acc[k]; if (!a) continue;
       up = Math.max(up, -a.dy); wide = Math.max(wide, a.dx + a.art.w); }
     return up + ":" + wide;
@@ -112,15 +117,15 @@ export function renderCultureSheet(doc, { scale = 4 } = {}) {
   // accessory at (bx+dx, by+dy).
   for (let r = 0; r < meta.ways; r++) {
     for (let c = 0; c < meta.poses.length; c++) {
-      const art = sim.G(`CULTURES.draft.arts[${r}].${meta.poses[c]}.cv`);
+      const art = sim.G(`CULTURES[${JSON.stringify(kid)}].arts[${r}].${meta.poses[c]}.cv`);
       sctx.drawImage(art, pad + c * cellW, pad + r * cellH + over[0]);
     }
     for (let k = 0; k < meta.accs.length; k++) {
       const col = meta.poses.length + k;
       const bx = pad + col * cellW, by = pad + r * cellH + over[0];
-      sctx.drawImage(sim.G(`CULTURES.draft.arts[${r}].a.cv`), bx, by);
+      sctx.drawImage(sim.G(`CULTURES[${JSON.stringify(kid)}].arts[${r}].a.cv`), bx, by);
       const key = JSON.stringify(meta.accs[k]);
-      const acc = sim.G(`CULTURES.draft.acc[${key}]`);
+      const acc = sim.G(`CULTURES[${JSON.stringify(kid)}].acc[${key}]`);
       if (acc) sctx.drawImage(acc.art.cv, bx + acc.dx, by + acc.dy);
     }
   }
