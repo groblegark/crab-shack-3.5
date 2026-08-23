@@ -3471,17 +3471,19 @@ const BIZ_MIN = 6000, BIZ_MAX = 40000;   // cents
 // the line pinned at its limit, which is exactly the "exhausted line + missed
 // obligations" the credit machinery already defines. Leaves the sim in the
 // following morning.
-function missOneLease(sim, biz) {
+function missOneLease(sim, biz, extraDrain) {
   sim.runUntil("tmin >= 19.9 * 60", keep({ maxSteps: 300000 }));
   // HOLD the till at zero THROUGH settlement, not just before it: the single
   // drain used to win by luck, until the neuro visitors shifted evening
   // custom and a wash paid the lease in the six game-minutes between the
   // drain and the rent run. The mechanism under test is "a shop with no
   // money misses its lease", so the shop must actually have no money AT the
-  // lease - a coincidence pin turned into a staged fact.
+  // lease - a coincidence pin turned into a staged fact. `extraDrain` lets a
+  // fixture hold ANOTHER purse empty through the same window (the sale
+  // scenario keeps REEF from queue-jumping its failed shop).
   sim.G(`window._drain = "${biz}"`);
   sim.runUntil("lastRentDay === day", keep({ maxSteps: 80000, tickEvery: 1, onTick: (G) =>
-    G(`{ const o = OWNERS[bizOwner(window._drain)]; if (o) { o.till = 0; o.credit = creditLimit(); } }`) }));
+    G(`{ const o = OWNERS[bizOwner(window._drain)]; if (o) { o.till = 0; o.credit = creditLimit(); } ${extraDrain || ""} }`) }));
   sim.G(`window._drain = null`);
   sim.runUntil("tmin > 7 * 60 && tmin < 12 * 60", keep({ maxSteps: 300000 }));
 }
