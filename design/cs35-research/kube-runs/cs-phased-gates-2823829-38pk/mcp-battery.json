@@ -1,0 +1,17 @@
+{
+  "release": "cs-phased-gates-2823829-38pk",
+  "armId": "mcp-battery",
+  "index": 0,
+  "sha": "2823829cf03dbfa6e9b4b88bc40a0ea344d059e2",
+  "entry": "tools/mcp-check.mjs",
+  "args": [],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 53195,
+  "verdict": null,
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "crab-science MCP server\n  ok    initialize returns serverInfo\n  ok    initialize points at orientation\n  ok    tools/list is non-empty\n  ok    every tool has a description\n  ok    every tool has an input schema\n  ok    resources/list is non-empty\n  ok    orientation mentions the id rule\n  ok    orientation mentions incentives-not-puppeteering\n  ok    resources/read returns the pigway\n  ok    docs_search finds the hostile-file ruling\n  ok    cultureway_get returns a document\n  ok    the bundled pig validates clean\n  ok    a declared business validates and builds\n  ok    invalid document is rejected\n  ok    error names the re-priced native ingredient\n  ok    error names the bad business rent\n  ok    error names the forbidden owner\n  ok    error names the station the business never declared\n  ok    error names the offending pose row\n  ok    error names the over-long name\n  ok    error names the out-of-range taste\n  ok    error names the out-of-range nudge thumb\n  ok    error names the cents-habit table tip\n  ok    error names the hot depart weight\n  ok    error names the string apron answer\n  ok    error names the flood walk-in share\n  ok    error names the unknown depart rule\n  ok    error catches the silently-skipped id\n  ok    error names the unregistered card observable\n  ok    cultureway_render returns a PNG\n  ok    cultureway_test reports arrivals\n  ok    cultureway_test names who came\n  ok    cultureway_test returns a reproducible recipe\n  ok    cultureway_diff compares against the pigs\n  ok    render_town returns a PNG\n  ok    render_town reports the clock\n  ok    render_town honours the portrait screen\n  ok    sim_scenarios lists the suite\n  ok    sim_run returns a report\n  ok    sim_run returns its recipe\n  ok    sim_sweep returns a chart\n  ok    sim_sweep reports a distribution\n  ok    a sweep with no evictions returns data and no chart\n  ok    policy_distill returns an artifact with receipts\n  ok    the artifact declares its inputs from the registry\n  ok    policy_verify accepts what distill produced\n  ok    a broken artifact is refused with the observable named\n  ok    an oversized document is refused before parsing\n  ok    no tool offers file writes or shell\n  ok    an unknown tool reports an error as content\n\n50/50 checks passed\n"
+}

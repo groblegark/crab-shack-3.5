@@ -10265,7 +10265,7 @@ function pickErrand(c) {
   // nearest table - the two-post idiom stays geometry's). Shadow: the script
   // decides, the brain watches, only a harness tally moves.
   const bp = citBrainOf(c);
-  if (bp && bp.mode === "live" && !citEngineOwned(c, cand)) return brainCitPick(c, cand, bp);
+  if (bp && bp.mode === "live" && !citEngineOwned(c, cand, bp)) return brainCitPick(c, cand, bp);
   let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
   // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
   // slice 4): strict > means the FIRST candidate at a score keeps it, and the
@@ -12615,7 +12615,7 @@ function citBrainOf(c) {
 // signal, not a taste to be second-guessed). When either regime is on the
 // board, the script scores; the brain governs the ordinary day. Draw-free
 // either way, so the lockstep receipt holds whoever decides.
-function citEngineOwned(c, cand) {
+function citEngineOwned(c, cand, bp) {
   // ...and the SICK regime whole: illness is the mortality ladder, and every
   // rung of its care (the soup's gates, the rinse, "a starving sick crab
   // eats") was measured to the percent. Life-support is not a personality.
@@ -12623,6 +12623,14 @@ function citEngineOwned(c, cand) {
   for (const e of cand) {
     if (needLevel(c, e.need || "food") >= DIRE) return true;
     if (nudgeMatch(c, e)) return true;
+    // A BALLOT THE BRAIN HAS NO WORD FOR BELONGS TO THE SCRIPT (phase D):
+    // a registered errand can put a candidate on the ballot whose class is
+    // outside the artifact's pinned vocabulary - a placed shop's counter,
+    // a civics stop. The net was not trained on that world, and silence
+    // (skipping the class it cannot rank) would make every new shop
+    // invisible to every thinking crab. Byte-neutral where nothing new is
+    // registered: every native class is in every shipped artifact.
+    if (bp && bp.classIdx[citErrandClass(e)] == null) return true;
   }
   return false;
 }
