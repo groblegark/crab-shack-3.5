@@ -5500,6 +5500,118 @@ scenario("no card prints text on top of its own text", () => {
   return true;
 });
 
+scenario("the roster outgrows the panel and every crab stays a tap away", () => {
+  // TWELVE CREW, ONE OF THEM A PIG. The strip pages behind a MORE> chip that
+  // answers taps (the old "+N" tile answered nothing - a phone player could
+  // not select crab seven); a new selection snaps to its page; the pig draws
+  // from HER rack (the world learned cultures in the settlers slice, the
+  // little portraits did not); and everything stays inside the canvas, y too.
+  const sim = createSim({ seed: 11 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    const c0 = crabs[0];
+    while (crabs.length < 12) {
+      const nc = JSON.parse(JSON.stringify(c0));
+      nc.p.name = "STAGED " + crabs.length;
+      crabs.push(nc);
+    }
+    crabs[7].p.culture = "pig"; crabs[7].p.color = 0;   // the pig in slot eight
+    sel = null; followIdx = -1; dossier = null; manage = null; boardView = false;
+    saveView = false; reportT = 0; departT = 0; helpView = null; tab = "crew"; crewDock = true;
+    // geometry: pages, coverage, chip
+    crewPage = 0; _crewPageFollow = -1;
+    const seen = new Set(); let G0 = crewStripGeom();
+    const pages = G0.pages;
+    for (let pg = 0; pg < pages; pg++) { crewPage = pg; for (const t of crewStripGeom().tiles) seen.add(t.i); }
+    // selection snap: picking the last crab moves the page; a standing
+    // selection leaves manual paging alone
+    crewPage = 0; _crewPageFollow = -1; followIdx = 11;
+    const snapped = crewStripGeom().page;
+    crewPage = 0; const held = crewStripGeom().page;
+    // the pig face: her own rack, her own cache key; the crab keeps its null
+    const pa = personaArts(crabs[7].p), pc = personaArts(c0.p);
+    // the draw stays inside the canvas - x AND y - with the big roster up
+    const bad = [];
+    const T = text, S = smallText;
+    const wrap = (fn, meas) => (c, str, x, y, col, sz) => {
+      const w = meas(str, sz);
+      if (x < 0 || x + w > W || y < 0 || y + 8 > H) bad.push([String(str), Math.round(x), Math.round(y)]);
+      return fn(c, str, x, y, col, sz);
+    };
+    text = wrap(T, textWidth); smallText = wrap(S, smallTextWidth);
+    crewPage = 0; drawPanel();
+    crewPage = pages - 1; drawPanel();
+    text = T; smallText = S;
+    return JSON.stringify({ pages, covered: seen.size, snapped, held,
+      pig: !!pa.cul, pigKey: pa.key, crabNull: !pc.cul, bad });
+  })()`));
+  if (out.pages < 2) return "12 crew fit one page - the paging never engaged (pages=" + out.pages + ")";
+  if (out.covered !== 12) return "paging drops crew: " + out.covered + "/12 reachable across pages";
+  if (out.snapped !== out.pages - 1) return "selecting crab 12 did not snap the strip to her page (page=" + out.snapped + ")";
+  if (out.held !== 0) return "a standing selection yanked the page back (page=" + out.held + ")";
+  if (!out.pig || out.pigKey !== "pigc0") return "the pig employee draws from the crab rack (key=" + out.pigKey + ")";
+  if (!out.crabNull) return "the crab took the cultured path - hand-tuned pixels lost";
+  if (out.bad.length) return "the staged roster prints outside the canvas: " + JSON.stringify(out.bad[0]);
+});
+scenario("one reading surface owns the screen", () => {
+  // A BIG CARD UP MEANS NO TABS AND NO TILES - drawn or answered. The panel
+  // keeps its chrome (money, clock, speed); the selector yields and returns.
+  const sim = createSim({ seed: 11 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    sel = null; followIdx = -1; tab = "crew"; crewDock = true;
+    manage = "shack"; manageTab = "HOURS";
+    const printed = [];
+    const T = text, S = smallText;
+    const spy = (fn) => (c, str, x, y, col, sz) => { printed.push(String(str)); return fn(c, str, x, y, col, sz); };
+    text = spy(T); smallText = spy(S);
+    drawPanel();
+    text = T; smallText = S;
+    const tabsDrawn = printed.some(t => t === "CREW" || t === "SHOP");
+    // ...and the dead tiles answer no taps: a tap on tile one hires nobody
+    const before = followIdx;
+    handleTap({ x: 6, y: ROW_Y + 4 });
+    const ghost = followIdx !== before;
+    manage = null;
+    // the manual pop-down: dock it, the restore chip answers, tabs return
+    crewDock = false; drawPanel();
+    handleTap({ x: crewDockRect().x + 2, y: crewDockRect().y + 2 });
+    const restored = crewDock;
+    return JSON.stringify({ tabsDrawn, ghost, restored });
+  })()`));
+  if (out.tabsDrawn) return "the tab row drew under an open management card";
+  if (out.ghost) return "a ghost crew tile answered a tap under an open card";
+  if (!out.restored) return "the popped-down selector's restore chip answers nothing";
+});
+scenario("a science run is silent and the mind panel banks at the fold", () => {
+  const sim = createSim({ seed: 11 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    // the beep gate: a month of till chimes must not discharge as one blast
+    soundOn = true; muted = false; window._beeps = 0;
+    SCI.run = true; sfx.coin(); sfx.ding();
+    const during = window._beeps;
+    SCI.run = false; sfx.coin();
+    const after = window._beeps;
+    // the fold: a thirteen-class mind pages its meters above PANEL_Y
+    const c = crabs.find(c2 => citBrainOf(c2) && BRAINTV.get(c2));
+    let fold = null, pager = false;
+    if (c) {
+      sel = c; brainTv = true; dossier = null; manage = null; boardView = false;
+      saveView = false; reportT = 0; departT = 0; helpView = null; tab = "crew";
+      drawBrainPanel();
+      pager = !!_brainTvPager;
+      if (_brainTvPager) fold = _brainTvPager.y + _brainTvPager.h;
+      brainTv = false;
+    }
+    return JSON.stringify({ during, after, thinker: !!c, pager, fold });
+  })()`));
+  if (out.during !== 0) return "the lab scheduled " + out.during + " beeps mid-run - the burst is back";
+  if (out.after < 1) return "the gate ate normal play audio too (after=" + out.after + ")";
+  if (!out.thinker) return "no captured citizen thinker to stage the mind panel with - the staging is vacuous";
+  if (!out.pager) return "a thirteen-class mind drew no ..MORE row - the bank is not paging";
+  if (out.fold >= 176) return "the mind panel still crosses the fold (" + out.fold + " >= panel)";
+});
 scenario("no surface prints off the canvas", () => {
   // THE GENERAL FORM OF THE LEASE BUG. Every full-screen surface is drawn with
   // text/smallText stubbed to MEASURE what it prints, at the size it prints it,
