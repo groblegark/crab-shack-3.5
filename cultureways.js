@@ -408,7 +408,8 @@ var BUNDLED_CULTUREWAYS = {
       "spentup": "SPENT THE LOT. THAT'S WHAT MONEY'S FOR.",
       "top": "PAID PROPER FOR A {ITEM}. WORTH EVERY CENT.",
       "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
-      "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE."
+      "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE.",
+      "delight": "A PROPER BUN AT LAST. I'D SAIL BACK FOR ANOTHER."
      },
      "dossier": [
       "CAME FOR THE FOOD, STAYING FOR THE FOOD",
@@ -456,7 +457,8 @@ var BUNDLED_CULTUREWAYS = {
       "spentup": "SPENT EVERY DOLLAR OF MY ${PURSE}. QUITE CORRECT.",
       "top": "THE {ITEM} WAS ACCEPTABLE. PAID IN FULL.",
       "regular": "{STOPS} STOPS IN {DAYS} DAYS. THE PIGPUBLIC APPROVES.",
-      "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED."
+      "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED.",
+      "delight": "THE BUN WAS CORRECT. THE REPORT WILL SAY SO."
      },
      "dossier": [
       "MY PAPERS ARE ENTIRELY IN ORDER",
@@ -478,12 +480,63 @@ var BUNDLED_CULTUREWAYS = {
    "gamenight": 1.1,
    "room": 1.7,
    "rinse": 1.3,
-   "soak": 2
+   "soak": 2,
+   "porkbun": 2
   },
   "arrival": {
    "repGate": 80,
    "shareMax": 0.25,
    "shareRamp": 80
+  },
+  "foodways": {
+   "dishes": [
+    {
+     "id": "porkbun",
+     "biz": "shack",
+     "icon": "porkbun",
+     "pay": 16,
+     "learn": 25,
+     "raw": "corn",
+     "steps": [
+      [
+       "board",
+       3,
+       "bun_dough"
+      ],
+      [
+       "grill",
+       3.5,
+       "porkbun"
+      ]
+     ]
+    }
+   ],
+   "items": {
+    "bun_dough": {
+     "name": "BUN DOUGH",
+     "art": [
+      ".........",
+      ".........",
+      "..KKKKK..",
+      ".KYYYYYK.",
+      ".KYLYLYK.",
+      ".KYYYYYK.",
+      "..KKKKK.."
+     ]
+    },
+    "porkbun": {
+     "name": "PORK BUN",
+     "art": [
+      "....K....",
+      "..KKLKK..",
+      ".KLLLLLK.",
+      ".KLPLPLK.",
+      "KLLLLLLLK",
+      "KYYYYYYYK",
+      ".KKKKKKK."
+     ]
+    }
+   }
   }
  },
  "gull": {

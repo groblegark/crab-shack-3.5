@@ -68,7 +68,7 @@ v2 is strictly additive:
 | `voice` | 0 | **live** | registers (acc-bound class: diary/depart/dossier/foreign/refuseHire + purseMul) |
 | `tastes` | 0 | **live** | dishId → weight, clamp [0.5, 2.0] (the Victoria-3 bounds) |
 | `arrival` | 0 | **live** | repGate / shareMax / shareRamp |
-| `foodways` | 0 | **new** | ingredients, recipes (BIZ-shaped rows), default menus, knowledge gates, exposure-drift params |
+| `foodways` | 0 | **live** (first slice 2026-08-22: dishes + items + the taught-then-learned gate; menus/drift later) | ingredients, recipes (BIZ-shaped rows), default menus, knowledge gates, exposure-drift params |
 | `management` | 0 | **new** | wage/tip/shift/meal-policy norms (the frozen conventions research §4 names) |
 | `conduct` | 0→1 | **new** | rule table first (hireable flags, taboo floors, complaint thresholds — the pig's whole conduct set is table-expressible); Layer-1 expressions when a rule needs a formula |
 | `civics` | 0+1 | **future** | institutions, offices, policy step-tables, calendar phases, errand defs, invariants — lands with the capability APIs (phase E below) |
@@ -113,7 +113,7 @@ The registry, in recommended migration order:
 | 3 | arrival gate | sim (`ferryDock`) | {repGate, shareMax, shareRamp} | repGate in milli-rep; share in 1/256ths | above | next |
 | 4 | depart-rule weights | engine rule engine | ruleId → weight override | int 0..8 | 0..8 | later |
 | 5 | conduct flags | sim (hire path, complaint gates) | booleans + thresholds (hireable, taboo floor, foreign ≤ 0.6) | thresholds in twentieths | per-field | later |
-| 6 | foodways/menus | sim (`vis_pick` candidates, serve flow) | BIZ-shaped recipe rows {id, pay¢, raw, steps[station, ticks]} | cents / ticks — exact by construction | §1 limits | phase B |
+| 6 | foodways/menus | sim (`vis_pick` candidates, serve flow) | BIZ-shaped recipe rows {id, pay¢, raw, steps[station, ticks]} | cents / ticks — exact by construction | §1 limits | **LIVE** (bizRecipes seam; the kernel marshal reads learned rows like native ones) |
 
 **JS-side forever** (never kernel-relevant): every string table (voice
 sentences, dossier lines, names — the kernel emits event codes; JS renders

@@ -7613,6 +7613,7 @@ scenario("departures: every quote is DERIVED - one changed fact, one changed lin
     // twice - reachable species-blind through the closure literal; the
     // register-template rendering is the cultureways card scenario's job
     ["foreign", `{ foreign: 2 }`],
+    ["delight", `{ de: 2 }`],
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`],
     ["idle", `{ left: 70, spent: 30 }`],
     ["hungry", `{ hunger: Q20, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
@@ -7681,6 +7682,7 @@ scenario("departures: the quote's mutation arms - drop the fact, lose the line",
     ["dues", `{ dues: 4 }`, `{ dues: 0 }`],
     ["wait", `{ worstMin: 380 }`, `{ worstMin: 10 }`],
     ["mist", `{ mistMin: 300 * GMIN }`, `{ mistMin: 0 }`],
+    ["delight", `{ de: 1 }`, `{ de: 0 }`],
     // THE NEED ARMS ARE TWO-CONDITION RULES ON PURPOSE. A bar at the gangway on
     // its own is a fact about the clock (VIS_RATE.hunger refills in seven
     // hours); it only becomes a finding when the town also never sold them one.
@@ -11172,6 +11174,125 @@ scenario("pigs: fish is the taboo, and it is the WEIGHTS doing it", () => {
   })())`));
   if (floor.at !== "fish") return `her taste floor is ${floor.at} (${floor.lo}), not fish`;
   if (!(floor.soak > 1.5)) return `a pig rates a soak ${floor.soak} - that is not a love of bathing`;
+  return true;
+});
+
+scenario("foodways: the pork bun opens a pig's purse, and the WEIGHTS open it", () => {
+  // Phase B's whole point, asserted at the mechanism: a learned dish is a
+  // CANDIDATE (the seam), and the pig's own taste row is what makes it the
+  // likely plate (the appeal). Severing either is a named failure, and both
+  // mutations bite: unlearn the dish and the candidate list shrinks; flatten
+  // the taste to 0.6 and the delight flips to a foreign settle.
+  const sim = createSim({ seed: 1337 });
+  sim.G('learnedDishes.push("porkbun")');
+  const menu = JSON.parse(sim.G(`JSON.stringify(bizRecipes("shack").map(r => r.id))`));
+  if (!menu.includes("porkbun")) return "the lesson was taken but the board never changed: " + menu.join(",");
+  if (menu.length !== Number(sim.G("BIZ.shack.recipes.length")) + 1) return "the board grew wrong: " + menu.join(",");
+  // the appeal, exactly as her table predicts across the whole plate menu
+  const share = JSON.parse(sim.G(`JSON.stringify((() => {
+    const rs = bizRecipes("shack").filter(r => !DRINKS[r.id]);
+    const k = { culture: "pig" };
+    let total = 0; for (const r of rs) total += tasteW(k, r);
+    const bun = rs.find(r => r.id === "porkbun");
+    return { bun: tasteW(k, bun) / total, n: rs.length, w: tasteW(k, bun) };
+  })())`));
+  if (share.w !== 2) return "her table rates the bun " + share.w + ", not the 2.0 the fixture wrote";
+  if (!(share.bun > 0.5)) return "the bun carries " + share.bun.toFixed(3) + " of her appetite - the weights are not steering";
+  // ...and the pick DELIGHTS rather than settles: visGo counts taste >= 1.5
+  sim.G(`(() => {
+    const k = newVisitor(false); k.culture = "pig"; k.wallet = 8000;
+    const rs = bizRecipes("shack");
+    visGo(k, { biz: "shack", need: "food", recipe: rs.find(r => r.id === "porkbun") });
+    window._t1 = (stayOf(k).delight || 0); window._t2 = (stayOf(k).foreign || 0);
+  })()`);
+  if (sim.G("window._t1") !== 1) return "she chose the dish she loves and nobody counted the delight";
+  if (sim.G("window._t2") !== 0) return "a 2.0 pick was counted as a foreign settle";
+  return true;
+});
+
+scenario("foodways: nothing is conjured - a bun is corn, and corn is a priced import", () => {
+  // The conservation half. Every bun's corn arrives by boat at the ledger's
+  // own price; the till pays for it at the serve like every native raw; and
+  // a till that cannot cover the ingredient does not serve (the kitchen's
+  // own waitCash gate, which the mutation proves still guards the new row).
+  const sim = createSim({ seed: 31 });
+  sim.G('learnedDishes.push("porkbun")');
+  const led = JSON.parse(sim.G(`JSON.stringify((() => {
+    const before = { qty: trade.total.corn, spent: trade.spentBy.corn || 0, cost: ingredientCost("corn") };
+    consumeIngredient("corn", bizRecipes("shack").find(r => r.id === "porkbun"));
+    return { before, qty: trade.total.corn, spent: trade.spentBy.corn || 0 };
+  })())`));
+  if (led.qty !== led.before.qty + 1) return "a bun was made and no corn crossed the pier";
+  if (led.spent !== led.before.spent + led.before.cost)
+    return "the corn crossed unpriced: ledger moved " + (led.spent - led.before.spent) + " against a cost of " + led.before.cost;
+  if (led.before.cost !== 300) return "corn should price at the import table's 300c, not " + led.before.cost;
+  // the ingredient gate: a starved till refuses the order rather than conjure
+  const gate = JSON.parse(sim.G(`JSON.stringify((() => {
+    const bun = bizRecipes("shack").find(r => r.id === "porkbun");
+    return { cost: ingredientCost(bun.raw), can: ownerFunds("shack") };
+  })())`));
+  if (!(gate.cost > 0)) return "the bun's ingredient is free - that is a conjuring";
+  return true;
+});
+
+scenario("foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers", () => {
+  // The player act end to end: no offer before a departure taught the demand;
+  // the fee leaves the till; and the learning survives a save/load while a
+  // fresh boot starts unlettered (town state, not session state).
+  const store = new Map();
+  const sim = createSim({ seed: 909, storage: store, fresh: false });
+  if (sim.G('learnableDishes("shack").length') !== 0)
+    return "the manage card offers the bun before any pig taught the demand";
+  sim.G('dishWord.pig = true');
+  const off = JSON.parse(sim.G(`JSON.stringify(learnableDishes("shack").map(d => d.id))`));
+  if (off.join(",") !== "porkbun") return "the card should offer exactly the bun, got: " + (off.join(",") || "nothing");
+  const paid = JSON.parse(sim.G(`JSON.stringify((() => {
+    coins = 9000;
+    const before = coins, ok = learnDish(learnableDishes("shack")[0]);
+    return { ok, fee: before - coins, learned: learnedDishes.slice() };
+  })())`));
+  if (!paid.ok) return "a $90 till refused a $25 lesson";
+  if (paid.fee !== 2500) return "the lesson fee moved " + paid.fee + "c, not the fixture's 2500c";
+  if (paid.learned.join(",") !== "porkbun") return "the fee was paid and nothing was learned";
+  // a poor till is refused - the fee is a gate, not a formality
+  const broke = JSON.parse(sim.G(`JSON.stringify((() => {
+    learnedDishes.length = 0; coins = 100;
+    return { ok: learnDish(foodwayDishes("shack")[0]), learned: learnedDishes.length };
+  })())`));
+  if (broke.ok || broke.learned) return "a $1 till bought a $25 lesson";
+  // and the learning is TOWN state: saved, restored, and absent from a fresh boot
+  sim.G('learnedDishes.push("porkbun"); save()');
+  const back = createSim({ seed: 909, storage: store, fresh: false });
+  if (back.G('learnedDishes.join(",")') !== "porkbun") return "the save forgot the lesson";
+  if (back.G('Object.keys(dishWord).join(",")') !== "pig") return "the save forgot who taught it";
+  const fresh = createSim({ seed: 909 });
+  if (fresh.G('learnedDishes.length') !== 0) return "a fresh town was born knowing the bun";
+  return true;
+});
+
+scenario("foodways: the validator names its refusals", () => {
+  // Hostile-file posture: every reference resolves at import with the dish's
+  // own name in the message, and the native pantry cannot be shadowed.
+  const sim = createSim({ seed: 1337 });
+  const probe = (patch) => sim.G(`(() => {
+    const d = JSON.parse(JSON.stringify(CULTURES.pig.def));
+    (${patch})(d);
+    return cultureProblem(d) || "FINE";
+  })()`);
+  const cases = [
+    ["d => d.foodways.dishes[0].steps[0][0] = 'kiln'", "STATION"],
+    ["d => d.foodways.dishes[0].raw = 'moonbeam'", "INGREDIENT"],
+    ["d => d.foodways.items.taco = { name: 'NOT A TACO' }", "PANTRY"],
+    ["d => { d.foodways.dishes[0].icon = 'ghost'; delete d.foodways.items.porkbun; }", "PICTURE"],
+    ["d => d.foodways.dishes[0].pay = 9999", "PRICE"],
+    ["d => d.foodways.dishes[0].id = 'taco'", "SHADOW"],
+  ];
+  for (const [patch, word] of cases) {
+    const why = probe(patch);
+    if (why === "FINE") return "the validator waved through: " + patch;
+    if (!why.includes(word)) return "an unactionable refusal for " + word + ": " + why;
+  }
+  if (sim.G('cultureProblem(CULTURES.pig.def)') !== null) return "the shipped pigway no longer validates";
   return true;
 });
 

@@ -3014,7 +3014,7 @@ function runRivalCompete() {
     if (move === "price" && bizPriceIdx(shop) - RIVAL_CFG.CUT_IDX >= PRICE_IDX_MIN) {
       setBizPriceIdx(shop, bizPriceIdx(shop) - RIVAL_CFG.CUT_IDX);
       line = "CUTS THE " + BIZ[shop].short + " PRICE TO " + bizPricePct(shop) + "%"
-        + " (" + BIZ[shop].recipes.map(r0 => "$" + $d(menuPrice(shop, r0))).join("/") + ")";
+        + " (" + bizRecipes(shop).map(r0 => "$" + $d(menuPrice(shop, r0))).join("/") + ")";
     } else if (move === "hours") {
       const h = BIZ[shop].hours;
       if (h.close + 60 <= HOURS_MAX) {
@@ -4876,7 +4876,7 @@ function darkness() { // 0 = day, 1 = full night
 }
 
 // ---------------------------------------------------------------- recipes
-const INGREDIENT_COST = { fish_raw: 5, fruit: 3, token: 1, soap: 1, linen: 2 };
+const INGREDIENT_COST = { fish_raw: 5, fruit: 3, token: 1, soap: 1, linen: 2, corn: 3 };   // corn: every ear is shipped in (foodways)
 // ---- fish price discovery: the pier price FLOATS with scarcity. The $7
 // world price is the natural ceiling (at $7 imports supply the gap, so the
 // local price can never exceed it); a glut sags toward the $2 floor. The
@@ -4944,6 +4944,7 @@ function ingredientCost(raw) {
 }
 function consumeIngredient(raw, recipe) {
   if (raw === "fruit") tradeImport("fruit", 1);                   // every drink counts its fruit (T1 tracking)
+  if (raw === "corn") tradeImport("corn", 1, IMPORTS.corn.price); // no corn grows here: every ear is a priced import, like a fish the pier didn't land
   if (recipe && recipe.raw2 === "water") {
     tradeImport("water", 1); // the COOLER's gallon of fresh water
     if (window._stats) window._stats.coolersMade = (window._stats.coolersMade || 0) + 1;
@@ -4958,9 +4959,13 @@ const ITEM_NAMES = {
   taco: "FISH TACO", juice: "JUICE", cooler: "COOLER", plate_fish: "GRILL FISH",
   token: "TOKENS", plush: "CLAW PLUSH", tickets: "TICKET RUN", gold_plush: "GOLD PLUSH",
   soap: "SOAP", suds: "DELUXE SOAK", shine: "QUICK RINSE", dirty_dishes: "DIRTY DISHES",
+  corn: "CORN",
   linen: "FRESH LINEN", roomkey: "A ROOM FOR THE NIGHT",
 };
 
+// the native pantry, frozen before any culture installs: a foodway item may
+// not shadow a name the house menu already owns (hostile-file posture)
+const NATIVE_ITEMS = new Set(Object.keys(ITEM_NAMES));
 const DRINKS = { juice: 1, cooler: 1 };   // recipes that quench THIRST wherever they're bought
 
 // ---------------------------------------------------------------- upgrades
@@ -6810,6 +6815,64 @@ const TURBO = Math.max(1, parseInt((location.search.match(/turbo=(\d+)/) || [0, 
 const CULTURES = { crab: null };   // id -> built entry (null = the hard-coded crab)
 let rawCultures = null;            // the envelope key, round-tripped verbatim
 
+// ---- FOODWAYS (cultureway phase B). A culture may declare DISHES - recipe
+// rows in the BIZ shape - that a kitchen here can LEARN. Learning is the
+// player's act on the management card (the pigs complained; the kitchen
+// answered), never automatic: a town where nobody learns is byte-identical
+// to one where foodways never existed, which is the fingerprint gate's shape.
+// Both of these are TOWN state: saved in the envelope, cleared by
+// resetSession (the loader-reset registration contract).
+let learnedDishes = [];   // dish ids the town's kitchens serve, in learn order
+let dishWord = {};        // cultureId -> true once a departure card taught the demand
+// Every foodway dish declared by an installed culture for business `b`,
+// learned or not. Rows are the culture's own objects - built once at install,
+// BIZ-shaped, author-dollar pay like the native tables.
+function foodwayDishes(b) {
+  const out = [];
+  for (const id in CULTURES) {
+    const cul = CULTURES[id];
+    if (!cul || !cul.def.foodways || !Array.isArray(cul.def.foodways.dishes)) continue;
+    for (const d of cul.def.foodways.dishes) if (d.biz === b) out.push(d);
+  }
+  return out;
+}
+// A dish the manage card may OFFER: declared for this business by an
+// installed culture, not yet learned, and the demand actually taught - a
+// departure card has to have said so (dishWord). Earned, never automatic.
+function learnableDishes(b) {
+  const out = [];
+  for (const id in CULTURES) {
+    const cul = CULTURES[id];
+    if (!cul || !dishWord[id] || !cul.def.foodways || !Array.isArray(cul.def.foodways.dishes)) continue;
+    for (const d of cul.def.foodways.dishes)
+      if (d.biz === b && !learnedDishes.includes(d.id)) out.push(d);
+  }
+  return out;
+}
+// THE ACT. A one-time lesson fee out of the till (the mainland does not
+// teach for free), and the dish is on the board from the next order taken -
+// its ingredients priced per serve through the same import machinery as
+// every fish the pier didn't land. Nothing is conjured.
+function learnDish(d) {
+  const fee = 100 * (d.learn || 0);
+  if (coins < fee) { toast = { text: "THE LESSON COSTS $" + $d(fee) + " - THE TILL CAN'T COVER IT", t: 6 }; sfx.angry(); return false; }
+  if (fee) expense(fee, BIZ[d.biz].door, 118, "THE RECIPE");
+  learnedDishes.push(d.id);
+  toast = { text: (ITEM_NAMES[d.icon] || d.id.toUpperCase()) + " IS ON THE BOARD - " + BIZ[d.biz].short + " LEARNED THE DISH", t: 7 };
+  sfx.buy(); save();
+  return true;
+}
+// THE MENU SEAM. Every consumer of a kitchen's recipe list - the visitor
+// scorer, the kernel marshal, staff meals, walk-ins, the observables, the
+// manage card - reads through here. Returns the BIZ table's own array
+// identity when nothing is learned, so an unlearned town costs nothing and
+// changes nothing.
+function bizRecipes(b) {
+  if (!learnedDishes.length) return BIZ[b].recipes;
+  const extra = foodwayDishes(b).filter(d => learnedDishes.includes(d.id));
+  return extra.length ? BIZ[b].recipes.concat(extra) : BIZ[b].recipes;
+}
+
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
 // with a message, not at first draw.
@@ -6910,6 +6973,66 @@ function cultureProblem(d) {
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
   if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
+  if (d.foodways != null) { const p = foodwayProblem(d); if (p) return p; }
+  return null;
+}
+// FOODWAYS validation (cultureway phase B). Hostile-file numbers from the
+// substrate doc: <=32 dishes x <=6 steps, author-dollar pay/learn in named
+// ranges, and every reference resolved at import - the station must exist at
+// the business, the raw must be an ingredient the trade machinery prices,
+// the icon must be drawn art. Nothing fails at first serve.
+function foodwayProblem(d) {
+  const f = d.foodways;
+  if (typeof f !== "object" || Array.isArray(f)) return "A BAD FOODWAY";
+  if (f.dishes != null) {
+    if (!Array.isArray(f.dishes) || f.dishes.length > 32) return "TOO MANY DISHES";
+    const seen = {};
+    for (const r of f.dishes) {
+      if (!r || typeof r !== "object") return "A BAD DISH";
+      if (typeof r.id !== "string" || !r.id.length || r.id.length > 24) return "A BAD DISH ID";
+      if (seen[r.id]) return "DISH " + r.id.toUpperCase() + " DECLARED TWICE"; seen[r.id] = 1;
+      if (typeof r.biz !== "string" || !BIZ[r.biz] || !BIZ[r.biz].recipes) return "DISH " + r.id.toUpperCase() + " NAMES NO KITCHEN";
+      if (BIZ[r.biz].recipes.some(n => n.id === r.id)) return "DISH " + r.id.toUpperCase() + " SHADOWS THE HOUSE MENU";
+      if (typeof r.pay !== "number" || !isFinite(r.pay) || r.pay < 1 || r.pay > 200 || r.pay !== Math.round(r.pay))
+        return "DISH " + r.id.toUpperCase() + " HAS A BAD PRICE";
+      if (r.learn != null && (typeof r.learn !== "number" || !isFinite(r.learn) || r.learn < 0 || r.learn > 500
+        || r.learn !== Math.round(r.learn))) return "DISH " + r.id.toUpperCase() + " HAS A BAD LESSON FEE";
+      if (typeof r.raw !== "string" || INGREDIENT_COST[r.raw] == null)
+        return "DISH " + r.id.toUpperCase() + " WANTS AN INGREDIENT NO BOAT CARRIES";
+      if (!ITEMS[r.raw] && !(f.items && f.items[r.raw] && f.items[r.raw].art))
+        return "DISH " + r.id.toUpperCase() + "'S INGREDIENT HAS NO PICTURE";   // the cook CARRIES the raw
+      if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return "DISH " + r.id.toUpperCase() + " HAS A BAD ICON";
+      if (!ITEMS[r.icon] && !(f.items && f.items[r.icon] && f.items[r.icon].art))
+        return "DISH " + r.id.toUpperCase() + " HAS NO PICTURE";
+      if (!Array.isArray(r.steps) || !r.steps.length || r.steps.length > 6) return "DISH " + r.id.toUpperCase() + " HAS BAD STEPS";
+      for (const st of r.steps) {
+        if (!Array.isArray(st) || st.length < 3) return "DISH " + r.id.toUpperCase() + " HAS A BAD STEP";
+        if (typeof st[0] !== "string" || !BIZ[r.biz].stations[st[0]]) return "DISH " + r.id.toUpperCase() + " WANTS A STATION " + String(st[0]).toUpperCase() + " DOESN'T HAVE";
+        if (typeof st[1] !== "number" || !isFinite(st[1]) || st[1] < 0.5 || st[1] > 30) return "DISH " + r.id.toUpperCase() + " HAS A BAD STEP TIME";
+        if (typeof st[2] !== "string" || !st[2].length || st[2].length > 24) return "DISH " + r.id.toUpperCase() + " HAS A BAD STEP ITEM";
+        if (!ITEMS[st[2]] && !(f.items && f.items[st[2]] && f.items[st[2]].art))
+          return "DISH " + r.id.toUpperCase() + " CARRIES AN ITEM WITH NO PICTURE";
+      }
+    }
+  }
+  if (f.items != null) {
+    if (typeof f.items !== "object" || Array.isArray(f.items)) return "A BAD ITEM TABLE";
+    const keys = Object.keys(f.items);
+    if (keys.length > 64) return "TOO MANY ITEMS";
+    for (const k of keys) {
+      const it = f.items[k];
+      if (k.length > 24 || !it || typeof it !== "object") return "A BAD ITEM";
+      if (NATIVE_ITEMS.has(k)) return "ITEM " + k.toUpperCase() + " SHADOWS THE HOUSE PANTRY";
+      if (typeof it.name !== "string" || !it.name.length || it.name.length > 18) return "ITEM " + k.toUpperCase() + " HAS A BAD NAME";
+      if (it.art != null) {
+        if (!Array.isArray(it.art) || !it.art.length || it.art.length > 12) return "ITEM " + k.toUpperCase() + " HAS BAD ART";
+        for (const row of it.art) {
+          if (typeof row !== "string" || !row.length || row.length > 12) return "ITEM " + k.toUpperCase() + " HAS BAD ART";
+          for (const ch of row) if (ch !== "." && !PAL[ch]) return "ITEM " + k.toUpperCase() + " PAINTS OFF THE PALETTE";
+        }
+      }
+    }
+  }
   return null;
 }
 // ------------------------------------------------------------- neuro agents
@@ -6948,11 +7071,11 @@ const NEURO_PARAM_OBS = {
   "stop.open":    { units: "flag*4096", read: (b) => () => nclamp((visOpen(b) ? 1 : 0) * 4096) },
   "stop.roomfor": { units: "flag*4096", read: (b) => (k) => nclamp((visRoomFor(k, b) ? 1 : 0) * 4096) },
   "stop.afford.count": { units: "n<<10",
-    read: (b) => (k, res) => nclamp(BIZ[b].recipes.filter(r => k.wallet >= menuPrice(b, r) + res).length * 1024) },
+    read: (b) => (k, res) => nclamp(bizRecipes(b).filter(r => k.wallet >= menuPrice(b, r) + res).length * 1024) },
   "stop.dist.px": { units: "px<<3", read: (b) => (k) => nclamp(Math.floor(Math.abs(k.x - BIZ[b].queueX) * 8)) },
   "stop.appeal.q16": { units: "Q16>>3", read: (b) => () => nclamp(priceAppealQ16(b) >> 3) },
   "stop.taste.best": { units: "tasteW*2048 over affordable",
-    read: (b) => (k, res) => nclamp(Math.floor(BIZ[b].recipes.reduce((m, r) =>
+    read: (b) => (k, res) => nclamp(Math.floor(bizRecipes(b).reduce((m, r) =>
       k.wallet >= menuPrice(b, r) + res ? Math.max(m, tasteW(k, r)) : m, 0) * 2048)) },
 };
 // THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
@@ -7117,7 +7240,18 @@ function installCultures(raw, mine) {
     if (!/^[a-z][a-z0-9_]{0,15}$/.test(id)) continue;
     const why = cultureProblem(raw[id]);
     if (why) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - " + why, t: 8 }; continue; }
-    try { CULTURES[id] = buildCulture(raw[id]); }
+    try {
+      CULTURES[id] = buildCulture(raw[id]);
+      // FOODWAYS items land in the world's own tables at install - display
+      // names and 9-wide pixel art through the same defItem machinery the
+      // native menu uses. Idempotent by key; validated above, so a clash
+      // with a native item never got this far.
+      const fw = raw[id].foodways;
+      if (fw && fw.items) for (const k in fw.items) {
+        ITEM_NAMES[k] = fw.items[k].name;
+        if (fw.items[k].art) defItem(k, fw.items[k].art);
+      }
+    }
     catch (e) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
   }
 }
@@ -7425,6 +7559,7 @@ function save(hold) {
         tp2: Math.round(s.tips), du: Math.round(s.dues),
         sh: s.shut, fu: s.full, br: s.broke,
         ...(s.foreign ? { fo: s.foreign } : {}),
+        ...(s.delight ? { de: s.delight } : {}),
         mi: Math.round(s.mistMin), ms: s.missed, sw: s.sandWhy };
       })(),
     })),
@@ -7443,6 +7578,8 @@ function save(hold) {
     laborPol: laborPolicyState,
   };
   if (rawCultures) env.cultures = rawCultures;   // cultureways round-trip verbatim (CS3.5)
+  if (learnedDishes.length) env.ld = learnedDishes.slice();   // foodways: dishes this town learned
+  if (Object.keys(dishWord).length) env.dw = { ...dishWord }; // ...and the demand its cards taught
   // THE STREAM RIDES ALONG (2026-08-22). Only when the town owns it: a town
   // still on the host's stream has no cursor to write, and inventing one from
   // an unreadable generator would be a lie the loader would then act on.
@@ -7610,6 +7747,8 @@ function resetSession() {
   customers.length = 0; floaters.length = 0;
   initNpcs();                     // the townsfolk go back to their own front doors
   // THE SESSION LEDGERS - the last town's books on the new town's desk.
+  learnedDishes.length = 0;       // foodways: the menu a town learned is the TOWN's
+  dishWord = {};                  // ...and so is the demand its departures taught
   earnHist.length = 0;            // the rival prices her ambition from this
   qSeqN = 0;                      // the queue's ticket counter: order, not just count
   today = newDayLog();
@@ -8001,6 +8140,15 @@ function load(slot, envIn) {
   // CULTUREWAYS read BEFORE the visitors below, so a record's color/acc
   // clamps can check the tables it actually indexes (CS3.5 step 1)
   loadCultures(s.cultures);
+  // FOODWAYS: what the town's kitchens learned and what its departure cards
+  // taught. Clamped strings; unknown dish ids survive verbatim (WAD
+  // fall-through - a save that names a culture we don't hold keeps its
+  // learning, and bizRecipes simply finds no row until the culture returns).
+  learnedDishes = Array.isArray(s.ld)
+    ? s.ld.filter(id => typeof id === "string" && id.length && id.length <= 24).slice(0, 64) : [];
+  dishWord = {};
+  if (s.dw && typeof s.dw === "object" && !Array.isArray(s.dw))
+    for (const cid in s.dw) if (typeof cid === "string" && cid.length <= 16 && s.dw[cid]) dishWord[cid] = true;
   loadDorm(s.dorm);
   loadAnnexe(s.annexe);
   customers = customers.filter(k => !k.visitor);
@@ -8046,6 +8194,7 @@ function load(slot, envIn) {
       s.tips = num(st.tp2, 999900); s.dues = num(st.du, 999900);
       s.shut = num(st.sh, 9999); s.full = num(st.fu, 9999); s.broke = num(st.br, 9999);
       if (st.fo) s.foreign = num(st.fo, 9999);
+      if (st.de) s.delight = num(st.de, 9999);
       s.mistMin = num(st.mi, 99999); s.missed = num(st.ms, 99);
       s.sandWhy = ["broke", "shut", "unmade", "full"].indexOf(st.sw) >= 0 ? st.sw : null;
     }
@@ -9122,7 +9271,7 @@ function pickErrand(c) {
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
   if (wantFood && !staffed("shack") && c.p.job === "shack" && !c.p.npc) {
-    const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
+    const affordable = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
       const r = c.p.wallet > 4000 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
@@ -9130,7 +9279,7 @@ function pickErrand(c) {
     }
   }
   if (wantFood && staffed("shack")) {
-    const affordable = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 200);
+    const affordable = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
       affordable.sort((a, b) => a.pay - b.pay);
@@ -9194,7 +9343,7 @@ function pickErrand(c) {
   if ((c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink")) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
-      const drinks = BIZ[drinkAt].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
+      const drinks = bizRecipes(drinkAt).filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         const r = c.p.wallet > 4000 ? drinks[drinks.length - 1] : drinks[0];   // a COOLER when flush
@@ -9202,7 +9351,7 @@ function pickErrand(c) {
       }
     } else if (!c.p.npc && (c.p.job === "shack" || c.p.job === "juicebar")
         && bizUnlocked(c.p.job) && !staffed(c.p.job)) {
-      const drinks = BIZ[c.p.job].recipes.filter(r => DRINKS[r.id] && c.p.wallet >= staffMealCharge(c.p.job, r) + 200);
+      const drinks = bizRecipes(c.p.job).filter(r => DRINKS[r.id] && c.p.wallet >= staffMealCharge(c.p.job, r) + 200);
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         take({ selfCook: true, biz: c.p.job, recipe: drinks[0], need: "drink" });
@@ -9903,12 +10052,12 @@ function forcedErrand(c, b) {
   if (b === "shack") {
     if (!bizStaffed("shack")) {
       if (c.p.job === "shack" && !c.p.npc) {   // staff privilege: cook your own, at the shop's meal policy
-        const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
+        const aff = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
         if (aff.length) { aff.sort((a, b2) => a.pay - b2.pay); return { selfCook: true, recipe: aff[0] }; }
       }
       return null;
     }
-    const aff = BIZ.shack.recipes.filter(r => c.p.wallet >= localPrice("shack", r) + 200);
+    const aff = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
     if (!aff.length) return null;
     aff.sort((a, b2) => a.pay - b2.pay);
     return { biz: "shack", recipe: c.p.wallet > 4000 ? aff[(srand() * aff.length) | 0] : aff[0], need: "food" };
@@ -11182,6 +11331,12 @@ function visBoard(k) {
   // `customers` - this is the last frame in which anything can be asked of
   // them. See THE DEPARTURE CARD; the row is what the quote is derived from.
   if (today.left && today.left.length < 40) today.left.push(departRecord(k));
+  // THE CARD TEACHES THE DEMAND (foodways): a cultured guest who settled for
+  // what was going, from a culture that brought recipes with it, puts the
+  // word about - the manage card can offer the dish from now on. A flag, not
+  // a draw; a town that never hosts such a guest never sees the offer.
+  if (k.culture && k.culture !== "crab" && (stayOf(k).foreign || 0) >= 1
+      && CULTURES[k.culture] && CULTURES[k.culture].def.foodways) dishWord[k.culture] = true;
   if (k.room) { k.room.occupant = null; k.room.dirty = true; k.room = null; }
   // WORD OF MOUTH IS THE WHOLE POINT OF A VISIT. A guest who ate, washed and
   // slept somewhere talks the town up; one who spent the night on the sand
@@ -11393,7 +11548,7 @@ function visCandidates(k) {
   const add = (b, need, pickR) => {
     if (!visOpen(b)) { if (bizUnlocked(b)) stayBlocked(k, "shut"); return; }
     if (!visRoomFor(k, b)) { stayBlocked(k, "full"); return; }
-    const rs = BIZ[b].recipes.filter(afford(b));
+    const rs = bizRecipes(b).filter(afford(b));
     if (!rs.length) { stayBlocked(k, "broke"); return; }
     cand.push({ biz: b, need, recipe: pickR(rs) });
   };
@@ -11536,7 +11691,7 @@ function shadowObserve(k, bp, e) {
 function kernelVisPick(k) {
   const res = roomReserve(k);
   for (let s = 0; s < KVP_BIZ.length; s++) {
-    const b = KVP_BIZ[s], rs = BIZ[b].recipes;
+    const b = KVP_BIZ[s], rs = bizRecipes(b);
     if (rs.length > KVP_RMAX) throw new Error("recipe table outgrew the kernel plane: " + b);
     KM_OPEN[s] = visOpen(b) ? 1 : 0;
     KM_UNLK[s] = bizUnlocked(b) ? 1 : 0;
@@ -11563,9 +11718,21 @@ function kernelVisPick(k) {
   if (ret < 0) return null;
   const slot = (ret >> 4) & 15;
   return { biz: KVP_BIZ[slot], need: ["food", "drink", "clean", "fun", "room"][(ret >> 8) & 15],
-    recipe: BIZ[KVP_BIZ[slot]].recipes[ret & 15] };
+    recipe: bizRecipes(KVP_BIZ[slot])[ret & 15] };
 }
 function visGo(k, e) {
+  // DELIGHT IS COUNTED AT THE PICK, like its foreign twin - but it is a
+  // FOODWAYS word, not a taste word: the dish has to be the guest's own
+  // cuisine, found abroad (a pig loves a soak at 2.0 and the card should not
+  // call that finding her dish). visGo is the one door every decider walks
+  // through - script, kernel drain and brain alike - so the departure card
+  // reads the same whoever chose.
+  if (e.recipe && k.culture && k.culture !== "crab" && tasteW(k, e.recipe) >= 1.5) {
+    const cul = CULTURES[k.culture];
+    if (cul && cul.def.foodways && Array.isArray(cul.def.foodways.dishes)
+        && cul.def.foodways.dishes.some(d => d.id === e.recipe.id))
+      stayOf(k).delight = (stayOf(k).delight || 0) + 1;
+  }
   // the room is RESERVED the moment they set off for it - nobody sells the
   // last room twice, and a held room is not a room housekeeping can strip
   if (e.biz === "hotel" && !k.room) { const r = freeRoom(); if (!r) return; r.occupant = k; k.room = r; }
@@ -11782,7 +11949,7 @@ const QUEUE_STEP = 45;   // px/s of shuffle: the speed the one-way clamp used
 // ---------------------------------------------------------------- customers
 function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
-  const r = biz.recipes[(srand() * biz.recipes.length) | 0];
+  const r = bizRecipes(bizKey)[(srand() * bizRecipes(bizKey).length) | 0];
   const spawnX = biz.queueX + 150;
   const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
     name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
@@ -12635,7 +12802,7 @@ cv.addEventListener("click", (ev) => {
     // the management card swallows every click; only its controls act
     const pt = evPos(ev), R = manageRects(), b = BIZ[manage], h = b.hours;
     const hit = (r) => pt.x >= r.x && pt.x < r.x + r.w && pt.y >= r.y && pt.y < r.y + r.h;
-    for (const t of MANAGE_TABS) if (hit(R.tab[t])) { manageTab = t; sfx.ding(); return; }
+    for (const t of MANAGE_TABS) if (hit(R.tab[t])) { manageTab = t; learnArm = null; sfx.ding(); return; }
     if (manageTab === "HOURS") {
       if (hit(R.om)) { setBizHours(manage, h.open - 30, h.close); sfx.buy(); save(); return; }
       if (hit(R.op)) { setBizHours(manage, Math.min(h.open + 30, h.close - HOURS_SPAN_MIN), h.close); sfx.buy(); save(); return; }
@@ -12647,6 +12814,14 @@ cv.addEventListener("click", (ev) => {
         b.mealPol = MEAL_POLS[(MEAL_POLS.indexOf(b.mealPol) + 1) % MEAL_POLS.length];
         sfx.ding(); save(); return;
       }
+      if (hit(R.learn)) {   // foodways: arm on the first tap, learn on the second
+        const ld = learnableDishes(manage)[0];
+        if (ld) {
+          if (learnArm !== ld.id) { learnArm = ld.id; sfx.ding(); return; }
+          learnArm = null; learnDish(ld); return;
+        }
+      }
+      learnArm = null;   // any other tap on the card disarms the lesson
     } else if (manageTab === "SCHEDULE") {
       if (hit(R.auto)) {
         b.autoLabor = !b.autoLabor; sfx.buy(); save();
@@ -15503,6 +15678,7 @@ function manageBizCycler() {
   return manageTab !== "TOWN" && manageTab !== "HALL" && ownedBizList().length > 1;
 }
 let manageTab = "HOURS";
+let learnArm = null;   // foodways: the dish id armed on the manage card (view state, two taps to learn)
 // HALL tab view state (transient, like the census sort): which of the three
 // reading surfaces you are on - the town's books, the last ballot's result, or
 // the ROLL, which is every voter's own reason in their own words. The roll gets
@@ -15553,6 +15729,7 @@ function manageRects() {
     pm: { x: x + 40, y: y + 92, w: 16, h: 15 },
     pp: { x: x + 96, y: y + 92, w: 16, h: 15 },
     meal: { x: x + 6, y: y + 110, w: 156, h: 14 },
+    learn: { x: x + 6, y: y + 138, w: 190, h: 14 },   // foodways: LEARN THE DISH (arm-then-confirm), clear of the meal chip's subtitle
     // ---- SCHEDULE tab
     auto: { x: x + 6, y: y + 30, w: 104, h: 13 },
     sickPol: { x: x + 114, y: y + 30, w: 104, h: 13 },
@@ -15705,6 +15882,17 @@ function drawManage() {
       smallText(ctx, b.mealPol === "retail" ? "CREW PAY MENU PRICE AT THE PANTRY"
         : b.mealPol === "atcost" ? "CREW PAY ONLY THE INGREDIENTS"
         : "ON THE HOUSE - THE TILL EATS THE COST", R.meal.x + 4, R.meal.y + R.meal.h + 2, [110, 100, 110]);
+      // FOODWAYS: the departure cards taught a demand and the kitchen can
+      // answer it. One dish at a time, the BUY chips' own arm-then-confirm.
+      const ld = learnableDishes(key)[0];
+      if (ld) {
+        const armed = learnArm === ld.id;
+        const fee = 100 * (ld.learn || 0);
+        chip(R.learn, fitSmall((armed ? "SURE? " : "LEARN ") + (ITEM_NAMES[ld.icon] || ld.id.toUpperCase())
+          + (fee ? " - $" + $d(fee) : ""), R.learn.w - 26), armed ? "TAP!" : "TAP", armed);
+        smallText(ctx, fitSmall("THE GUESTS KEEP ASKING - INGREDIENTS RUN $"
+          + $d(ingredientCost(ld.raw)) + " A PLATE", R.learn.w), R.learn.x + 4, R.learn.y + R.learn.h + 2, [110, 100, 110]);
+      }
     }
     // THE RIVALRY, in numbers, on the management screen where the owner asked
     // for them: what she wants, what she is paying, and what she is doing to
@@ -16708,6 +16896,7 @@ function departRecord(k) {
     // a crab's row is byte-identical to every row written before cultures
     ...(k.culture && k.culture !== "crab" ? { cu: k.culture } : {}),
     ...(s.foreign ? { foreign: s.foreign } : {}),
+    ...(s.delight ? { de: s.delight } : {}),
     days: Math.max(1, day - k.arrived + 1),
     nights: k.nights, nightsBed: k.nightsHad, rough: k.roughNights,
     purse, left, spent: Math.max(0, purse - left), buys: k.buys,
@@ -16823,6 +17012,13 @@ const DEPART_RULES = [
   { id: "foreign", mood: "mixed",
     w: (r) => (r.foreign || 0) >= 2 ? 60 + 4 * Math.min(5, r.foreign) : 0,
     line: () => "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO." },
+  // THE FOREIGN PALATE, ANSWERED (foodways). A cultured guest who found a
+  // dish they LOVE - taste 1.5+, counted at the pick like its foreign twin -
+  // says so on the way out. It outranks the grumble: a kitchen that learned
+  // the bun deserves to hear about it over one long line at the showers.
+  { id: "delight", mood: "glad",
+    w: (r) => (r.de || 0) >= 1 ? 66 + 4 * Math.min(5, r.de) : 0,
+    line: () => "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
   // home unspent since the visitor pass shipped, and the reason clause is what
   // turns that from a complaint into something the player can act on.

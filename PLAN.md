@@ -15,12 +15,22 @@ The next work phase is the substrate doc's migration ladder
 (design/cs35-cultureway-substrate.md), taken **B-before-D** — content
 first, platform second, ruled after the pigs shipped hungry:
 
-- **Phase B first: foodways + management.** Pig dishes exist so pigs
-  stop leaving unspent (16/16 towns see pigs by ~day 7 and BIG-PALP-class
-  purses go home whole — the measured hook this phase answers); the BIZ
-  catalog to data; pig settlers. This is also where NUDGE + tastes
-  become ONE culture-owned appeal table (the seam is noted in both the
-  drop-nudge and pig close-outs).
+- **Phase B first: foodways + management.** FIRST SLICE LANDED
+  (2026-08-22): the PORK BUN. A culture's `foodways` section declares
+  dishes in the BIZ recipe shape with their own carried-item art; the
+  demand must be TAUGHT (a departure card with a foreign settle sets
+  the word) before the manage card offers the lesson; the lesson costs
+  the till a fee and every bun's corn is a priced import — nothing
+  conjured. Delight is the foreign grumble's answer: counted at the
+  pick, only for the guest's OWN cuisine found abroad, spoken in their
+  register on the departure card. Measured (8 towns × 20 days):
+  distinct pigs ashore +49%, pig spend at departure roughly doubled,
+  foreign settles down — and per-pig spend share FLAT at ~0.36: the bun
+  multiplies who comes, not how much each eats. The matrix is
+  byte-identical (a town where nobody learns is the old town, by
+  design). Still phase B: management norms, the BIZ catalog to data,
+  pig settlers, NUDGE + tastes as ONE culture-owned appeal table (the
+  seam is noted in the drop-nudge and pig close-outs).
 - Then C (voice completion, crab strings tabled), then D (capability
   APIs: errand registry, hook taxonomy, policy slots, placement), then
   E (Layer-1 bytecode + civics — 3.5's definition of done).
