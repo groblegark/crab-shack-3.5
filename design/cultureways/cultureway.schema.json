@@ -281,13 +281,30 @@
     }
    }
   },
-  "tastes": {
+  "appeal": {
+   "description": "THE ONE TABLE for what draws this people: standing taste weights and the drop-nudge terms together. Top-level `tastes` is gone; a document that still carries it fails loudly at install.",
    "type": "object",
-   "maxProperties": 64,
-   "additionalProperties": {
-    "type": "number",
-    "minimum": 0.5,
-    "maximum": 2.0
+   "properties": {
+    "tastes": {
+     "description": "Per-recipe multiplier, 1.0 when unstated. Below 1 is dislike, 0.1 is effectively taboo.",
+     "type": "object",
+     "maxProperties": 64,
+     "additionalProperties": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 5.0
+     }
+    },
+    "nudge": {
+     "description": "Drop-nudge terms in AUTHOR units, converted once at install: radius in px, minutes on the game clock, relax quantized to the sim's Q20 grid by the same quantizer the engine's own constant uses, mul100 in appeal's hundredths (130 = x1.3). Fields left out inherit the crab values (72 / 60 / 0.12 / 130).",
+     "type": "object",
+     "properties": {
+      "radius": { "type": "integer", "minimum": 8, "maximum": 128 },
+      "minutes": { "type": "integer", "minimum": 5, "maximum": 1440 },
+      "relax": { "type": "number", "minimum": 0, "maximum": 0.5 },
+      "mul100": { "type": "integer", "minimum": 100, "maximum": 300 }
+     }
+    }
    }
   },
   "arrival": {

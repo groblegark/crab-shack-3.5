@@ -78,14 +78,16 @@ check("the bundled pig validates clean", good.ok === true && good.build === "bui
 const bad = JSON.parse(JSON.stringify(pig));
 bad.meta.id = "Bad-Id";
 bad.art.body.poses.a[2] += "ZZ";
-bad.tastes.fish = 99;
+bad.appeal.tastes.fish = 99;
+bad.appeal.nudge = { mul100: 9000 };
 bad.people.names.push("A NAME MUCH TOO LONG");
 const v = JSON.parse(textOf(await call("cultureway_validate", { document: bad })));
 const paths = (v.problems || []).map((p) => p.path).join(" ");
 check("invalid document is rejected", v.ok === false);
 check("error names the offending pose row", /art\.body\.poses\.a\[2\]/.test(paths), paths);
 check("error names the over-long name", /people\.names\[\d+\]/.test(paths), paths);
-check("error names the out-of-range taste", /tastes\.fish/.test(paths), paths);
+check("error names the out-of-range taste", /appeal\.tastes\.fish/.test(paths), paths);
+check("error names the out-of-range nudge thumb", /appeal\.nudge\.mul100/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
 
 const sheet = await call("cultureway_render", { document: pig, scale: 2 });

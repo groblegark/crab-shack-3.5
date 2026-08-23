@@ -11089,7 +11089,10 @@ scenario("cultureways: broken art is refused with a message and the town still l
     ["a missing pose", mut(d => delete d.art.body.poses.s)],
     ["a loose anchor", mut(d => d.art.body.anchors.hat.x = 99)],
     ["an undeclared char", mut(d => d.art.body.poses.b[2] = ".KPPPPPZPPK.")],
-    ["a bad taste", mut(d => d.tastes.fish = 99)],
+    ["a bad taste", mut(d => d.appeal.tastes.fish = 99)],
+    ["a taste at the old spot", mut(d => d.tastes = { fish: 1 })],   // moved to appeal - the old key fails LOUD
+    ["a bad nudge thumb", mut(d => d.appeal.nudge = { mul100: 9000 })],
+    ["a fractional nudge radius", mut(d => d.appeal.nudge = { radius: 72.5 })],
     ["a bad name", mut(d => d.people.names[0] = "AN EXTREMELY LONG PIG NAME")],
   ];
   for (const [what, d] of cases) {
@@ -11099,6 +11102,40 @@ scenario("cultureways: broken art is refused with a message and the town still l
   // ...and the clean fixture passes the same gate
   const ok = b.G("cultureProblem(" + JSON.stringify(PIG_FIXTURE) + ")");
   return ok === null ? true : "the clean fixture was refused: " + ok;
+});
+
+scenario("appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk", () => {
+  // The seam, proved from both ends: buildCulture converts author units
+  // (px / game-minutes / a float relax / hundredths) into EXACTLY the forms
+  // the crab constants hold - same qn, same GMIN - and nudgeCfg hands the
+  // override only to an actor of that culture. Everyone else, and every
+  // culture that stays silent, gets the crab table VERBATIM (===, not a copy:
+  // the behavior-neutral guarantee is object identity, not field equality).
+  const sim = createSim({ seed: 9 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.appeal.nudge = { radius: 100, minutes: 120, relax: 0.3, mul100: 200 };
+  const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  part.meta.id = "partpig";
+  part.appeal.nudge = { radius: 96 };   // the other three fields inherit crab values
+  sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const n = CULTURES.pig.nudge, p = CULTURES.partpig.nudge;
+    return {
+      full: n, want: { R: 100, TICKS: 120 * GMIN, RELAX: qn(0.3), AP: 200 },
+      part: p, partWant: { R: 96, TICKS: NUDGE.TICKS, RELAX: NUDGE.RELAX, AP: NUDGE.AP },
+      picksPig: nudgeCfg({ p: { culture: "pig" } }) === n,
+      crabIsCrab: nudgeCfg({ p: {} }) === NUDGE && nudgeCfg(null) === NUDGE,
+      silentIsCrab: (() => { const g = CULTURES.gull; return !g || g.nudge === null; })(),
+    };
+  })())`));
+  for (const k of ["R", "TICKS", "RELAX", "AP"]) {
+    if (got.full[k] !== got.want[k]) return `nudge.${k} built as ${got.full[k]}, want ${got.want[k]}`;
+    if (got.part[k] !== got.partWant[k]) return `partial nudge.${k} built as ${got.part[k]}, want ${got.partWant[k]}`;
+  }
+  if (!got.picksPig) return "nudgeCfg did not hand a pig her own culture's table";
+  if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own table";
+  if (!got.silentIsCrab) return "a culture that declared no nudge grew one anyway";
+  return true;
 });
 
 scenario("cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed", () => {
@@ -11219,7 +11256,7 @@ scenario("pigs: they actually get off the boat in a town nobody staged", () => {
     if (!k) return {};
     const cul = CULTURES.pig;
     return { culture: k.culture, h: cul.body.h, w: cul.body.w,
-      fish: cul.def.tastes.fish, soak: cul.def.tastes.soak, regs: cul.regs.length };
+      fish: cul.def.appeal.tastes.fish, soak: cul.def.appeal.tastes.soak, regs: cul.regs.length };
   })())`));
   if (her.culture !== "pig") return "the arrival is not carrying her culture";
   if (!(her.h > her.w)) return `a pig should stand taller than she is wide (${her.w}x${her.h})`;
@@ -11260,7 +11297,7 @@ scenario("pigs: fish is the taboo, and it is the WEIGHTS doing it", () => {
     return `her fish share is ${pig} but her own table predicts ${want.pred}`;
   // fish is the FLOOR of everything she has an opinion about
   const floor = JSON.parse(sim.G(`JSON.stringify((() => {
-    const t = CULTURES.pig.def.tastes, ks = Object.keys(t);
+    const t = CULTURES.pig.def.appeal.tastes, ks = Object.keys(t);
     let lo = Infinity, at = "";
     for (const k of ks) if (t[k] < lo) { lo = t[k]; at = k; }
     return { at, lo, soak: t.soak };
@@ -11473,8 +11510,8 @@ scenario("cultureways: a settling pig is counted, and the card speaks her regist
   a.G("save()");
   const env = JSON.parse(store.get(SLOT1));
   const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
-  for (const k in fx.tastes) fx.tastes[k] = 0.5;   // everything is settling
-  fx.tastes.juice = 0.6;                            // ...unequal, so the weighted path runs
+  for (const k in fx.appeal.tastes) fx.appeal.tastes[k] = 0.5;   // everything is settling
+  fx.appeal.tastes.juice = 0.6;                                   // ...unequal, so the weighted path runs
   env.cultures = { pig: fx };
   env.visitors = (env.visitors || []).concat([
     { n: "GAMMON", cu: "pig", c: 2, a: "strawhat", x: 700, y: 150, s: "roam",

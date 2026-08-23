@@ -263,12 +263,14 @@
    }
   ]
  },
- "tastes": {
-  "fish": 2.2,
-  "taco": 1.1,
-  "juice": 0.7,
-  "soak": 0.2,
-  "room": 0.9
+ "appeal": {
+  "tastes": {
+   "fish": 2.2,
+   "taco": 1.1,
+   "juice": 0.7,
+   "soak": 0.2,
+   "room": 0.9
+  }
  },
  "arrival": {
   "repGate": 60,

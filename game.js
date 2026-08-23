@@ -6963,11 +6963,36 @@ function cultureProblem(d) {
       for (const k of ["refuseHire", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
     }
   }
-  if (d.tastes != null) {
-    if (typeof d.tastes !== "object" || Array.isArray(d.tastes)) return "A BAD TASTE";
-    for (const k in d.tastes) {
-      const w = d.tastes[k];
-      if (typeof w !== "number" || !isFinite(w) || w < 0.1 || w > 5) return "A BAD TASTE";
+  // APPEAL is the one culture-owned table for what draws a people: the
+  // standing taste weights AND the drop-nudge terms live together, because
+  // they are the same fact at two time scales - what a stop is worth to a
+  // people, and how long standing near one stays with them (the seam the
+  // drop-nudge and pig close-outs both named). Top-level `tastes` moved
+  // here; the old spot fails LOUD, never silently ignored.
+  if (d.tastes != null) return "TASTES HAVE MOVED - DECLARE THEM UNDER APPEAL";
+  if (d.appeal != null) {
+    const A = d.appeal;
+    if (typeof A !== "object" || Array.isArray(A)) return "A BAD APPEAL";
+    if (A.tastes != null) {
+      if (typeof A.tastes !== "object" || Array.isArray(A.tastes)) return "A BAD TASTE";
+      for (const k in A.tastes) {
+        const w = A.tastes[k];
+        if (typeof w !== "number" || !isFinite(w) || w < 0.1 || w > 5) return "A BAD TASTE";
+      }
+    }
+    // nudge terms are author-unit numbers converted ONCE at build (see
+    // buildCulture): px, game-minutes, a Q20-quantized relax, and the
+    // multiplier in appeal's own hundredths. Partial objects inherit the
+    // engine's crab values field by field.
+    const n = A.nudge;
+    if (n != null) {
+      if (typeof n !== "object" || Array.isArray(n)) return "A BAD NUDGE";
+      const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+      if (n.radius != null && !int(n.radius, 8, 128)) return "A BAD NUDGE RADIUS";
+      if (n.minutes != null && !int(n.minutes, 5, 1440)) return "A BAD NUDGE CLOCK";
+      if (n.mul100 != null && !int(n.mul100, 100, 300)) return "A BAD NUDGE THUMB";
+      if (n.relax != null && !(typeof n.relax === "number" && isFinite(n.relax)
+        && n.relax >= 0 && n.relax <= 0.5)) return "A BAD NUDGE RELAX";
     }
   }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
@@ -7224,8 +7249,18 @@ function buildCulture(def) {
   const items = {};
   for (const k in a.items || {}) items[k] = parseArt(a.items[k].rows, a.palette);
   const regs = (def.voice && Array.isArray(def.voice.registers)) ? def.voice.registers : [];
+  // the culture's nudge terms, converted from author units ONCE, here, into
+  // the exact internal forms the crab constants use (px, ticks, Q20 via the
+  // same qn, hundredths) - the hot path never sees a float or a conversion.
+  const nd = (def.appeal && def.appeal.nudge) || null;
+  const nudge = nd ? {
+    R: nd.radius != null ? nd.radius : NUDGE.R,
+    TICKS: nd.minutes != null ? nd.minutes * GMIN : NUDGE.TICKS,
+    RELAX: nd.relax != null ? qn(nd.relax) : NUDGE.RELAX,
+    AP: nd.mul100 != null ? nd.mul100 : NUDGE.AP,
+  } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge };
 }
 // Install one document set into the registry. `mine` marks the BUNDLED
 // cultureways - ours, shipped in cultureways.js - which install silently:
@@ -7323,7 +7358,7 @@ function vline(k, id, fallback, slots) {
 function tasteW(k, recipe) {
   if (!k || !k.culture || k.culture === "crab" || !recipe) return 1;
   const cul = CULTURES[k.culture];
-  const t = cul && cul.def.tastes;
+  const t = cul && cul.def.appeal && cul.def.appeal.tastes;
   const w = t && t[recipe.id];
   return typeof w === "number" ? w : 1;
 }
@@ -9166,9 +9201,12 @@ function errandDetour(c, e) {
 // counter it was standing at. So the nudge's real work is the THRESHOLD; the
 // appeal bump is the smaller half, and the detour term was always the rest.
 //
-// ONE TABLE, because a cultureway will own this: what a stop is worth to a
-// people, and how long standing near one stays with them, is culture rather
-// than physics (cs35-cultureway-substrate.md - a Layer-0 hook table in waiting).
+// ONE TABLE, and a cultureway now owns it: what a stop is worth to a people,
+// and how long standing near one stays with them, is culture rather than
+// physics. These constants are the CRAB's values - the engine's own people
+// carry no document, so the defaults ARE their culture - and a cultureway's
+// `appeal.nudge` section overrides them for its own folk (built once into
+// internal units in buildCulture; nudgeCfg below picks per actor).
 const NUDGE = {
   R: 72,             // px from the stop that counts as "right there" - a quarter screen
   TICKS: 60 * GMIN,  // one game-hour of impulse, on the monotonic tick clock
@@ -9191,8 +9229,15 @@ function errandTag(e) {
   if (e.tap != null) return "tap:" + e.tap;
   return "biz:" + (e.biz || "shack");
 }
-function nudgeThingAt(x) {
-  let best = null, bestD = NUDGE.R + 1;
+// which nudge terms govern this actor: their culture's, if it declared any,
+// else the crab table. Every resident today is crab-native, so this returns
+// NUDGE verbatim - the seam exists for the settlers phase B is bringing.
+function nudgeCfg(c) {
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  return (cul && cul.nudge) || NUDGE;
+}
+function nudgeThingAt(x, R) {
+  let best = null, bestD = R + 1;
   const put = (sx, tag, need) => {
     const d = Math.abs(x - sx);
     if (d < bestD) { bestD = d; best = { tag, need }; }
@@ -9208,15 +9253,16 @@ function nudgeThingAt(x) {
 // Set on ARRIVAL, not at order time: the crab looks around when they get there,
 // and a preference that fired mid-walk would abandon the order just given.
 function setNudge(c) {
-  const t = nudgeThingAt(c.x);
+  const N = nudgeCfg(c);
+  const t = nudgeThingAt(c.x, N.R);
   c.nudgeTag = t ? t.tag : null;
   c.nudgeNeed = t ? t.need : null;
-  c.nudgeT = t ? T + NUDGE.TICKS : 0;
+  c.nudgeT = t ? T + N.TICKS : 0;
 }
 function nudgeLive(c) { return !!c.nudgeTag && T < c.nudgeT; }
 // the bar drops ONLY for the need the thing they are standing beside serves
 function nudgeRelax(c, need) {
-  return nudgeLive(c) && c.nudgeNeed === need ? NUDGE.RELAX : 0;
+  return nudgeLive(c) && c.nudgeNeed === need ? nudgeCfg(c).RELAX : 0;
 }
 function nudgeMatch(c, e) { return nudgeLive(c) && c.nudgeTag === errandTag(e); }
 // SLICE 5: the score is an EXACT RATIONAL {n, d} and the argmax compares by
@@ -9236,7 +9282,7 @@ function errandScore(c, e) {
   // crab that desperate does not need a suggestion, and a nudge that reached
   // past it could re-order two emergencies. Exact int, round-half-up at appeal's
   // own boundary - x1.3 of a tap's 35 is 45.5, and 46 is the honest read.
-  const ap = nudgeMatch(c, e) ? idiv(ap0 * NUDGE.AP + 50, 100) : ap0;
+  const ap = nudgeMatch(c, e) ? idiv(ap0 * nudgeCfg(c).AP + 50, 100) : ap0;
   const dg = Math.round(errandDetour(c, e) * Q8);   // exact: a detour is a sum of Q8 images
   // the "don't backtrack the whole promenade before 9 AM" rule: on the way
   // out to a shift, a stop clear across town waits for the trip home
