@@ -7187,6 +7187,52 @@ function cultureProblem(d, ownId) {
     if (S.walkins != null && !(typeof S.walkins === "number" && Number.isInteger(S.walkins)
       && S.walkins >= 0 && S.walkins <= 8)) return "A BAD WALK-IN SHARE";
   }
+  // THE RHYTHM (cultureway census C1): when this people sleep and work,
+  // relative to the world's one sun. Absolute positions are NOT clamped to a
+  // daylight band - escaping it is the point. What IS clamped is the DERIVED
+  // awake arc, and the clamp runs on the values AS INHERITED, so a partial
+  // declaration that composes into an insane day is refused by name at
+  // install, never discovered in play. hours must fit the engine's sign rail
+  // (open < close): a sign across midnight is real design (the nocturnal
+  // shop) but the hours model cannot represent it yet - refused loudly, and
+  // R3 lifts the refusal when bizOpenNow learns to wrap.
+  if (d.rhythm != null) {
+    const R = d.rhythm;
+    if (typeof R !== "object" || Array.isArray(R)) return "A BAD RHYTHM";
+    const gm = (v) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 1440 && v % 30 === 0;
+    if (R.wake != null && !gm(R.wake)) return "A BAD WAKE TIME";
+    if (R.bed != null && !gm(R.bed)) return "A BAD BED TIME";
+    if (R.lieIn != null && !gm(R.lieIn)) return "A BAD LIE-IN TIME";
+    if (R.shiftStarts != null) {
+      const ss = R.shiftStarts;
+      if (typeof ss !== "object" || Array.isArray(ss)) return "A BAD SHIFT START";
+      for (const k in ss) {
+        if (!(k in RHYTHM.SS)) return "A BAD SHIFT START";
+        if (!gm(ss[k])) return "A BAD SHIFT START";
+      }
+    }
+    if (R.hours != null) {
+      const h = R.hours;
+      if (typeof h !== "object" || Array.isArray(h)
+        || !gm(h.open) || !(typeof h.close === "number" && Number.isInteger(h.close)
+          && h.close > 0 && h.close <= 1440 && h.close % 30 === 0)) return "A BAD HOURS SIGN";
+      if (h.close <= h.open) return "A SIGN ACROSS MIDNIGHT";
+      if (h.open < HOURS_MIN || h.close - h.open < HOURS_SPAN_MIN) return "A BAD HOURS SIGN";
+    }
+    const wake = R.wake != null ? R.wake : RHYTHM.WAKE;
+    const bed = R.bed != null ? R.bed : RHYTHM.BED;
+    const arc = (bed - wake + 1440) % 1440;
+    if (arc > 20 * 60) return "A DAY WITH NO NIGHT";
+    if (arc < 8 * 60) return "A PEOPLE WHO NEVER WAKE";
+    const inArc = (t) => ((t - wake + 1440) % 1440) < arc;
+    const lie = R.lieIn != null ? R.lieIn : RHYTHM.LIEIN;
+    if (!inArc(lie)) return "A LIE-IN IN THEIR SLEEP";
+    const ss = R.shiftStarts || {};
+    for (const k of ["D", "M", "E"]) {
+      const v = ss[k] != null ? ss[k] : RHYTHM.SS[k];
+      if (!inArc(v)) return "A SHIFT IN THEIR SLEEP";
+    }
+  }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
   // DECLARATIVE CARDS (phase D): a culture may declare dossier cards whose
@@ -7759,8 +7805,24 @@ function buildCulture(def) {
   const settlers = def.settlers
     ? { apron: !!def.settlers.apron, walkins: def.settlers.walkins != null ? def.settlers.walkins : 0 }
     : null;
+  // THE RHYTHM, converted once (census C1): author game-minutes at the
+  // 30-minute grain ARE the engine's own unit, so this is inheritance, not
+  // arithmetic - a partial document keeps crab values field by field, and the
+  // arc clamp already ran in cultureProblem on exactly these composed values.
+  const rh = def.rhythm || null;
+  const rhythm = rh ? {
+    WAKE: rh.wake != null ? rh.wake : RHYTHM.WAKE,
+    BED: rh.bed != null ? rh.bed : RHYTHM.BED,
+    LIEIN: rh.lieIn != null ? rh.lieIn : RHYTHM.LIEIN,
+    SS: rh.shiftStarts ? {
+      D: rh.shiftStarts.D != null ? rh.shiftStarts.D : RHYTHM.SS.D,
+      M: rh.shiftStarts.M != null ? rh.shiftStarts.M : RHYTHM.SS.M,
+      E: rh.shiftStarts.E != null ? rh.shiftStarts.E : RHYTHM.SS.E,
+    } : RHYTHM.SS,
+    HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
+  } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -12051,6 +12113,34 @@ const ROOM_RANK = 1.5;
 const ROOM_URGE = 5;             // ...climbing all afternoon until it outranks lunch
 const BED_HOUR = 21 * 60;        // ...and turns in
 const WAKE_HOUR = 7.5 * 60;      // checkout: the room goes dirty and housekeeping gets it
+// ---------------------------------------------------------------- the rhythm
+// THE SUN IS THE WORLD'S; THE DAY IS THE CULTURE'S (cultureway rhythm, census
+// C1). darkness() never moves - a nocturnal people does not move the sun, it
+// moves when its bodies sleep relative to it. This table is the crab day as
+// the engine has always kept it: the visitor bed/wake pair, the crew lie-in,
+// the pier-shaped shift anchors, the default sign. rhythmOf hands a culture
+// its own declared day and everyone else this object BY IDENTITY - the
+// byte-neutral guarantee is ===, not field equality. Mixed towns follow the
+// doctrine: bodies follow their culture; institutions follow their owner
+// (bizRhythm below); the town square (townOpen, the polls) follows the host.
+const RHYTHM = {
+  WAKE: WAKE_HOUR, BED: BED_HOUR, LIEIN: OFF_WAKE,
+  SS: { D: SHIFTS.D.start, M: SHIFTS.M.start, E: SHIFTS.E.start },
+  HOURS: { open: 8 * 60, close: 20 * 60 },
+};
+function rhythmOf(k) {
+  const id = k && (k.culture || (k.p && k.p.culture));
+  const cul = id && id !== "crab" ? CULTURES[id] : null;
+  return (cul && cul.rhythm) || RHYTHM;
+}
+// an INSTITUTION keeps its owner's day: a placed shop carries its culture at
+// cu (placeBusiness stamps it), and its shift anchors + default sign read
+// that culture's rhythm. Native shops have no cu and read the crab table.
+function bizRhythm(b) {
+  const z = BIZ[b];
+  const cul = z && z.cu ? CULTURES[z.cu] : null;
+  return (cul && cul.rhythm) || RHYTHM;
+}
 const VIS_DAYTRIP = 0.60;        // share of every boat BUT THE LAST who go home the same day
                                  // (the last boat is overnighters by construction). Between
                                  // this and FERRY_LOAD it is what sizes the hotel's demand.

@@ -224,6 +224,52 @@ function localise(d, verdict) {
         say("settlers.walkins", `${st.walkins} is outside 0-8 twentieths (0 = never, the default; capped so no document floods the town)`);
     }
   }
+  // the rhythm: absolute times free, the DERIVED awake arc clamped after
+  // inheritance - the same rules cultureProblem enforces, spoken helpfully
+  const rh = d.rhythm;
+  if (rh) {
+    if (typeof rh !== "object" || Array.isArray(rh)) say("rhythm", "must be an object of game-minute anchors");
+    else {
+      const CRAB = { wake: 450, bed: 1260, lieIn: 570, SS: { D: 510, M: 480, E: 840 } };
+      const gm = (v) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 1440 && v % 30 === 0;
+      for (const k of ["wake", "bed", "lieIn"])
+        if (rh[k] != null && !gm(rh[k]))
+          say(`rhythm.${k}`, `${rh[k]} is not a game-minute on the 30-minute grain (17:00 = 1020)`);
+      if (rh.shiftStarts != null) {
+        if (typeof rh.shiftStarts !== "object" || Array.isArray(rh.shiftStarts))
+          say("rhythm.shiftStarts", "must be an object with D/M/E starts");
+        else for (const k in rh.shiftStarts) {
+          if (!(k in CRAB.SS)) say(`rhythm.shiftStarts.${k}`, "only D, M and E exist");
+          else if (!gm(rh.shiftStarts[k]))
+            say(`rhythm.shiftStarts.${k}`, `${rh.shiftStarts[k]} is not a game-minute on the 30-minute grain`);
+        }
+      }
+      if (rh.hours != null) {
+        const h = rh.hours;
+        if (typeof h !== "object" || !gm(h.open) || !(Number.isInteger(h.close) && h.close > 0 && h.close <= 1440 && h.close % 30 === 0))
+          say("rhythm.hours", "open/close must be game-minutes on the 30-minute grain");
+        else if (h.close <= h.open)
+          say("rhythm.hours", "a sign across midnight is real design but the hours model cannot represent it yet (R3) - open must be before close");
+        else if (h.open < 360 || h.close - h.open < 240)
+          say("rhythm.hours", "the sign rail: not before 6:00, at least a 4-hour day");
+      }
+      const wake = rh.wake != null ? rh.wake : CRAB.wake;
+      const bed = rh.bed != null ? rh.bed : CRAB.bed;
+      const arc = (bed - wake + 1440) % 1440;
+      if (arc > 1200) say("rhythm", "A DAY WITH NO NIGHT - the awake arc composes past 20 hours (the clamp runs on inherited values too)");
+      else if (arc < 480) say("rhythm", "A PEOPLE WHO NEVER WAKE - the awake arc composes under 8 hours");
+      else {
+        const inArc = (t) => ((t - wake + 1440) % 1440) < arc;
+        const lie = rh.lieIn != null ? rh.lieIn : CRAB.lieIn;
+        if (!inArc(lie)) say("rhythm.lieIn", "A LIE-IN IN THEIR SLEEP - the lie-in must land inside the awake arc (mind inherited crab values)");
+        const ss = rh.shiftStarts || {};
+        for (const k of ["D", "M", "E"]) {
+          const v = ss[k] != null ? ss[k] : CRAB.SS[k];
+          if (!inArc(v)) say("rhythm.shiftStarts", `A SHIFT IN THEIR SLEEP - ${k} composes to ${v}, outside the awake arc (declare it, or widen the arc)`);
+        }
+      }
+    }
+  }
   // declarative cards: labels bound to REGISTERED observables, nothing else
   if (d.cards != null) {
     if (!Array.isArray(d.cards) || d.cards.length > 4) say("cards", "must be an array of at most 4 cards");
