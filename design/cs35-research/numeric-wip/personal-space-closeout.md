@@ -142,6 +142,23 @@ feature. Filed here for the owner's queue, untouched by this branch.
   K=30 (measured cheap margins 52..116 across trees; the honest mutation —
   an inert player board, flat — still fails it loudly).
 
+## Rebased onto the ship tree (fc17de2, the business-catalog merge), and the
+## whole ceremony re-measured there
+
+Four landings arrived between this branch's base and the ship tree (appeal
+table, management norms, voice completion, business catalog — plus the brain
+inspector). The rebase was clean, and every re-measurement came back
+BYTE-IDENTICAL to the pre-rebase 8px values: both first crossings (CLACKERS
+pierSlot T=2278 / MISTY parting T=2141), both pre-crossing plane digests
+against fc17de2 itself, both frozen fingerprints, the draw counts
+(1726/1737), the cultureways digest, and the matrix — ship 15/48 (4/4/7)
+with per-town eviction lists equal to the pre-rebase runs, base fc17de2
+14/48 (4/3/7), baselines 0/48 both sides
+(personal-space-matrix-ship/-shipbase.txt). Which is to say: the four
+sibling landings are matrix- and fingerprint-inert on default towns, exactly
+as their own byte-identity gates claimed, and this close-out's every number
+is measured on the tree that ships. Suite 305/305 on both backends.
+
 ## Pins that bite (mutation table, all four verified red then restored)
 
 M1 target-follow off → the pile parts and walks straight back (rest pin
