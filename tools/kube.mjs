@@ -23,6 +23,7 @@ import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 
 const PROFILE = process.env.AWS_PROFILE || "gasboat-prod";
+const NS = "crab-science";   // all runs, receipts, and SAs live here
 const env = { ...process.env, AWS_PROFILE: PROFILE };
 const sh = (cmd, opts = {}) => execSync(cmd, { encoding: "utf8", env, ...opts }).trim();
 const shq = (cmd) => { try { return sh(cmd, { stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; } };
@@ -77,7 +78,7 @@ function doRun() {
   writeFileSync(ovPath, JSON.stringify(overlay, null, 2));
 
   console.log(`kube: installing ${release}  (${arms} arms, ref ${ref.slice(0, 10)}, manifest ${target})`);
-  sh(`helm install ${release} deploy/crab-science -f ${ovPath}`, { stdio: "inherit" });
+  sh(`helm install ${release} deploy/crab-science -n ${NS} --create-namespace -f ${ovPath}`, { stdio: "inherit" });
   console.log(`kube: installed. watch:   node tools/kube.mjs status ${release}`);
 
   if (has("--wait")) {
@@ -89,7 +90,7 @@ function doRun() {
 }
 
 function jobState(release) {
-  const j = shq(`kubectl get job ${release} -o json`);
+  const j = shq(`kubectl -n ${NS} get job ${release} -o json`);
   if (!j) return null;
   const s = JSON.parse(j).status || {};
   return { active: s.active || 0, succeeded: s.succeeded || 0, failed: s.failed || 0 };
@@ -100,7 +101,7 @@ function watch(release) {
   for (;;) {
     const s = jobState(release);
     if (!s) die(`job ${release} not found`);
-    const cond = shq(`kubectl get job ${release} -o jsonpath='{.status.conditions[?(@.status=="True")].type}'`) || "";
+    const cond = shq(`kubectl -n ${NS} get job ${release} -o jsonpath='{.status.conditions[?(@.status=="True")].type}'`) || "";
     process.stdout.write(`\rkube: ${release}  active=${s.active} ok=${s.succeeded} failed=${s.failed}  ${((Date.now() - t0) / 1000 | 0)}s   `);
     if (/Complete|Failed/.test(cond)) { console.log(`\nkube: job ${cond}`); return; }
     spawnSync("sleep", ["15"]);
@@ -113,7 +114,7 @@ function doCollect(release = target) {
   preflight();
   const out = flag("--out") || join("design/cs35-research/kube-runs", release);
   mkdirSync(out, { recursive: true });
-  const cms = JSON.parse(sh(`kubectl get configmap -l crab-science/receipt=${release} -o json`)).items;
+  const cms = JSON.parse(sh(`kubectl -n ${NS} get configmap -l crab-science/receipt=${release} -o json`)).items;
   if (!cms.length) die(`no receipts for ${release} (pods still running, or banked under another label?)`);
   let pass = 0, fail = 0, red = [];
   const rows = [];
@@ -137,15 +138,15 @@ function doCollect(release = target) {
 function doClean(release = target) {
   if (!release) die("clean wants a release name");
   preflight();
-  shq(`helm uninstall ${release}`);
-  shq(`kubectl delete configmap -l crab-science/receipt=${release}`);
+  shq(`helm uninstall ${release} -n ${NS}`);
+  shq(`kubectl -n ${NS} delete configmap -l crab-science/receipt=${release}`);
   console.log(`kube: uninstalled ${release}, receipts deleted from cluster (collect first next time if you didn't).`);
 
   // THE SCALE-DOWN CHECK. Matt watches spend: a run that leaves karpenter
   // nodes idling is a leak. Poll the run's own node selector until the
   // nodes it summoned are gone; with no selector, report total node count
   // and tell the operator what to verify by hand.
-  const sel = flag("--node-selector") || "";
+  const sel = flag("--node-selector") || "karpenter.sh/nodepool=ephemeral-pool";
   const t0 = Date.now();
   for (;;) {
     const nodes = sel
@@ -169,7 +170,7 @@ function doStatus(release = target) {
   const s = jobState(release);
   if (!s) die(`job ${release} not found (ttl may have reaped it - receipts survive: collect ${release})`);
   console.log(`kube: ${release}  active=${s.active} ok=${s.succeeded} failed=${s.failed}`);
-  console.log(shq(`kubectl get pods -l app.kubernetes.io/instance=${release} --no-headers`) || "(no pods)");
+  console.log(shq(`kubectl -n ${NS} get pods -l app.kubernetes.io/instance=${release} --no-headers`) || "(no pods)");
 }
 
 if (verb === "run") doRun();

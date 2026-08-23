@@ -2,15 +2,122 @@
   "name": "matrix-triple16",
   "note": "The house growth matrix as 6 kube arms: {baseline, growth} x seedbase {0,16,32}, 16 towns x 30 days each, batch.mjs --json receipts. This is the matrix every fingerprint-moving landing owes.",
   "resources": {
-    "requests": { "cpu": "7", "memory": "2Gi" },
-    "limits": { "cpu": "8", "memory": "4Gi" }
+    "requests": {
+      "cpu": "7",
+      "memory": "2Gi"
+    },
+    "limits": {
+      "cpu": "8",
+      "memory": "4Gi"
+    }
   },
   "arms": [
-    { "id": "baseline-sb0",  "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0",  "--days", "30", "--jobs", "7", "--json"] },
-    { "id": "baseline-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--json"] },
-    { "id": "baseline-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--json"] },
-    { "id": "growth-sb0",    "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0",  "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"] },
-    { "id": "growth-sb16",   "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"] },
-    { "id": "growth-sb32",   "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"] }
+    {
+      "id": "baseline-sb0",
+      "entry": "tools/batch.mjs",
+      "args": [
+        "--towns",
+        "16",
+        "--seedbase",
+        "0",
+        "--days",
+        "30",
+        "--jobs",
+        "7",
+        "--json"
+      ]
+    },
+    {
+      "id": "baseline-sb16",
+      "entry": "tools/batch.mjs",
+      "args": [
+        "--towns",
+        "16",
+        "--seedbase",
+        "16",
+        "--days",
+        "30",
+        "--jobs",
+        "7",
+        "--json"
+      ]
+    },
+    {
+      "id": "baseline-sb32",
+      "entry": "tools/batch.mjs",
+      "args": [
+        "--towns",
+        "16",
+        "--seedbase",
+        "32",
+        "--days",
+        "30",
+        "--jobs",
+        "7",
+        "--json"
+      ]
+    },
+    {
+      "id": "growth-sb0",
+      "entry": "tools/batch.mjs",
+      "args": [
+        "--towns",
+        "16",
+        "--seedbase",
+        "0",
+        "--days",
+        "30",
+        "--jobs",
+        "7",
+        "--buy",
+        "chef,table",
+        "--json"
+      ]
+    },
+    {
+      "id": "growth-sb16",
+      "entry": "tools/batch.mjs",
+      "args": [
+        "--towns",
+        "16",
+        "--seedbase",
+        "16",
+        "--days",
+        "30",
+        "--jobs",
+        "7",
+        "--buy",
+        "chef,table",
+        "--json"
+      ]
+    },
+    {
+      "id": "growth-sb32",
+      "entry": "tools/batch.mjs",
+      "args": [
+        "--towns",
+        "16",
+        "--seedbase",
+        "32",
+        "--days",
+        "30",
+        "--jobs",
+        "7",
+        "--buy",
+        "chef,table",
+        "--json"
+      ]
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
   ]
 }
