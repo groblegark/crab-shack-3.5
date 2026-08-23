@@ -12297,6 +12297,117 @@ scenario("brains: a live brain spends the script's own draws, no more", () => {
   return true;
 });
 
+scenario("brains: zero delta IS the backbone, on the citizen brain's own thinks", () => {
+  // Dream-replay rung 0's foundation: classifyD with no delta must argmax
+  // exactly what classify argmaxes (L = base*256 is monotone), on REAL
+  // vectors the town assembled, not synthetic ones. This is what lets a
+  // pre-delta save load as the shipped culture brain bit for bit. MUTATION:
+  // any constant added inside classifyD's zero path moves an argmax here.
+  const sim = createSim({ seed: 4242 });
+  sim.G(`window._vecs = [];
+    { const orig = pickErrand;
+      pickErrand = function (c) {
+        const bp = citBrainOf(c);
+        if (bp && window._vecs.length < 400) window._vecs.push(neuroVectorCit(c, bp.readers, new Array(bp.readers.length)).slice());
+        return orig(c);
+      }; }`);
+  sim.runDays(3);
+  const bad = sim.G(`(function () {
+    const bp = BRAINS.crab && BRAINS.crab["cit_errand.candidate"];
+    if (!bp) return "no citizen brain in the bundle";
+    let n = 0;
+    for (const f of window._vecs) {
+      const a = bp.classify(f), base = bp.logits.slice();
+      const b = bp.classifyD(f, null);
+      if (a !== b) return "think " + n + ": classify says " + bp.classes[a] + ", zero-delta classifyD says " + bp.classes[b];
+      for (let o = 0; o < base.length; o++)
+        if (bp.logits[o] !== base[o] * 256) return "think " + n + " logit " + o + ": " + bp.logits[o] + " is not 256x " + base[o];
+      n++;
+    }
+    return n < 100 ? "only " + n + " thinks banked - not a measurement" : null;
+  })()`);
+  return bad || true;
+});
+
+scenario("brains: a temperament bends a mind, and both doors check it", () => {
+  // The delta is REAL state: (1) a crafted dm flips a close call in the
+  // predicted direction; (2) saveProblem names an out-of-range weight; (3)
+  // the load door strips a wrong-shape dm LOUDLY and the crab keeps her life.
+  const sim = createSim({ seed: 909 });
+  sim.G(`window._vecs = [];
+    { const orig = pickErrand;
+      pickErrand = function (c) {
+        const bp = citBrainOf(c);
+        if (bp && window._vecs.length < 600) window._vecs.push(neuroVectorCit(c, bp.readers, new Array(bp.readers.length)).slice());
+        return orig(c);
+      }; }`);
+  sim.runDays(2);
+  const flip = sim.G(`(function () {
+    const bp = BRAINS.crab && BRAINS.crab["cit_errand.candidate"];
+    if (!bp) return "no citizen brain in the bundle";
+    // the closest call the town produced: smallest top-2 logit gap
+    let pick = null;
+    for (const f of window._vecs) {
+      const a = bp.classifyD(f, null);
+      let run = -1, runV = -9007199254740991;
+      for (let o = 0; o < bp.logits.length; o++)
+        if (o !== a && bp.logits[o] > runV) { runV = bp.logits[o]; run = o; }
+      const gap = bp.logits[a] - runV;
+      if (gap >= 0 && gap < 2147483000 && (!pick || gap < pick.gap)) pick = { f: f.slice(), a, run, gap };
+    }
+    if (!pick) return "no flippable think in range - every call was a landslide";
+    const dm = { w: new Array(bp.arch.out * bp.arch.hidden).fill(0), b: new Array(bp.arch.out).fill(0) };
+    dm.b[pick.run] = Math.min(2147483647, pick.gap + 1);
+    const got = bp.classifyD(pick.f, dm);
+    if (got !== pick.run) return "biased the runner-up by gap+1 and got " + bp.classes[got] + ", wanted " + bp.classes[pick.run];
+    if (bp.classifyD(pick.f, null) !== pick.a) return "the zero path drifted during the test";
+    return null;
+  })()`);
+  if (flip) return flip;
+  // door 2: saveProblem names the number
+  const door2 = sim.G(`(function () {
+    const env = JSON.parse(JSON.stringify(readSlotEnv(1) || (save(true), readSlotEnv(1)) || null));
+    if (!env) { const e2 = {}; return "no envelope to test against"; }
+    env.personas[0].dm = { w: [200], b: [0] };
+    const why = saveProblem(env);
+    return why && why.indexOf("200") !== -1 ? null : "an int8 overflow slipped the gate: " + why;
+  })()`);
+  if (door2) return door2;
+  // door 3: a wrong-shape dm is stripped loudly at load, life goes on
+  const sim2 = createSim({ seed: 909 });
+  const door3 = sim2.G(`(function () {
+    save(true);
+    const env = readSlotEnv(1);
+    if (!env) return "no envelope";
+    env.personas[0].dm = { w: [1, 2, 3], b: [0] };   // in-range, wrong shape for any brain
+    env._ver = 4;
+    if (saveProblem(env)) return "ranges rejected a shaped-only problem: " + saveProblem(env);
+    if (!load(null, env)) return "the load refused a save it should strip-and-accept";
+    if (crabs[0].p.dm) return "the misfit temperament survived the door";
+    if (!toast || String(toast.text).indexOf("TEMPERAMENT") === -1) return "the strip was silent - the door must name it";
+    return null;
+  })()`);
+  return door3 || true;
+});
+
+scenario("saves: a ver-3 envelope is the zero delta", () => {
+  // Yesterday's save loads as the shipped culture brain exactly: no dm, no
+  // dr, no complaints - absence IS the zero delta (dream-replay rung 0).
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const bad = sim.G(`(function () {
+    save(true);
+    const env = readSlotEnv(1);
+    env._ver = 3;
+    for (const p of env.personas) { delete p.dm; delete p.dr; }
+    if (saveProblem(env)) return "a ver-3 envelope was refused: " + saveProblem(env);
+    if (!load(null, env)) return "the load refused a ver-3 envelope";
+    for (const c of crabs) if (c.p.dm || c.p.dr) return c.p.name + " grew a temperament out of nothing";
+    return null;
+  })()`);
+  return bad || true;
+});
+
 scenario("brains: the door refuses what the caps forbid, and says which", () => {
   // The hostile-file numbers, exercised: every refusal must carry the
   // offending number or name, because an actionable message is the
