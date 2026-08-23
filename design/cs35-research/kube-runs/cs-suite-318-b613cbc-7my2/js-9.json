@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-318-b613cbc-7my2",
+  "armId": "js-9",
+  "index": 9,
+  "sha": "b613cbcd5b9908fcfa08d04eea24ac93b651e6bf",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 145535,
+  "verdict": "31/31 passed in slice 9/10 (145.5s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (489ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (2308ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1770ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1508ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (5621ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (65224ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (19ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (9971ms)\n  PASS  labor policy: every new setting roundtrips save/load (1374ms)\n  PASS  sale: the player buys a failed business through the shopfront (3110ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4739ms)\n  PASS  tips: the counter gets a token, the table gets the lot (9ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1758ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (20ms)\n  PASS  visitors: the wallet is real money, and it runs out (718ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (8288ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (9142ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2134ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (404ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (3694ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (131ms)\n  PASS  the help card fits the card, in the font the card is printed in (7ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (9ms)\n  PASS  a crab may stand in the cabana it has come to clean (8ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (6338ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (1683ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (399ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (988ms)\n  PASS  brains: a town full of thinking heads round-trips its save (12158ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1373ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (55ms)\n31/31 passed in slice 9/10 (145.5s)\n"
+}

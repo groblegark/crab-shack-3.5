@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-318-b613cbc-7my2",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "b613cbcd5b9908fcfa08d04eea24ac93b651e6bf",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 49496,
+  "verdict": "31/31 passed in slice 8/10 (49.4s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (6ms)\n  PASS  save guard: an empty slot still receives the first town (50ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (27ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1709ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (1158ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (1114ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (106ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (290ms)\n  PASS  census: rows derive live state, and sort + filter actually move (926ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (3050ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1499ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1615ms)\n  PASS  the beach ball is LIMITED fun (879ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (5682ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (140ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2858ms)\n  PASS  an election is held on the week, and every voter is accounted for (4416ms)\n  PASS  departures: three ways to be turned away are three different counters (166ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (7ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (4334ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (73ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (384ms)\n  PASS  a standing offer can be answered from the card that announces it (10ms)\n  PASS  the cabana row leaves both travel lanes a real margin (7ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (3523ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (12ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (736ms)\n  PASS  seam: the view is a reader - two renders move nothing (133ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (6ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (8419ms)\n  PASS  science: a scrub lands on the day the run recorded (6070ms)\n31/31 passed in slice 8/10 (49.4s)\n"
+}

@@ -13216,6 +13216,262 @@ scenario("personal space: leavers line the pier, and the line never costs the bo
   return true;
 });
 
+// ---- THE ERRAND REGISTRY (phase D): the census pickErrand gathers is a
+// registered, ordered list. Order is semantic (the argmax tie-break is
+// first-at-a-score), so the ballot order itself is pinned here - a reorder
+// is a fingerprint event and must arrive with its own ceremony.
+scenario("errands: the census is the registry, and the ballot order is pinned", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify(ERRANDS.map(e => [e.id, e.need, e.kind]))`));
+  const want = [["meal.self", "food", "selfCook"], ["meal.counter", "food", "biz"],
+    ["ball", "fun", "post"], ["drink", "drink", "biz"],
+    ["bath.shower", "clean", "biz"], ["bath.rinse", "clean", "post"],
+    ["soup", "food", "post"], ["vote", "vote", "post"], ["fun.arcade", "fun", "biz"]];
+  if (got.length !== want.length) return "census is " + got.length + " entries, want " + want.length;
+  for (let i = 0; i < want.length; i++)
+    if (got[i][0] !== want[i][0] || got[i][1] !== want[i][1] || got[i][2] !== want[i][2])
+      return "ballot position " + i + " is " + got[i].join("/") + ", want " + want[i].join("/");
+  return true;
+});
+scenario("errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name", () => {
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 40000 });
+  // a crab with every need quiet gathers NOTHING native; a data errand with
+  // its bar on the floor gathers regardless - so a non-null pick IS the entry
+  const pick = JSON.parse(sim.G(`JSON.stringify((() => {
+    const c = allCrabs().find(k => !k.duty) || allCrabs()[0];
+    const held = { hunger: c.p.hunger, thirst: c.p.thirst, dirt: c.p.dirt, bored: c.p.bored };
+    c.p.hunger = 0; c.p.thirst = 0; c.p.dirt = 0; c.p.bored = 0;
+    const before = pickErrand(c);
+    // need "clean" at the SHACK: a class no citizen artifact carries
+    // ("shack:clean"), so this also exercises the rail - a ballot the brain
+    // has no word for belongs to the script, and the script's argmax is what
+    // lets a registered stop win. (need "drink" here would be a KNOWN class,
+    // and the live brain would correctly refuse it for a zero-thirst crab.)
+    dataErrand({ id: "test.treat", need: "clean", biz: "shack", at: 0, ap100: 150 });
+    const wallet0 = c.p.wallet; c.p.wallet = Math.max(c.p.wallet, 5000);
+    const after = pickErrand(c);
+    ERRANDS.pop();   // the stage strikes its set: the census is back to native
+    c.p.wallet = wallet0; Object.assign(c.p, held);
+    return { before, after: after && { biz: after.biz, need: after.need, ap: after.ap100 } };
+  })())`));
+  if (pick.before) return "a quiet crab gathered a native errand: " + JSON.stringify(pick.before);
+  if (!pick.after || pick.after.biz !== "shack" || pick.after.ap !== 150)
+    return "the data errand did not win the empty ballot: " + JSON.stringify(pick.after);
+  // the clamps, each refusal NAMED (the hostile-file posture, cultureProblem's voice)
+  for (const [bad, name] of [
+    [`{ id: "x", need: "drink", biz: "shack", at: -1 }`, "Q20 GRAIN"],
+    [`{ id: "x", need: "hugs", biz: "shack", at: 0 }`, "UNKNOWN NEED"],
+    [`{ id: "x", need: "drink", biz: "mudspa", at: 0 }`, "UNKNOWN BIZ"],
+    [`{ id: "x", need: "drink", biz: "shack", at: 0, ap100: 999 }`, "OUTSIDE 1..200"],
+    [`{ id: "!!", need: "drink", biz: "shack", at: 0 }`, "A BAD ERRAND ID"]]) {
+    const msg = sim.G(`(() => { try { dataErrand(${bad}); return "REGISTERED"; } catch (e) { return e.message; } })()`);
+    if (msg === "REGISTERED" || !msg.includes(name))
+      return "a bad errand was not refused by name: " + bad + " -> " + msg;
+  }
+  const n = sim.G("ERRANDS.length");
+  if (n !== 9) return "a refused errand left the census at " + n;
+  return true;
+});
+
+// ---- THE HOOK TAXONOMY (phase D): four named points, observe-only ctx of
+// primitive copies, a throwing hook unhooked with a legible toast, and an
+// empty point that costs nothing (the dispatch guards on length).
+scenario("hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal", () => {
+  const sim = createSim({ seed: 31 });
+  sim.G(`window._hk = { tx: 0, txAmt: 0, days: [], settles: [], scans: 0, boom: 0 };
+    registerHook("midTransaction", { id: "t.tx", fn: (c) => { window._hk.tx++; window._hk.txAmt += c.amt;
+      if (typeof c.biz !== "string" || typeof c.amt !== "number") throw new Error("live object leaked"); } });
+    registerHook("worldEvent", { id: "t.day", fn: (c) => window._hk.days.push(c.day) });
+    registerHook("settlementAggregate", { id: "t.set", fn: (c) => window._hk.settles.push([c.culture, c.rule, c.purse - c.left]) });
+    registerHook("walletScan", { id: "t.scan", fn: (c) => window._hk.scans++ });
+    registerHook("midTransaction", { id: "t.boom", fn: () => { window._hk.boom++; throw new Error("kaboom"); } });`);
+  sim.runDays(3);
+  const got = JSON.parse(sim.G("JSON.stringify(Object.assign({}, window._hk, { left: HOOKS.midTransaction.length, toast: toast && toast.text }))"));
+  if (!got.tx || got.txAmt <= 0) return "the mid-transaction point never fired: " + JSON.stringify(got);
+  if (got.days.join(",") !== "2,3,4") return "the day roll fired wrong: days " + got.days.join(",");
+  if (!got.settles.length) return "no settlement aggregate in two lived days";
+  if (got.settles.some(s => typeof s[0] !== "string" || typeof s[2] !== "number"))
+    return "a settle ctx was not primitive: " + JSON.stringify(got.settles[0]);
+  if (got.boom !== 1) return "the faulty hook fired " + got.boom + " times, want exactly 1";
+  if (got.left !== 1) return "the faulty hook was not unhooked: " + got.left + " remain";
+  // registration clamps, engine-facing: loud throws
+  for (const [bad, name] of [
+    [`registerHook("teatime", { id: "x", fn: () => 0 })`, "unknown point"],
+    [`registerHook("worldEvent", { id: "t.day", fn: () => 0 })`, "duplicate"],
+    [`registerHook("worldEvent", { id: "??", fn: () => 0 })`, "bad id"],
+    [`registerHook("worldEvent", { id: "x.f", fn: 7 })`, "must be a function"]]) {
+    const msg = sim.G(`(() => { try { ${bad}; return "TOOK"; } catch (e) { return e.message; } })()`);
+    if (msg === "TOOK" || !msg.includes(name)) return "a bad hook was not refused: " + msg;
+  }
+  return true;
+});
+
+// ---- POLICY SLOTS (phase D): a surface is registered or it does not exist,
+// and policyOf answers "who decides" for any culture on any surface - the
+// declared policy, or the registered engine default by name.
+scenario("policies: the slot registry answers who decides, and refuses surfaces that were never registered", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    crab: policyOf("crab", "vis_pick.candidate"),
+    pig: policyOf("pig", "vis_pick.candidate"),
+    ghost: policyOf("crab", "own_settle.lever"),
+    surf: Object.keys(NEURO_SURFACES) })`));
+  if (!got.surf.includes("vis_pick.candidate")) return "the visitor surface is not registered";
+  if (!got.crab || !got.crab.declared || got.crab.kind !== "brain")
+    return "the crab's bundled brain did not resolve: " + JSON.stringify(got.crab);
+  if (!got.pig || got.pig.declared || got.pig.kind !== "script" || got.pig.impl !== "visPick")
+    return "an undeclared culture did not fall to the engine script: " + JSON.stringify(got.pig);
+  if (got.ghost !== null) return "an unregistered surface resolved: " + JSON.stringify(got.ghost);
+  // an artifact naming an unregistered surface is refused at the door, named
+  const msg = sim.G(`policyProblem({ "own_settle.lever": { kind: "table" } })`);
+  if (!msg || !msg.includes("UNKNOWN SURFACE")) return "an unregistered surface was not refused: " + msg;
+  // registration clamps, loud
+  for (const [bad, name] of [
+    [`registerSurface("vis_pick.candidate", { classes: ["a","b"], script: "x" })`, "duplicate"],
+    [`registerSurface("x.y", { classes: ["a"], script: "x" })`, "2..32"],
+    [`registerSurface("x.y", { classes: ["a","b"] })`, "engine default"]]) {
+    const m = sim.G(`(() => { try { ${bad}; return "TOOK"; } catch (e) { return e.message; } })()`);
+    if (m === "TOOK" || !m.includes(name)) return "a bad surface was not refused: " + m;
+  }
+  return true;
+});
+
+// ---- THE PLACEMENT REGISTRY (phase D): a pending business binds to an
+// engine plot, opens under a settler owner, takes real money at a real
+// counter, survives save/load, and dies with the session. Refusals by name.
+scenario("placement: a settled owner opens a declared shop on the east lot, and the town buys", () => {
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.meta.id = "boar"; delete fx.foodways; delete fx.policies;
+  fx.settlers = { apron: true };
+  fx.businesses = { boarjuice: { name: "BOAR JUICE", short: "BOARJ", sign: "BOAR JUICE",
+    kind: "shopfront", rent: 20, wage: 22, stations: { fruitbin: 1, bar: 1 },
+    source: "fruitbin", out: "bar",
+    recipes: [{ id: "bjuice", icon: "juice", pay: 6, raw: "fruit", steps: [["bar", 1.8, "juice"]] }] } };
+  env.cultures = { boar: fx };
+  env.visitors = [
+    { n: "RASHER", cu: "boar", c: 3, a: "strawhat", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = crabs.find(c => c.p.name === "RASHER");
+    if (!pig) return { fail: "RASHER never settled" };
+    // refusals first, each named: no art, no such plot, wrong-culture owner
+    const crab = crabs.find(c => !c.p.culture);
+    CULTURES.boar.businesses.mud = { id: "mud", name: "M", short: "M", sign: "M", kind: "shopfront",
+      rent: 2000, stations: { trough: 1 }, stalls: 0, tables: 0, source: "trough", out: "trough",
+      recipes: [], owner: null, pending: true };
+    const noArt = placeBusiness("boar", "mud", "eastlot", pig);
+    delete CULTURES.boar.businesses.mud;
+    const noPlot = placeBusiness("boar", "boarjuice", "westlot", pig);
+    const noCul = placeBusiness("boar", "boarjuice", "eastlot", crab);
+    // she claims with real savings behind the lease: the engine charges her
+    // shop real rent at midnight, and a $10 pocket against a $20 board is a
+    // legitimate bankruptcy, not a test
+    pig.p.wallet = 20000;
+    const w0 = pig.p.wallet, keys0 = BIZ_KEYS.length;
+    const why = placeBusiness("boar", "boarjuice", "eastlot", pig);
+    if (why) return { fail: "the good placement was refused: " + why };
+    const B = BIZ.boarjuice;
+    return { noArt, noPlot, noCul, keys0, keys1: BIZ_KEYS.length,
+      x0: B.x0, owner: B.owner, till: OWNERS.own_boarjuice.till,
+      w0, w1: pig.p.wallet, job: pig.p.job, unlocked: bizUnlocked("boarjuice"),
+      barY: B.stations.bar[0].y, binY: B.stations.fruitbin[0].y, placed: PLACED.length };
+  })())`));
+  if (got.fail) return got.fail;
+  if (!got.noArt || !got.noArt.includes("HAS NO ART")) return "no-art was not refused by name: " + got.noArt;
+  if (!got.noPlot || !got.noPlot.includes("NO SUCH PLOT")) return "a ghost plot was not refused: " + got.noPlot;
+  if (!got.noCul || !got.noCul.includes("NOT OF")) return "a crab owner of a boar shop was not refused: " + got.noCul;
+  if (got.keys1 !== got.keys0 + 1 || got.x0 !== 2056 || got.owner !== "own_boarjuice")
+    return "the shop did not stand: " + JSON.stringify(got);
+  if (got.w1 !== got.w0) return "placement moved money: wallet " + got.w0 + " -> " + got.w1;
+  if (got.till !== got.w1) return "the one-wallet rule broke: till " + got.till + " vs pocket " + got.w1;
+  if (got.job !== "boarjuice" || !got.unlocked) return "the owner is not on her own counter";
+  if (got.barY !== 160 || got.binY !== 136) return "the floor was dealt wrong: bar y" + got.barY + " bin y" + got.binY;
+  // THE TOWN BUYS: a data errand points every thirsty crab at the new counter;
+  // by mid-afternoon the till has taken real, conserved money.
+  const trade = JSON.parse(b.G(`JSON.stringify((() => {
+    dataErrand({ id: "t.bjuice", need: "drink", biz: "boarjuice", at: 0, ap100: 200 });
+    const total0 = coins + crabs.reduce((s, c) => s + c.p.wallet, 0)
+      + Object.keys(OWNERS).reduce((s, o) => s + (OWNERS[o].till || 0), 0) + townFund.bal;
+    window._t0 = total0; return { ok: true };
+  })())`));
+  if (!trade.ok) return "the stage did not set";
+  // overnight, the auto-labor roster picks its owner up like SUDSY's does;
+  // day 3 afternoon is the first full trading day the new counter gets
+  b.runUntil("day >= 3 && tmin > 15 * 60", { maxSteps: 900000 });
+  const after = JSON.parse(b.G(`JSON.stringify((() => {
+    ERRANDS.pop();
+    const total1 = coins + crabs.reduce((s, c) => s + c.p.wallet, 0)
+      + Object.keys(OWNERS).reduce((s, o) => s + (OWNERS[o].till || 0), 0) + townFund.bal;
+    return { till: OWNERS.own_boarjuice.till, drift: total1 - window._t0,
+      take: bizDayBook("boarjuice").take, duty: (crabs.find(k => k.p.name === "RASHER") || {}).duty || false };
+  })())`));
+  if (!(after.take > 0)) return "the counter took nothing by day-3 afternoon (owner duty: " + after.duty + ")";
+  // conservation: ingredient buys leave town (debits), so the total may FALL by
+  // exactly the trade ledger's doing - but a till that GREW more than the town
+  // shrank would be minted money. The day book take being > 0 with no NaNs and
+  // the till a real number is the phase-D receipt; the deep audit is trade's.
+  if (typeof after.till !== "number" || Number.isNaN(after.drift)) return "the books went soft";
+  // SAVE/LOAD: the placed shop re-stands FROM THE DOCUMENT, books intact
+  b.G("save()");
+  const c = createSim({ seed: 79, storage: store, fresh: false });
+  const back = JSON.parse(c.G(`JSON.stringify({ stands: !!BIZ.boarjuice, placed: PLACED.length,
+    till: OWNERS.own_boarjuice && OWNERS.own_boarjuice.till, x0: BIZ.boarjuice && BIZ.boarjuice.x0,
+    job: (crabs.find(k => k.p.name === "RASHER") || { p: {} }).p.job })`));
+  if (!back.stands || back.placed !== 1 || back.x0 !== 2056) return "the shop did not re-stand from the envelope: " + JSON.stringify(back);
+  if (back.till !== after.till) return "the till did not ride the save: " + back.till + " vs " + after.till;
+  if (back.job !== "boarjuice") return "the owner lost her counter in the envelope";
+  // ...AND DIES WITH THE SESSION: a new town has no placed shops
+  const clean = JSON.parse(c.G(`JSON.stringify((() => { resetSession();
+    return { gone: !BIZ.boarjuice, keys: BIZ_KEYS.length, placed: PLACED.length, owner: !OWNERS.own_boarjuice }; })())`));
+  if (!clean.gone || clean.placed !== 0 || !clean.owner) return "the reset left the shop standing: " + JSON.stringify(clean);
+  return true;
+});
+
+// ---- DECLARATIVE CARDS (phase D): a culture's dossier card binds labels to
+// registered observables; the accessor resolves live values (data must bite),
+// an unknown observable is refused by name, and an undeclared guest gets null.
+scenario("cards: a declared card reads live values off the registry, and an unknown observable is refused by name", () => {
+  const sim = createSim({ seed: 31 });
+  const doc = (cards) => {
+    const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    if (cards) d.cards = cards;
+    return d;
+  };
+  const bad = sim.G(`cultureProblem(${JSON.stringify(doc([{ title: "THE LEDGER",
+    rows: [{ label: "MOOD", obs: "vibes.q20" }] }]))}, "boar")`);
+  if (!bad || !bad.includes("UNKNOWN OBSERVABLE VIBES.Q20")) return "a bad card was not refused by name: " + bad;
+  sim.G("installCultures(" + JSON.stringify({ boar: doc([{ title: "THE BOAR LEDGER",
+    rows: [{ label: "THIRST", obs: "need.thirst.q20" }, { label: "PURSE", obs: "wallet.cents" }] }]) }) + ", false)");
+  if (sim.G("!CULTURES.boar")) return "the carded culture did not install: " + sim.G("toast && toast.text");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const k = newVisitor(false); k.culture = "boar"; k.thirst = qn(0.25); k.wallet = 4321;
+    const crab = newVisitor(false);
+    const card1 = cultureCards(k);
+    k.thirst = qn(0.75); k.wallet = 8765;
+    const card2 = cultureCards(k);
+    return { card1, card2, crab: cultureCards(crab) };
+  })())`));
+  if (got.crab !== null) return "an undeclared guest grew a card: " + JSON.stringify(got.crab);
+  if (!got.card1 || got.card1[0].title !== "THE BOAR LEDGER") return "the card did not resolve: " + JSON.stringify(got.card1);
+  // DATA MUST BITE: the rows are LIVE - state moved, so the card moved, in
+  // the right direction and in the wallet's case to the exact cent
+  const r1 = Object.fromEntries(got.card1[0].rows), r2 = Object.fromEntries(got.card2[0].rows);
+  if (!(r2.THIRST > r1.THIRST)) return "the card's THIRST did not follow the crab: " + r1.THIRST + " -> " + r2.THIRST;
+  if (r1.PURSE !== 4321 || r2.PURSE !== 8765) return "the card's PURSE is not the live wallet: " + r1.PURSE + " -> " + r2.PURSE;
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used

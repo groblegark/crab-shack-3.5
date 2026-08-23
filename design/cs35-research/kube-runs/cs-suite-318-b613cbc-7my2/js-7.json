@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-318-b613cbc-7my2",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "b613cbcd5b9908fcfa08d04eea24ac93b651e6bf",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 179756,
+  "verdict": "32/32 passed in slice 7/10 (179.7s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (4870ms)\n  PASS  save guard: a town born from a rejected save does not bury it (1735ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1412ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (30669ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (901ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (19ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (134ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (32ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1024ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2590ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (35ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (23302ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (473ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (77053ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1164ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (5643ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1269ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (7ms)\n  PASS  departures: a display card moves nothing in the town (1369ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (1869ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (736ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (6ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (7ms)\n  PASS  every track in the playlist is a file that exists (6ms)\n  PASS  missing payday costs the crew, not the lease (6317ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (16ms)\n  PASS  foodways: the validator names its refusals (14ms)\n  PASS  seam: a headless day never enters the view (1102ms)\n  PASS  saves: a ver-3 envelope is the zero delta (1044ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (9759ms)\n  PASS  science: the seed is the town - a different one lives differently (5084ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (8ms)\n32/32 passed in slice 7/10 (179.7s)\n"
+}

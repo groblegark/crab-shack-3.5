@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-318-b613cbc-7my2",
+  "armId": "wasm-5",
+  "index": 15,
+  "sha": "b613cbcd5b9908fcfa08d04eea24ac93b651e6bf",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 70852,
+  "verdict": "32/32 passed in slice 5/10 (70.8s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (10306ms)\n  PASS  save/load roundtrip preserves state (962ms)\n  PASS  job board: unpaid staff quit back to the pier (503ms)\n  PASS  crew never staff npc-owned shops (451ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (551ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (74ms)\n  PASS  days off: wages skip exactly and the bill dips to match (1188ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (504ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (530ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (36ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (14309ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (6380ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (17ms)\n  PASS  a town saved mid-errand reloads and keeps running (686ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (6756ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (5052ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (860ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (22ms)\n  PASS  departures: nobody on the boat knows the town's name (1004ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2541ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1115ms)\n  PASS  the shop tooltip promises what the button actually does (361ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (797ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (449ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (6156ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (921ms)\n  PASS  foodways: nothing is conjured - a bun is corn, and corn is a priced import (13ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (1364ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1389ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (5ms)\n  PASS  science: one recipe lives the same town twice (5431ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (12ms)\n32/32 passed in slice 5/10 (70.8s)\n"
+}

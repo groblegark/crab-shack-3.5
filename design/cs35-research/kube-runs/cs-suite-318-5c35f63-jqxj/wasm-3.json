@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-318-5c35f63-jqxj",
+  "armId": "wasm-3",
+  "index": 13,
+  "sha": "5c35f6300945f4ceebd9ac94c9c975ba47dcf7e3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 1,
+  "wallMs": 231299,
+  "verdict": "31/32 passed in slice 3/10 (231.2s)",
+  "failures": [
+    "  FAIL  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name: the data errand did not win the empty ballot: null"
+  ],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (2098ms)\n  PASS  disease: care cures, neglect can kill (16966ms)\n  PASS  sick crabs can still wash (mobility + cure path) (364ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (119ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (40ms)\n  PASS  the drop nudge: open sand nudges nothing (1538ms)\n  PASS  days off: everyone rests their weekday and plays customer (3899ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (662ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (1284ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (2760ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (7458ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (538ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (21127ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (8ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (134203ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (958ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (525ms)\n  PASS  an old save with no town hall opens with an office, not a hole (876ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1266ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (2462ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (24365ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (430ms)\n  PASS  the hire card runs on the wall clock, not the game clock (486ms)\n  PASS  nothing paints over an open card except another card (550ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (900ms)\n  PASS  cultureways: a save without cultures changes nothing (588ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (11ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (11ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (1544ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (135ms)\n  PASS  load: the new town's desk is clear of the last town's books (2997ms)\n  FAIL  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name: the data errand did not win the empty ballot: null\n31/32 passed in slice 3/10 (231.2s)\n"
+}

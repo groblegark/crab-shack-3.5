@@ -1,0 +1,257 @@
+{
+  "name": "suite-318",
+  "note": "The full suite as 20 kube arms: 10 slices x {js, wasm}. Phase D pushed 8-way slices to ~40 scenarios and the js heaps died unbanked (6/16 receipts) - finer slices, not fatter nodes, per the runbook.",
+  "resources": {
+    "requests": {
+      "cpu": "2",
+      "memory": "6Gi"
+    },
+    "limits": {
+      "cpu": "2",
+      "memory": "8Gi"
+    }
+  },
+  "arms": [
+    {
+      "id": "js-0",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "0/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-1",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "1/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-2",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "2/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-3",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "3/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-4",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "4/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-5",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "5/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-6",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "6/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-7",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "7/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-8",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "8/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "js-9",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "9/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "wasm-0",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "0/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-1",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "1/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-2",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "2/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-3",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "3/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-4",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "4/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-5",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "5/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-6",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "6/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-7",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "7/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-8",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "8/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    },
+    {
+      "id": "wasm-9",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--slice",
+        "9/10"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}

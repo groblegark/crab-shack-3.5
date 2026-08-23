@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-318-5c35f63-jqxj",
+  "armId": "wasm-1",
+  "index": 11,
+  "sha": "5c35f6300945f4ceebd9ac94c9c975ba47dcf7e3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 111294,
+  "verdict": "32/32 passed in slice 1/10 (111.2s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (54997ms)\n  PASS  mid-shift job toggle is safe (722ms)\n  PASS  npc: SUDSY dines at the player shack (1941ms)\n  PASS  slots: the preview card reflects the town it came from (1024ms)\n  PASS  boat: ownership and berth roundtrip through save/load (803ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (650ms)\n  PASS  tired: fatigue scales with the hours actually worked (1166ms)\n  PASS  hours: shortened hours really close the shop (339ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (2860ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (18ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (3245ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (4442ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (96ms)\n  PASS  no surface prints off the canvas (924ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (7745ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (862ms)\n  PASS  the town fund moves money and never mints it (9715ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (810ms)\n  PASS  departures: the card waits behind the day report, then pages itself (568ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (493ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (970ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (577ms)\n  PASS  the help card teaches the machine and does not spoil the ending (21ms)\n  PASS  the title screen credits the track that is actually queued (21ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1314ms)\n  PASS  crab voice: two whole days with the table off are the same town (1245ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (6ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (279ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2369ms)\n  PASS  the kernel and the reference agree, byte for byte (2244ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (8504ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (224ms)\n32/32 passed in slice 1/10 (111.2s)\n"
+}

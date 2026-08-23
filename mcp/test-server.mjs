@@ -94,6 +94,7 @@ bad.depart = { weights: { wait: 9, nosuchrule: 4 } };
 bad.settlers = { apron: "yes", walkins: 20 };   // a string answer, and a flood share
 bad.people.names.push("A NAME MUCH TOO LONG");
 bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
+bad.cards = [{ title: "THE LEDGER", rows: [{ label: "MOOD", obs: "vibes.q20" }] }];   // an unregistered observable
 bad.businesses = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
   kind: "shopfront", rent: 99999, owner: "player", stations: { trough: 2 },
   source: "trough", out: "trough",
@@ -115,6 +116,7 @@ check("error names the string apron answer", /settlers\.apron/.test(paths), path
 check("error names the flood walk-in share", /settlers\.walkins/.test(paths), paths);
 check("error names the unknown depart rule", /depart\.weights\.nosuchrule/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
+check("error names the unregistered card observable", /cards\[0\]\.rows\[0\]\.obs/.test(paths), paths);
 
 const sheet = await call("cultureway_render", { document: pig, scale: 2 });
 check("cultureway_render returns a PNG", !!imageOf(sheet) && imageOf(sheet).mimeType === "image/png");

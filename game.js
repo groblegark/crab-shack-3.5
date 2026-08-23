@@ -684,9 +684,58 @@ function ownerFunds(b) {
 function bizDayBook(b) {   // today's per-business takings/costs (management screen + CPU policy signals)
   return today.biz[b] = today.biz[b] || { take: 0, cost: 0 };
 }
+// ------------------------------------------------------- THE HOOK TAXONOMY
+// (cultureway phase D, substrate §2/§6-D.) MR_TASTE set the pattern for data
+// hooks: the engine reads a table and never learns a culture's name. This
+// registry names the four POINTS where Layer-1 expressions will attach in
+// phase E - mid-transaction, world-event, settlement-aggregate, wallet-scan -
+// and wires their dispatches into the engine NOW, so civics lands as data
+// plus registrations rather than as engine surgery.
+//
+// THE PHASE-D CONTRACT, deliberately narrow:
+//   - a hook OBSERVES. Its ctx is primitive copies, never live sim objects;
+//     it returns nothing; anything it wants to keep it keeps in its own
+//     closure. Mutation verbs arrive with Layer-1's fuel-counted bytecode
+//     (phase E), where rollback is implementable; a JS closure gets no verb
+//     because a verb without fuel-and-rollback is a hole in the sim's hull.
+//   - a hook that THROWS is removed on the spot with one legible toast (the
+//     substrate's opacity rule: the sim never stops, the error is named).
+//   - an EMPTY point costs nothing: dispatch sites guard on length before
+//     building ctx, so a hookless town allocates nothing and stays
+//     byte-identical by construction.
+//   - KERNEL: none of these cross the wasm boundary. A hook point the kernel
+//     must serve crosses as a data plane per the MR_TASTE precedent when a
+//     consumer exists - not-yet-ported by design, per the appeal ruling.
+const HOOKS = { midTransaction: [], worldEvent: [], settlementAggregate: [], walletScan: [] };
+function registerHook(point, def) {
+  // engine-facing: bad registrations fail loud at boot (data's door is phase E)
+  if (!HOOKS[point]) throw new Error("registerHook: unknown point " + point);
+  if (!def || typeof def.id !== "string" || !/^[a-z0-9_.]{1,24}$/.test(def.id))
+    throw new Error("registerHook: bad id " + (def && def.id));
+  if (HOOKS[point].some(h => h.id === def.id)) throw new Error("registerHook: duplicate " + point + "/" + def.id);
+  if (HOOKS[point].length >= 16) throw new Error("registerHook: " + point + " is full (16)");
+  if (typeof def.fn !== "function") throw new Error("registerHook " + def.id + ": fn must be a function");
+  HOOKS[point].push(def);
+  return def;
+}
+function fireHooks(point, ctx) {
+  const hs = HOOKS[point];
+  for (let i = 0; i < hs.length; i++) {
+    try { hs[i].fn(ctx); }
+    catch (e) {
+      // one legible error, the offender is unhooked, the sim never stops
+      toast = { text: "A HOOK FAILED - " + point + "/" + hs[i].id + ": " + (e && e.message || e), t: 8 };
+      hs.splice(i, 1); i--;
+    }
+  }
+}
 function creditBiz(b, amt, x, y, quiet) {   // quiet: the caller pops its own label (tips)
   const o = bizOwner(b);
   if (!o) return;                          // a shuttered shop takes no money
+  // THE MID-TRANSACTION POINT: every till credit in the game funnels here,
+  // which is what makes this one line the whole taxonomy row. Primitive
+  // copies only; guarded so a hookless town allocates nothing.
+  if (HOOKS.midTransaction.length) fireHooks("midTransaction", { biz: b, owner: o, amt, day, tmin });
   bizDayBook(b).take += amt;
   if (o === "player") {
     today.revenue += amt;
@@ -1251,6 +1300,12 @@ function collectPurse() {
   const p = hall.policy, rate = purseRate(p);
   const need = fundNeed();
   let got = 0;
+  // THE WALLET-SCAN POINT (phase D): the evening pass over the town's purses
+  // is the one moment civics looks at everybody's money at once. Fired even
+  // when the rate is zero - a scan that only fires when the town collects
+  // would hide exactly the wallets a hook exists to see.
+  if (HOOKS.walletScan.length) fireHooks("walletScan",
+    { kind: "collectPurse", mech: p.mech, rate, need, day, tmin });
   if (rate <= 0 || need <= 0) return 0;
   if (p.mech === "levy") {
     // A SHARE OF WHAT YOU TOOK TODAY, so a shop that sold nothing pays
@@ -4721,6 +4776,10 @@ function poachTarget(c) {
   return best;
 }
 function quitOverPay(c, why) {
+  // AN OWNER IS NOT ON THE WAGE. Her pay is the till, so no board posting can
+  // out-bid her own shop - without this a placed owner-operator was poached
+  // off her own counter the first morning the town's rate beat her sign.
+  if (c.p.owner) return;
   const to = poachTarget(c), from = c.p.job;
   c.p.gripe = 0; c.p.wageJob = null;
   noteWageLoss(from);   // the boss they left remembers, and their policy answers it
@@ -7075,6 +7134,23 @@ function cultureProblem(d, ownId) {
   }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
+  // DECLARATIVE CARDS (phase D): a culture may declare dossier cards whose
+  // rows bind labels to REGISTERED observables - data reading data, no code.
+  // The registry is the versioned neuro observable table, which is the point:
+  // one vocabulary for brains, inspectors and cards alike.
+  if (d.cards != null) {
+    if (!Array.isArray(d.cards) || d.cards.length > 4) return "A BAD CARD TABLE";
+    for (const cd of d.cards) {
+      if (!cd || typeof cd !== "object" || Array.isArray(cd)) return "A BAD CARD";
+      if (typeof cd.title !== "string" || !cd.title.length || cd.title.length > 18) return "A BAD CARD TITLE";
+      if (!Array.isArray(cd.rows) || !cd.rows.length || cd.rows.length > 6) return "A BAD CARD";
+      for (const r of cd.rows) {
+        if (!r || typeof r.label !== "string" || !r.label.length || r.label.length > 10) return "A BAD CARD ROW";
+        if (typeof r.obs !== "string" || !NEURO_OBSERVABLES[r.obs])
+          return "CARD ROW " + String(r.label).toUpperCase() + " READS AN UNKNOWN OBSERVABLE " + String(r.obs).toUpperCase();
+      }
+    }
+  }
   if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
   if (d.foodways != null) { const p = foodwayProblem(d, ownId); if (p) return p; }
   if (d.businesses != null) { const p = businessProblem(d); if (p) return p; }
@@ -7308,21 +7384,61 @@ const NEURO_PARAM_OBS = {
 // THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
 // with its declared output space. An artifact's classes must EQUAL the
 // surface's list — order included — or its output indices mean nothing.
-const NEURO_SURFACES = {
-  "vis_pick.candidate": {
-    classes: ["none", "shack:food", "juicebar:drink", "shack:drink",
-      "showers:clean", "arcade:fun", "hotel:room"],
-  },
-  // THE CITIZEN SURFACE: pickErrand's whole census of take() calls, one class
-  // per distinct kind of stop. THIRTEEN, not the design doc's sketched twelve:
-  // the census the doc said to take turned up selfcook:drink (the barkeep's
-  // own pour at a dark bar), and the census is the authority.
-  "cit_errand.candidate": {
-    classes: ["none", "shack:food", "selfcook:food", "soup:food",
-      "juicebar:drink", "shack:drink", "selfcook:drink", "tap:drink",
-      "showers:clean", "tap:clean", "arcade:fun", "ball:fun", "vote:vote"],
-  },
-};
+// THE DECISION-SURFACE REGISTRY (phase D grows the seed the neuro ladder
+// planted). A surface is a named choice point a policy may own: its class
+// list is the contract every artifact validates against, `script` names the
+// engine default that answers when no policy is declared, and registration
+// is the only door - policyProblem refuses any surface not in this map, so
+// a registered surface is the whole meaning of "a policy slot exists".
+const NEURO_SURFACES = {};
+function registerSurface(sid, spec) {
+  // engine-facing: a bad surface is an engine bug, loud at boot
+  if (typeof sid !== "string" || !/^[a-z0-9_.]{1,32}$/.test(sid))
+    throw new Error("registerSurface: bad id " + sid);
+  if (NEURO_SURFACES[sid]) throw new Error("registerSurface: duplicate " + sid);
+  if (!spec || !Array.isArray(spec.classes) || spec.classes.length < 2 || spec.classes.length > 32)
+    throw new Error("registerSurface " + sid + ": classes must be 2..32");
+  if (spec.classes.some(c => typeof c !== "string" || !c.length))
+    throw new Error("registerSurface " + sid + ": classes must be non-empty strings");
+  if (typeof spec.script !== "string" || !spec.script.length)
+    throw new Error("registerSurface " + sid + ": script must name the engine default");
+  NEURO_SURFACES[sid] = spec;
+  return spec;
+}
+registerSurface("vis_pick.candidate", {
+  classes: ["none", "shack:food", "juicebar:drink", "shack:drink",
+    "showers:clean", "arcade:fun", "hotel:room"],
+  script: "visPick",   // the engine default: candidates, draws and scoring stay script
+  doc: "what a visitor does with their next free thought",
+});
+// THE CITIZEN SURFACE: pickErrand's whole census of take() calls, one class
+// per distinct kind of stop. THIRTEEN, not the design doc's sketched twelve:
+// the census the doc said to take turned up selfcook:drink (the barkeep's
+// own pour at a dark bar), and the census is the authority.
+registerSurface("cit_errand.candidate", {
+  classes: ["none", "shack:food", "selfcook:food", "soup:food",
+    "juicebar:drink", "shack:drink", "selfcook:drink", "tap:drink",
+    "showers:clean", "tap:clean", "arcade:fun", "ball:fun", "vote:vote"],
+  script: "pickErrand",   // candidates, draws and the argmax stay script
+  doc: "what a resident does with their next free thought",
+});
+// Which policy answers for a culture on a surface - the declared one, or the
+// registered engine default. Table/script/brain all resolve here; the brain
+// path keeps its own fast lane (brainOf) and this accessor never replaces it,
+// it EXPLAINS it: inspection, MCP docs, and the phase-E slot dispatch read
+// this one answer instead of re-deriving it.
+function policyOf(cultureId, sid) {
+  const surf = NEURO_SURFACES[sid];
+  if (!surf) return null;
+  const cul = CULTURES[cultureId];
+  const ps = cul && cul.def && cul.def.policies && cul.def.policies[sid]
+    || (typeof BUNDLED_POLICIES !== "undefined" && BUNDLED_POLICIES
+        && BUNDLED_POLICIES[cultureId] && BUNDLED_POLICIES[cultureId][sid]) || null;
+  if (!ps || (ps.mode || "live") === "off")
+    return { kind: "script", mode: "live", impl: surf.script, declared: false };
+  return { kind: ps.kind, mode: ps.mode || "live", impl: ps.kind === "brain" ? "artifact" : surf.script,
+    declared: true };
+}
 // Resolve a declared pick list into reader functions, or throw the loud error.
 function neuroResolve(picks) {
   if (!Array.isArray(picks) || !picks.length) throw new Error("input declaration must be a non-empty array of observable names");
@@ -7591,6 +7707,150 @@ function cultureBusinesses() {
   }
   return out;
 }
+// ------------------------------------------------------ THE PLACEMENT REGISTRY
+// (cultureway phase D, the biz-catalog close-out's gap #1.) A declared
+// business is built PENDING - real shape, no plot. Placement binds it to a
+// PLOT: an engine-owned vacancy with real coordinates, because a culture does
+// not own where a town builds (substrate §1: `world` is PLACE and PLACE is
+// the town's). After placement every one of the catalog's ~283 readers works
+// on the entry unchanged, because it has the literal's exact shape - that was
+// the whole biz-catalog bet, and this is where it pays.
+//
+// THE PLOT MODEL, v1 and honest about it:
+//   - WHERE: the engine names its vacancies. One ships: THE EAST LOT, the
+//     sand between the pier's foot and the hotel's buggy park.
+//   - WHO PAYS: the claiming owner stakes her own savings - wallet to till,
+//     min(wallet, one day's rent). A transfer, never a mint.
+//   - WHEN IT OPENS: at placement, on the engine's standard hours. No
+//     autonomous trigger exists in a shipped town (the settlement DRIVE is
+//     civics, phase E) - placement is capability, exercised by play, by the
+//     lab, or by a future civics rule. The matrix floor never places.
+// Geometry is DEALT, deterministically: station kinds in declaration order
+// take the back row (y 136) except the `out` station, which takes the front
+// row (y 160) where every engine shop serves; stalls follow on the back row,
+// tables pack the front from the east wall. A shop that cannot fit its plot
+// is refused by name, as is any station kind the town has no picture for
+// (the invisible-cob rule, standing at the door of the map itself).
+const PLOTS = [
+  { id: "eastlot", x0: 2056, x1: 2168, door: 2068, queueX: 2172, park: 1980, rack: 2016 },
+];
+let PLACED = [];
+function plotFree(pid) { return PLOTS.some(p => p.id === pid) && !PLACED.some(r => r.plot === pid); }
+function placeBusiness(cultureId, bizId, plotId, ownerC, replay) {
+  // the DATA door: refusals are named strings, the sim never throws
+  const cul = CULTURES[cultureId];
+  const z = cul && cul.businesses && cul.businesses[bizId];
+  if (!z) return "NO SUCH PENDING BUSINESS " + cultureId + "/" + bizId;
+  if (!z.pending || BIZ[bizId]) return "BIZ " + bizId.toUpperCase() + " ALREADY STANDS";
+  const plot = PLOTS.find(p => p.id === plotId);
+  if (!plot) return "NO SUCH PLOT " + plotId;
+  if (!plotFree(plotId)) return "THE PLOT " + plotId.toUpperCase() + " IS TAKEN";
+  for (const st in z.stations) if (!(st in STATION_ART))
+    return "BIZ " + bizId.toUpperCase() + " STATION " + st.toUpperCase() + " HAS NO ART";
+  if (!ownerC || !ownerC.p) return "A SHOP NEEDS AN OWNER";
+  if (ownerC.culture !== cultureId && ownerC.p.culture !== cultureId)
+    return "THE OWNER IS NOT OF " + cultureId.toUpperCase();
+  if (!settlerApron({ culture: cultureId })) return "THEIR WAYS DO NOT TAKE THE APRON";
+  // deal the floor: stations (out-station forward), then stalls, then tables
+  const stations = {}, kinds = Object.keys(z.stations);
+  let bx = plot.x0 + 8, fx = plot.x0 + 12;
+  for (const st of kinds) {
+    const posts = [];
+    for (let i = 0; i < z.stations[st]; i++) {
+      if (st === z.out) { posts.push({ x: fx, y: 160 }); fx += 24; }
+      else { posts.push({ x: bx, y: 136 }); bx += 24; }
+    }
+    stations[st] = posts;
+  }
+  const stalls = [];
+  for (let i = 0; i < (z.stalls || 0); i++) {
+    stalls.push({ x: bx, y: 136, occupant: null, dirty: false, cleaning: false }); bx += 30;
+  }
+  const tables = [];
+  let tx = plot.x1 - 24;
+  for (let i = 0; i < (z.tables || 0); i++) {
+    tables.push({ x: tx, y: 158, dishes: 0, occupant: null, dirty: false, cleaning: false }); tx -= 40;
+  }
+  if (bx > plot.x1 - 4 || (z.tables && tx + 40 < fx + 20))
+    return "BIZ " + bizId.toUpperCase() + " DOES NOT FIT " + plotId.toUpperCase();
+  // the owner's registry row. NO stake moves: under the one-wallet rule the
+  // till IS the owner's pocket (defineTill settles any backing into it), so
+  // "who pays" is answered the way it is for SUDSY - her pocket backs the
+  // lease, and the nightly rent drains it like anybody's.
+  const oKey = "own_" + bizId;
+  if (!replay) {
+    // the buyout path's owner-conversion recipe, verbatim (game.js buyBiz):
+    // half of it - owner and job alone - leaves employer/workBiz pointing at
+    // the old post, and the roster machinery reclaims her by morning.
+    abortChef(ownerC); abortErrand(ownerC);
+    rosterGen++;
+    ownerC.p.owner = oKey; ownerC.p.job = bizId; ownerC.p.employer = null; ownerC.p.shift = "D";
+    ownerC.duty = false; ownerC.pendingOff = false; ownerC.ksC = KS.idle;
+    ownerC.carrying = null; ownerC.dsC = DS.home; ownerC.csC = 0;
+    ownerC.workBiz = bizId; ownerC.fishSpot = null;
+  }
+  if (!OWNERS[oKey]) OWNERS[oKey] = defineTill({ id: oKey, name: String(ownerC.p.name), till: 0, soft: false });
+  // the entry enters the town's own table, in the literal's exact shape,
+  // stamped with the same operating defaults the loader stamps (game.js:427)
+  const b = Object.assign({}, z, { stations, stalls, tables,
+    x0: plot.x0, x1: plot.x1, door: plot.door, queueX: plot.queueX,
+    park: plot.park, rack: plot.rack, owner: oKey, pending: false,
+    hours: { open: 8 * 60, close: 20 * 60 }, mealPol: "retail",
+    wage: b0wage(z), sickPol: "grant", autoLabor: true, tipShare: 0 });
+  delete b.recipes; b.recipes = z.recipes.map(r => Object.assign({}, r));
+  BIZ[bizId] = b;
+  BIZ_KEYS.push(bizId);
+  // the busy table is a per-biz literal too: a placed shop gets its row, in
+  // the literal's shape - one slots array per STEP station (source/out hold
+  // no worker; the literal's shack has board/grill, never crate/pass)
+  const bz = {};
+  for (const r of b.recipes) for (const st of r.steps)
+    if (!bz[st[0]]) bz[st[0]] = stations[st[0]].map(() => false);
+  busy[bizId] = bz;
+  furnGen++; rosterGen++;
+  PLACED.push({ plot: plotId, culture: cultureId, biz: bizId, ownerKey: oKey, ownerName: ownerC.p.name });
+  return null;
+}
+function b0wage(z) { return z.wage != null ? clampWage(z.wage) : WAGE_STD; }
+// TOWN STATE, TORN DOWN WITH THE TOWN. Placements die at every clean-boot
+// door: resetSession (a new town has no placed shops) and loadCultures (the
+// documents changed under the standing shop - loudly, never silently).
+function resetPlacements(quiet) {
+  if (!PLACED.length) return;
+  if (!quiet) toast = { text: PLACED.length + " PLACED SHOP" + (PLACED.length > 1 ? "S" : "") + " STRUCK - THE DOCUMENTS CHANGED", t: 8 };
+  for (const r of PLACED) {
+    delete BIZ[r.biz];
+    delete busy[r.biz];
+    const i = BIZ_KEYS.indexOf(r.biz);
+    if (i >= 0) BIZ_KEYS.splice(i, 1);
+    delete OWNERS[r.ownerKey];
+  }
+  PLACED = [];
+  furnGen++; rosterGen++;
+}
+// The loader's replay: placements re-stand from the envelope AFTER cultures
+// install (their definitions live in the documents) and re-apply the per-biz
+// envelope rows the main loops ran before this key existed. No money moves -
+// the stake was paid the day she claimed it, and the tills ride s.owners.
+function replayPlacements(s) {
+  if (!Array.isArray(s.placed)) return;
+  for (const r of s.placed) {
+    if (!r || typeof r !== "object") continue;
+    // replay never touches a persona (p.owner/p.job ride the envelope), so
+    // the "owner" here is a name for the till row - the roster may not even
+    // be loaded yet, and must not need to be
+    const why = placeBusiness(r.culture, r.biz, r.plot,
+      { p: { name: String(r.ownerName || "SOMEBODY") }, culture: r.culture }, true);
+    if (why) { toast = { text: "A PLACED SHOP DID NOT STAND - " + why, t: 8 }; continue; }
+    const b = r.biz;
+    if (s.hours && Array.isArray(s.hours[b])) setBizHours(b, s.hours[b][0], s.hours[b][1]);
+    if (s.mealPol && MEAL_POLS.includes(s.mealPol[b])) BIZ[b].mealPol = s.mealPol[b];
+    if (s.tipShare && s.tipShare[b] != null) BIZ[b].tipShare = Math.max(0, Math.min(20, s.tipShare[b] | 0));
+    if (s.price && s.price[b] != null) BIZ[b].priceMul = Math.max(PRICE_IDX_MIN, Math.min(PRICE_IDX_MAX, s.price[b] | 0));
+    if (s.bizOwner && (s.bizOwner[b] === null || OWNERS[s.bizOwner[b]] || s.bizOwner[b] === "player"))
+      BIZ[b].owner = s.bizOwner[b];
+  }
+}
 // Install one document set into the registry. `mine` marks the BUNDLED
 // cultureways - ours, shipped in cultureways.js - which install silently:
 // a toast about our own content would be a bug report addressed to the
@@ -7636,6 +7896,7 @@ function installCultures(raw, mine) {
 // the save's own: bundling anything into a save would freeze it at the
 // version it was written with.)
 function loadCultures(raw) {
+  resetPlacements();   // a standing shop cannot outlive the document that defines it
   for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
   // an uninstalled culture's import prices must not linger across loads
   for (const k in CULTURE_INGREDIENTS) { delete INGREDIENT_COST[k]; delete CULTURE_INGREDIENTS[k]; }
@@ -7887,6 +8148,12 @@ function save(hold) {
     bizOwner: (() => { const m = {}; for (const k in BIZ) m[k] = bizOwner(k); return m; })(),
     bizBought: (() => { const m = {}; for (const k in BIZ) if (BIZ[k].bought) m[k] = true; return m; })(),
     market, bizTake, bizStrike,
+    // PLACED SHOPS (phase D): which pending business stands on which plot,
+    // owned by whom. The entry itself is NOT written - it rebuilds from the
+    // culture document at load, so a save can never smuggle geometry the
+    // documents no longer declare.
+    placed: PLACED.map(r => ({ plot: r.plot, culture: r.culture, biz: r.biz,
+      ownerKey: r.ownerKey, ownerName: r.ownerName })),
     // THE TOWN HALL. The fund's balance and its stocked bowls are real money
     // and real food, so they ride in the envelope; the LEDGER does too, because
     // "who paid for that" losing its answer on a reload would be the one bug
@@ -8125,6 +8392,7 @@ function centsEnvelope(s) {
 // does not any more, and it must not go back to: a workaround kept on top of a
 // fix is how the next person learns the wrong lesson.
 function resetSession() {
+  resetPlacements(true);   // placed shops are TOWN state: a new town starts with none
   // THE AGENT POOL. Slot bookkeeping only - poolAlloc initializes every plane
   // it hands out, so the free list and the live bits ARE the invariant. The
   // mark array goes too: a reap that runs before the next mark would otherwise
@@ -8261,6 +8529,12 @@ function load(slot, envIn) {
     sudsRefunded = true;
   }
   rosterGen++;
+  // THE DOCUMENTS FIRST, THEN THE SHOPS THEY DECLARE, THEN THE PEOPLE. A
+  // persona's job clamps against BIZ in newCrab, so a placed shop must stand
+  // before its owner loads or she is bounced to the shack by the sanity rule
+  // that exists for genuinely removed businesses.
+  loadCultures(s.cultures);
+  replayPlacements(s);
   crabs = s.personas.map((p2, i) => {
     const base = makeCrabPersona(i);
     return newCrab(Object.assign(base, p2));   // missing fields fall back to sane defaults
@@ -8542,7 +8816,9 @@ function load(slot, envIn) {
   // first or a guest asleep in cabana 3 wakes up outdoors.
   // CULTUREWAYS read BEFORE the visitors below, so a record's color/acc
   // clamps can check the tables it actually indexes (CS3.5 step 1)
-  loadCultures(s.cultures);
+  // (cultures + placements moved above the personas: newCrab clamps any job
+  // whose BIZ entry does not exist, so a placed shop must stand before its
+  // owner's persona loads - restore state before the first thing that reads it)
   // THE TEMPERAMENT DOOR (dream-replay rung 0). Ranges passed saveProblem;
   // here, with the brains actually built, each persona's delta is checked
   // against the artifact it would ride. A mismatch is STRIPPED LOUDLY with
@@ -9363,7 +9639,8 @@ function hireCrew() {
 function updateSchedule(c, dt) {
   const sh = effShift(c);   // own shift, or the long cover shift on a coworker's day off
   if (c.p.job !== "fishing" && !bizUnlocked(c.p.job)) { c.p.job = "shack"; rosterGen++; }
-  if (!c.p.npc && c.p.job !== "fishing" && bizOwner(c.p.job) !== "player") { c.p.job = "shack"; rosterGen++; }   // crew can't staff NPC shops
+  if (!c.p.npc && c.p.job !== "fishing" && bizOwner(c.p.job) !== "player"
+    && c.p.owner !== bizOwner(c.p.job)) { c.p.job = "shack"; rosterGen++; }   // crew can't staff NPC shops - but an OWNER stands at her own counter (placed settlers are non-npc peers, the first of their kind)
   // one weekday in seven: no commute, no duty, no pay - and the same for a
   // crab who has walked out (B3). The rota's day off is scheduled and covered;
   // an unauthorised one is neither, which is exactly what makes it cost.
@@ -9703,24 +9980,73 @@ function ratGt(a, b, c, d) {
   if (qa !== qc) return qa > qc;
   return (a - qa * b) * d > (c - qc * d) * b;
 }
-function pickErrand(c) {
-  const staffed = bizStaffed;
-  const cand = [];
-  const take = (e) => cand.push(e);   // gather every stop, then score - see errandScore
-  // a day off is for spending: lower need thresholds, so the off crab eats
-  // out, soaks, and finally gets that arcade morning their shift always ate.
-  // Full retail, full queue rules - off crabs are customers, not staff.
-  // ...and a WALK-OUT is a day off the crab granted themselves, so it spends
-  // like one: the crab who walked out because they were bored out of their
-  // shell will absolutely spend it at the arcade, if the town has one.
-  const off = awayToday(c) && !c.p.sick;
-  // THE DROP NUDGE RELAXES THE BAR (see NUDGE): standing at a counter makes a
-  // crab likelier to want what it sells - it does not make them hungry.
-  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food");
+// ------------------------------------------------------- THE ERRAND REGISTRY
+// (cultureway phase D, substrate debt item 5.) The candidate CENSUS pickErrand
+// gathers is a registered, ordered list instead of one function's private
+// blocks. Three rules keep it byte-identical to the census it replaces:
+//   1. ORDER IS SEMANTIC. The tie-break note in pickErrand's argmax ("the
+//      FIRST candidate at a score keeps it") makes gather order part of the
+//      fingerprint, so entries register in the exact old take() order and
+//      registerErrand appends, never sorts.
+//   2. THE PRELUDE IS SHARED, PURE, AND HOISTED. off/wantFood/ball*/bath*
+//      were computed between blocks; every one is a pure read (no draws), so
+//      they hoist into one context object X handed to every gather.
+//   3. SCORING IS NOT HERE. errandScore and the argmax are untouched - the
+//      registry owns WHO IS ON THE BALLOT, never how the vote is counted.
+// A gather may draw from the counted stream (the flush-crab menu roll always
+// did); it draws in registration order, which is the old textual order.
+// Culture documents never register imperative gathers (the research ruling:
+// errand BODIES are engine capability) - the data path is dataErrand below.
+const ERRANDS = [];
+function registerErrand(def) {
+  // engine-facing: a bad registration is an engine bug, so it fails loud at
+  // boot rather than politely at import (cultureProblem owns the data door).
+  if (!def || typeof def.id !== "string" || !/^[a-z0-9_.]{1,24}$/.test(def.id))
+    throw new Error("registerErrand: bad id " + (def && def.id));
+  if (ERRANDS.some(e => e.id === def.id)) throw new Error("registerErrand: duplicate id " + def.id);
+  if (ERRANDS.length >= 32) throw new Error("registerErrand: the census is full (32)");
+  if (ERRAND_RANK[def.need] == null) throw new Error("registerErrand " + def.id + ": unknown need " + def.need);
+  if (typeof def.gather !== "function") throw new Error("registerErrand " + def.id + ": gather must be a function");
+  ERRANDS.push(def);
+  return def;
+}
+// THE DATA SHAPE (for civics, phase E - and for the suite to bite on today):
+// a declarative counter/post errand with no imperative body. Clamped here the
+// way cultureProblem clamps a section: named refusals, integer thresholds on
+// the Q20 grain, appeal in hundredths. `at`/`offAt` are Q20 need levels.
+function dataErrand(d) {
+  const bad = (m) => { throw new Error("A BAD ERRAND - " + m); };
+  if (!d || typeof d !== "object") bad("NOT AN OBJECT");
+  if (typeof d.id !== "string" || !/^[a-z0-9_.]{1,24}$/.test(d.id)) bad("A BAD ERRAND ID");
+  if (ERRAND_RANK[d.need] == null) bad(d.id + " SERVES AN UNKNOWN NEED");
+  const at = d.at | 0;
+  if (at !== d.at || at < 0 || at > Q20) bad(d.id + " AT " + d.at + " IS OFF THE Q20 GRAIN");
+  const offAt = d.offAt != null ? d.offAt | 0 : at;
+  if (offAt !== (d.offAt != null ? d.offAt : at) || offAt < 0 || offAt > Q20) bad(d.id + " OFFAT IS OFF THE Q20 GRAIN");
+  const ap100 = d.ap100 != null ? d.ap100 | 0 : 100;
+  if (ap100 < 1 || ap100 > 200) bad(d.id + " APPEAL " + d.ap100 + " IS OUTSIDE 1..200");
+  if (d.biz != null && !BIZ[d.biz]) bad(d.id + " NAMES AN UNKNOWN BIZ " + d.biz);
+  if (d.biz == null) bad(d.id + " NAMES NO BIZ");   // post-shaped data errands land with civics
+  return registerErrand({ id: d.id, need: d.need, kind: "biz", data: true,
+    gather: (c, take, X) => {
+      if ((needOf(c, d.need) || 0) < (X.off ? offAt : at) - nudgeRelax(c, d.need)) return;
+      if (!X.staffed(d.biz)) return;
+      const rs = bizRecipes(d.biz).filter(r => c.p.wallet >= localPrice(d.biz, r) + 200);
+      if (!rs.length) return;
+      rs.sort((a, b) => a.pay - b.pay);
+      take({ biz: d.biz, recipe: rs[0], need: d.need, ap100 });
+    } });
+}
+function needOf(c, need) {
+  return need === "food" ? c.p.hunger : need === "drink" ? c.p.thirst
+    : need === "clean" ? c.p.dirt : need === "fun" ? c.p.bored : 0;
+}
+// --- the native census, registered in the exact old take() order ---
+registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, take, X) => {
   // restaurant staff privilege: cook your own meal when the kitchen is
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
-  if (wantFood && !staffed("shack") && c.p.job === "shack" && !c.p.npc) {
+  if (X.wantFood && !X.staffed("shack") && c.p.job === "shack" && !c.p.npc) {
     const affordable = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
@@ -9728,7 +10054,9 @@ function pickErrand(c) {
       take({ selfCook: true, recipe: r, need: "food" });
     }
   }
-  if (wantFood && staffed("shack")) {
+} });
+registerErrand({ id: "meal.counter", need: "food", kind: "biz", gather: (c, take, X) => {
+  if (X.wantFood && X.staffed("shack")) {
     const affordable = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
@@ -9737,14 +10065,15 @@ function pickErrand(c) {
       take({ biz: "shack", recipe: r, need: "food" });
     }
   }
-  // thirst sits between food and clean: cheap, casual, frequent. The juice
-  // bar is the spot when staffed; the shack pours its own juice otherwise -
-  // and staff can pour their own at a dark bar, charged retail like meals
-  // THE BALL IS THE LAST WORD ON FUN. Gathered after any arcade this crab
-  // could actually afford and get into, for the reason the shelter pot proved:
-  // a free option beside a paid one takes the takings rather than the need.
-  // Before the arcade is built - which is most of the early game - it is the
-  // only answer boredom has that is not a very expensive chat.
+} });
+// THE BALL IS THE LAST WORD ON FUN. Gathered after any arcade this crab
+// could actually afford and get into, for the reason the shelter pot proved:
+// a free option beside a paid one takes the takings rather than the need.
+// Before the arcade is built - which is most of the early game - it is the
+// only answer boredom has that is not a very expensive chat.
+// (The ball gates - ballAt, ballYields, ballFree, with their measured
+// receipts - live in pickErrand's prelude; the registry entry reads X.)
+registerErrand({ id: "ball", need: "fun", kind: "post", gather: (c, take, X) => {
   // ...and the bar to JOIN one is lower than the bar to start one. A crab who
   // would not walk out to the middle of the beach on their own will absolutely
   // wander over to a game already happening, which is both true to life and
@@ -9783,13 +10112,21 @@ function pickErrand(c) {
   const ballFree = !c.duty && c.dsC !== DS.working
     && (awayToday(c) || tmin >= shEnd || tmin + BALL_LEAD < leaveGmin(c));
   if ((c.p.bored || 0) >= ballAt && (c.ballCd || 0) <= 0 && !boredYields(c) && !ballYields
-      && ballFree && !c.p.sick && ballHasRoom(c) && !cand.some(e2 => e2.need === "fun"))
+      && ballFree && !c.p.sick && ballHasRoom(c) && !X.cand.some(e2 => e2.need === "fun"))
     take({ ball: true, need: "fun",
       // A GAME IN PROGRESS PULLS. Left to pure coincidence only 3 of 22 games
       // had two crabs in them; somebody already out there throwing is the
       // whole difference between 0.22 of relief and 0.08, so it should be
       // worth crossing the beach for.
       ap100: ballPlayers().length ? 84 : 35 });   // TAP_APPEAL x2.4 while the ball is out: 0.84 in hundredths
+} });
+// thirst sits between food and clean: cheap, casual, frequent. The juice
+// bar is the spot when staffed; the shack pours its own juice otherwise -
+// and staff can pour their own at a dark bar, charged retail like meals.
+// The tap rides INSIDE this entry (it always did): both posts are offered
+// and the detour score picks the near one.
+registerErrand({ id: "drink", need: "drink", kind: "biz", gather: (c, take, X) => {
+  const staffed = X.staffed;
   if ((c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink")) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
@@ -9815,33 +10152,30 @@ function pickErrand(c) {
       for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", ap100: 35 });
 
   }
-  // dirt is serviced at the showers too (the laundromat is gone): a grubby
-  // crab heads for the taps at the same 0.66 threshold that fed the sickness
-  // "cared" check - a shower takes dirt down 0.5 (0.7 deluxe), well below it
-  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66)) - nudgeRelax(c, "clean")
-    || (c.p.sick && (c.p.dirt || 0) >= qn(0.4));   // the sick drag themselves to the taps - staying clean is the cure
-  // ON DUTY at the stalls, not "has ever worked a shift here": this gate used
-  // to read c.workBiz, which is set at clock-in and NEVER CLEARED, so the
-  // shower attendant was barred from her own stalls for life. SUDSY's dirt
-  // pinned at 1.00 every seed - a -6% crabEff, -30% on every tip and +0.06
-  // sickness a night, forever. The gate only ever meant "don't take a stall
-  // while you're the one handing out the kits".
-  const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
-  const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
-  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
-  if (needsBath && canShower) take({ biz: "showers", recipe: rinseR, need: "clean" });
-  // THE STANDPIPE RINSE - the SAFETY NET, not a free shower. Cold water, no
-  // soap, no towel: -0.35 against a $5 rinse's -0.5, pitched far above the
-  // shower threshold (0.85 vs 0.66), and offered ONLY to a crab the market
-  // cannot serve right now - nobody on the stalls, no money in the pocket, or
-  // they ARE the attendant. A crab who could walk into a staffed shower with
-  // the fare in hand has no business hosing off in the street, and SUDSY's
-  // takings should not pay for this fix. What it does buy is fairness: no
-  // crab is pinned on the 0.95 sickness line by an environment that has no
-  // route to soap - which is the ground the death roll now stands on.
-  if (!canShower && (c.p.dirt || 0) >= (c.p.sick ? TAP_RINSE_SICK : TAP_RINSE_AT))
+} });
+// dirt is serviced at the showers too (the laundromat is gone): a grubby
+// crab heads for the taps at the same 0.66 threshold that fed the sickness
+// "cared" check - a shower takes dirt down 0.5 (0.7 deluxe), well below it.
+// (needsBath/rinseR/canShower live in the prelude because the standpipe
+// entry below reads canShower too - the safety net is defined BY the market
+// having failed, so the two entries must agree on what the market offered.)
+registerErrand({ id: "bath.shower", need: "clean", kind: "biz", gather: (c, take, X) => {
+  if (X.needsBath && X.canShower) take({ biz: "showers", recipe: X.rinseR, need: "clean" });
+} });
+// THE STANDPIPE RINSE - the SAFETY NET, not a free shower. Cold water, no
+// soap, no towel: -0.35 against a $5 rinse's -0.5, pitched far above the
+// shower threshold (0.85 vs 0.66), and offered ONLY to a crab the market
+// cannot serve right now - nobody on the stalls, no money in the pocket, or
+// they ARE the attendant. A crab who could walk into a staffed shower with
+// the fare in hand has no business hosing off in the street, and SUDSY's
+// takings should not pay for this fix. What it does buy is fairness: no
+// crab is pinned on the 0.95 sickness line by an environment that has no
+// route to soap - which is the ground the death roll now stands on.
+registerErrand({ id: "bath.rinse", need: "clean", kind: "post", gather: (c, take, X) => {
+  if (!X.canShower && (c.p.dirt || 0) >= (c.p.sick ? TAP_RINSE_SICK : TAP_RINSE_AT))
     for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "clean", ap100: 35 });
-  // THE SHELTER POT IS A FLOOR UNDER ILLNESS, and it is deliberately narrow:
+} });
+// THE SHELTER POT IS A FLOOR UNDER ILLNESS, and it is deliberately narrow:
   // SICK crabs only, offered LAST, only when the town has nothing to sell them
   // right now, and only when the fund actually bought a bowl last night. Every
   // one of those limits was measured, not guessed.
@@ -9859,12 +10193,12 @@ function pickErrand(c) {
   //     bowls in the pot, no bowl for you.
   // What a WELL crab who cannot afford lunch gets is nothing, on purpose: work
   // pays, and the player already has a lever for it - the staff meal policy.
-  {
-    const at = c.p.sick ? SOUP_SICK_AT : SOUP_AT;
-    if (c.p.sick && potWarm() && (c.p.hunger || 0) >= at && !cand.some(e2 => e2.need === "food"))
-      take({ soup: true, need: "food", ap100: 35 });
-  }
-  // POLLING DAY IS AN ERRAND (see the POLLING DAY block). The table is at
+registerErrand({ id: "soup", need: "food", kind: "post", gather: (c, take, X) => {
+  const at = c.p.sick ? SOUP_SICK_AT : SOUP_AT;
+  if (c.p.sick && potWarm() && (c.p.hunger || 0) >= at && !X.cand.some(e2 => e2.need === "food"))
+    take({ soup: true, need: "food", ap100: 35 });
+} });
+// POLLING DAY IS AN ERRAND (see the POLLING DAY block). The table is at
   // POLL_X and the crab has to walk there, which means turnout is decided by
   // the same two things that decide every other stop in this game: WHERE you
   // are and WHEN you are free. A crab whose commute crosses the promenade
@@ -9883,13 +10217,47 @@ function pickErrand(c) {
   // shelter pot already, and a sick day is their own time.
   // Both tables are offered and the detour score picks the near one - the
   // identical shape the two standpipes use, three blocks up.
+registerErrand({ id: "vote", need: "vote", kind: "post", gather: (c, take, X) => {
   if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
+} });
+registerErrand({ id: "fun.arcade", need: "fun", kind: "biz", gather: (c, take, X) => {
   // bed rest otherwise: no arcade nights while ill
-  if (!c.p.sick && (c.p.bored || 0) >= (off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && staffed("arcade")) {
+  if (!c.p.sick && (c.p.bored || 0) >= (X.off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && X.staffed("arcade")) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
+} });
+function pickErrand(c) {
+  const staffed = bizStaffed;
+  const cand = [];
+  const take = (e) => cand.push(e);   // gather every stop, then score - see errandScore
+  // THE PRELUDE: every cross-entry read the census shares, computed once,
+  // pure (no draws), in the old textual order. Entry-local gates (the ball's
+  // measured bars, the arcade's sick check) stay inside their entries.
+  // a day off is for spending: lower need thresholds, so the off crab eats
+  // out, soaks, and finally gets that arcade morning their shift always ate.
+  // Full retail, full queue rules - off crabs are customers, not staff.
+  // ...and a WALK-OUT is a day off the crab granted themselves, so it spends
+  // like one: the crab who walked out because they were bored out of their
+  // shell will absolutely spend it at the arcade, if the town has one.
+  const off = awayToday(c) && !c.p.sick;
+  // THE DROP NUDGE RELAXES THE BAR (see NUDGE): standing at a counter makes a
+  // crab likelier to want what it sells - it does not make them hungry.
+  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food");
+  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66)) - nudgeRelax(c, "clean")
+    || (c.p.sick && (c.p.dirt || 0) >= qn(0.4));   // the sick drag themselves to the taps - staying clean is the cure
+  // ON DUTY at the stalls, not "has ever worked a shift here": this gate used
+  // to read c.workBiz, which is set at clock-in and NEVER CLEARED, so the
+  // shower attendant was barred from her own stalls for life. SUDSY's dirt
+  // pinned at 1.00 every seed - a -6% crabEff, -30% on every tip and +0.06
+  // sickness a night, forever. The gate only ever meant "don't take a stall
+  // while you're the one handing out the kits".
+  const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
+  const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
+  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
+  const X = { staffed, cand, off, wantFood, needsBath, rinseR, showerOpen, canShower };
+  for (const e of ERRANDS) e.gather(c, take, X);
   // THE CITIZEN BRAIN SEAM (cit_errand.candidate). Candidates and their draws
   // are already banked above, whoever decides - the brain replaces only the
   // scorer, the brainVisPick idiom verbatim. Live: the brain picks the CLASS,
@@ -9897,7 +10265,7 @@ function pickErrand(c) {
   // nearest table - the two-post idiom stays geometry's). Shadow: the script
   // decides, the brain watches, only a harness tally moves.
   const bp = citBrainOf(c);
-  if (bp && bp.mode === "live" && !citEngineOwned(c, cand)) return brainCitPick(c, cand, bp);
+  if (bp && bp.mode === "live" && !citEngineOwned(c, cand, bp)) return brainCitPick(c, cand, bp);
   let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
   // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
   // slice 4): strict > means the FIRST candidate at a score keeps it, and the
@@ -12247,7 +12615,7 @@ function citBrainOf(c) {
 // signal, not a taste to be second-guessed). When either regime is on the
 // board, the script scores; the brain governs the ordinary day. Draw-free
 // either way, so the lockstep receipt holds whoever decides.
-function citEngineOwned(c, cand) {
+function citEngineOwned(c, cand, bp) {
   // ...and the SICK regime whole: illness is the mortality ladder, and every
   // rung of its care (the soup's gates, the rinse, "a starving sick crab
   // eats") was measured to the percent. Life-support is not a personality.
@@ -12255,6 +12623,14 @@ function citEngineOwned(c, cand) {
   for (const e of cand) {
     if (needLevel(c, e.need || "food") >= DIRE) return true;
     if (nudgeMatch(c, e)) return true;
+    // A BALLOT THE BRAIN HAS NO WORD FOR BELONGS TO THE SCRIPT (phase D):
+    // a registered errand can put a candidate on the ballot whose class is
+    // outside the artifact's pinned vocabulary - a placed shop's counter,
+    // a civics stop. The net was not trained on that world, and silence
+    // (skipping the class it cannot rank) would make every new shop
+    // invisible to every thinking crab. Byte-neutral where nothing new is
+    // registered: every native class is in every shipped artifact.
+    if (bp && bp.classIdx[citErrandClass(e)] == null) return true;
   }
   return false;
 }
@@ -16386,7 +16762,32 @@ function drawVisDossier(k) {
     smallText(ctx, e[3], x + 48, ly, LOG_CATS[e[2]] || [60, 55, 65]);
     ly += 8;
   }
+  // THE CULTURE'S OWN CARD (phase D, declarative): labels the document chose,
+  // values off the live registry. Drawn only if declared; a crab or an
+  // undeclared guest renders this dossier byte-for-byte as before.
+  const cds = cultureCards(k);
+  if (cds) {
+    const cd = cds[0];   // v1: the first card rides the dossier; pages later
+    ly += 2;
+    smallText(ctx, cd.title, x + 8, ly, [110, 100, 110]); ly += 8;
+    for (const [lab, val] of cd.rows) {
+      smallText(ctx, lab, x + 8, ly, [120, 110, 125]);
+      smallText(ctx, String(val), x + 64, ly, [40, 30, 40]);
+      ly += 8;
+    }
+  }
   dossierBar(dossierRects(h2), k, false);
+}
+// A declared card, resolved to live values for one actor - the accessor the
+// draw path consumes and the suite reads headless (data must bite: a card no
+// scenario can observe is dead data, and this is what the scenario observes).
+function cultureCards(k) {
+  const cul = k.culture && CULTURES[k.culture];
+  const cards = cul && cul.def && cul.def.cards;
+  if (!cards || !cards.length) return null;
+  const res = roomReserve(k);
+  return cards.map(cd => ({ title: cd.title,
+    rows: cd.rows.map(r => [r.label, NEURO_OBSERVABLES[r.obs].read(k, res)]) }));
 }
 function drawCustDossier(k) {
   if (k.visitor) { drawVisDossier(k); return; }
@@ -18042,6 +18443,12 @@ function visQuote(r) {
     if (ow && ow[rule.id] != null) w = (w * ow[rule.id]) / 4;
     if (w > bw) { bw = w; best = rule; }
   }
+  // THE SETTLEMENT-AGGREGATE POINT (phase D): one guest's whole stay, settled
+  // and ruled - the row an acceptance meter or exposure-drift rule reads.
+  // Primitive projection of the stay record, plus the rule that spoke.
+  if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
+    { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+      buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
   return { id: best.id, mood: best.mood, weight: bw, line: departLine(r, best) };
 }
 // THE SENTENCE IS CULTURE; THE RULE IS ENGINE. A cultured guest's register
@@ -18692,6 +19099,11 @@ function simClock(dt, rawMs) {
   reclock();
   if (tday >= DAY_TICKS) {
     tday -= DAY_TICKS; reclock(); day++;
+    // THE WORLD-EVENT POINT (phase D): the day roll is the one world event
+    // every civics calendar counts from. Fired before the day's books reset
+    // so a hook reads yesterday's rep/coins, exactly what a calendar phase
+    // would settle against.
+    if (HOOKS.worldEvent.length) fireHooks("worldEvent", { kind: "dayRoll", day, rep, coins });
     mistRoll();   // tonight's shore, drawn once and held as an integer
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price

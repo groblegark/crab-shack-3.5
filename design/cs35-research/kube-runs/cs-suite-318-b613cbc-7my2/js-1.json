@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-318-b613cbc-7my2",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "b613cbcd5b9908fcfa08d04eea24ac93b651e6bf",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 177340,
+  "verdict": "32/32 passed in slice 1/10 (177.3s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (89060ms)\n  PASS  mid-shift job toggle is safe (1189ms)\n  PASS  npc: SUDSY dines at the player shack (3592ms)\n  PASS  slots: the preview card reflects the town it came from (2068ms)\n  PASS  boat: ownership and berth roundtrip through save/load (1443ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (925ms)\n  PASS  tired: fatigue scales with the hours actually worked (1913ms)\n  PASS  hours: shortened hours really close the shop (644ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (5691ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (16ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (5510ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (6989ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (108ms)\n  PASS  no surface prints off the canvas (1596ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (12615ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1037ms)\n  PASS  the town fund moves money and never mints it (16529ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1065ms)\n  PASS  departures: the card waits behind the day report, then pages itself (915ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (731ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1584ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (628ms)\n  PASS  the help card teaches the machine and does not spoil the ending (6ms)\n  PASS  the title screen credits the track that is actually queued (7ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1502ms)\n  PASS  crab voice: two whole days with the table off are the same town (2690ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (7ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (531ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3115ms)\n  PASS  the kernel and the reference agree, byte for byte (1730ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (11636ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (178ms)\n32/32 passed in slice 1/10 (177.3s)\n"
+}

@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-318-b613cbc-7my2",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "b613cbcd5b9908fcfa08d04eea24ac93b651e6bf",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/10"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 121407,
+  "verdict": "32/32 passed in slice 6/10 (121.3s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3159ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1428ms)\n  PASS  save/load: townsfolk keep wallets and houses (1593ms)\n  PASS  all crew dead: town survives, rehire recovers (937ms)\n  PASS  credit: the town is warned before it goes under (41264ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (649ms)\n  PASS  fishers feed themselves: breaks + the beach roast (4356ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4120ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (13147ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (3189ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (8618ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (36ms)\n  PASS  ferry: the arming tap times out, and an old save never won (24ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (732ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (3865ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (6518ms)\n  PASS  the fund is struck to the bill and does not hoard (1312ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (14ms)\n  PASS  departures: a stay survives a save and a reload (2960ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (4151ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (2219ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (9ms)\n  PASS  the shack says where the money comes from, and only your shops do (938ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (7ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (10487ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (682ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (27ms)\n  PASS  space: every position rides the Q8 grain, all day (1397ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (1171ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (67ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (16ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (2224ms)\n32/32 passed in slice 6/10 (121.3s)\n"
+}
