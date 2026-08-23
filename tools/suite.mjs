@@ -12544,10 +12544,12 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   const arch = JSON.parse(sim.G(`(() => { const c = allCrabs()[0]; const bp = citBrainOf(c);
     return JSON.stringify(bp ? { out: bp.arch.out, hidden: bp.arch.hidden } : null); })()`));
   if (!arch) return "the first crab has no citizen brain - the temperament bite cannot be staged";
-  const future = (envStr) => {
+  const future = (envStr, wantDm) => {
     const s2 = createSim({ seed: 31, fresh: false });
     s2.G(`localStorage.setItem(slotKey(1), ${JSON.stringify(envStr)}); load();`);
     if (s2.G("day") < 6) return null;   // the vacuous trap: a load that didn't take is a fresh town
+    if (wantDm && !s2.G("allCrabs().some(c => c.p && c.p.dm)"))
+      return "STRIPPED";                // the temperament door refused the shape - name it, don't shrug
     s2.runDays(8);
     return s2.G(`JSON.stringify({ coins, rep, pos: allCrabs().map(c => [c.x | 0, c.wy | 0]),
       vis: customers.filter(k => k.visitor).map(k => [k.name, k.culture || "crab", k.wallet]) })`);
@@ -12555,20 +12557,25 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   const a = future(env), b = future(env);
   if (a === null || b === null) return "the load did not take - day never reached the saved town's";
   if (a !== b) return "two loads of one save diverged: " + a.slice(0, 100) + " vs " + b.slice(0, 100);
-  // The bite: EVERY crew temperament, maximally biased toward the LAST class
-  // (an acting class - class 0 is "none", the 94%-prior sitting champion, and
-  // a bias toward doing nothing is a whisper this check once mistook for
-  // silence). Valid by every range check, exactly the live artifact's shape;
-  // the reloaded town must live a DIFFERENT life, or dm is dead freight.
+  // The bite: EVERY crew temperament, maximally biased toward EVERY acting
+  // class at once (class 0 - "none", the ~94%-prior sitting champion - alone
+  // unboosted). Two earlier drafts of this check were whispers: a bias
+  // toward none barely moves a none-heavy prior, and a bias toward one
+  // blind-picked class is a bias toward none whenever the day doesn't offer
+  // it (brainCitPick falls through on a class with no candidate). Boosting
+  // every acting class means ANY offerable candidate at any brain-ruled
+  // think now beats none - the corrupted crew act compulsively, and the
+  // reloaded town must live a visibly different life, or dm is dead freight.
   const evil = JSON.parse(env);
   if (!Array.isArray(evil.personas) || !evil.personas.length) return "the envelope has no crew to corrupt";
   for (const p of evil.personas) {
     p.dm = { w: new Array(arch.out * arch.hidden).fill(0),
-      b: new Array(arch.out - 1).fill(0).concat([2000000000]) };
+      b: [0].concat(new Array(arch.out - 1).fill(2000000000)) };
     p.dr = 1;
   }
-  const c = future(JSON.stringify(evil));
+  const c = future(JSON.stringify(evil), true);
   if (c === null) return "the corrupted load did not take";
+  if (c === "STRIPPED") return "the temperament door stripped the corrupted delta - the bite's shape is wrong, not the save";
   if (c === a) return "a corrupted temperament left the future untouched - the delta never reached the brain";
   return true;
 });
