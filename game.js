@@ -5213,6 +5213,7 @@ const HIRE_CARD_T = 8;      // long enough to read five lines and still watch th
 let dayOpen = 0;
 let camX = 1180, followIdx = -1, followNpc = null, followCust = null, tab = "crew";
 let brainTv = false;   // the BRAIN INSPECTOR panel ('t', or the MIND> chip): pure view, saved nowhere
+let brainTvPage = 0, _brainTvThink = -1;   // the meter bank's page, and the think that last snapped it
 // SELECTION is not the camera. Click a crab to select (and focus) them; pan
 // away and the camera lets go but the selection - and its card, and the right-
 // click orders that read it - stay with the crab you picked.
@@ -6701,6 +6702,14 @@ function toggleMusic() {
 let AC = null;
 function beep(freq, dur, type, vol, when) {
   if (!soundOn || muted) return;
+  // A SCIENCE RUN IS SILENT. The lab's loop lives thirty days in one blocked
+  // task, and the audio clock barely moves while it does - so every till chime
+  // of the month lands on the same AC.currentTime and discharges as one blast
+  // when the loop yields. Dropped, not deferred: the month happened, the
+  // sounds didn't. (SCI.run also covers the scrub shuttles, whose loads pop
+  // the same way.) The completion ding fires after run clears - it survives.
+  if (SCI.run) return;
+  window._beeps = (window._beeps || 0) + 1;   // the probe's counter: scheduled, not dropped
   if (!AC) try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
   const t = AC.currentTime + (when || 0);
   const o = AC.createOscillator(), g = AC.createGain();
@@ -8074,8 +8083,14 @@ function homeOf(p) {   // housing tier + a label, from a persona alone
 function slotMeta(s) {
   const crew = (Array.isArray(s.personas) ? s.personas : []).slice(0, 8).map(p => {
     const h = homeOf(p || {});
+    const cul = (p && p.culture) || "crab";
     return {
-      name: String((p && p.name) || "?"), color: ((p && p.color) | 0) % CRAB_COLORS.length,
+      name: String((p && p.name) || "?"),
+      // a cultured color indexes HER rack - the crab clamp would corrupt it;
+      // personaArts clamps per rack at draw time (old cached _meta lacks
+      // culture and falls back to crab, exactly the old behavior)
+      color: cul === "crab" ? ((p && p.color) | 0) % CRAB_COLORS.length : (p && p.color) | 0,
+      culture: cul,
       acc: (p && p.acc) || "none", job: (p && p.job) || "shack",
       home: h.label, tier: h.tier,
       sick: !!(p && p.sick), sickDays: (p && p.sick && p.sick.days) || 0, ot: !!(p && p.ot),
@@ -10325,7 +10340,10 @@ function pickErrand(c) {
   // nearest table - the two-post idiom stays geometry's). Shadow: the script
   // decides, the brain watches, only a harness tally moves.
   const bp = citBrainOf(c);
-  if (bp && bp.mode === "live" && !citEngineOwned(c, cand, bp)) return brainCitPick(c, cand, bp);
+  if (bp && bp.mode === "live") {
+    if (!citEngineOwned(c, cand, bp)) return brainCitPick(c, cand, bp);
+    brainTvEngine(c);   // the rail fired: the script's pick, marked as the engine's
+  }
   let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
   // THE TIE-BREAK IS THE GATHER ORDER (risky decision 5, made explicit in
   // slice 4): strict > means the FIRST candidate at a score keeps it, and the
@@ -12454,6 +12472,7 @@ function checkOut(k) {
 // have rooms free, which is a staffing and ownership problem the player can
 // actually solve.
 function sleepOnSand(k) {
+  brainTvEngine(k);   // bed hour is the engine's call, never a think's
   let best = SAND_SPOTS[0];
   for (const s of SAND_SPOTS) if (Math.abs(s - k.x) < Math.abs(best - k.x)) best = s;
   k.stC = VS.onSand; k.target = best + ((srand() * 18) | 0) - 9;
@@ -12682,6 +12701,13 @@ function brainVisPick(k, bp) {
 // New session, new visitor objects: the old entries fall to the collector,
 // which is the loader-reset contract honored for free.
 const BRAINTV = new WeakMap();
+// the engine took the wheel (DIRE, a nudge, sickness, bed hour): stamp the
+// view-side cache so the panel's NOW row can say whose decision the current
+// action was. WeakMap write only - fingerprint-inert like the capture itself.
+function brainTvEngine(a) {
+  const e = BRAINTV.get(a);
+  if (e) e.engT = tmin;
+}
 function brainTvCapture(k, bp, acted) {
   let e = BRAINTV.get(k);
   if (!e) BRAINTV.set(k, e = { ring: [] });
@@ -13901,6 +13927,76 @@ function evPos(ev) {
   return { x: (ev.clientX - r.left) * (cv.width / r.width), y: (ev.clientY - r.top) * (cv.height / r.height) };
 }
 function clampCam(x) { return Math.max(0, Math.min(WORLD_W - W, x)); }
+// THE PANEL'S TAP, a named door so the suite can press it - the listener and
+// the scenarios go through the same code (the manageRects idiom for input).
+function panelTap(p) {
+
+    // THE TWO SCREEN CHIPS ANSWER FIRST. They live in the crew row now (see
+    // navRects), at its right-hand end, so they must be tested before the crew
+    // tiles that share that band - otherwise a tap on MANAGE selects whichever
+    // crab the tiles think is under it.
+    if (navTapChip(p)) return;
+    if (p.y < TAB_Y - 1) {
+      // ONE UNBROKEN CHAIN, HIGHEST x FIRST, and every band matches the thing
+      // drawn in it. Written out as boundaries rather than a `>` ladder with a
+      // new case wedged in at the top: that is how the pause chip ended up
+      // eating SND's clicks, because a band inserted above the chain silently
+      // takes its pixels from whatever was underneath.
+      if (p.x >= 234) { ffMode = ffMode === 3 ? 0 : 3; sfx.ding(); return; }   // >>>>
+      if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
+      if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
+      if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
+      if (p.x >= 168) { toggleMusic(); return; }                               // MUS
+      if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
+    }
+    // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
+    // tiles are not painted (see drawPanel), so they must not answer either -
+    // a tap that lands on an invisible crew tile is a ghost hire-and-follow.
+    if (bigCardUp()) return;
+    if (!crewDock) {   // popped down: one slim chip brings it back, nothing else answers
+      const r = crewDockRect();
+      if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { crewDock = true; sfx.ding(); }
+      return;
+    }
+    if (p.y >= TAB_Y && p.y < TAB_Y + TAB_H) {
+      // LEAVING THE SHOP TAB DISARMS IT. A tooltip that is off screen must
+      // never still be the thing a tap would buy - come back to the tab and
+      // the first tap reads again, exactly as it did the first time.
+      // ...and a second tap on the CREW tab POPS THE SELECTOR DOWN (Matt,
+      // 2026-08-23) - the tab you are already on is free to be the handle.
+      if (p.x >= 4 && p.x < 36) {
+        if (tab === "crew") { crewDock = false; sfx.ding(); } else tab = "crew";
+        shopTip = null; return;
+      }
+      if (p.x >= 38 && p.x < 70) { tab = "shop"; shopTip = null; return; }
+      // SAVE opens the towns shelf - NEW GAME lives there now, per slot
+      if (p.x >= 128 && p.x < 158) { openSaveView(); sfx.ding(); return; }
+      if (p.x >= 168) {
+        // a second tap on MENU pages its books (the ..MORE idiom): the menu
+        // outgrew the panel the day a town could own three kitchens
+        if (tab === "menu") { menuPage++; } else { tab = "menu"; menuPage = 0; }
+        shopTip = null; sfx.ding(); return;
+      }
+    }
+    if (tab === "shop") {
+      for (const b of BUTTONS)
+        if (p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h) { tapShopButton(buttonKey(b)); return; }
+    } else if (tab === "crew") {   // menu tab: no invisible crew cards to click
+      const G = crewStripGeom();
+      if (G.chip && p.x >= G.chip.x && p.x < G.chip.x + G.chip.w
+          && p.y >= G.chip.y && p.y < G.chip.y + G.chip.h) {
+        crewPage = (G.page + 1) % G.pages; sfx.ding(); return;
+      }
+      for (const t of G.tiles) {
+        if (p.x >= t.x && p.x < t.x + CARD && p.y >= ROW_Y && p.y < ROW_Y + CARD) {
+          followIdx = followIdx === t.i ? -1 : t.i; followNpc = null; followCust = null;
+          _crewPageFollow = followIdx;   // the strip's own tap never yanks the page
+          sel = followIdx >= 0 ? crabs[t.i] : null; return;
+        }
+      }
+    }
+    return;
+}
 
 cv.addEventListener("click", (ev) => {
   if (window.MergeMode && MergeMode.active()) return;
@@ -14218,49 +14314,7 @@ cv.addEventListener("click", (ev) => {
     }
   }
   // panel
-  if (p.y >= PANEL_Y) {
-    // THE TWO SCREEN CHIPS ANSWER FIRST. They live in the crew row now (see
-    // navRects), at its right-hand end, so they must be tested before the crew
-    // tiles that share that band - otherwise a tap on MANAGE selects whichever
-    // crab the tiles think is under it.
-    if (navTapChip(p)) return;
-    if (p.y < TAB_Y - 1) {
-      // ONE UNBROKEN CHAIN, HIGHEST x FIRST, and every band matches the thing
-      // drawn in it. Written out as boundaries rather than a `>` ladder with a
-      // new case wedged in at the top: that is how the pause chip ended up
-      // eating SND's clicks, because a band inserted above the chain silently
-      // takes its pixels from whatever was underneath.
-      if (p.x >= 234) { ffMode = ffMode === 3 ? 0 : 3; sfx.ding(); return; }   // >>>>
-      if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
-      if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
-      if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
-      if (p.x >= 168) { toggleMusic(); return; }                               // MUS
-      if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
-    }
-    if (p.y >= TAB_Y && p.y < TAB_Y + TAB_H) {
-      // LEAVING THE SHOP TAB DISARMS IT. A tooltip that is off screen must
-      // never still be the thing a tap would buy - come back to the tab and
-      // the first tap reads again, exactly as it did the first time.
-      if (p.x >= 4 && p.x < 36) { tab = "crew"; shopTip = null; return; }
-      if (p.x >= 38 && p.x < 70) { tab = "shop"; shopTip = null; return; }
-      // SAVE opens the towns shelf - NEW GAME lives there now, per slot
-      if (p.x >= 128 && p.x < 158) { openSaveView(); sfx.ding(); return; }
-      if (p.x >= 168) { tab = tab === "menu" ? "crew" : "menu"; shopTip = null; sfx.ding(); return; }
-    }
-    if (tab === "shop") {
-      for (const b of BUTTONS)
-        if (p.x >= b.x && p.x < b.x + b.w && p.y >= b.y && p.y < b.y + b.h) { tapShopButton(buttonKey(b)); return; }
-    } else if (tab === "crew") {   // menu tab: no invisible crew cards to click
-      for (let i = 0; i < crewTilesShown(crabs.length); i++) {
-        const bx = 4 + i * CARD_STEP;
-        if (p.x >= bx && p.x < bx + CARD && p.y >= ROW_Y && p.y < ROW_Y + CARD) {
-          followIdx = followIdx === i ? -1 : i; followNpc = null; followCust = null;
-          sel = followIdx >= 0 ? crabs[i] : null; return;
-        }
-      }
-    }
-    return;
-  }
+  if (p.y >= PANEL_Y) { panelTap(p); return; }
   // THE NAV STRIP is painted over the bottom rows of the world, so it answers
   // for them: the map, then the town underneath. (Its CHIPS moved into the
   // panel and are answered there - see the panel branch above.)
@@ -14293,6 +14347,12 @@ cv.addEventListener("click", (ev) => {
     if (sel && brainOf(sel)) {
       const mx = sel.p ? 36 : 5;
       if (p.x >= mx && p.x < mx + 27 && p.y >= 51 && p.y < 59) { brainTv = !brainTv; sfx.ding(); return; }
+    }
+    // the mind panel's ..MORE row pages the meter bank - the rect is the one
+    // the draw painted, so an unpainted pager can never answer
+    if (_brainTvPager && p.x >= _brainTvPager.x && p.x < _brainTvPager.x + _brainTvPager.w
+        && p.y >= _brainTvPager.y && p.y < _brainTvPager.y + _brainTvPager.h) {
+      brainTvPage = (brainTvPage + 1) % _brainTvPager.pages; sfx.ding(); return;
     }
     if (sel && p.x >= 2 && p.x < 130 && p.y >= 2 && p.y < 60) { dossier = sel; sfx.ding(); return; }
   }
@@ -14430,6 +14490,8 @@ addEventListener("keydown", (e) => {
   if (e.key === "b" && musicOn) playTrack(pickTrack());    // skip: another one that fits
   if (e.key === "f") ffMode = (ffMode + 1) % 4;            // fast-forward 1x/2x/3x/6x
   if (e.key === "t") brainTv = !brainTv;                   // the brain inspector: a thinker's thoughts
+  if (e.key === "y" && brainTv && _brainTvPager) { brainTvPage = (brainTvPage + 1) % _brainTvPager.pages; }   // page its meter bank
+  if (e.key === "v") crewDock = !crewDock;                 // pop the crew selector down / back up
   // [ and ] step the selection through the town, exactly what the little crab
   // cycler's chevrons do - the camera comes along, unlike an arrow-key pan
   // H AND ? BOTH OPEN THE HELP. `?` is the key every player tries and `h` is
@@ -15672,9 +15734,12 @@ function drawFollowCard() {
   rect(ctx, 2, 2, wcard, 58, [30, 20, 36]);
   rect(ctx, 3, 3, wcard - 2, 56, [255, 250, 235]);
   rect(ctx, 5, 6, 20, 26, [200, 230, 245]);
-  blit(ctx, CRAB_ARTS[p.color].a, 7, 14);
-  const acc = ACCESSORIES[crabHat(c)];
-  if (acc) blit(ctx, acc.art, 7 + acc.dx, 14 + acc.dy);
+  if (personaArts(p).cul) blitPersonaIn(p, 5, 6, 20, 26);   // her own body; hat offsets are crab-tuned, skipped (debt: cultured hat fit)
+  else {
+    blit(ctx, CRAB_ARTS[p.color % CRAB_ARTS.length].a, 7, 14);
+    const acc = ACCESSORIES[crabHat(c)];
+    if (acc) blit(ctx, acc.art, 7 + acc.dx, 14 + acc.dy);
+  }
   // THE NAME GETS WHATEVER THE MOOD LEAVES IT. Both are on the same row and
   // the mood is right-aligned to 104 (the cycler chevrons own 106..127), so a
   // long name printed straight through it - TIDEPOOL TIM ends at x100 and DOWN
@@ -15852,7 +15917,9 @@ function brainTvSaliency(bp, f, cls) {
   }
   return contrib;
 }
+let _brainTvPager = null;   // the ..MORE row's tap rect, set by the draw that painted it
 function drawBrainPanel() {
+  _brainTvPager = null;
   if (!brainTv) return;
   // the same full-screen-card deference the follow card pays, plus the help
   if (dossier || manage || boardView || saveView || reportT > 0 || departT > 0 || helpView) return;
@@ -15872,22 +15939,44 @@ function drawBrainPanel() {
     smallText(ctx, "HASN'T HAD A THOUGHT YET", px + 5, py + 5, [150, 140, 160]);
     return;
   }
-  // the frame grows with the surface: 7 visitor classes read at the shipped
-  // 104; the citizen's thirteen get six more meter rows of the same 7px
-  const base = py + 19 + bp.classes.length * 7 + 2;
-  frame(104 + (bp.classes.length - 7) * 7);
+  // THE METER BANK PAGES AT SEVEN. The frame used to grow with the surface -
+  // and the citizen's thirteen rows grew it to y208, thirty-two pixels into
+  // the panel (PANEL_Y is 176): THE MIND OF PINCHY was printing over the crew
+  // strip. Seven rows is what fits above the fold with BECAUSE and PAST below;
+  // more classes page behind a ..MORE row, and each new think snaps to the
+  // page holding the class she acted on, so the story is never on the far page.
+  // seven rows fit unpaged; a paged bank runs six so the NOW line and the
+  // pager both fit above the fold (the whole panel must end above PANEL_Y)
+  const BANK = bp.classes.length <= 7 ? 7 : 6, pages = Math.ceil(bp.classes.length / BANK);
+  if (e.tmin !== _brainTvThink) { _brainTvThink = e.tmin; brainTvPage = Math.floor(e.acted / BANK); }
+  if (brainTvPage >= pages) brainTvPage = pages - 1;
+  const row0 = brainTvPage * BANK, rowN = Math.min(bp.classes.length - row0, BANK);
+  const pagerH = pages > 1 ? 8 : 0;
+  const rowsY = py + 26;                       // header, staleness, NOW, then the bank
+  const base = rowsY + rowN * 7 + pagerH + 2;
+  frame(62 + rowN * 7 + pagerH);
   smallText(ctx, fitSmall("THE MIND OF " + ((sel.p ? sel.p.name : sel.name) || "?").split(" ")[0], pw - 34), px + 5, py + 4, [225, 215, 255]);
   if (e.mode === "shadow") smallText(ctx, "SHADOW", px + pw - 4 - smallTextWidth("SHADOW"), py + 4, [235, 200, 90]);
   const ago = Math.max(0, (tmin - e.tmin) | 0);
   smallText(ctx, ago <= 0 ? "THINKING RIGHT NOW" : "LAST THOUGHT " + fmtClock(e.tmin | 0) + " - " + ago + "M AGO",
     px + 5, py + 11, [120, 110, 145]);
+  {   // NOW: what she is actually doing this minute - and whose decision it
+    // was. A stale PICK over a live body reads as a lie; this row is the truth
+    // between thinks, and ENGINE marks the moments the script took the wheel
+    // (DIRE, a nudge, sickness, bed hour) without a think to show for it.
+    const eng = e.engT != null && e.engT >= e.tmin;
+    const nowTxt = fitSmall("NOW: " + (sel.p ? crabStatus(sel) : custStatus(sel)), pw - (eng ? 44 : 10));
+    smallText(ctx, nowTxt, px + 5, py + 18, [150, 170, 150]);
+    if (eng) smallText(ctx, "ENGINE", px + pw - 4 - smallTextWidth("ENGINE"), py + 18, [235, 180, 90]);
+  }
   // THE METER BANK: one row a class, bars normalized over this think's spread
   let lo = e.logits[0], hi = e.logits[0];
   for (const v of e.logits) { if (v < lo) lo = v; if (v > hi) hi = v; }
   const span = hi - lo || 1;
-  for (let ci = 0; ci < bp.classes.length; ci++) {
+  for (let r = 0; r < rowN; r++) {
+    const ci = row0 + r;
     const [lbl, col] = BRAINTV_CLS[bp.classes[ci]] || [bp.classes[ci].toUpperCase(), [150, 140, 160]];
-    const ry = py + 19 + ci * 7;
+    const ry = rowsY + r * 7;
     const on = ci === e.acted, wanted = ci === e.argmax && e.argmax !== e.acted;
     smallText(ctx, lbl, px + 5, ry, on ? [255, 255, 255] : wanted ? col : [110, 100, 130]);
     const bw = Math.max(1, Math.round(42 * (e.logits[ci] - lo) / span));
@@ -15896,6 +15985,14 @@ function drawBrainPanel() {
     if (on) smallText(ctx, "PICK", px + 105, ry, col);
     // the brain wanted it, the town couldn't sell it - personality meets stock
     if (wanted) smallText(ctx, "N/A", px + 105, ry, [190, 80, 80]);
+  }
+  if (pages > 1) {   // the ..MORE row: a tap target, same idiom as MORE>/MIND>
+    const ry = rowsY + rowN * 7;
+    const hid = bp.classes.length - rowN;
+    const t = "..MORE (" + hid + ") " + (brainTvPage + 1) + "/" + pages;
+    smallText(ctx, t, px + 5, ry + 1, [190, 170, 230]);
+    _brainTvPager = { x: px, y: ry - 1, w: pw, h: 9, pages };
+    if (row0 > 0 && e.acted < row0) smallText(ctx, "PICK ^", px + pw - 4 - smallTextWidth("PICK ^"), ry + 1, [255, 216, 96]);
   }
   // BECAUSE: the three loudest inputs behind the acted class, sign and all
   if (!e.sal) e.sal = brainTvSaliency(bp, e.f, e.acted);
@@ -15990,16 +16087,52 @@ const NAV_CHIP_W = 40;
 // that same row, so a big enough crew would run underneath them: MEASURED, nine
 // crew reach x244 against a chip edge at x214. One reader for the draw and the
 // hit test, so a tile that is not painted can never be clicked either.
-function crewTilesShown(n) {
-  const limit = W - NAV_CHIP_W - 4;
+// THE CREW STRIP PAGES. The old strip dropped whoever didn't fit behind a
+// "+N" tile that answered no tap - a phone player literally could not select
+// crab seven. Now the roster pages: the last slot is a MORE> chip that steps
+// pages (wrapping), every crab is a tap away, and a selection made anywhere
+// else (the [ ] cycler, a tap in the world) snaps the strip to that crab's
+// page. ONE geometry table feeds the draw and the hit test, so a tile that is
+// not painted can never be clicked - the manageRects idiom.
+let crewPage = 0, _crewPageFollow = -1, menuPage = 0;
+let crewDock = true;   // the selector, popped up (true) or down - the player's own call
+function crewStripGeom() {
+  const n = crabs.length, limit = W - NAV_CHIP_W - 4;
+  window._crewN = n;   // the probe tests read (harness + browser alike)
   let fit = 0;
   while (fit < n && 4 + fit * CARD_STEP + CARD <= limit) fit++;
-  // ...and if any crab is left out, the LAST slot is given over to saying so.
-  // A roster that silently stops at six is a roster that lies about the size of
-  // your crew - and the crabs it drops are still on the payroll, still on the
-  // bill, and still reachable with [ and ] or the cycler on their own card.
-  return fit < n ? Math.max(0, fit - 1) : fit;
+  if (fit >= n) {   // everyone fits: one page, no chip
+    if (crewPage) crewPage = 0;
+    return { page: 0, pages: 1, tiles: crabs.map((c, i) => ({ i, x: 4 + i * CARD_STEP })), chip: null };
+  }
+  const per = Math.max(1, fit - 1);   // the chip takes the last slot on every page
+  const pages = Math.ceil(n / per);
+  // a NEW selection snaps the strip to its crab's page; a standing one leaves
+  // the player's own paging alone
+  if (followIdx !== _crewPageFollow) {
+    _crewPageFollow = followIdx;
+    if (followIdx >= 0) crewPage = Math.floor(followIdx / per);
+  }
+  if (crewPage >= pages) crewPage = pages - 1;
+  const tiles = [];
+  for (let s = 0; s < per; s++) {
+    const i = crewPage * per + s;
+    if (i >= n) break;
+    tiles.push({ i, x: 4 + s * CARD_STEP });
+  }
+  return { page: crewPage, pages, tiles,
+    chip: { x: 4 + per * CARD_STEP, y: ROW_Y, w: CARD, h: CARD } };
 }
+// THE RULE, written down: ONE READING SURFACE OWNS THE SCREEN AT A TIME.
+// Every full-screen card already defers the follow card and the brain panel
+// by this exact predicate; the selector row now yields by it too, so a big
+// page never competes with tabs and tiles for the panel. The status row
+// (money, clock, mute, speed) stays - it is chrome, not a reading surface.
+function bigCardUp() {
+  return !!(dossier || manage || boardView || saveView || reportT > 0 || departT > 0 || helpView);
+}
+// the popped-down selector's one handle: slim, centered where the tab row was
+function crewDockRect() { return { x: 4, y: TAB_Y, w: 40, h: TAB_H }; }
 function navRects() {
   const x = W - NAV_CHIP_W - 2;
   return {
@@ -16231,6 +16364,16 @@ function drawPanel() {
   smallText(ctx, ">>", 206, PANEL_Y + 3, ffMode === 1 ? [255, 230, 120] : [150, 132, 122]);
   smallText(ctx, ">>>", 219, PANEL_Y + 3, ffMode === 2 ? [255, 230, 120] : [150, 132, 122]);
   smallText(ctx, ">>>>", 236, PANEL_Y + 3, ffMode === 3 ? [255, 230, 120] : [150, 132, 122]);
+  // ONE READING SURFACE OWNS THE SCREEN: a big card up means no tabs, no
+  // tiles, no shop buttons - the status row above is chrome and stays. The
+  // hit test defers by the same predicate, so nothing invisible answers.
+  if (bigCardUp()) return;
+  if (!crewDock) {   // popped down by the player: a slim handle to pop it back
+    const r = crewDockRect();
+    rect(ctx, r.x, r.y, r.w, r.h, [90, 70, 60]);
+    smallText(ctx, "CREW ^", r.x + ((r.w - smallTextWidth("CREW ^")) >> 1), r.y + 3, [230, 215, 195]);
+    return;
+  }
   // tabs
   for (const [i, t] of [["crew", 0], ["shop", 1]].map((v, i) => [i, v[0]])) {
     const x = 4 + i * 34, active = tab === t;
@@ -16277,16 +16420,30 @@ function drawPanel() {
   if (tab === "menu") {
     smallText(ctx, "MENU - PRICE / COST", 4, ROW_Y, [230, 215, 195]);
     let my = ROW_Y + MROW + 1;
+    // THE MENU PAGES AT THE FOLD. Rows used to grow unbounded - a town owning
+    // three kitchens printed its books off the canvas. Rows-per-page is derived
+    // from the panel's real height; a second tap on the MENU tab turns the page.
+    const menuRows = [];
     for (const key of Object.keys(BIZ)) {
       if (!bizUnlocked(key) || bizOwner(key) !== "player") continue;   // your menu, your books
-      for (const r of BIZ[key].recipes) {
-        smallText(ctx, ITEM_NAMES[r.icon], 4, my, [190, 175, 160]);
-        smallText(ctx, "$" + $d(menuPrice(key, r)) + " / $" + INGREDIENT_COST[r.raw], 72, my,
-          bizPriceIdx(key) === PRICE_IDX_DEF ? [140, 200, 150] : [255, 190, 90]);
-        my += MROW;
-      }
+      for (const r of BIZ[key].recipes)
+        menuRows.push([ITEM_NAMES[r.icon],
+          "$" + $d(menuPrice(key, r)) + " / $" + INGREDIENT_COST[r.raw],
+          bizPriceIdx(key) === PRICE_IDX_DEF ? [140, 200, 150] : [255, 190, 90]]);
     }
-    smallText(ctx, "LOCALS PAY +25%", 4, my + 1, [170, 150, 135]);   // under the last menu row
+    const menuFit = Math.max(1, Math.floor((H - my - 10) / MROW) - 1);
+    const mPages = Math.max(1, Math.ceil(menuRows.length / menuFit));
+    if (menuPage >= mPages) menuPage = 0;   // the tap wraps here, where the count lives
+    const m0 = menuPage * menuFit;
+    for (const row of menuRows.slice(m0, m0 + menuFit)) {
+      smallText(ctx, row[0], 4, my, [190, 175, 160]);
+      smallText(ctx, row[1], 72, my, row[2]);
+      my += MROW;
+    }
+    if (mPages > 1)
+      smallText(ctx, "..MORE (" + (menuRows.length - menuFit) + ") TAP MENU " + (menuPage + 1) + "/" + mPages,
+        4, my + 1, [190, 170, 230]);
+    else smallText(ctx, "LOCALS PAY +25%", 4, my + 1, [170, 150, 135]);   // under the last menu row
     smallText(ctx, "TONIGHT AT 20:00", 132, ROW_Y, [230, 215, 195]);
     let by = ROW_Y + MROW + 1;
     // one predicate, three surfaces: this list, the BILL chip and the
@@ -16309,10 +16466,19 @@ function drawPanel() {
       smallText(ctx, "OVERTIME " + otN + "X AT " + OT_RATE + "X", 132, by, [190, 175, 160]);
       smallText(ctx, "$" + $d(otBill), 224, by, [235, 160, 130]); by += MROW;
     }
-    for (const key of Object.keys(BIZ)) {
-      if (!bizUnlocked(key) || bizOwner(key) !== "player") continue;   // only rents YOU pay tonight
-      smallText(ctx, BIZ[key].short + " RENT", 132, by, [190, 175, 160]);
-      smallText(ctx, "$" + $d(BIZ[key].rent), 224, by, [235, 160, 130]); by += MROW;
+    {   // rents: one row each while they fit, one summed row when they don't
+      const rents = Object.keys(BIZ).filter(k => bizUnlocked(k) && bizOwner(k) === "player");
+      const room = Math.floor((H - by - 14) / MROW);   // leave the loan its row
+      if (rents.length <= room) {
+        for (const key of rents) {
+          smallText(ctx, BIZ[key].short + " RENT", 132, by, [190, 175, 160]);
+          smallText(ctx, "$" + $d(BIZ[key].rent), 224, by, [235, 160, 130]); by += MROW;
+        }
+      } else {
+        const sum = rents.reduce((t, k) => t + BIZ[k].rent, 0);
+        smallText(ctx, "RENTS (" + rents.length + " LOTS)", 132, by, [190, 175, 160]);
+        smallText(ctx, "$" + $d(sum), 224, by, [235, 160, 130]); by += MROW;
+      }
     }
     if (credit.bal > 0) {
       smallText(ctx, "LOAN PAYMENT", 132, by, [190, 175, 160]);
@@ -16339,27 +16505,33 @@ function drawPanel() {
       text(ctx, maxed ? "MAX" : "$" + fmt(cost), b.x + 3, b.y + (TALL ? 14 : 10), maxed ? [160, 145, 135] : afford ? [80, 45, 20] : [140, 125, 115], 5);
     }
   } else {
-    const shown = crewTilesShown(crabs.length);
-    if (shown < crabs.length) {   // the overflow marker, in the slot it cost
-      const bx = 4 + shown * CARD_STEP, hidden = crabs.length - shown;
-      rect(ctx, bx, ROW_Y, CARD, CARD, [30, 20, 20]);
-      rect(ctx, bx + 1, ROW_Y + 1, CARD - 2, CARD - 2, [60, 48, 44]);
-      const t1 = "+" + hidden;
-      smallText(ctx, t1, bx + ((CARD - smallTextWidth(t1)) >> 1), ROW_Y + 6, [255, 216, 96]);
-      smallText(ctx, "[ ]", bx + ((CARD - smallTextWidth("[ ]")) >> 1), ROW_Y + 14, [150, 140, 160]);
+    const G = crewStripGeom();
+    if (G.pages > 1) {   // the page chip, in the slot it costs - and it ANSWERS TAPS (see the hit test)
+      const r = G.chip;
+      rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 20]);
+      rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [60, 48, 44]);
+      const t1 = "MORE>";
+      smallText(ctx, t1, r.x + ((r.w - smallTextWidth(t1)) >> 1), ROW_Y + 5, [255, 216, 96]);
+      const t2 = (G.page + 1) + "/" + G.pages;
+      smallText(ctx, t2, r.x + ((r.w - smallTextWidth(t2)) >> 1), ROW_Y + 13, [220, 210, 190]);
+      smallText(ctx, "[ ]", r.x + ((r.w - smallTextWidth("[ ]")) >> 1), ROW_Y + (TALL ? 25 : 20), [150, 140, 160]);
     }
-    for (let i = 0; i < shown; i++) {
-      const c = crabs[i], bx = 4 + i * CARD_STEP;
+    for (const t of G.tiles) {
+      const c = crabs[t.i], bx = t.x;
       const picked = sel === c;
       rect(ctx, bx, ROW_Y, CARD, CARD, picked ? [255, 230, 120] : [30, 20, 20]);
       rect(ctx, bx + 1, ROW_Y + 1, CARD - 2, CARD - 2, [200, 230, 245]);
-      const hat = isMayor(c) ? "tophat" : c.duty ? "toque" : c.p.acc, acc = ACCESSORIES[hat];
-      if (TALL) {   // room for the full 2x portrait
-        blit(ctx, art2("c" + c.p.color, CRAB_ARTS[c.p.color].a), bx + 1, ROW_Y + 7);
-        if (acc) blit(ctx, art2("a" + hat, acc.art), bx + 1 + acc.dx * 2, ROW_Y + 7 + acc.dy * 2);
-      } else {
-        blit(ctx, CRAB_ARTS[c.p.color].a, bx + 4, ROW_Y + 7);
-        if (acc) blit(ctx, acc.art, bx + 4 + acc.dx, ROW_Y + 7 + acc.dy);
+      const pa = personaArts(c.p);
+      if (pa.cul) blitPersonaIn(c.p, bx + 1, ROW_Y + 1, CARD - 2, CARD - 6);   // her own body (hat fit: named debt)
+      else {
+        const hat = isMayor(c) ? "tophat" : c.duty ? "toque" : c.p.acc, acc = ACCESSORIES[hat];
+        if (TALL) {   // room for the full 2x portrait
+          blit(ctx, art2("c" + c.p.color, CRAB_ARTS[c.p.color].a), bx + 1, ROW_Y + 7);
+          if (acc) blit(ctx, art2("a" + hat, acc.art), bx + 1 + acc.dx * 2, ROW_Y + 7 + acc.dy * 2);
+        } else {
+          blit(ctx, CRAB_ARTS[c.p.color].a, bx + 4, ROW_Y + 7);
+          if (acc) blit(ctx, acc.art, bx + 4 + acc.dx, ROW_Y + 7 + acc.dy);
+        }
       }
       rect(ctx, bx + CARD - 6, ROW_Y + 2, 4, 4, c.p.sick ? [130, 220, 110] : c.duty ? [96, 232, 120] : [150, 140, 140]);
       smallText(ctx, c.p.name.slice(0, TALL ? 8 : 5), bx + 1, ROW_Y + CARD + 1, [220, 210, 190]);
@@ -16596,6 +16768,28 @@ function homeLabel(p) {
 const _art2Cache = {};
 function art2(key, art) {   // lazily scaled 2x art for the dossier portrait
   return _art2Cache[key] || (_art2Cache[key] = scale2(art));
+}
+// ONE PORTRAIT PATH FOR EVERY ROSTER SURFACE. The world's drawCrab learned
+// cultures in the settlers slice; the little portraits (crew strip, crew
+// card, the record's header, the towns shelf) kept indexing the crab rack,
+// so a settled pig employee wore a crab face everywhere but the beach.
+// Mirrors drawCrab's own dispatch, orphan clamp included; the culture
+// namespaces the 2x cache key so a pig at color 0 never collides with the
+// crab at color 0. Returns null cul for crabs so every caller can keep its
+// hand-tuned crab pixels byte-for-byte and center only the foreign body.
+function personaArts(p) {
+  const cul = p && p.culture && p.culture !== "crab" ? CULTURES[p.culture] : null;
+  const arts = cul ? cul.arts[(p.color | 0) % cul.arts.length]
+    : CRAB_ARTS[((p && p.color) | 0) % CRAB_ARTS.length];
+  return { cul, arts, key: (cul ? p.culture : "crab") + "c" + ((p && p.color) | 0) };
+}
+// her face centered in a frame, 2x only when it fits (the visitor card's own
+// rule) - for the cultured branch of a portrait box; crabs keep their pixels
+function blitPersonaIn(p, fx, fy, fw, fh) {
+  const pa = personaArts(p), a1 = pa.arts.a;
+  const two = a1.w * 2 <= fw && a1.h * 2 <= fh, m = two ? 2 : 1;
+  blit(ctx, two ? art2(pa.key, a1) : a1,
+    fx + ((fw - a1.w * m) >> 1), fy + ((fh - a1.h * m) >> 1));
 }
 // ---------------------------------------------------------------- the record
 // The dossier is now a two-page record with a bottom control bar - PROFILE
@@ -16959,9 +17153,12 @@ function drawDossier() {
   // except the mayor, whose hat is not an outfit, it is the office
   const hatKey = hall.mayor === p.name ? "tophat" : p.acc;
   rect(ctx, x + 4, y + 4, 40, 30, [200, 230, 245]);
-  blit(ctx, art2("c" + p.color, CRAB_ARTS[p.color].a), x + 8, y + 8);
-  const acc = ACCESSORIES[hatKey];
-  if (acc) blit(ctx, art2("a" + hatKey, acc.art), x + 8 + acc.dx * 2, y + 8 + acc.dy * 2);
+  if (personaArts(p).cul) blitPersonaIn(p, x + 4, y + 4, 40, 30);   // her own body (hat fit: named debt)
+  else {
+    blit(ctx, art2("c" + p.color, CRAB_ARTS[p.color].a), x + 8, y + 8);
+    const acc = ACCESSORIES[hatKey];
+    if (acc) blit(ctx, art2("a" + hatKey, acc.art), x + 8 + acc.dx * 2, y + 8 + acc.dy * 2);
+  }
   text(ctx, p.name, x + 48, y + 5, [255, 240, 210]);
   smallText(ctx, TRAITS[p.trait].label + " - " + MODES[p.mode].label + (p.npc ? " - TOWNSFOLK" : " - CREW"), x + 48, y + 15, [210, 190, 170]);
   // what they're saying (their live quip, or a line true to their trait)
@@ -17791,10 +17988,13 @@ function drawSaveScreen() {
       const c = card.crew[i], bx = x + 6 + i * 38;
       rect(ctx, bx, top, 36, 30, [30, 20, 36]);
       rect(ctx, bx + 1, top + 1, 34, 22, c.sick ? [235, 205, 205] : [200, 230, 245]);
-      const art = CRAB_ARTS[c.color] || CRAB_ARTS[0];
-      blit(ctx, art2("c" + c.color, art.a), bx + 2, top + 2);
-      const acc = ACCESSORIES[c.acc];
-      if (acc) blit(ctx, art2("a" + c.acc, acc.art), bx + 2 + acc.dx * 2, top + 2 + acc.dy * 2);
+      if (personaArts(c).cul) blitPersonaIn(c, bx + 1, top + 1, 34, 22);   // her own body (hat fit: named debt)
+      else {
+        const art = CRAB_ARTS[(c.color | 0) % CRAB_ARTS.length] || CRAB_ARTS[0];
+        blit(ctx, art2("c" + c.color, art.a), bx + 2, top + 2);
+        const acc = ACCESSORIES[c.acc];
+        if (acc) blit(ctx, art2("a" + c.acc, acc.art), bx + 2 + acc.dx * 2, top + 2 + acc.dy * 2);
+      }
       if (c.sick) smallText(ctx, "ILL", bx + 24, top + 3, [200, 50, 50]);
       if (c.ot) smallText(ctx, "OT", bx + 3, top + 3, [255, 200, 60]);
       const nm = c.name.slice(0, 8);
