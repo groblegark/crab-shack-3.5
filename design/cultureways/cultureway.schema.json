@@ -299,10 +299,26 @@
      "description": "Drop-nudge terms in AUTHOR units, converted once at install: radius in px, minutes on the game clock, relax quantized to the sim's Q20 grid by the same quantizer the engine's own constant uses, mul100 in appeal's hundredths (130 = x1.3). Fields left out inherit the crab values (72 / 60 / 0.12 / 130).",
      "type": "object",
      "properties": {
-      "radius": { "type": "integer", "minimum": 8, "maximum": 128 },
-      "minutes": { "type": "integer", "minimum": 5, "maximum": 1440 },
-      "relax": { "type": "number", "minimum": 0, "maximum": 0.5 },
-      "mul100": { "type": "integer", "minimum": 100, "maximum": 300 }
+      "radius": {
+       "type": "integer",
+       "minimum": 8,
+       "maximum": 128
+      },
+      "minutes": {
+       "type": "integer",
+       "minimum": 5,
+       "maximum": 1440
+      },
+      "relax": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 0.5
+      },
+      "mul100": {
+       "type": "integer",
+       "minimum": 100,
+       "maximum": 300
+      }
      }
     }
    }
@@ -348,6 +364,19 @@
    "description": "Phase B (LIVE 2026-08-22): dishes in BIZ-shaped rows a kitchen here can LEARN - author-side whole dollars crossing the cents boundary at load, ingredients priced through the import machinery (nothing conjured), items carrying their own 9-wide pixel art on the global palette. The demand must be TAUGHT (a departure card with a foreign settle) before the manage card offers the lesson.",
    "additionalProperties": false,
    "properties": {
+    "ingredients": {
+     "type": "object",
+     "description": "A culture's own priced imports, joining the pier's list at install (author whole dollars per unit; the cent is born at ingredientCost). May not re-price the native pantry (fish_raw, fruit, token, soap, linen) nor an ingredient another installed culture already priced. Max 16.",
+     "maxProperties": 16,
+     "additionalProperties": false,
+     "patternProperties": {
+      "^[a-z][a-z0-9_]{0,23}$": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 50
+      }
+     }
+    },
     "dishes": {
      "type": "array",
      "maxItems": 32,
@@ -451,6 +480,181 @@
          "minLength": 1,
          "maxLength": 12
         }
+       }
+      }
+     }
+    }
+   }
+  },
+  "businesses": {
+   "type": "object",
+   "description": "Phase B (FORMAT LIVE 2026-08-22): whole shops a culture declares - catalog SUBSTANCE only (recipes, stations as TYPE+capacity, economics in author dollars). Never map coordinates (placement is the town's, phase D) and never an owner (ownership binds to a settler when settlers exist). A declared business is built and PENDING - inspectable, not placed - until a plot exists. Max 4.",
+   "maxProperties": 4,
+   "additionalProperties": false,
+   "patternProperties": {
+    "^[a-z][a-z0-9_]{0,11}$": {
+     "type": "object",
+     "required": [
+      "name",
+      "short",
+      "sign",
+      "kind",
+      "rent",
+      "stations",
+      "source",
+      "out",
+      "recipes"
+     ],
+     "additionalProperties": false,
+     "properties": {
+      "name": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 18
+      },
+      "short": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 6
+      },
+      "sign": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 18
+      },
+      "kind": {
+       "enum": [
+        "palapa",
+        "shopfront"
+       ],
+       "description": "one of the town building templates; a new kind needs world art first (the world section, reserved)"
+      },
+      "rent": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 500,
+       "description": "author dollars per day; cents at build"
+      },
+      "wage": {
+       "type": "integer",
+       "minimum": 10,
+       "maximum": 100,
+       "description": "this shop's advertised wage in author dollars; omitted = the town rate (WAGE_STD) when placed"
+      },
+      "lodging": {
+       "type": "boolean",
+       "description": "stalls are ROOMS kept until morning (the hotel bit)"
+      },
+      "sellable": {
+       "type": "boolean",
+       "description": "grows an OFFER chip when placed and NPC-owned"
+      },
+      "stations": {
+       "type": "object",
+       "description": "station TYPE -> working capacity (1-4). Coordinates are the town map, never the culture.",
+       "minProperties": 1,
+       "maxProperties": 6,
+       "additionalProperties": false,
+       "patternProperties": {
+        "^[a-z][a-z0-9_]{0,9}$": {
+         "type": "integer",
+         "minimum": 1,
+         "maximum": 4
+        }
+       }
+      },
+      "stalls": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8,
+       "description": "occupiable facilities (shower/room cycle), count only"
+      },
+      "tables": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8,
+       "description": "dining seats, count only"
+      },
+      "source": {
+       "type": "string",
+       "description": "the station where raws enter; must be one of stations"
+      },
+      "out": {
+       "type": "string",
+       "description": "the pass; must be one of stations"
+      },
+      "recipes": {
+       "type": "array",
+       "minItems": 1,
+       "maxItems": 8,
+       "items": {
+        "type": "object",
+        "required": [
+         "id",
+         "icon",
+         "pay",
+         "raw",
+         "steps"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 24,
+          "description": "must not shadow the house menu's own recipe ids"
+         },
+         "icon": {
+          "type": "string",
+          "maxLength": 24,
+          "description": "a native item or one declared in items{} with art"
+         },
+         "pay": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "description": "author dollars; the cent is born at menuPrice"
+         },
+         "learn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500,
+          "description": "one-time lesson fee in author dollars (0 = free)"
+         },
+         "raw": {
+          "type": "string",
+          "maxLength": 12,
+          "description": "an ingredient the trade machinery prices (INGREDIENT_COST)"
+         },
+         "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+           "type": "array",
+           "minItems": 3,
+           "maxItems": 3,
+           "prefixItems": [
+            {
+             "type": "string",
+             "description": "station at the dish's biz"
+            },
+            {
+             "type": "number",
+             "minimum": 0.5,
+             "maximum": 30,
+             "description": "seconds"
+            },
+            {
+             "type": "string",
+             "maxLength": 24,
+             "description": "item carried out of the step"
+            }
+           ]
+          }
+         }
+        },
+        "description": "The BIZ recipe shape, validated by the same recipeRowProblem as foodway dishes; steps' stations resolve against this business's own declared stations."
        }
       }
      }
