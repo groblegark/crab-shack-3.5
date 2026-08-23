@@ -11345,7 +11345,11 @@ const VIS_STROLL = 340;          // ...and how far from here one stroll takes th
 // (overlap in motion reads as brushing past) - and these are its numbers.
 // One engine table for now; the cultureway schema is the natural home for a
 // species that stands closer (noted in the close-out, not built).
-const VSEP_RXQ = 10 * Q8;   // standers closer than 10px part
+const VSEP_RXQ = 8 * Q8;    // standers closer than 8px part. RULED at 8, on a
+                            // measured three-point curve (personal-space-
+                            // closeout.md): growth 14/48 base, 9/48 at 10px,
+                            // 15/48 at 8px - the economic cost lives between
+                            // 8 and 10 and the look survives at 8.
 const VSEP_RYQ = 8 * Q8;    // ...within the same 8px lane (deck vs floor stay strangers)
 const VSEP_SPD = 24;        // px/s the parting moves: soft, a second to resolve a pile
 // the room rate is the hotel's menu price, read off the recipe so the price on

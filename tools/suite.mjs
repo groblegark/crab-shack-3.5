@@ -12810,9 +12810,13 @@ scenario("personal space: a pile of standing loafers parts, and rests", () => {
   const p1 = JSON.parse(sim.G(`JSON.stringify(window._vs.map(k => k.x))`));
   sim.runUntil("false", { maxSteps: 40 });   // ...and 2 more prove the rest is a rest
   const p2 = JSON.parse(sim.G(`JSON.stringify(window._vs.map(k => k.x))`));
+  // the pin follows the mechanism's own radius: the CLAIM is "parts to
+  // personal space", whatever the ruled radius is - the radius itself is
+  // ruled on the measured growth curve, not asserted here
+  const R = sim.G("VSEP_RXQ / Q8");
   for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
-    if (Math.abs(p2[i] - p2[j]) < 10)
-      return `loafers ${i} and ${j} still stand ${Math.abs(p2[i] - p2[j]).toFixed(1)}px apart (want >= 10)`;
+    if (Math.abs(p2[i] - p2[j]) < R)
+      return `loafers ${i} and ${j} still stand ${Math.abs(p2[i] - p2[j]).toFixed(1)}px apart (want >= ${R})`;
   for (let i = 0; i < 3; i++)
     if (p1[i] !== p2[i]) return `loafer ${i} is still drifting after the parting: ${p1[i]} -> ${p2[i]}`;
   return true;
