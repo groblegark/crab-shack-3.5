@@ -1,0 +1,52 @@
+[
+ {
+  "seed": 7,
+  "agree": 0.977,
+  "n": 55295,
+  "ae": 143,
+  "al": 886,
+  "worst": 0.07964601769911504,
+  "worstC": "ball:fun",
+  "trainRows": 159717
+ },
+ {
+  "seed": 11,
+  "agree": 0.9778,
+  "n": 55295,
+  "ae": 162,
+  "al": 801,
+  "worst": 0.030973451327433628,
+  "worstC": "ball:fun",
+  "trainRows": 159717
+ },
+ {
+  "seed": 23,
+  "agree": 0.9774,
+  "n": 55295,
+  "ae": 277,
+  "al": 746,
+  "worst": 0.11061946902654868,
+  "worstC": "ball:fun",
+  "trainRows": 159717
+ },
+ {
+  "seed": 42,
+  "agree": 0.9784,
+  "n": 55295,
+  "ae": 105,
+  "al": 834,
+  "worst": 0.008849557522123894,
+  "worstC": "ball:fun",
+  "trainRows": 159717
+ },
+ {
+  "seed": 101,
+  "agree": 0.977,
+  "n": 55295,
+  "ae": 180,
+  "al": 830,
+  "worst": 0.08849557522123894,
+  "worstC": "ball:fun",
+  "trainRows": 159717
+ }
+]

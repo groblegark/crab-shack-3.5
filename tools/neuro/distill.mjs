@@ -36,7 +36,9 @@ export const CIT_INPUTS = [
   "citizen.away", "citizen.sick", "citizen.duty", "citizen.working",
   "citizen.shift.end.rel", "citizen.shift.leave.rel",
   "citizen.wage.gripe.q20", "citizen.home.dist.px",
-  "citizen.ball.players", "citizen.ball.cd", "citizen.nudge.live",
+  "citizen.ball.players", "citizen.ball.cd", "citizen.ball.dist.px",
+  "citizen.job.shack", "citizen.job.juicebar", "citizen.npc",
+  "citizen.nudge.live",
   "citizen.poll.open", "citizen.voted", "citizen.pot.warm",
   "citizen.tap.dist.px", "citizen.poll.dist.px",
   ...["shack", "juicebar", "showers", "arcade"].flatMap((b) => [
