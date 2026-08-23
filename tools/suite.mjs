@@ -640,7 +640,7 @@ scenario("slots: a legacy single-key save migrates into slot 1, losing nothing",
   const slot = JSON.parse(store.get(SLOT1));
   for (const k of Object.keys(legacy))          // every field arrives byte-identical
     if (JSON.stringify(slot[k]) !== JSON.stringify(legacy[k])) return "migration changed " + k;
-  if (slot._ver !== 3 || !slot._meta) return "migrated slot carries no version/meta";   // SAVE_VER: the needs era
+  if (slot._ver !== 4 || !slot._meta) return "migrated slot carries no version/meta";   // SAVE_VER: the temperament era (re-pointed from 3, the needs era)
   if (slot._meta.day !== 6 || slot._meta.coins !== 51200 || slot._meta.crew.length !== 2)   // the card speaks cents whatever era the envelope is
     return "migrated meta wrong: " + JSON.stringify(slot._meta);
   const st = JSON.parse(sim.G("JSON.stringify([Math.round(coins), day, UPS.chef.lvl, activeSlot, crabs.map(c => c.p.name), memorials.length])"));
@@ -12323,6 +12323,9 @@ scenario("brains: citizen shadow is inert - the crew cannot tell they are being 
   // scenario that lets the shadow ride the default bundle without a single
   // fingerprint re-pin. MUTATION: one srand() in shadowCitObserve moves the
   // day-3 books and this names them.
+  // Both legs keep the LIVE vis brain (deleting all of BRAINS would change
+  // the town for the visitor brain's own reasons and say nothing about the
+  // citizen shadow) - only the citizen policy differs between them.
   const fp = (stage) => {
     const sim = createSim({ seed: 909 });
     sim.G(stage);
@@ -12331,8 +12334,8 @@ scenario("brains: citizen shadow is inert - the crew cannot tell they are being 
       pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
   };
   const shadowed = fp(``);                 // the bundle's own arming
-  const brainless = fp(`BRAINS = {}`);
-  if (shadowed !== brainless) return "the citizen shadow moved the town: " + shadowed.slice(0, 120) + " vs " + brainless.slice(0, 120);
+  const unwatched = fp(`delete BRAINS.crab["cit_errand.candidate"]`);
+  if (shadowed !== unwatched) return "the citizen shadow moved the town: " + shadowed.slice(0, 120) + " vs " + unwatched.slice(0, 120);
   return true;
 });
 
@@ -12403,26 +12406,25 @@ scenario("brains: a temperament bends a mind, and both doors check it", () => {
     return null;
   })()`);
   if (flip) return flip;
+  // the envelope, by the round-trip scenario's own idiom: save() then read
+  // the stored blob and craft it NODE-SIDE, handing it back through load()
+  sim.G("save()");
+  const env = JSON.parse(sim.G("localStorage.getItem(SAVE_KEY)"));
+  if (!env || !env.personas) return "no envelope to test against";
   // door 2: saveProblem names the number
-  const door2 = sim.G(`(function () {
-    const env = JSON.parse(JSON.stringify(readSlotEnv(1) || (save(true), readSlotEnv(1)) || null));
-    if (!env) { const e2 = {}; return "no envelope to test against"; }
-    env.personas[0].dm = { w: [200], b: [0] };
-    const why = saveProblem(env);
-    return why && why.indexOf("200") !== -1 ? null : "an int8 overflow slipped the gate: " + why;
-  })()`);
-  if (door2) return door2;
+  const bad2 = JSON.parse(JSON.stringify(env));
+  bad2.personas[0].dm = { w: [200], b: [0] };
+  const why2 = sim.G(`saveProblem(${JSON.stringify(bad2)})`);
+  if (!why2 || why2.indexOf("200") === -1) return "an int8 overflow slipped the gate: " + why2;
   // door 3: a wrong-shape dm is stripped loudly at load, life goes on
-  const sim2 = createSim({ seed: 909 });
-  const door3 = sim2.G(`(function () {
-    save(true);
-    const env = readSlotEnv(1);
-    if (!env) return "no envelope";
-    env.personas[0].dm = { w: [1, 2, 3], b: [0] };   // in-range, wrong shape for any brain
-    env._ver = 4;
+  const bad3 = JSON.parse(JSON.stringify(env));
+  bad3.personas[0].dm = { w: [1, 2, 3], b: [0] };   // in-range, wrong shape for any brain
+  bad3._ver = 4;
+  const door3 = sim.G(`(function () {
+    const env = ${JSON.stringify(bad3)};
     if (saveProblem(env)) return "ranges rejected a shaped-only problem: " + saveProblem(env);
     if (!load(null, env)) return "the load refused a save it should strip-and-accept";
-    if (crabs[0].p.dm) return "the misfit temperament survived the door";
+    for (const c of crabs) if (c.p.dm) return "the misfit temperament survived the door";
     if (!toast || String(toast.text).indexOf("TEMPERAMENT") === -1) return "the strip was silent - the door must name it";
     return null;
   })()`);
@@ -12434,11 +12436,13 @@ scenario("saves: a ver-3 envelope is the zero delta", () => {
   // dr, no complaints - absence IS the zero delta (dream-replay rung 0).
   const sim = createSim({ seed: 1337 });
   sim.runDays(2);
+  sim.G("save()");
+  const env = JSON.parse(sim.G("localStorage.getItem(SAVE_KEY)"));
+  if (!env || !env.personas) return "no envelope to test against";
+  env._ver = 3;
+  for (const p of env.personas) { delete p.dm; delete p.dr; }
   const bad = sim.G(`(function () {
-    save(true);
-    const env = readSlotEnv(1);
-    env._ver = 3;
-    for (const p of env.personas) { delete p.dm; delete p.dr; }
+    const env = ${JSON.stringify(env)};
     if (saveProblem(env)) return "a ver-3 envelope was refused: " + saveProblem(env);
     if (!load(null, env)) return "the load refused a ver-3 envelope";
     for (const c of crabs) if (c.p.dm || c.p.dr) return c.p.name + " grew a temperament out of nothing";
