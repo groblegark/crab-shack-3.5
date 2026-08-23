@@ -7953,6 +7953,9 @@ function installCultures(raw, mine) {
     }
     catch (e) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
   }
+  // every install re-deals the kernel's body rows (idempotent, sorted): a
+  // scenario, the MCP, and loadCultures' two passes all leave the same table
+  fillBodyRows();
 }
 // THE PEOPLES OF THE WORLD, assembled at every boot and every load.
 //
@@ -7970,13 +7973,12 @@ function loadCultures(raw) {
   for (const k in CULTURE_INGREDIENTS) { delete INGREDIENT_COST[k]; delete CULTURE_INGREDIENTS[k]; }
   rawCultures = null;
   installCultures(typeof BUNDLED_CULTUREWAYS !== "undefined" ? BUNDLED_CULTUREWAYS : null, true);
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) { rebuildBrains(); fillBodyRows(); return; }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) { rebuildBrains(); return; }
   // the RAW key round-trips even when a culture fails the gate: a load must
   // never destroy data it merely could not use
   rawCultures = raw;
   installCultures(raw, false);
   rebuildBrains();
-  fillBodyRows();
 }
 // Resolve a customer/visitor's culture entry for the DRAW path. Crab - and
 // every walk-in, which has no culture field at all - resolves to null, and
