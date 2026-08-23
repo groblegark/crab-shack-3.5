@@ -12758,7 +12758,7 @@ scenario("personal space: a walker passes through the crowd, and the crowd holds
   const before = sim.G(`window._vs.map(k => PXQ[k.si]).join(",")`);
   sim.G(`window._vw = (() => { const k = newVisitor(false);
     k.state = "roam"; k.x = 1100; k.wy = FLOOR_Y; k.target = 1320;
-    k.idleT = 0; k.thinkT = 9e9;
+    k.idleT = 9e9; k.thinkT = 9e9;   // idleT parked so ARRIVING doesn't re-roll a fresh stroll
     k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
     customers.push(k); return k; })();`);
   // 220px at a 42px/s stroll is ~105 ticks; 140 is the generous gate. If the
@@ -12776,20 +12776,27 @@ scenario("personal space: leavers line the pier, and the line never costs the bo
   // pin is boarded-and-gone for all three, not just spacing.
   const sim = createSim({ seed: 31 });
   sim.runUntil("tmin > 11.75 * 60 && !ferryHere()", { maxSteps: 400000 });
-  sim.G(`window._vl = [0, 0, 0].map(() => { const k = newVisitor(false);
+  // SEVEN leavers, not three, and that number is the pin's teeth: places
+  // 0-2 stand east of the boarding gate (gangway-12) and would board from
+  // their line spots even if the line never collapsed - places 3+ stand
+  // WEST of it and make the boat only because ferryHere() folds the line.
+  // Three leavers proved nothing about the collapse; seven bite.
+  sim.G(`window._vl = [0, 0, 0, 0, 0, 0, 0].map(() => { const k = newVisitor(false);
     k.state = "roam"; k.x = 1800; k.wy = FLOOR_Y; k.target = 1800;
     k.idleT = 9e9; k.thinkT = 9e9;
     k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
     customers.push(k); return k; });
     for (const k of window._vl) visLeave(k);`);
   const slots = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.pierSlot))`));
-  if (new Set(slots).size !== 3)
+  if (new Set(slots).size !== 7)
     return "dispatch dealt the same place twice: slots " + slots.join(",");
-  sim.runUntil("false", { maxSteps: 400 });   // 250px of pier + the climb: ~20s, taken twice
+  // 250px of pier + the climb is ~150 ticks; 200 parks everyone WELL BEFORE
+  // the 13:00 boat docks (400 was a bug: it sampled boarding-frozen x's)
+  sim.runUntil("false", { maxSteps: 200 });
   const xs = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.x))`));
   const legs = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.leg))`));
   if (legs.some(l => l !== 1)) return "somebody never made the deck: legs " + legs.join(",");
-  for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
+  for (let i = 0; i < 7; i++) for (let j = i + 1; j < 7; j++)
     if (Math.abs(xs[i] - xs[j]) < 5)
       return `the line is a stack: ${xs[i].toFixed(1)} vs ${xs[j].toFixed(1)}`;
   // ...and the 13:00 boat takes everyone, wherever they stood in line
