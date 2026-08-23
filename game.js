@@ -11338,6 +11338,16 @@ const VIS_BED_DRAIN = 0.30;      // a hotel bed drains tiredness at TIRED_DRAIN.
 // hundred pixels of promenade; the shops are what pull them further.
 const VIS_ROAM = [700, 1900];    // the stretch of promenade a visitor will stroll
 const VIS_STROLL = 340;          // ...and how far from here one stroll takes them
+// PERSONAL SPACE. The crab collider never saw visitors, and with three
+// cultures ashore it showed: roam idlers loafing on the same four pixels,
+// sand sleepers bedding down inside each other, a stroller parked in a
+// diner's lap. visSeparate() spreads the STANDING crowd - movers are exempt
+// (overlap in motion reads as brushing past) - and these are its numbers.
+// One engine table for now; the cultureway schema is the natural home for a
+// species that stands closer (noted in the close-out, not built).
+const VSEP_RXQ = 10 * Q8;   // standers closer than 10px part
+const VSEP_RYQ = 8 * Q8;    // ...within the same 8px lane (deck vs floor stay strangers)
+const VSEP_SPD = 24;        // px/s the parting moves: soft, a second to resolve a pile
 // the room rate is the hotel's menu price, read off the recipe so the price on
 // the sign and the money a visitor holds back can never disagree
 const ROOM_RATE = 100 * BIZ.hotel.recipes[0].pay;   // cents (the recipe table stays author-dollars)
@@ -11600,6 +11610,14 @@ function visLeave(k) {
   // there: check them out properly so the night is credited and the room goes
   // back to housekeeping, then send them down the pier
   if (k.room) checkOut(k);
+  // THE LINE DOWN THE PIER: everyone used to wait on the same plank (the
+  // gangway's exact foot), a stack of guests drawn as one guest. A leaver
+  // takes a PLACE instead - their ordinal among those already heading
+  // out, counted at dispatch, so the wait reads as a queue seaward. The
+  // spots collapse the moment she docks (see toPier's mover) - a spot in
+  // line must never cost anyone the boat.
+  k.pierSlot = 0;
+  for (const q of customers) if (q.visitor && !q.gone && q.stC === VS.toPier) k.pierSlot++;
   k.stC = VS.toPier; k.leg = 0; k.target = null;
   visLog(k, "life", vline(k, "leaving", "HEADING BACK TO THE FERRY"));
 }
@@ -12066,16 +12084,22 @@ function visStep(k, tx, ty, dt) {
   // (slice 4) the stroll in Q8: per-frame step floors 42 px/s to the grain
   const i = k.si;
   if (KERN) {   // the compiled body; the JS below stays the reference
+    // _vmoved by plane compare, not a new return bit: the planes are shared
+    // memory, so "did the kernel move them" is a fact both backends read the
+    // same way, and the kernel ABI stays untouched. visSeparate() is the
+    // only consumer - a mover this frame is exempt from personal space.
+    const x0 = PXQ[i], y0 = PWYQ[i];
     const kr = KERN.exports.vis_step(i, Math.round(tx * Q8),
       ty == null ? PWYQ[i] : Math.round(ty * Q8), dtT);
     if (kr & 2) k.face = (kr & 4) ? -1 : 1;
+    if (PXQ[i] !== x0 || PWYQ[i] !== y0) k._vmoved = true;
     return !!(kr & 1);
   }
   const spq = idiv(VIS_SPEED * Q8 * dtT, TICK_HZ);
   const txq = Math.round(tx * Q8), tyq = ty == null ? PWYQ[i] : Math.round(ty * Q8);
   const dxq = txq - PXQ[i], dyq = tyq - PWYQ[i];
-  if (dxq > Q8 || dxq < -Q8) { PXQ[i] += Math.sign(dxq) * Math.min(spq, Math.abs(dxq)); k.face = Math.sign(dxq); }
-  if (dyq > Q8 || dyq < -Q8) PWYQ[i] += Math.sign(dyq) * Math.min(spq, Math.abs(dyq));
+  if (dxq > Q8 || dxq < -Q8) { PXQ[i] += Math.sign(dxq) * Math.min(spq, Math.abs(dxq)); k.face = Math.sign(dxq); k._vmoved = true; }
+  if (dyq > Q8 || dyq < -Q8) { PWYQ[i] += Math.sign(dyq) * Math.min(spq, Math.abs(dyq)); k._vmoved = true; }
   return Math.abs(txq - PXQ[i]) <= Q8 && Math.abs(tyq - PWYQ[i]) <= Q8;
 }
 // needs, the clock, and the wallet's own ticking - runs for EVERY visitor,
@@ -12132,7 +12156,11 @@ function updateVisitor(k, dt) {
       if (visStep(k, FERRY.shore, FLOOR_Y, dt)) { k.leg = 1; }
       return;
     }
-    visStep(k, FERRY.gangway + 4, FERRY.deckY, dt);
+    // waiting: stand at your place in line, spaced down the deck; docked:
+    // the line collapses and everyone makes for the plank (the boarding
+    // gate is gangway-12, so a spot in line is never west of the boat's
+    // reach for long - she lies alongside for 75 game-minutes).
+    visStep(k, FERRY.gangway + 4 - (ferryHere() ? 0 : 6 * Math.min(k.pierSlot || 0, 20)), FERRY.deckY, dt);
     return;
   }
   if (k.stC === VS.toRoom) {
@@ -12215,6 +12243,66 @@ function updateVisitor(k, dt) {
     k.idleT = 0;
   }
   if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 * SEC + ((srand() * 5 * SEC) | 0);
+}
+// PERSONAL SPACE FOR THE STANDING CROWD (VSEP_* above). Matt's rule, both
+// halves: "they should be able to overlap somewhat while moving" - so a
+// mover this frame (k._vmoved, stamped by visStep in both backends off the
+// same shared planes) passes through anybody - and a STANDING pair parts.
+// The still sort into two castes:
+//   PUSHABLE - roam and onSand: loiterers whose spot is their own k.target.
+//     The push moves the TARGET with the body, so the stepper AGREES with
+//     the parting instead of walking it straight back (the crab collider
+//     fought this exact standoff once - SANDY vs CLAWDIA's doorstep - and
+//     its mover-target exemption is the same lesson).
+//   ANCHOR - everyone else still (queues, seats, stalls, doorways): the
+//     machine put them there, so only their pushable neighbour steps aside,
+//     and an anchor pair (two diners at one table) is the furniture's
+//     business, not ours.
+// x only - the promenade is a line, and a y push would fight visStep's
+// FLOOR_Y hold. Pure Q8 ints, no draws, pool order breaks the exact-pile
+// tie: deterministic by construction, and identical under the kernel
+// because it IS the same code writing the same shared planes.
+const _vsepStill = [];
+function vsepPush(k, dq) {
+  const i = k.si, x0 = PXQ[i];
+  let x1 = x0 + dq;   // clamped to the promenade: a wall absorbs what it must
+  if (x1 < VIS_ROAM[0] * Q8) x1 = VIS_ROAM[0] * Q8;
+  else if (x1 > VIS_ROAM[1] * Q8) x1 = VIS_ROAM[1] * Q8;
+  PXQ[i] = x1;
+  if (k.target != null) k.target += (x1 - x0) / Q8;   // exact: Q8 is a power of two
+}
+function visSeparate() {
+  if (window._novsep) return;   // the arm-off hatch, attribution's friend
+  const still = _vsepStill; still.length = 0;
+  for (const k of customers) {
+    if (!k.visitor || k.gone || k.hidden || k._vmoved) continue;
+    if (k.stC === VS.inRoom || k.stC === VS.showering) continue;
+    if (PWYQ[k.si] < FLOOR_MIN * Q8) continue;   // on the deck: that line is visLeave's
+    still.push(k);
+  }
+  if (still.length < 2) return;
+  const stepq = idiv(VSEP_SPD * Q8 * dtT, TICK_HZ);
+  for (let i = 0; i < still.length; i++)
+    for (let j = i + 1; j < still.length; j++) {
+      const a = still[i], b = still[j];
+      const dyq = PWYQ[b.si] - PWYQ[a.si];
+      if (dyq > VSEP_RYQ || dyq < -VSEP_RYQ) continue;
+      const dxq = PXQ[b.si] - PXQ[a.si];
+      const adx = dxq < 0 ? -dxq : dxq;
+      if (adx >= VSEP_RXQ) continue;
+      const pa = a.stC === VS.roam || a.stC === VS.onSand;
+      const pb = b.stC === VS.roam || b.stC === VS.onSand;
+      if (!pa && !pb) continue;
+      const need = VSEP_RXQ - adx;
+      // dxq === 0 is the exact pile (three guests on one point): the earlier
+      // body holds the west, and array order is the tiebreak. No dice.
+      const dir = dxq < 0 ? -1 : 1;
+      if (pa && pb) {
+        const half = Math.min(stepq, (need + 1) >> 1);
+        vsepPush(a, -dir * half); vsepPush(b, dir * half);
+      } else if (pa) vsepPush(a, -dir * Math.min(stepq, need));
+      else vsepPush(b, dir * Math.min(stepq, need));
+    }
 }
 // A VISIT DOES NOT END AT THE COUNTER. The shop pipeline's `leaving` state
 // means "walk away from this counter" for a visitor, not "walk out of the
@@ -12374,6 +12462,7 @@ function updateCustomers(dt) {
   }
   for (const k of customers) {
     if (k.visitor) {
+      k._vmoved = false;                                     // visStep re-stamps it below
       visTick(k, dt);                                        // needs run wherever they are
       if (VIS_STATES[k.state]) { updateVisitor(k, dt); continue; }
     }
@@ -12525,6 +12614,7 @@ function updateCustomers(dt) {
   }
   // A visitor stays until the ferry takes them; everybody else goes as before.
   customers = customers.filter(k => k.visitor ? !k.gone : k.isCrab ? !k.done : PXQ[k.si] < (k.spawnXQ || WORLD_W * Q8) + 20 * Q8);
+  visSeparate();   // the standing crowd parts - after every mover has moved
   // (THE OLD SPAWN TIMER LIVED HERE.) Tourist demand is no longer a clock: it
   // is the visitors who are actually in town, deciding what they fancy. The
   // reputation term the timer carried now sets the SIZE OF THE BOAT instead -
