@@ -11800,16 +11800,22 @@ scenario("cultureways: a settling pig is counted, and the card speaks her regist
   return true;
 });
 
-scenario("cultureways: the apron is refused - a pig is never converted", () => {
-  // The preferred recruit is a pig: she declines in her register, stays a
-  // visitor, and the hire falls through - to the crab tourist if one is
-  // about, and the pig is still ashore afterwards with her diary line.
+scenario("cultureways: the apron is refused - an UNDECLARING culture is never converted", () => {
+  // The preferred recruit is a pig whose document says nothing about
+  // settlers (the shipped pigway now declares - so this fixture clone
+  // strips the section): she declines in her register, stays a visitor,
+  // and the hire falls through - to the crab tourist if one is about, and
+  // the pig is still ashore afterwards with her diary line. The refusal
+  // is the DEFAULT a silent document keeps, not the engine's opinion of
+  // pigs - the settling path is the scenario below.
   const store = new Map();
   const a = createSim({ seed: 77, storage: store, fresh: false });
   a.runDays(1);
   a.G("save()");
   const env = JSON.parse(store.get(SLOT1));
-  env.cultures = { pig: PIG_FIXTURE };
+  const undeclaring = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  delete undeclaring.settlers;
+  env.cultures = { pig: undeclaring };
   env.visitors = [
     { n: "RASHER", cu: "pig", c: 3, a: "none", x: 900, y: 150, s: "roam",
       w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,

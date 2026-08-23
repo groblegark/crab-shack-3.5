@@ -473,6 +473,10 @@ var BUNDLED_CULTUREWAYS = {
     }
    ]
   },
+  "settlers": {
+   "apron": true,
+   "walkins": 2
+  },
   "appeal": {
    "tastes": {
     "taco": 0.6,
