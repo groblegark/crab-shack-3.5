@@ -11124,6 +11124,7 @@ scenario("appeal: a cultureway's nudge terms land in the engine's own units, and
   fx.appeal.nudge = { radius: 100, minutes: 120, relax: 0.3, mul100: 200 };
   const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
   part.meta.id = "partpig";
+  delete part.foodways;   // the fixture's corn is PIG's priced import; a clone under another id may not claim it
   part.appeal.nudge = { radius: 96 };   // the other three fields inherit crab values
   sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
@@ -11222,7 +11223,7 @@ scenario("the biz catalog: a declared shop and a priced import build pending, an
     return sim.G(`JSON.stringify({ day, coins, rep, fund: townFund.bal,
       crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), c.p.wallet]),
       vis: customers.filter(k => k.visitor && !k.gone).map(k => [k.name, Math.round(k.x), k.wallet]),
-      draws: KRNG ? KRNG[0] : rngDraws })`);
+      cursor: simCursor() })`);
   };
   const plain = fp(boar({}));
   if (plain.fail) return plain.fail;
