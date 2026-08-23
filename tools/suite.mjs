@@ -11097,15 +11097,23 @@ scenario("cultureways: broken art is refused with a message and the town still l
     ["a lavish table tip", mut(d => d.management = { tableTip: 900 })],   // author units are DOLLARS - 900 is the cents habit, refused
     ["a fractional counter share", mut(d => d.management = { counter20: 3.5 })],
     ["a shift off the half-hour", mut(d => d.management = { shifts: { std: 361 } })],
-    ["a re-priced native ingredient", mut(d => d.foodways.ingredients.fish_raw = 1)],
-    ["a stolen ingredient", mut(d => d.meta.id = "boar")],   // the fixture's corn is PIG's price; claiming it as boar is theft
-    ["a business shadowing the catalog", mut(d => d.businesses = { shack: 1 })],
-    ["a bad business rent", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X", kind: "shopfront", rent: 99999 } })],
-    ["a business naming an owner", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X", kind: "shopfront", rent: 30, owner: "player" } })],
+    // catalog rows carry the EXPECTED refusal, so a loosened clamp cannot
+    // hide behind a different crime in the same document (the vacuous-
+    // mutation lesson): each doc below is valid EXCEPT for its one sin
+    ["a re-priced native ingredient", mut(d => d.foodways.ingredients.fish_raw = 1), "PIER'S OWN PRICE LIST"],
+    ["a stolen ingredient", mut(d => d.meta.id = "boar"), "ANOTHER PEOPLE"],   // the fixture's corn is PIG's price
+    ["a business shadowing the catalog", mut(d => d.businesses = { shack: 1 }), "SHADOWS THE TOWN'S OWN CATALOG"],
+    ["a bad business rent", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X",
+      kind: "shopfront", rent: 99999, stations: { pot: 1 }, source: "pot", out: "pot",
+      recipes: [{ id: "stew", icon: "juice", pay: 5, raw: "fruit", steps: [["pot", 2.0, "juice"]] }] } }), "BAD RENT"],
+    ["a business naming an owner", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X",
+      kind: "shopfront", rent: 30, owner: "player", stations: { pot: 1 }, source: "pot", out: "pot",
+      recipes: [{ id: "stew", icon: "juice", pay: 5, raw: "fruit", steps: [["pot", 2.0, "juice"]] }] } }), "MAY NOT NAME AN OWNER"],
   ];
-  for (const [what, d] of cases) {
+  for (const [what, d, exp] of cases) {
     const why = b.G("cultureProblem(" + JSON.stringify(d) + ")");
     if (!why || typeof why !== "string") return what + " was not refused by cultureProblem";
+    if (exp && !why.includes(exp)) return what + " was refused for the wrong reason: " + why;
   }
   // ...and the clean fixture passes the same gate
   const ok = b.G("cultureProblem(" + JSON.stringify(PIG_FIXTURE) + ")");
