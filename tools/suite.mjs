@@ -11904,8 +11904,10 @@ scenario("settlers: the walk-in manifest draws nothing until a share is declared
   // the walk-in builder AND the migrated-save seeder. The share clamp is
   // the mutation surface: 20/20 would flood the town and must be refused.
   const sim = createSim({ seed: 21 });
+  // count draws by wrapping srand itself: the harness tap hides the cursor
+  sim.G("window._drawN = 0; { const o = srand; srand = () => { window._drawN++; return o(); }; }");
   const silent = JSON.parse(sim.G(`JSON.stringify((() => {
-    const c0 = simCursor(); const id = walkinCulture(); const c1 = simCursor();
+    const c0 = window._drawN; const id = walkinCulture(); const c1 = window._drawN;
     const w = newCustomer("shack");
     return { id, moved: c0 !== c1, cu: w.culture, name: w.name }; })())`));
   if (silent.id !== "crab" || silent.moved) return "an undeclared manifest drew from the stream";
@@ -11914,16 +11916,14 @@ scenario("settlers: the walk-in manifest draws nothing until a share is declared
   fx.settlers = { walkins: 8 };   // 8/20: the cap, so a handful of rolls lands a pig fast
   sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
   const declared = JSON.parse(sim.G(`JSON.stringify((() => {
-    const got = { rolled: false, pig: null, seeded: null };
-    for (let i = 0; i < 40 && !got.pig; i++) {
-      const c0 = simCursor(); const id = walkinCulture();
-      if (simCursor() === c0) return { err: "a declared manifest never drew" };
-      got.rolled = true;
-      if (id === "pig") {
-        const w = newCustomer("shack");
+    const c0 = window._drawN; walkinCulture();
+    if (window._drawN === c0) return { err: "a declared manifest never drew" };
+    const got = { pig: null, seeded: null };
+    for (let i = 0; i < 60 && !got.pig; i++) {
+      const w = newCustomer("shack");   // rolls the manifest itself
+      if (w.culture === "pig")
         got.pig = { cu: w.culture, named: CULTURES.pig.def.people.names.includes(w.name),
           color: w.color < CULTURES.pig.colorways, acc: CULTURES.pig.accKeys.includes(w.acc) };
-      }
     }
     // ...and the migrated-save seeder reads the same manifest
     customers = customers.filter(k => !k.visitor);
