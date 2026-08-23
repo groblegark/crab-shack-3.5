@@ -6892,6 +6892,11 @@ function bizRecipes(b) {
 // with a message, not at first draw.
 function cultureProblem(d, ownId) {
   if (!d || typeof d !== "object" || Array.isArray(d)) return "NOT A CULTURE";
+  // ownId: the id this document is being installed AS - the install map key,
+  // which outranks anything the document claims about itself. Ad-hoc
+  // validation (MCP, suite) may omit it and the claimed meta.id stands in,
+  // so a bundled culture's own ingredients don't read as a stranger's.
+  if (ownId === undefined) ownId = d.meta && d.meta.id;
   const rgb = (c) => Array.isArray(c) && c.length === 3
     && c.every(v => typeof v === "number" && isFinite(v) && v >= 0 && v <= 255);
   if (!d.people || !Array.isArray(d.people.names) || !d.people.names.length) return "NO NAME POOL";

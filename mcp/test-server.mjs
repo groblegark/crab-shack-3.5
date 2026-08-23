@@ -74,6 +74,15 @@ check("cultureway_get returns a document", pig && pig.meta && pig.meta.id === "p
 const good = JSON.parse(textOf(await call("cultureway_validate", { document: pig })));
 check("the bundled pig validates clean", good.ok === true && good.build === "built", JSON.stringify(good).slice(0, 200));
 
+// a whole declared shop - the biz-catalog format - validates and builds
+const withShop = JSON.parse(JSON.stringify(pig));
+withShop.businesses = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
+  kind: "shopfront", rent: 30, wage: 22, stalls: 3, stations: { trough: 2, ladle: 1 },
+  source: "trough", out: "ladle",
+  recipes: [{ id: "wallow", icon: "porkbun", pay: 12, raw: "corn", steps: [["ladle", 2.0, "porkbun"]] }] } };
+const shopV = JSON.parse(textOf(await call("cultureway_validate", { document: withShop })));
+check("a declared business validates and builds", shopV.ok === true && shopV.build === "built", JSON.stringify(shopV).slice(0, 200));
+
 // a document broken in four different ways at once
 const bad = JSON.parse(JSON.stringify(pig));
 bad.meta.id = "Bad-Id";
@@ -82,9 +91,18 @@ bad.appeal.tastes.fish = 99;
 bad.appeal.nudge = { mul100: 9000 };
 bad.management = { tableTip: 900 };   // the cents habit - author units are whole dollars
 bad.people.names.push("A NAME MUCH TOO LONG");
+bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
+bad.businesses = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
+  kind: "shopfront", rent: 99999, owner: "player", stations: { trough: 2 },
+  source: "trough", out: "trough",
+  recipes: [{ id: "wallow", icon: "porkbun", pay: 12, raw: "corn", steps: [["grill", 2.0, "porkbun"]] }] } };
 const v = JSON.parse(textOf(await call("cultureway_validate", { document: bad })));
 const paths = (v.problems || []).map((p) => p.path).join(" ");
 check("invalid document is rejected", v.ok === false);
+check("error names the re-priced native ingredient", /foodways\.ingredients\.fish_raw/.test(paths), paths);
+check("error names the bad business rent", /businesses\.mudspa\.rent/.test(paths), paths);
+check("error names the forbidden owner", /businesses\.mudspa\.owner/.test(paths), paths);
+check("error names the station the business never declared", /businesses\.mudspa\.recipes\[0\]\.steps\[0\]/.test(paths), paths);
 check("error names the offending pose row", /art\.body\.poses\.a\[2\]/.test(paths), paths);
 check("error names the over-long name", /people\.names\[\d+\]/.test(paths), paths);
 check("error names the out-of-range taste", /appeal\.tastes\.fish/.test(paths), paths);
