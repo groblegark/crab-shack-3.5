@@ -1,0 +1,65 @@
+{
+  "release": "cs-body-sensitivity-0405246-k3qh",
+  "armId": "ctl-sb0",
+  "index": 0,
+  "sha": "0405246eb29596d5a2857ff339f344a34ca94b28",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 62946,
+  "verdict": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":5,\"evicted\":11,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"9\":3,\"11\":4,\"12\":2,\"14\":1,\"17\":1},\"median\":11,\"min\":9,\"max\":17},\"lifetime\":{\"median\":3705,\"p10\":2390,\"p90\":14941,\"mean\":6904},\"throughput\":{\"livedSimDays\":281,\"wallSec\":62.9,\"simDaysPerSec\":4.5,\"loadavg\":[5.4,1.8,0.7]}}",
+  "failures": [],
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 0,
+    "jobs": 7,
+    "workload": "--days 30 --buy chef,table --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 5,
+    "evicted": 11,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "9": 3,
+        "11": 4,
+        "12": 2,
+        "14": 1,
+        "17": 1
+      },
+      "median": 11,
+      "min": 9,
+      "max": 17
+    },
+    "lifetime": {
+      "median": 3705,
+      "p10": 2390,
+      "p90": 14941,
+      "mean": 6904
+    },
+    "throughput": {
+      "livedSimDays": 281,
+      "wallSec": 62.9,
+      "simDaysPerSec": 4.5,
+      "loadavg": [
+        5.4,
+        1.8,
+        0.7
+      ]
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":5,\"evicted\":11,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"9\":3,\"11\":4,\"12\":2,\"14\":1,\"17\":1},\"median\":11,\"min\":9,\"max\":17},\"lifetime\":{\"median\":3705,\"p10\":2390,\"p90\":14941,\"mean\":6904},\"throughput\":{\"livedSimDays\":281,\"wallSec\":62.9,\"simDaysPerSec\":4.5,\"loadavg\":[5.4,1.8,0.7]}}\n"
+}

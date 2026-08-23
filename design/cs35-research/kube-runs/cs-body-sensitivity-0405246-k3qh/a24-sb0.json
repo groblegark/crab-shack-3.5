@@ -1,0 +1,72 @@
+{
+  "release": "cs-body-sensitivity-0405246-k3qh",
+  "armId": "a24-sb0",
+  "index": 6,
+  "sha": "0405246eb29596d5a2857ff339f344a34ca94b28",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json",
+    "--bodymul",
+    "{\"rates\":{\"hunger\":24,\"thirst\":24,\"dirt\":24,\"bored\":24,\"tired\":24}}"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 59241,
+  "verdict": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --bodymul {\\\"rates\\\":{\\\"hunger\\\":24,\\\"thirst\\\":24,\\\"dirt\\\":24,\\\"bored\\\":24,\\\"tired\\\":24}} --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":4,\"evicted\":12,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"8\":2,\"9\":1,\"10\":1,\"11\":1,\"12\":2,\"13\":1,\"17\":1,\"18\":1,\"21\":1,\"24\":1},\"median\":12,\"min\":8,\"max\":24},\"lifetime\":{\"median\":5757,\"p10\":2157,\"p90\":15347,\"mean\":6988},\"throughput\":{\"livedSimDays\":287,\"wallSec\":59.19,\"simDaysPerSec\":4.8,\"loadavg\":[6.8,2.2,0.8]}}",
+  "failures": [],
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 0,
+    "jobs": 7,
+    "workload": "--days 30 --buy chef,table --bodymul {\"rates\":{\"hunger\":24,\"thirst\":24,\"dirt\":24,\"bored\":24,\"tired\":24}} --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 4,
+    "evicted": 12,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "8": 2,
+        "9": 1,
+        "10": 1,
+        "11": 1,
+        "12": 2,
+        "13": 1,
+        "17": 1,
+        "18": 1,
+        "21": 1,
+        "24": 1
+      },
+      "median": 12,
+      "min": 8,
+      "max": 24
+    },
+    "lifetime": {
+      "median": 5757,
+      "p10": 2157,
+      "p90": 15347,
+      "mean": 6988
+    },
+    "throughput": {
+      "livedSimDays": 287,
+      "wallSec": 59.19,
+      "simDaysPerSec": 4.8,
+      "loadavg": [
+        6.8,
+        2.2,
+        0.8
+      ]
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --bodymul {\\\"rates\\\":{\\\"hunger\\\":24,\\\"thirst\\\":24,\\\"dirt\\\":24,\\\"bored\\\":24,\\\"tired\\\":24}} --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":4,\"evicted\":12,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"8\":2,\"9\":1,\"10\":1,\"11\":1,\"12\":2,\"13\":1,\"17\":1,\"18\":1,\"21\":1,\"24\":1},\"median\":12,\"min\":8,\"max\":24},\"lifetime\":{\"median\":5757,\"p10\":2157,\"p90\":15347,\"mean\":6988},\"throughput\":{\"livedSimDays\":287,\"wallSec\":59.19,\"simDaysPerSec\":4.8,\"loadavg\":[6.8,2.2,0.8]}}\n"
+}

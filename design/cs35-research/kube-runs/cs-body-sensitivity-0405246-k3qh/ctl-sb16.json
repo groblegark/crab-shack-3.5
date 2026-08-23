@@ -1,0 +1,70 @@
+{
+  "release": "cs-body-sensitivity-0405246-k3qh",
+  "armId": "ctl-sb16",
+  "index": 7,
+  "sha": "0405246eb29596d5a2857ff339f344a34ca94b28",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 54530,
+  "verdict": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":2,\"evicted\":14,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"7\":1,\"8\":1,\"9\":1,\"10\":1,\"11\":4,\"12\":1,\"13\":1,\"15\":1,\"17\":1,\"19\":2},\"median\":11,\"min\":7,\"max\":19},\"lifetime\":{\"median\":3652,\"p10\":2350,\"p90\":15110,\"mean\":5238},\"throughput\":{\"livedSimDays\":235,\"wallSec\":54.48,\"simDaysPerSec\":4.3,\"loadavg\":[7.7,3.5,1.3]}}",
+  "failures": [],
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 16,
+    "jobs": 7,
+    "workload": "--days 30 --buy chef,table --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 2,
+    "evicted": 14,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "7": 1,
+        "8": 1,
+        "9": 1,
+        "10": 1,
+        "11": 4,
+        "12": 1,
+        "13": 1,
+        "15": 1,
+        "17": 1,
+        "19": 2
+      },
+      "median": 11,
+      "min": 7,
+      "max": 19
+    },
+    "lifetime": {
+      "median": 3652,
+      "p10": 2350,
+      "p90": 15110,
+      "mean": 5238
+    },
+    "throughput": {
+      "livedSimDays": 235,
+      "wallSec": 54.48,
+      "simDaysPerSec": 4.3,
+      "loadavg": [
+        7.7,
+        3.5,
+        1.3
+      ]
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"workload\":\"--days 30 --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":2,\"evicted\":14,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"7\":1,\"8\":1,\"9\":1,\"10\":1,\"11\":4,\"12\":1,\"13\":1,\"15\":1,\"17\":1,\"19\":2},\"median\":11,\"min\":7,\"max\":19},\"lifetime\":{\"median\":3652,\"p10\":2350,\"p90\":15110,\"mean\":5238},\"throughput\":{\"livedSimDays\":235,\"wallSec\":54.48,\"simDaysPerSec\":4.3,\"loadavg\":[7.7,3.5,1.3]}}\n"
+}
