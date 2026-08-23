@@ -2,8 +2,8 @@
   "name": "cit-science-corpus",
   "note": "Citizen-mind science, phase 1: the paired corpus. LIVE arms carry --citdivlog (divergence buckets in the receipt via >> citdivsum); SCRIPT arms are the same instrument with the citizen policy off. Same entry, same env, same seeds as the citizen close-out's ceremony matrix — the baselines are REBUILT here per the runbook's same-instrument rule, not quoted from the close-out.",
   "resources": {
-    "requests": { "cpu": "7", "memory": "2Gi" },
-    "limits": { "cpu": "8", "memory": "4Gi" }
+    "requests": { "cpu": "7", "memory": "6Gi" },
+    "limits": { "cpu": "8", "memory": "8Gi" }
   },
   "arms": [
     { "id": "live-sb0",    "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
