@@ -1,0 +1,164 @@
+{
+ "corpus": {
+  "rows": 7287,
+  "towns": 16,
+  "days": 12
+ },
+ "zeroDelta": {
+  "checked": 7287,
+  "identical": true
+ },
+ "pooled": {
+  "before": 0.838,
+  "after": 0.9079,
+  "v3": 0.8264,
+  "nights": 40,
+  "perNight": 256,
+  "draws": 10240
+ },
+ "perTown": {
+  "towns": [
+   {
+    "town": 0,
+    "ring": 187,
+    "test": 126,
+    "before": 0.8095,
+    "after": 0.8175
+   },
+   {
+    "town": 1,
+    "ring": 270,
+    "test": 181,
+    "before": 0.8453,
+    "after": 0.8674
+   },
+   {
+    "town": 2,
+    "ring": 93,
+    "test": 63,
+    "before": 0.9683,
+    "after": 0.9683
+   },
+   {
+    "town": 3,
+    "ring": 448,
+    "test": 299,
+    "before": 0.6388,
+    "after": 0.7625
+   },
+   {
+    "town": 4,
+    "ring": 157,
+    "test": 105,
+    "before": 0.8762,
+    "after": 0.9143
+   },
+   {
+    "town": 5,
+    "ring": 357,
+    "test": 238,
+    "before": 0.979,
+    "after": 1
+   },
+   {
+    "town": 6,
+    "ring": 223,
+    "test": 150,
+    "before": 0.9333,
+    "after": 0.9533
+   },
+   {
+    "town": 7,
+    "ring": 259,
+    "test": 174,
+    "before": 0.6379,
+    "after": 0.7471
+   },
+   {
+    "town": 8,
+    "ring": 198,
+    "test": 132,
+    "before": 0.9015,
+    "after": 0.9318
+   },
+   {
+    "town": 9,
+    "ring": 479,
+    "test": 320,
+    "before": 0.7531,
+    "after": 0.9187
+   },
+   {
+    "town": 10,
+    "ring": 156,
+    "test": 104,
+    "before": 0.8846,
+    "after": 1
+   },
+   {
+    "town": 11,
+    "ring": 210,
+    "test": 140,
+    "before": 0.7786,
+    "after": 0.8429
+   },
+   {
+    "town": 12,
+    "ring": 367,
+    "test": 245,
+    "before": 0.8776,
+    "after": 0.9061
+   },
+   {
+    "town": 13,
+    "ring": 315,
+    "test": 210,
+    "before": 0.8714,
+    "after": 0.8762
+   },
+   {
+    "town": 14,
+    "ring": 428,
+    "test": 286,
+    "before": 0.965,
+    "after": 1
+   },
+   {
+    "town": 15,
+    "ring": 220,
+    "test": 147,
+    "before": 0.8776,
+    "after": 0.9184
+   }
+  ],
+  "up": 15,
+  "flat": 1,
+  "down": 0
+ },
+ "stability": {
+  "nights": 1000,
+  "maxW": 127,
+  "maxB": 8028160,
+  "saturated": 52,
+  "of": 168
+ },
+ "mutation": {
+  "unclampedMaxW": 3055,
+  "bites": true
+ },
+ "xengine": {
+  "hash": "445912c6",
+  "draws": 5120,
+  "engines": [
+   "node/V8",
+   "JavaScriptCore"
+  ],
+  "identical": true
+ },
+ "cost": {
+  "usPerReplay": 3.29,
+  "replaysPerNight": 32,
+  "usPerActorNight": 105.2,
+  "pctOfSimDay10Dreamers": 1.05
+ }
+}
