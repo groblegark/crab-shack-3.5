@@ -16,7 +16,7 @@ for (const p of pairs)
       entry: "tools/headless.mjs",
       env: { SIMLIB_REALM: "main" },
       args: ["--days", "30", "--seeds", "16", "--seedbase", String(sb), "--jobs", "7",
-        "--buy", "chef,table", "--citknock", p, "--quiet"],
+        "--workermem", "700", "--buy", "chef,table", "--citknock", p, "--quiet"],
     });
 
 const manifest = {

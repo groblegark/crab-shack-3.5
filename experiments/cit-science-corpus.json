@@ -2,25 +2,164 @@
   "name": "cit-science-corpus",
   "note": "Citizen-mind science, phase 1: the paired corpus. LIVE arms carry --citdivlog (divergence buckets in the receipt via >> citdivsum); SCRIPT arms are the same instrument with the citizen policy off. Same entry, same env, same seeds as the citizen close-out's ceremony matrix — the baselines are REBUILT here per the runbook's same-instrument rule, not quoted from the close-out.",
   "resources": {
-    "requests": { "cpu": "7", "memory": "6Gi" },
-    "limits": { "cpu": "8", "memory": "8Gi" }
+    "requests": {
+      "cpu": "7",
+      "memory": "6Gi"
+    },
+    "limits": {
+      "cpu": "8",
+      "memory": "8Gi"
+    }
   },
   "arms": [
-    { "id": "live-sb0",    "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
-      "args": ["--days","30","--seeds","16","--seedbase","0","--jobs","7","--buy","chef,table","--citdivlog","--quiet"] },
-    { "id": "live-sb16",   "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
-      "args": ["--days","30","--seeds","16","--seedbase","16","--jobs","7","--buy","chef,table","--citdivlog","--quiet"] },
-    { "id": "live-sb32",   "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
-      "args": ["--days","30","--seeds","16","--seedbase","32","--jobs","7","--buy","chef,table","--citdivlog","--quiet"] },
-    { "id": "script-sb0",  "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
-      "args": ["--days","30","--seeds","16","--seedbase","0","--jobs","7","--buy","chef,table","--citscript","--quiet"] },
-    { "id": "script-sb16", "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
-      "args": ["--days","30","--seeds","16","--seedbase","16","--jobs","7","--buy","chef,table","--citscript","--quiet"] },
-    { "id": "script-sb32", "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
-      "args": ["--days","30","--seeds","16","--seedbase","32","--jobs","7","--buy","chef,table","--citscript","--quiet"] }
+    {
+      "id": "live-sb0",
+      "entry": "tools/headless.mjs",
+      "env": {
+        "SIMLIB_REALM": "main"
+      },
+      "args": [
+        "--days",
+        "30",
+        "--seeds",
+        "16",
+        "--seedbase",
+        "0",
+        "--jobs",
+        "7",
+        "--workermem",
+        "700",
+        "--buy",
+        "chef,table",
+        "--citdivlog",
+        "--quiet"
+      ]
+    },
+    {
+      "id": "live-sb16",
+      "entry": "tools/headless.mjs",
+      "env": {
+        "SIMLIB_REALM": "main"
+      },
+      "args": [
+        "--days",
+        "30",
+        "--seeds",
+        "16",
+        "--seedbase",
+        "16",
+        "--jobs",
+        "7",
+        "--workermem",
+        "700",
+        "--buy",
+        "chef,table",
+        "--citdivlog",
+        "--quiet"
+      ]
+    },
+    {
+      "id": "live-sb32",
+      "entry": "tools/headless.mjs",
+      "env": {
+        "SIMLIB_REALM": "main"
+      },
+      "args": [
+        "--days",
+        "30",
+        "--seeds",
+        "16",
+        "--seedbase",
+        "32",
+        "--jobs",
+        "7",
+        "--workermem",
+        "700",
+        "--buy",
+        "chef,table",
+        "--citdivlog",
+        "--quiet"
+      ]
+    },
+    {
+      "id": "script-sb0",
+      "entry": "tools/headless.mjs",
+      "env": {
+        "SIMLIB_REALM": "main"
+      },
+      "args": [
+        "--days",
+        "30",
+        "--seeds",
+        "16",
+        "--seedbase",
+        "0",
+        "--jobs",
+        "7",
+        "--workermem",
+        "700",
+        "--buy",
+        "chef,table",
+        "--citscript",
+        "--quiet"
+      ]
+    },
+    {
+      "id": "script-sb16",
+      "entry": "tools/headless.mjs",
+      "env": {
+        "SIMLIB_REALM": "main"
+      },
+      "args": [
+        "--days",
+        "30",
+        "--seeds",
+        "16",
+        "--seedbase",
+        "16",
+        "--jobs",
+        "7",
+        "--workermem",
+        "700",
+        "--buy",
+        "chef,table",
+        "--citscript",
+        "--quiet"
+      ]
+    },
+    {
+      "id": "script-sb32",
+      "entry": "tools/headless.mjs",
+      "env": {
+        "SIMLIB_REALM": "main"
+      },
+      "args": [
+        "--days",
+        "30",
+        "--seeds",
+        "16",
+        "--seedbase",
+        "32",
+        "--jobs",
+        "7",
+        "--workermem",
+        "700",
+        "--buy",
+        "chef,table",
+        "--citscript",
+        "--quiet"
+      ]
+    }
   ],
-  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
   "tolerations": [
-    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
   ]
 }

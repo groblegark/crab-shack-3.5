@@ -93,6 +93,9 @@ const NODORM = args.includes("--nodorm");
 const CITSCRIPT = args.includes("--citscript");
 const CITDIVLOG = args.includes("--citdivlog");
 const CITKNOCK = (opt("citknock", "") || "").split(",").filter(Boolean);
+// worker heap cap in MB (see runParallel) — required for kube-pod arms,
+// harmless to omit on a bare box.
+const WORKERMEM = opt("workermem", null) != null ? parseInt(opt("workermem", null)) : null;
 const SEEDS = parseInt(opt("seeds", "1"));
 // `--realm main` (or SIMLIB_REALM=main) runs the game files in the main realm
 // instead of a vm context - the vm escape; simlib.loadGame owns the mechanics.
@@ -311,9 +314,15 @@ function runParallel(seedList, jobs) {
     const launch = () => {
       if (next >= seedList.length) return;
       const idx = next++;
+      // `--workermem <MB>` caps each worker's V8 old-space. In a cgroup
+      // (kube pod) Node sizes its default heap from the HOST's memory, so
+      // seven lazy heaps balloon past the pod limit and the kernel OOM-kills
+      // the whole arm — both corpus attempts died this way at 4Gi AND 8Gi.
+      // On a bare box the flag is simply not passed and nothing changes.
       const child = fork(fileURLToPath(import.meta.url),
         [...args, "--_worker", String(seedList[idx])],
-        { stdio: ["ignore", "inherit", "inherit", "ipc"] });
+        { stdio: ["ignore", "inherit", "inherit", "ipc"],
+          ...(WORKERMEM ? { execArgv: ["--max-old-space-size=" + WORKERMEM] } : {}) });
       child.on("message", (msg) => { out[idx] = msg; });
       child.on("error", reject);
       child.on("exit", (code) => {
