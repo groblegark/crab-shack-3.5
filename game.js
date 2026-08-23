@@ -4884,7 +4884,12 @@ function darkness() { // 0 = day, 1 = full night
 }
 
 // ---------------------------------------------------------------- recipes
-const INGREDIENT_COST = { fish_raw: 5, fruit: 3, token: 1, soap: 1, linen: 2, corn: 3 };   // corn: every ear is shipped in (foodways)
+const INGREDIENT_COST = { fish_raw: 5, fruit: 3, token: 1, soap: 1, linen: 2 };
+// The pier's own price list, frozen before any culture installs: a cultureway
+// may PRICE ITS OWN imports (foodways.ingredients - corn rode the engine's
+// literal until the pigway could declare it) but never re-price these.
+const NATIVE_INGREDIENTS = new Set(Object.keys(INGREDIENT_COST));
+const CULTURE_INGREDIENTS = {};   // ingredientId -> cultureId that priced it (install bookkeeping)
 // ---- fish price discovery: the pier price FLOATS with scarcity. The $7
 // world price is the natural ceiling (at $7 imports supply the gap, so the
 // local price can never exceed it); a glut sags toward the $2 floor. The
@@ -6885,7 +6890,7 @@ function bizRecipes(b) {
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
 // with a message, not at first draw.
-function cultureProblem(d) {
+function cultureProblem(d, ownId) {
   if (!d || typeof d !== "object" || Array.isArray(d)) return "NOT A CULTURE";
   const rgb = (c) => Array.isArray(c) && c.length === 3
     && c.every(v => typeof v === "number" && isFinite(v) && v >= 0 && v <= 255);
@@ -7029,7 +7034,8 @@ function cultureProblem(d) {
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
   if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
-  if (d.foodways != null) { const p = foodwayProblem(d); if (p) return p; }
+  if (d.foodways != null) { const p = foodwayProblem(d, ownId); if (p) return p; }
+  if (d.businesses != null) { const p = businessProblem(d); if (p) return p; }
   return null;
 }
 // FOODWAYS validation (cultureway phase B). Hostile-file numbers from the
@@ -7037,9 +7043,27 @@ function cultureProblem(d) {
 // ranges, and every reference resolved at import - the station must exist at
 // the business, the raw must be an ingredient the trade machinery prices,
 // the icon must be drawn art. Nothing fails at first serve.
-function foodwayProblem(d) {
+function foodwayProblem(d, ownId) {
   const f = d.foodways;
   if (typeof f !== "object" || Array.isArray(f)) return "A BAD FOODWAY";
+  // INGREDIENTS: a culture may price its own imports (author-dollars per
+  // unit, the INGREDIENT_COST shape) - validated before dishes so a dish's
+  // raw may name a row from this very table. May not re-price the native
+  // pantry nor an ingredient another installed culture already owns.
+  if (f.ingredients != null) {
+    if (typeof f.ingredients !== "object" || Array.isArray(f.ingredients)) return "A BAD INGREDIENT TABLE";
+    const keys = Object.keys(f.ingredients);
+    if (keys.length > 16) return "TOO MANY INGREDIENTS";
+    for (const k of keys) {
+      if (k.length > 24 || !/^[a-z][a-z0-9_]*$/.test(k)) return "A BAD INGREDIENT ID";
+      if (NATIVE_INGREDIENTS.has(k)) return "INGREDIENT " + k.toUpperCase() + " SHADOWS THE PIER'S OWN PRICE LIST";
+      if (CULTURE_INGREDIENTS[k] && CULTURE_INGREDIENTS[k] !== ownId)
+        return "INGREDIENT " + k.toUpperCase() + " IS ALREADY PRICED BY ANOTHER PEOPLE";
+      const v = f.ingredients[k];
+      if (typeof v !== "number" || !isFinite(v) || v !== Math.round(v) || v < 1 || v > 50)
+        return "INGREDIENT " + k.toUpperCase() + " HAS A BAD PRICE";
+    }
+  }
   if (f.dishes != null) {
     if (!Array.isArray(f.dishes) || f.dishes.length > 32) return "TOO MANY DISHES";
     const seen = {};
@@ -7049,26 +7073,8 @@ function foodwayProblem(d) {
       if (seen[r.id]) return "DISH " + r.id.toUpperCase() + " DECLARED TWICE"; seen[r.id] = 1;
       if (typeof r.biz !== "string" || !BIZ[r.biz] || !BIZ[r.biz].recipes) return "DISH " + r.id.toUpperCase() + " NAMES NO KITCHEN";
       if (BIZ[r.biz].recipes.some(n => n.id === r.id)) return "DISH " + r.id.toUpperCase() + " SHADOWS THE HOUSE MENU";
-      if (typeof r.pay !== "number" || !isFinite(r.pay) || r.pay < 1 || r.pay > 200 || r.pay !== Math.round(r.pay))
-        return "DISH " + r.id.toUpperCase() + " HAS A BAD PRICE";
-      if (r.learn != null && (typeof r.learn !== "number" || !isFinite(r.learn) || r.learn < 0 || r.learn > 500
-        || r.learn !== Math.round(r.learn))) return "DISH " + r.id.toUpperCase() + " HAS A BAD LESSON FEE";
-      if (typeof r.raw !== "string" || INGREDIENT_COST[r.raw] == null)
-        return "DISH " + r.id.toUpperCase() + " WANTS AN INGREDIENT NO BOAT CARRIES";
-      if (!ITEMS[r.raw] && !(f.items && f.items[r.raw] && f.items[r.raw].art))
-        return "DISH " + r.id.toUpperCase() + "'S INGREDIENT HAS NO PICTURE";   // the cook CARRIES the raw
-      if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return "DISH " + r.id.toUpperCase() + " HAS A BAD ICON";
-      if (!ITEMS[r.icon] && !(f.items && f.items[r.icon] && f.items[r.icon].art))
-        return "DISH " + r.id.toUpperCase() + " HAS NO PICTURE";
-      if (!Array.isArray(r.steps) || !r.steps.length || r.steps.length > 6) return "DISH " + r.id.toUpperCase() + " HAS BAD STEPS";
-      for (const st of r.steps) {
-        if (!Array.isArray(st) || st.length < 3) return "DISH " + r.id.toUpperCase() + " HAS A BAD STEP";
-        if (typeof st[0] !== "string" || !BIZ[r.biz].stations[st[0]]) return "DISH " + r.id.toUpperCase() + " WANTS A STATION " + String(st[0]).toUpperCase() + " DOESN'T HAVE";
-        if (typeof st[1] !== "number" || !isFinite(st[1]) || st[1] < 0.5 || st[1] > 30) return "DISH " + r.id.toUpperCase() + " HAS A BAD STEP TIME";
-        if (typeof st[2] !== "string" || !st[2].length || st[2].length > 24) return "DISH " + r.id.toUpperCase() + " HAS A BAD STEP ITEM";
-        if (!ITEMS[st[2]] && !(f.items && f.items[st[2]] && f.items[st[2]].art))
-          return "DISH " + r.id.toUpperCase() + " CARRIES AN ITEM WITH NO PICTURE";
-      }
+      const p = recipeRowProblem(r, BIZ[r.biz].stations, f, "DISH " + r.id.toUpperCase());
+      if (p) return p;
     }
   }
   if (f.items != null) {
@@ -7087,6 +7093,85 @@ function foodwayProblem(d) {
           for (const ch of row) if (ch !== "." && !PAL[ch]) return "ITEM " + k.toUpperCase() + " PAINTS OFF THE PALETTE";
         }
       }
+    }
+  }
+  return null;
+}
+// ONE recipe-row validator for both declarers (foodway dishes and a declared
+// business's own menu) - the row is the BIZ recipe shape either way.
+// `stations` is whichever station table the row's steps must resolve against;
+// `f` is the culture's foodways section (its items may satisfy the picture
+// rule, its ingredients the price rule); `label` names the row in every
+// refusal. The foodways messages are byte-identical to what they were.
+function recipeRowProblem(r, stations, f, label) {
+  if (typeof r.pay !== "number" || !isFinite(r.pay) || r.pay < 1 || r.pay > 200 || r.pay !== Math.round(r.pay))
+    return label + " HAS A BAD PRICE";
+  if (r.learn != null && (typeof r.learn !== "number" || !isFinite(r.learn) || r.learn < 0 || r.learn > 500
+    || r.learn !== Math.round(r.learn))) return label + " HAS A BAD LESSON FEE";
+  if (typeof r.raw !== "string" || (INGREDIENT_COST[r.raw] == null
+    && !(f && f.ingredients && f.ingredients[r.raw] != null)))
+    return label + " WANTS AN INGREDIENT NO BOAT CARRIES";
+  if (!ITEMS[r.raw] && !(f && f.items && f.items[r.raw] && f.items[r.raw].art))
+    return label + "'S INGREDIENT HAS NO PICTURE";   // the cook CARRIES the raw
+  if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return label + " HAS A BAD ICON";
+  if (!ITEMS[r.icon] && !(f && f.items && f.items[r.icon] && f.items[r.icon].art))
+    return label + " HAS NO PICTURE";
+  if (!Array.isArray(r.steps) || !r.steps.length || r.steps.length > 6) return label + " HAS BAD STEPS";
+  for (const st of r.steps) {
+    if (!Array.isArray(st) || st.length < 3) return label + " HAS A BAD STEP";
+    if (typeof st[0] !== "string" || !stations[st[0]]) return label + " WANTS A STATION " + String(st[0]).toUpperCase() + " DOESN'T HAVE";
+    if (typeof st[1] !== "number" || !isFinite(st[1]) || st[1] < 0.5 || st[1] > 30) return label + " HAS A BAD STEP TIME";
+    if (typeof st[2] !== "string" || !st[2].length || st[2].length > 24) return label + " HAS A BAD STEP ITEM";
+    if (!ITEMS[st[2]] && !(f && f.items && f.items[st[2]] && f.items[st[2]].art))
+      return label + " CARRIES AN ITEM WITH NO PICTURE";
+  }
+  return null;
+}
+// BUSINESSES validation (cultureway phase B, "the BIZ catalog to data").
+// A culture may DECLARE whole shops: catalog SUBSTANCE only - recipes,
+// stations as TYPE + capacity, economics - never map coordinates (placement
+// is the town's, phase D) and never an owner (ownership binds to a settler
+// when settlers exist). A declared business is BUILT and PENDING, never
+// placed: the format lands ahead of the plot, and the suite pins that a
+// declared business changes no town byte.
+function businessProblem(d) {
+  const B = d.businesses;
+  if (typeof B !== "object" || Array.isArray(B)) return "A BAD BUSINESS TABLE";
+  const ids = Object.keys(B);
+  if (ids.length > 4) return "TOO MANY BUSINESSES";
+  const f = d.foodways || null;
+  const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+  const str = (s, n) => typeof s === "string" && s.length > 0 && s.length <= n;
+  for (const id of ids) {
+    if (!/^[a-z][a-z0-9_]{0,11}$/.test(id)) return "A BAD BUSINESS ID";
+    const label = "BIZ " + id.toUpperCase();
+    if (BIZ[id]) return label + " SHADOWS THE TOWN'S OWN CATALOG";
+    const z = B[id];
+    if (!z || typeof z !== "object" || Array.isArray(z)) return label + " IS BROKEN";
+    if (!str(z.name, 18) || !str(z.short, 6) || !str(z.sign, 18)) return label + " HAS A BAD NAME";
+    if (z.kind !== "palapa" && z.kind !== "shopfront") return label + " HAS A BAD BUILDING KIND";
+    if (!int(z.rent, 1, 500)) return label + " HAS A BAD RENT";
+    if (z.wage != null && !int(z.wage, 10, 100)) return label + " HAS A BAD WAGE";
+    if (z.owner != null) return label + " MAY NOT NAME AN OWNER - OWNERSHIP BINDS TO A SETTLER";
+    if (z.stalls != null && !int(z.stalls, 0, 8)) return label + " HAS BAD STALLS";
+    if (z.tables != null && !int(z.tables, 0, 8)) return label + " HAS BAD TABLES";
+    if (!z.stations || typeof z.stations !== "object" || Array.isArray(z.stations)) return label + " HAS NO STATIONS";
+    const sts = Object.keys(z.stations);
+    if (!sts.length || sts.length > 6) return label + " HAS A BAD STATION COUNT";
+    for (const s of sts) {
+      if (!/^[a-z][a-z0-9_]{0,9}$/.test(s)) return label + " HAS A BAD STATION NAME";
+      if (!int(z.stations[s], 1, 4)) return label + " HAS A BAD STATION CAPACITY";
+    }
+    if (typeof z.source !== "string" || !z.stations[z.source]) return label + "'S SOURCE IS NOT ITS OWN STATION";
+    if (typeof z.out !== "string" || !z.stations[z.out]) return label + "'S PASS IS NOT ITS OWN STATION";
+    if (!Array.isArray(z.recipes) || !z.recipes.length || z.recipes.length > 8) return label + " HAS A BAD MENU";
+    const seen = {};
+    for (const r of z.recipes) {
+      if (!r || typeof r !== "object") return label + " HAS A BAD RECIPE";
+      if (typeof r.id !== "string" || !r.id.length || r.id.length > 24) return label + " HAS A BAD RECIPE ID";
+      if (seen[r.id]) return label + " DECLARES " + r.id.toUpperCase() + " TWICE"; seen[r.id] = 1;
+      const p = recipeRowProblem(r, z.stations, f, label + "'S " + r.id.toUpperCase());
+      if (p) return p;
     }
   }
   return null;
@@ -7310,8 +7395,42 @@ function buildCulture(def) {
       cover: ms.cover != null ? ms.cover : SHIFT_SPAN.cover,
     } : SHIFT_SPAN,
   } : null;
+  // DECLARED BUSINESSES, built once into the runtime catalog's own shape
+  // (author dollars cross the x100 boundary here, like every other section)
+  // but PENDING: no plot, no door, not in BIZ or BIZ_KEYS. When placement
+  // (phase D) binds one to a plot, every catalog reader works on it
+  // unchanged, because it already has the literal's shape.
+  let biz = null;
+  if (def.businesses) {
+    biz = {};
+    for (const id in def.businesses) {
+      const z = def.businesses[id];
+      biz[id] = {
+        id, name: z.name, short: z.short, sign: z.sign, kind: z.kind,
+        rent: 100 * z.rent,
+        wage: z.wage != null ? 100 * z.wage : null,   // null = the town rate at stamp time
+        lodging: !!z.lodging, sellable: !!z.sellable,
+        stations: Object.assign({}, z.stations),      // TYPE -> capacity; coordinates are the town's
+        stalls: z.stalls || 0, tables: z.tables || 0,
+        source: z.source, out: z.out,
+        recipes: z.recipes.map(r => Object.assign({}, r)),
+        owner: null, pending: true,
+      };
+    }
+  }
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, businesses: biz };
+}
+// Every business declared by an installed culture: built, inspectable
+// (MCP reads these), and PENDING until a plot exists. Nothing in the sim
+// reads this list yet - that is the point, and the suite pins it.
+function cultureBusinesses() {
+  const out = [];
+  for (const id in CULTURES) {
+    const cul = CULTURES[id];
+    if (cul && cul.businesses) for (const b in cul.businesses) out.push(cul.businesses[b]);
+  }
+  return out;
 }
 // Install one document set into the registry. `mine` marks the BUNDLED
 // cultureways - ours, shipped in cultureways.js - which install silently:
@@ -7324,7 +7443,7 @@ function installCultures(raw, mine) {
   for (const id in raw) {
     if (id === "crab") continue;   // the crab is the engine's own, not overridable yet
     if (!/^[a-z][a-z0-9_]{0,15}$/.test(id)) continue;
-    const why = cultureProblem(raw[id]);
+    const why = cultureProblem(raw[id], id);
     if (why) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - " + why, t: 8 }; continue; }
     try {
       CULTURES[id] = buildCulture(raw[id]);
@@ -7336,6 +7455,13 @@ function installCultures(raw, mine) {
       if (fw && fw.items) for (const k in fw.items) {
         ITEM_NAMES[k] = fw.items[k].name;
         if (fw.items[k].art) defItem(k, fw.items[k].art);
+      }
+      // A culture's priced imports join the pier's list at install - same
+      // author-dollar units, same table the cent is born from. Validated
+      // above: never a native key, never another people's price.
+      if (fw && fw.ingredients) for (const k in fw.ingredients) {
+        INGREDIENT_COST[k] = fw.ingredients[k];
+        CULTURE_INGREDIENTS[k] = id;
       }
     }
     catch (e) { if (!mine) toast = { text: "A CULTUREWAY DIDN'T LOAD - BAD ART", t: 8 }; }
@@ -7352,6 +7478,8 @@ function installCultures(raw, mine) {
 // version it was written with.)
 function loadCultures(raw) {
   for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
+  // an uninstalled culture's import prices must not linger across loads
+  for (const k in CULTURE_INGREDIENTS) { delete INGREDIENT_COST[k]; delete CULTURE_INGREDIENTS[k]; }
   rawCultures = null;
   installCultures(typeof BUNDLED_CULTUREWAYS !== "undefined" ? BUNDLED_CULTUREWAYS : null, true);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) { rebuildBrains(); return; }
