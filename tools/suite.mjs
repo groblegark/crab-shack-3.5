@@ -7564,6 +7564,7 @@ scenario("departures: every quote is DERIVED - one changed fact, one changed lin
     // twice - reachable species-blind through the closure literal; the
     // register-template rendering is the cultureways card scenario's job
     ["foreign", `{ foreign: 2 }`],
+    ["delight", `{ de: 2 }`],
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`],
     ["idle", `{ left: 70, spent: 30 }`],
     ["hungry", `{ hunger: Q20, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
@@ -7632,6 +7633,7 @@ scenario("departures: the quote's mutation arms - drop the fact, lose the line",
     ["dues", `{ dues: 4 }`, `{ dues: 0 }`],
     ["wait", `{ worstMin: 380 }`, `{ worstMin: 10 }`],
     ["mist", `{ mistMin: 300 * GMIN }`, `{ mistMin: 0 }`],
+    ["delight", `{ de: 1 }`, `{ de: 0 }`],
     // THE NEED ARMS ARE TWO-CONDITION RULES ON PURPOSE. A bar at the gangway on
     // its own is a fact about the clock (VIS_RATE.hunger refills in seven
     // hours); it only becomes a finding when the town also never sold them one.

@@ -16994,7 +16994,7 @@ const DEPART_RULES = [
   // dish they LOVE - taste 1.5+, counted at the pick like its foreign twin -
   // says so on the way out. It outranks the grumble: a kitchen that learned
   // the bun deserves to hear about it over one long line at the showers.
-  { id: "delight", mood: "good",
+  { id: "delight", mood: "glad",
     w: (r) => (r.de || 0) >= 1 ? 66 + 4 * Math.min(5, r.de) : 0,
     line: () => "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
