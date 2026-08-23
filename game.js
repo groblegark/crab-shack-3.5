@@ -9777,7 +9777,9 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
       take({ selfCook: true, recipe: r, need: "food" });
     }
   }
-  if (wantFood && staffed("shack")) {
+} });
+registerErrand({ id: "meal.counter", need: "food", kind: "biz", gather: (c, take, X) => {
+  if (X.wantFood && X.staffed("shack")) {
     const affordable = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
@@ -9786,14 +9788,15 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
       take({ biz: "shack", recipe: r, need: "food" });
     }
   }
-  // thirst sits between food and clean: cheap, casual, frequent. The juice
-  // bar is the spot when staffed; the shack pours its own juice otherwise -
-  // and staff can pour their own at a dark bar, charged retail like meals
-  // THE BALL IS THE LAST WORD ON FUN. Gathered after any arcade this crab
-  // could actually afford and get into, for the reason the shelter pot proved:
-  // a free option beside a paid one takes the takings rather than the need.
-  // Before the arcade is built - which is most of the early game - it is the
-  // only answer boredom has that is not a very expensive chat.
+} });
+// THE BALL IS THE LAST WORD ON FUN. Gathered after any arcade this crab
+// could actually afford and get into, for the reason the shelter pot proved:
+// a free option beside a paid one takes the takings rather than the need.
+// Before the arcade is built - which is most of the early game - it is the
+// only answer boredom has that is not a very expensive chat.
+// (The ball gates - ballAt, ballYields, ballFree, with their measured
+// receipts - live in pickErrand's prelude; the registry entry reads X.)
+registerErrand({ id: "ball", need: "fun", kind: "post", gather: (c, take, X) => {
   // ...and the bar to JOIN one is lower than the bar to start one. A crab who
   // would not walk out to the middle of the beach on their own will absolutely
   // wander over to a game already happening, which is both true to life and
@@ -9832,13 +9835,21 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
   const ballFree = !c.duty && c.dsC !== DS.working
     && (awayToday(c) || tmin >= shEnd || tmin + BALL_LEAD < leaveGmin(c));
   if ((c.p.bored || 0) >= ballAt && (c.ballCd || 0) <= 0 && !boredYields(c) && !ballYields
-      && ballFree && !c.p.sick && ballHasRoom(c) && !cand.some(e2 => e2.need === "fun"))
+      && ballFree && !c.p.sick && ballHasRoom(c) && !X.cand.some(e2 => e2.need === "fun"))
     take({ ball: true, need: "fun",
       // A GAME IN PROGRESS PULLS. Left to pure coincidence only 3 of 22 games
       // had two crabs in them; somebody already out there throwing is the
       // whole difference between 0.22 of relief and 0.08, so it should be
       // worth crossing the beach for.
       ap100: ballPlayers().length ? 84 : 35 });   // TAP_APPEAL x2.4 while the ball is out: 0.84 in hundredths
+} });
+// thirst sits between food and clean: cheap, casual, frequent. The juice
+// bar is the spot when staffed; the shack pours its own juice otherwise -
+// and staff can pour their own at a dark bar, charged retail like meals.
+// The tap rides INSIDE this entry (it always did): both posts are offered
+// and the detour score picks the near one.
+registerErrand({ id: "drink", need: "drink", kind: "biz", gather: (c, take, X) => {
+  const staffed = X.staffed;
   if ((c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink")) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
@@ -9864,33 +9875,30 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
       for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "drink", ap100: 35 });
 
   }
-  // dirt is serviced at the showers too (the laundromat is gone): a grubby
-  // crab heads for the taps at the same 0.66 threshold that fed the sickness
-  // "cared" check - a shower takes dirt down 0.5 (0.7 deluxe), well below it
-  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66)) - nudgeRelax(c, "clean")
-    || (c.p.sick && (c.p.dirt || 0) >= qn(0.4));   // the sick drag themselves to the taps - staying clean is the cure
-  // ON DUTY at the stalls, not "has ever worked a shift here": this gate used
-  // to read c.workBiz, which is set at clock-in and NEVER CLEARED, so the
-  // shower attendant was barred from her own stalls for life. SUDSY's dirt
-  // pinned at 1.00 every seed - a -6% crabEff, -30% on every tip and +0.06
-  // sickness a night, forever. The gate only ever meant "don't take a stall
-  // while you're the one handing out the kits".
-  const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
-  const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
-  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
-  if (needsBath && canShower) take({ biz: "showers", recipe: rinseR, need: "clean" });
-  // THE STANDPIPE RINSE - the SAFETY NET, not a free shower. Cold water, no
-  // soap, no towel: -0.35 against a $5 rinse's -0.5, pitched far above the
-  // shower threshold (0.85 vs 0.66), and offered ONLY to a crab the market
-  // cannot serve right now - nobody on the stalls, no money in the pocket, or
-  // they ARE the attendant. A crab who could walk into a staffed shower with
-  // the fare in hand has no business hosing off in the street, and SUDSY's
-  // takings should not pay for this fix. What it does buy is fairness: no
-  // crab is pinned on the 0.95 sickness line by an environment that has no
-  // route to soap - which is the ground the death roll now stands on.
-  if (!canShower && (c.p.dirt || 0) >= (c.p.sick ? TAP_RINSE_SICK : TAP_RINSE_AT))
+} });
+// dirt is serviced at the showers too (the laundromat is gone): a grubby
+// crab heads for the taps at the same 0.66 threshold that fed the sickness
+// "cared" check - a shower takes dirt down 0.5 (0.7 deluxe), well below it.
+// (needsBath/rinseR/canShower live in the prelude because the standpipe
+// entry below reads canShower too - the safety net is defined BY the market
+// having failed, so the two entries must agree on what the market offered.)
+registerErrand({ id: "bath.shower", need: "clean", kind: "biz", gather: (c, take, X) => {
+  if (X.needsBath && X.canShower) take({ biz: "showers", recipe: X.rinseR, need: "clean" });
+} });
+// THE STANDPIPE RINSE - the SAFETY NET, not a free shower. Cold water, no
+// soap, no towel: -0.35 against a $5 rinse's -0.5, pitched far above the
+// shower threshold (0.85 vs 0.66), and offered ONLY to a crab the market
+// cannot serve right now - nobody on the stalls, no money in the pocket, or
+// they ARE the attendant. A crab who could walk into a staffed shower with
+// the fare in hand has no business hosing off in the street, and SUDSY's
+// takings should not pay for this fix. What it does buy is fairness: no
+// crab is pinned on the 0.95 sickness line by an environment that has no
+// route to soap - which is the ground the death roll now stands on.
+registerErrand({ id: "bath.rinse", need: "clean", kind: "post", gather: (c, take, X) => {
+  if (!X.canShower && (c.p.dirt || 0) >= (c.p.sick ? TAP_RINSE_SICK : TAP_RINSE_AT))
     for (let i = 0; i < WATER_TAPS.length; i++) take({ tap: i, need: "clean", ap100: 35 });
-  // THE SHELTER POT IS A FLOOR UNDER ILLNESS, and it is deliberately narrow:
+} });
+// THE SHELTER POT IS A FLOOR UNDER ILLNESS, and it is deliberately narrow:
   // SICK crabs only, offered LAST, only when the town has nothing to sell them
   // right now, and only when the fund actually bought a bowl last night. Every
   // one of those limits was measured, not guessed.
@@ -9908,12 +9916,12 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
   //     bowls in the pot, no bowl for you.
   // What a WELL crab who cannot afford lunch gets is nothing, on purpose: work
   // pays, and the player already has a lever for it - the staff meal policy.
-  {
-    const at = c.p.sick ? SOUP_SICK_AT : SOUP_AT;
-    if (c.p.sick && potWarm() && (c.p.hunger || 0) >= at && !cand.some(e2 => e2.need === "food"))
-      take({ soup: true, need: "food", ap100: 35 });
-  }
-  // POLLING DAY IS AN ERRAND (see the POLLING DAY block). The table is at
+registerErrand({ id: "soup", need: "food", kind: "post", gather: (c, take, X) => {
+  const at = c.p.sick ? SOUP_SICK_AT : SOUP_AT;
+  if (c.p.sick && potWarm() && (c.p.hunger || 0) >= at && !X.cand.some(e2 => e2.need === "food"))
+    take({ soup: true, need: "food", ap100: 35 });
+} });
+// POLLING DAY IS AN ERRAND (see the POLLING DAY block). The table is at
   // POLL_X and the crab has to walk there, which means turnout is decided by
   // the same two things that decide every other stop in this game: WHERE you
   // are and WHEN you are free. A crab whose commute crosses the promenade
@@ -9932,13 +9940,47 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
   // shelter pot already, and a sick day is their own time.
   // Both tables are offered and the detour score picks the near one - the
   // identical shape the two standpipes use, three blocks up.
+registerErrand({ id: "vote", need: "vote", kind: "post", gather: (c, take, X) => {
   if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
+} });
+registerErrand({ id: "fun.arcade", need: "fun", kind: "biz", gather: (c, take, X) => {
   // bed rest otherwise: no arcade nights while ill
-  if (!c.p.sick && (c.p.bored || 0) >= (off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && staffed("arcade")) {
+  if (!c.p.sick && (c.p.bored || 0) >= (X.off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && X.staffed("arcade")) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
     if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
   }
+} });
+function pickErrand(c) {
+  const staffed = bizStaffed;
+  const cand = [];
+  const take = (e) => cand.push(e);   // gather every stop, then score - see errandScore
+  // THE PRELUDE: every cross-entry read the census shares, computed once,
+  // pure (no draws), in the old textual order. Entry-local gates (the ball's
+  // measured bars, the arcade's sick check) stay inside their entries.
+  // a day off is for spending: lower need thresholds, so the off crab eats
+  // out, soaks, and finally gets that arcade morning their shift always ate.
+  // Full retail, full queue rules - off crabs are customers, not staff.
+  // ...and a WALK-OUT is a day off the crab granted themselves, so it spends
+  // like one: the crab who walked out because they were bored out of their
+  // shell will absolutely spend it at the arcade, if the town has one.
+  const off = awayToday(c) && !c.p.sick;
+  // THE DROP NUDGE RELAXES THE BAR (see NUDGE): standing at a counter makes a
+  // crab likelier to want what it sells - it does not make them hungry.
+  const wantFood = (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food");
+  const needsBath = (c.p.dirt || 0) >= (off ? qn(0.5) : qn(0.66)) - nudgeRelax(c, "clean")
+    || (c.p.sick && (c.p.dirt || 0) >= qn(0.4));   // the sick drag themselves to the taps - staying clean is the cure
+  // ON DUTY at the stalls, not "has ever worked a shift here": this gate used
+  // to read c.workBiz, which is set at clock-in and NEVER CLEARED, so the
+  // shower attendant was barred from her own stalls for life. SUDSY's dirt
+  // pinned at 1.00 every seed - a -6% crabEff, -30% on every tip and +0.06
+  // sickness a night, forever. The gate only ever meant "don't take a stall
+  // while you're the one handing out the kits".
+  const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
+  const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
+  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
+  const X = { staffed, cand, off, wantFood, needsBath, rinseR, showerOpen, canShower };
+  for (const e of ERRANDS) e.gather(c, take, X);
   // THE CITIZEN BRAIN SEAM (cit_errand.candidate). Candidates and their draws
   // are already banked above, whoever decides - the brain replaces only the
   // scorer, the brainVisPick idiom verbatim. Live: the brain picks the CLASS,

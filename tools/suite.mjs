@@ -13216,6 +13216,59 @@ scenario("personal space: leavers line the pier, and the line never costs the bo
   return true;
 });
 
+// ---- THE ERRAND REGISTRY (phase D): the census pickErrand gathers is a
+// registered, ordered list. Order is semantic (the argmax tie-break is
+// first-at-a-score), so the ballot order itself is pinned here - a reorder
+// is a fingerprint event and must arrive with its own ceremony.
+scenario("errands: the census is the registry, and the ballot order is pinned", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify(ERRANDS.map(e => [e.id, e.need, e.kind]))`));
+  const want = [["meal.self", "food", "selfCook"], ["meal.counter", "food", "biz"],
+    ["ball", "fun", "post"], ["drink", "drink", "biz"],
+    ["bath.shower", "clean", "biz"], ["bath.rinse", "clean", "post"],
+    ["soup", "food", "post"], ["vote", "vote", "post"], ["fun.arcade", "fun", "biz"]];
+  if (got.length !== want.length) return "census is " + got.length + " entries, want " + want.length;
+  for (let i = 0; i < want.length; i++)
+    if (got[i][0] !== want[i][0] || got[i][1] !== want[i][1] || got[i][2] !== want[i][2])
+      return "ballot position " + i + " is " + got[i].join("/") + ", want " + want[i].join("/");
+  return true;
+});
+scenario("errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name", () => {
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 40000 });
+  // a crab with every need quiet gathers NOTHING native; a data errand with
+  // its bar on the floor gathers regardless - so a non-null pick IS the entry
+  const pick = JSON.parse(sim.G(`JSON.stringify((() => {
+    const c = allCrabs().find(k => !k.duty) || allCrabs()[0];
+    const held = { hunger: c.p.hunger, thirst: c.p.thirst, dirt: c.p.dirt, bored: c.p.bored };
+    c.p.hunger = 0; c.p.thirst = 0; c.p.dirt = 0; c.p.bored = 0;
+    const before = pickErrand(c);
+    dataErrand({ id: "test.treat", need: "drink", biz: "shack", at: 0, ap100: 150 });
+    const wallet0 = c.p.wallet; c.p.wallet = Math.max(c.p.wallet, 5000);
+    const after = pickErrand(c);
+    ERRANDS.pop();   // the stage strikes its set: the census is back to native
+    c.p.wallet = wallet0; Object.assign(c.p, held);
+    return { before, after: after && { biz: after.biz, need: after.need, ap: after.ap100 } };
+  })())`));
+  if (pick.before) return "a quiet crab gathered a native errand: " + JSON.stringify(pick.before);
+  if (!pick.after || pick.after.biz !== "shack" || pick.after.ap !== 150)
+    return "the data errand did not win the empty ballot: " + JSON.stringify(pick.after);
+  // the clamps, each refusal NAMED (the hostile-file posture, cultureProblem's voice)
+  for (const [bad, name] of [
+    [`{ id: "x", need: "drink", biz: "shack", at: -1 }`, "Q20 GRAIN"],
+    [`{ id: "x", need: "hugs", biz: "shack", at: 0 }`, "UNKNOWN NEED"],
+    [`{ id: "x", need: "drink", biz: "mudspa", at: 0 }`, "UNKNOWN BIZ"],
+    [`{ id: "x", need: "drink", biz: "shack", at: 0, ap100: 999 }`, "OUTSIDE 1..200"],
+    [`{ id: "!!", need: "drink", biz: "shack", at: 0 }`, "A BAD ERRAND ID"]]) {
+    const msg = sim.G(`(() => { try { dataErrand(${bad}); return "REGISTERED"; } catch (e) { return e.message; } })()`);
+    if (msg === "REGISTERED" || !msg.includes(name))
+      return "a bad errand was not refused by name: " + bad + " -> " + msg;
+  }
+  const n = sim.G("ERRANDS.length");
+  if (n !== 9) return "a refused errand left the census at " + n;
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
