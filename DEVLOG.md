@@ -8,7 +8,122 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-22, latest — THE CRABS ARE THINKING
+## 2026-08-22, latest — THE CRABS LEARN TO WAIT
+
+Last time we told you the crabs were thinking. We now have to report
+what some of them were thinking, which was, roughly: *buy something.
+Anything. Now.*
+
+The brains agreed with the town's old written rules about 96% of the
+time, and we called the other 4% personality. Some of it was. But most
+of it pointed the same way, and an error with a direction is not a
+personality: the brain acted **a beat early** — a drink here, a shower
+there — where the reckoning said hold out for the fat ticket, and the
+town's money quietly leaked toward the hotel desk and the shower house.
+In the growth ledgers you could watch it: towns with thinking crabs
+escaped the rent trap less often than towns without.
+
+The cause turned out to be not in the brain but in the classroom. Of
+the hundred thousand decisions the student crab was made to watch, the
+most common — by a mile — was the decision to *do nothing yet*.
+Patience. And the trainer, tidying up its lesson plan, had been quietly
+discarding **seven-eighths of the patience** (45,175 moments of waiting,
+cut to 5,733) so the exciting decisions would stand out. A student
+taught that waiting is four times rarer than it is will act. Ours did.
+
+The fix is almost insultingly simple: teach the world at the world's
+own proportions. The retrained crab watched **155,911 decisions** across
+forty-eight towns pulling every lever we could think to pull — cheap
+boards and dear ones, moved hours signs, mean wages — and now agrees
+with the old rules **97.8%** of the time, with the act-early mistakes
+down from 373 to **30**. The gulls got the same recipe for free and
+came back at 98.3%. And the growth ledger healed: **14 towns in 48**
+now make their escape, against 13 in the days before any crab thought
+at all, with every block of towns richer than before. The tilt is gone.
+
+Which brings us to **NIPPY**, and a correction. Last entry we made
+rather a lot of her checking into her room before her drink — "guests
+settle in before they snack. Nobody wrote that." We hereby retract it
+with a straight face: that wasn't wisdom, it was the impatience talking.
+The retrained brain sends her down for her drink first, exactly as the
+old rules always did, and the town is better off for it. The other
+personalities survive; we just made sure they were personalities and
+not a bias wearing a hat.
+
+One more thing, on the record because that is the house style: **the
+best-scoring student did not graduate.** Among the retrained candidates,
+the one with the highest agreement also over-bought when prices were
+dear — its feel for the price board was flat where the town's is not —
+and the test that watches that particular lever refused to let it ship.
+The brain that did ship scores a hair lower and behaves. Report cards
+are not character.
+
+(The merciless rule still holds: the new brains produce the same numbers
+to the last digit on every engine we own, checked on every thought, not
+just the choices. The checking harness itself confessed a sin during the
+retrain — its scratch paper was sized for last month's exam and would
+have run off the edge in silence on this one. It refuses out loud now,
+with the number.)
+
+![The retrained town, mid-morning: seven visitors ashore, three of them gulls, the till climbing](devlog/img/2026-08-22-crab-retrain-town.png)
+
+---
+
+## 2026-08-22, later that night — A PORK BUN IN TOWN
+
+*"NOT A PORK BUN IN TOWN,"* said the pig on the promenade, and somebody
+finally heard her.
+
+A kitchen can now learn a foreign dish. Not conjure one — **learn**
+one, and every step of it is earned:
+
+- **The demand must be taught.** No cook can serve a customer they've
+  never met. Only after a pig has actually sailed home having settled
+  for foreign food does the word reach town — and only then does the
+  manage card offer the lesson.
+- **The lesson costs the till** — $25, paid up front, and a poor till
+  is refused with the dignity the refusal deserves.
+- **Every bun's corn is a priced import** — $3 an ear, off the same
+  pier the fish come across. Audit the books after a thousand buns and
+  every cent and every ear reconciles. Nothing appears from nowhere.
+
+And when a pig finds *her own* dish abroad — her own, mind; a pig
+adoring a long hot soak is a satisfied customer, not a homecoming — the
+departure card says so in her own register. The farmhands: **"A PROPER
+BUN AT LAST."** The clerks, composing to the end: **"THE BUN WAS
+CORRECT. THE REPORT WILL SAY SO."**
+
+Did it work? Eight towns, twenty days, bun against no bun: distinct
+pigs ashore **73 → 109**, pig money left in town at departure **$2,132
+→ $4,186**. And the telling number is the one that *didn't* move:
+each pig's share of purse spent stayed flat at about a third. **The bun
+multiplies who comes, not how much each eats** — a pig eats her fill
+either way; the bun decides whether she boards the ferry at all, and
+whether she tells her friends. Meanwhile a town where nobody ever
+learns the dish is *byte-identical* to a town where none of this
+exists. The feature adds; it never leaks.
+
+One confession, house style: **the first cooked bun crashed the game.**
+Not the recipe — the art. The cook turned to pick up an ear of corn and
+there was no *picture* of corn, because our headless simulations never
+draw anything and ten thousand rehearsal buns had cooked just fine in
+the dark. The first bun anyone tried to photograph took the town down
+with it. Corn has a portrait now, and the rules demand one of any raw
+ingredient a culture brings before it's allowed off the boat.
+
+![The lesson, offered and armed on the manage card](devlog/img/2026-08-22-learn-the-bun.png)
+
+And the first bun ever sold went — of course it did — to **SCAMPI**.
+A crab. Standing at the counter beside CLOVER the pig, ordering the pig
+dish, on day one of its existence, entirely unprompted. Cuisine crossing
+the cultural line in both directions before the paint was dry. The
+economists have a word for this. The town's word is *lunch*.
+
+![SCAMPI the crab buys the first pork bun, CLOVER the pig at the same counter](devlog/img/2026-08-22-first-porkbun.png)
+
+---
+
+## 2026-08-22, night — THE CRABS ARE THINKING
 
 Some of the townsfolk now make up their own minds with a brain the size
 of a postcard.
