@@ -93,7 +93,13 @@ A people, written as a document. Not code — data the engine reads:
             colorways (per-slot recolours), anchors, accessories, items
   voice     registers — a register is bound to an accessory, because THE HAT
             IS THE CLASS MARKER: what someone wears picks how they speak and
-            how fat their purse is (purseMul, 0.1-5)
+            how fat their purse is (purseMul, 0.1-5). The crab default's own
+            voice is tabled the same way (bundled beside its brain), so every
+            diary/depart/dossier key you can declare, the island also speaks.
+  depart    weights — ruleId -> integer 0-8, a QUARTERS multiplier on the
+            engine's departure-card rule weights (4 = as the engine weighs
+            it, 0 = this people never leads with that rule, 8 = twice as
+            loud). Unknown rule ids are refused at import, loudly.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in
