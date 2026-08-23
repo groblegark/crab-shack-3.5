@@ -54,6 +54,13 @@ const NOFLOOR = args.includes("--nofloor");
 // directly. A capped shack cannot take the hires `--buy` asks for, so a growth
 // matrix that moved needs to be able to ask whether the town did that.
 const NOCAP = args.includes("--nocap");
+// `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
+// body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
+// the same buildPhys conversion a document does, lands on ENG_BODY and the
+// kernel's row 0 via a re-deal, and so colors 100% of the town's guests -
+// the number the clamp rationale needs. Validated here so a typo fails loud.
+const BODYMUL = args.includes("--bodymul") ? args[args.indexOf("--bodymul") + 1] : null;
+if (BODYMUL) JSON.parse(BODYMUL);
 // ACCOMMODATION UPGRADES: the two halves come apart, and the matrix can read
 // each of them on its own. These are CONFIG overrides rather than a
 // `window._noX` flag because both halves are pure data, and the override lands
@@ -147,6 +154,7 @@ if (NOHALL) G(`window._noHall = true;`);
 if (NOVSEP) G(`window._novsep = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
+if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);

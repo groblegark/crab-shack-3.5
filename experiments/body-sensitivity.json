@@ -1,0 +1,35 @@
+{
+ "name": "body-sensitivity",
+ "note": "Slice 1.5 (design cs35-body.md section 3): d-spend/d-rate measured on the growth workload via the --bodymul hatch (the engine's own row through buildPhys, coloring 100% of guests). Variants: hunger mul20 in {10,15,20=ctl,25,30} and aggregate all-{12,24} (a24 sums to exactly the 120 cap), x seedbase {0,16,32}. Spend proxy = lifetime.mean per arm; elasticity = (dLifetime/lifetime)/(dMul/20). Acceptance (the design's rule): aggregate elasticity >= 1.5 tightens the sum-cap to 110 in this same slice; <= 0.5 keeps 120 with a note.",
+ "resources": {
+  "requests": { "cpu": "7", "memory": "2Gi" },
+  "limits": { "cpu": "8", "memory": "4Gi" }
+ },
+ "arms": [
+  { "id": "ctl-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"] },
+  { "id": "h10-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":10}}"] },
+  { "id": "h15-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":15}}"] },
+  { "id": "h25-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":25}}"] },
+  { "id": "h30-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":30}}"] },
+  { "id": "a12-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":12,\"thirst\":12,\"dirt\":12,\"bored\":12,\"tired\":12}}"] },
+  { "id": "a24-sb0", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":24,\"thirst\":24,\"dirt\":24,\"bored\":24,\"tired\":24}}"] },
+  { "id": "ctl-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"] },
+  { "id": "h10-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":10}}"] },
+  { "id": "h15-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":15}}"] },
+  { "id": "h25-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":25}}"] },
+  { "id": "h30-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":30}}"] },
+  { "id": "a12-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":12,\"thirst\":12,\"dirt\":12,\"bored\":12,\"tired\":12}}"] },
+  { "id": "a24-sb16", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":24,\"thirst\":24,\"dirt\":24,\"bored\":24,\"tired\":24}}"] },
+  { "id": "ctl-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"] },
+  { "id": "h10-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":10}}"] },
+  { "id": "h15-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":15}}"] },
+  { "id": "h25-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":25}}"] },
+  { "id": "h30-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":30}}"] },
+  { "id": "a12-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":12,\"thirst\":12,\"dirt\":12,\"bored\":12,\"tired\":12}}"] },
+  { "id": "a24-sb32", "entry": "tools/batch.mjs", "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json", "--bodymul", "{\"rates\":{\"hunger\":24,\"thirst\":24,\"dirt\":24,\"bored\":24,\"tired\":24}}"] }
+ ],
+ "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+ "tolerations": [
+  { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+ ]
+}

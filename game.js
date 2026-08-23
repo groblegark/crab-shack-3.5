@@ -7743,18 +7743,7 @@ function buildCulture(def) {
   // COSTS ride the same tired multiplier; the drains (bed, cot, nap) stay
   // engine - recovery is WHERE you sleep, not WHO you are, the same rule
   // that keeps the on-sand 3/2 an engine fact.
-  let phys = null;
-  if (def.body) {
-    const br = def.body.rates || {}, bw = def.body.wants || {};
-    const rhu = (v, m) => { const x = v * m + 10; return (x - x % 20) / 20; };
-    const mul = (o, n) => o[n] != null ? o[n] : 20;
-    phys = { R: {}, W: {}, T: {
-      shift: rhu(TIRED_SHIFT, mul(br, "tired")),
-      errand: rhu(TIRED_ERRAND, mul(br, "tired")),
-      night: rhu(TIRED_NIGHT, mul(br, "tired")) }, ROW: 0 };
-    for (const n in VIS_RATE) phys.R[n] = rhu(VIS_RATE[n], mul(br, n));
-    for (const n in VIS_WANT) phys.W[n] = Math.max(1, Math.min(Q20 - 1, rhu(VIS_WANT[n], mul(bw, n))));
-  }
+  const phys = def.body ? buildPhys(def.body) : null;
   // SETTLERS, built once (phase B): the apron answer and the walk-in share.
   // Null when undeclared - and settlerApron/walkinCulture treat null as
   // "today's behavior", so a silent document is byte-inert by construction.
@@ -11955,6 +11944,29 @@ const VIS_BED_DRAIN = 0.30;      // a hotel bed drains tiredness at TIRED_DRAIN.
 // an undeclaring town is byte-for-byte the town before the table existed.
 const BODY = { R: VIS_RATE, W: VIS_WANT,
   T: { shift: TIRED_SHIFT, errand: TIRED_ERRAND, night: TIRED_NIGHT }, ROW: 0 };
+// build one physiology from a validated body section - the ONE conversion,
+// used by buildCulture and by the sweep hatch below, so the sensitivity
+// instrument measures the exact seam a document crosses. rhu is the
+// exact-integer round-half-up idiom; flooring here is the named 1.19% sin.
+function buildPhys(bd) {
+  const br = bd.rates || {}, bw = bd.wants || {};
+  const rhu = (v, m) => { const x = v * m + 10; return (x - x % 20) / 20; };
+  const mul = (o, n) => o[n] != null ? o[n] : 20;
+  const phys = { R: {}, W: {}, T: {
+    shift: rhu(TIRED_SHIFT, mul(br, "tired")),
+    errand: rhu(TIRED_ERRAND, mul(br, "tired")),
+    night: rhu(TIRED_NIGHT, mul(br, "tired")) }, ROW: 0 };
+  for (const n in VIS_RATE) phys.R[n] = rhu(VIS_RATE[n], mul(br, n));
+  for (const n in VIS_WANT) phys.W[n] = Math.max(1, Math.min(Q20 - 1, rhu(VIS_WANT[n], mul(bw, n))));
+  return phys;
+}
+// THE SWEEP HATCH (harness-only, the _nohall family): _bodymul is a body
+// section applied to the ENGINE'S OWN people through the same build path a
+// document takes. It exists so the slice-1.5 sensitivity matrix can vary
+// the crab row itself and read d-spend/d-rate off 100% of the town's guests
+// - a fixture culture would color only its own trickle. Unset, ENG_BODY is
+// BODY by identity and every byte is the town before the hatch existed.
+let ENG_BODY = BODY;
 // whose physiology runs this actor: their culture's built table if it
 // declared a body, else the crab's BY IDENTITY. Reads both culture homes
 // (visitors at k.culture, residents at c.p.culture - the mgmtOf lesson),
@@ -11962,7 +11974,7 @@ const BODY = { R: VIS_RATE, W: VIS_WANT,
 function bodyOf(k) {
   const id = k && (k.culture || (k.p && k.p.culture));
   const cul = id && id !== "crab" ? CULTURES[id] : null;
-  return (cul && cul.phys) || BODY;
+  return (cul && cul.phys) || ENG_BODY;
 }
 // Deal the kernel's body rows: row 0 is the crab table, rewritten on every
 // fill; declaring cultures take rows 1.. in SORTED id order - deterministic
@@ -11970,6 +11982,7 @@ function bodyOf(k) {
 // 16 rows a document's body is DROPPED LOUDLY rather than silently served
 // row 0: the two backends must never disagree about whose body is whose.
 function fillBodyRows() {
+  ENG_BODY = (typeof window !== "undefined" && window._bodymul) ? buildPhys(window._bodymul) : BODY;
   const ids = Object.keys(CULTURES).filter((id) => id !== "crab" && CULTURES[id].phys).sort();
   let row = 1;
   for (const id of ids) {
@@ -11981,7 +11994,7 @@ function fillBodyRows() {
     KM_BODY[o] = p.R.hunger; KM_BODY[o + 1] = p.R.thirst; KM_BODY[o + 2] = p.R.dirt;
     KM_BODY[o + 3] = p.R.bored; KM_BODY[o + 4] = p.R.tired;
     KM_BODY[o + 5] = p.W.food; KM_BODY[o + 6] = p.W.drink; KM_BODY[o + 7] = p.W.clean; KM_BODY[o + 8] = p.W.fun; };
-  put(0, BODY);
+  put(0, ENG_BODY);
   for (const id of ids) if (CULTURES[id].phys) put(CULTURES[id].phys.ROW, CULTURES[id].phys);
 }
 // THE STROLL IS LOCAL. An early draft picked a target anywhere in this span
