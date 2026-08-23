@@ -6,19 +6,27 @@
 // int32 logit of every held-out row), not just the choices — a wrong
 // intermediate that happens to keep the argmax must still fail here.
 //
-//   node tools/neuro/xcheck.mjs
+//   node tools/neuro/xcheck.mjs [artifact.json] [corpus.json]
+//
+// Defaults are the spike's pair (brain-vispick.json over the 32x12 collection
+// regenerated into receipts/data.json). Pass a path pair to receipt any other
+// artifact over any other collection — the retrain's own receipt is
+//   node tools/neuro/xcheck.mjs tools/neuro/receipts/brain-crab-v3.json <data>
 
 import { readFileSync, writeFileSync } from "fs";
 import { execFileSync } from "child_process";
 import { makeClassifier, fnv } from "./infer.mjs";
 
-const brain = JSON.parse(readFileSync("tools/neuro/receipts/brain-vispick.json", "utf8"));
-const { meta, rows } = JSON.parse(readFileSync("tools/neuro/receipts/data.json", "utf8"));
+const brainPath = process.argv[2] || "tools/neuro/receipts/brain-vispick.json";
+const dataPath = process.argv[3] || "tools/neuro/receipts/data.json";
+const brain = JSON.parse(readFileSync(brainPath, "utf8"));
+const { rows } = JSON.parse(readFileSync(dataPath, "utf8"));
 const maxTown = Math.max(...rows.map((r) => r.town));
 const heldFrom = Math.floor((maxTown + 1) * 0.75);
 const test = rows.filter((r) => r.town >= heldFrom);
 const NF = brain.arch.in, HID = brain.arch.hidden, NC = brain.arch.out;
-console.log(`corpus: ${test.length} held-out rows x ${NF} features`);
+console.log(`artifact: ${brainPath} (${NF}->${HID}->${NC}, R1=${brain.shifts.R1})`);
+console.log(`corpus: ${test.length} held-out rows x ${NF} features (${dataPath})`);
 
 // ---- leg 1: scalar JS (node) ------------------------------------------
 const classify = makeClassifier(brain);
@@ -37,10 +45,13 @@ new Int8Array(mem, 17408, HID * NF).set(brain.w1.flat());
 new Int32Array(mem, 81920, HID).set(brain.b1);
 new Int8Array(mem, 147456, NC * HID).set(brain.w2.flat());
 new Int32Array(mem, 212992, NC).set(brain.b2);
+// the module's own map (infer.c): corpus at 262144, logits at 8388608, 16MB
+if (262144 + test.length * NF * 2 > 8388608 || 8388608 + test.length * NC * 4 > mem.byteLength)
+  throw new Error(`corpus of ${test.length} rows overruns the wasm memory map - raise --initial-memory in build-nn.sh and the OUT offset in infer.c together`);
 const corp = new Int16Array(mem, 262144, test.length * NF);
 test.forEach((r, i) => corp.set(r.f, i * NF));
 const wasmChoicesHash = (wasm.exports.run(test.length) >>> 0);
-const out = new Int32Array(mem, 3145728, test.length * NC);
+const out = new Int32Array(mem, 8388608, test.length * NC);
 const wasmLogitsHash = fnv(Array.from(out));
 console.log(`node/V8 wasm   : logits ${wasmLogitsHash.toString(16)}  choices ${wasmChoicesHash.toString(16)}`);
 

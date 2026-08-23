@@ -75,7 +75,12 @@ function stagePokes(stage, seed, townIdx) {
   // juicebar and arcade each exist in some towns and not others, and where
   // they exist the seating and the menu vary, which is what moves
   // stop.roomfor and stop.afford.count.
-  const profile = Math.floor(prnd() * 4);            // 0 bare, 1 kitchen, 2 juice, 3 promenade
+  // Weighted, not uniform: a class the teacher rarely demonstrates is a class
+  // the net cannot learn, and arcade:fun is the thinnest one in the corpus
+  // (only a promenade town has an arcade at all). One eighth bare, two
+  // kitchen, two juice, three promenade keeps the arcade's share of the rows
+  // near v2's while the bare towns still teach an empty beach.
+  const profile = [0, 1, 1, 2, 2, 3, 3, 3][Math.floor(prnd() * 8)];   // 0 bare, 1 kitchen, 2 juice, 3 promenade
   const tables = Math.floor(prnd() * 5);             // 0..4 extra tables
   const grill = prnd() < 0.4 ? 1 : 0, board = prnd() < 0.4 ? 1 : 0;
   // LEVER 4, THE WAGE, first: a shop that cannot recruit refuses the hire
