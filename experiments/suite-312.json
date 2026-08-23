@@ -1,0 +1,26 @@
+{
+  "name": "suite-both",
+  "note": "The full scenario suite as 16 kube arms: 8 slices x {js, wasm} backends, main realm both (measure in main; debug in vm locally). Slice count is arm-count-stable as scenarios grow - 'suite-312' names the era, not a pin.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "2Gi" },
+    "limits": { "cpu": "2", "memory": "4Gi" }
+  },
+  "arms": [
+    { "id": "js-0",   "entry": "tools/suite.mjs", "args": ["--slice", "0/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-1",   "entry": "tools/suite.mjs", "args": ["--slice", "1/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-2",   "entry": "tools/suite.mjs", "args": ["--slice", "2/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-3",   "entry": "tools/suite.mjs", "args": ["--slice", "3/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-4",   "entry": "tools/suite.mjs", "args": ["--slice", "4/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-5",   "entry": "tools/suite.mjs", "args": ["--slice", "5/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-6",   "entry": "tools/suite.mjs", "args": ["--slice", "6/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "js-7",   "entry": "tools/suite.mjs", "args": ["--slice", "7/8"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "wasm-0", "entry": "tools/suite.mjs", "args": ["--slice", "0/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-1", "entry": "tools/suite.mjs", "args": ["--slice", "1/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-2", "entry": "tools/suite.mjs", "args": ["--slice", "2/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-3", "entry": "tools/suite.mjs", "args": ["--slice", "3/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-4", "entry": "tools/suite.mjs", "args": ["--slice", "4/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-5", "entry": "tools/suite.mjs", "args": ["--slice", "5/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-6", "entry": "tools/suite.mjs", "args": ["--slice", "6/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "wasm-7", "entry": "tools/suite.mjs", "args": ["--slice", "7/8"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } }
+  ]
+}

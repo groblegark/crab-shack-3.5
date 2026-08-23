@@ -47,7 +47,7 @@ const arm = arms[index];
 // The entry allowlist: a manifest can only run committed tools/ entrypoints.
 // A hostile manifest is still committed code at a pinned SHA, but keeping the
 // blast surface to tools/*.mjs makes review one glance.
-if (!/^tools\/[\w][\w.-]*\.mjs$/.test(arm.entry || "")) {
+if (!/^tools\/(?:[\w][\w.-]*\/)*[\w][\w.-]*\.mjs$/.test(arm.entry || "")) {
   console.error(`kube-arm: arm.entry ${JSON.stringify(arm.entry)} not an allowed tools/*.mjs path`);
   process.exit(2);
 }
