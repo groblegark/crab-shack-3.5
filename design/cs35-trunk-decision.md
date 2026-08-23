@@ -65,3 +65,10 @@ are engine-owned per surface; the delta stays save-state per actor.
 ## VERDICT
 
 (written after the table)
+
+## RULED (Matt, 2026-08-23, main conversation): "one architecture; yes"
+
+The trunk is adopted AND the existing visitor + citizen minds migrate onto it
+at the owner-mind landing — one re-pin ceremony, one architecture. No period
+of two brain architectures living side by side. (Recorded by the orchestrator
+from Matt's message; the fork's final doc version merges beneath this ruling.)
