@@ -1,0 +1,6 @@
+== growth sb=0 (mainline 12e2ffd)
+>> survived 4/16; eviction days: 6,9,10,11,11,11,11,13,13,13,14,20,31,31,31,31 (median 13)
+== growth sb=16 (mainline 12e2ffd)
+>> survived 3/16; eviction days: 9,10,10,10,11,12,13,13,13,14,15,15,18,31,31,31 (median 13)
+== growth sb=32 (mainline 12e2ffd)
+>> survived 7/16; eviction days: 5,10,11,11,11,12,14,18,18,31,31,31,31,31,31,31 (median 18)

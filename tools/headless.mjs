@@ -42,6 +42,10 @@ const NOHOTELIER = args.includes("--nohotelier");
 // elections. This is how the mayor pass's own balance movement was attributed
 // - the same arm-off pattern as --failoff and --norival.
 const NOHALL = args.includes("--nohall");
+// `--novsep` switches PERSONAL SPACE off (game.js reads window._novsep at the
+// top of visSeparate) - the parting only; the pier line has no hatch because
+// it is a walk target, not a system. The attribution arm for crowd effects.
+const NOVSEP = args.includes("--novsep");
 // `--nofloor` leaves the hall running - elections, the fund, the pot - but
 // holds the WAGE FLOOR at zero, so a payroll effect can be attributed without
 // switching the whole office off (which would move the shelter too).
@@ -140,6 +144,7 @@ if (FAILOFF.length) G(`window._failOff = ${JSON.stringify(Object.fromEntries(FAI
 if (NORIVAL) G(`window._noRival = true;`);
 if (NOHOTELIER) G(`window._noHotelier = true;`);
 if (NOHALL) G(`window._noHall = true;`);
+if (NOVSEP) G(`window._novsep = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);

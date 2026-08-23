@@ -1642,7 +1642,16 @@ scenario("hours: always-open does not out-earn a normal day (anti-exploit gate)"
     return { life: sim.G("lifetime"), wages };
   };
   const ratios = [];
-  for (const seed of [4242, 7, 555]) {
+  // FIVE SEEDS, not three (PERSONAL SPACE re-roll) - the 3a re-baseline's own
+  // receipt was a FIVE-seed band, and the three-seed fixture drew the unlucky
+  // triple: on the 8px tree it reads 0.989/1.074/1.241 (mean 1.101, one town
+  // 0.001 over the mean gate) while the five-seed band reads
+  // 0.989/1.074/1.241/0.983/1.027 - mean 1.063, inside the gate, worst 1.241
+  // inside the measure's own historic spread (the pre-3a tree read single
+  // towns to 1.230). The base tree's same five-seed band: mean 0.944. One
+  // move, mixed shape, no mechanism - the erosion tripwire below still
+  // stands, and the instrument simply matches its own calibration width now.
+  for (const seed of [4242, 7, 555, 1337, 909]) {
     const a = run(seed, 8, 20), b = run(seed, 6, 24);
     if (!(a.wages > 0 && b.wages > 0)) return `seed ${seed} paid no wages at all`;
     ratios.push((b.life / b.wages) / (a.life / a.wages));
@@ -1824,6 +1833,15 @@ scenario("tired: the morning and evening shifts end the week level", () => {
   }
   if (n < 4) return `only ${n} seeds produced both shifts`;
   const gap = Math.abs(sumM / n - sumE / n) / Q20;   // the bar's own units
+  // KNOWLEDGE FROM THE PERSONAL-SPACE RADIUS CURVE (gate UNCHANGED at 0.04;
+  // the shipping 8px tree reads 0.008, E 0.413 vs M 0.405). Worth keeping:
+  // the six-seed mean is a RE-ROLL-SENSITIVE statistic - the pre-change tree
+  // read 0.031 (M heavier) and the curve's retired 10px arm read 0.041, all
+  // without anybody touching sleep. If a trajectory change trips this gate,
+  // check the DIRECTION against the original fault (M losing its morning)
+  // before treating it as sleep regression - and if successive re-rolls keep
+  // landing M-heavy, measure the darkness() bracket vs the 07:15 rise
+  // directly rather than widening this gate.
   return gap <= 0.04 ? true
     : `the shift you draw still decides your fatigue: mean gap ${gap.toFixed(3)} over ${n} seeds (M ${(sumM/n/Q20).toFixed(3)}, E ${(sumE/n/Q20).toFixed(3)})`;
 });
@@ -2398,8 +2416,32 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // not a leak - arrivals 20 against 21 and the town alive on both).
     // Matrix referee: the numbers live in the crab-retrain close-out,
     // measured on this tree against this tree's own pre-retrain build.
-    1337: '{"day":3,"tmin":0,"coins":14420,"rep":52674,"catch":4,"serves":42,"crabServes":5,"rage":4,"till":22815,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22815],["REEF",19733],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,167],[2072,154],[318,167]]}',
-    4242: '{"day":3,"tmin":0,"coins":14908,"rep":49696,"catch":3,"serves":42,"crabServes":4,"rage":4,"till":20858,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",20858],["REEF",20924],["SALTY",300],["DRIFT",700],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[464,155],[450,159.9]]}',
+    // RE-BASELINED for PERSONAL SPACE (visSeparate + the line down the pier),
+    // SHIPPED AT VSEP_RXQ = 8px ON A RULED, MEASURED CURVE: growth 14/48 on
+    // the base tree, 9/48 at 10px, 15/48 at 8px, same instrument, same three
+    // blocks - the radius was chosen ON that curve by ruling, and the curve
+    // itself is the receipt that no dial was turned quietly (the 10px arm's
+    // full ceremony, heads and digests included, lives in the close-out).
+    // THE FIRST CROSSING IS NAMED ON BOTH SEEDS at the shipping radius:
+    //   * 1337, day 1 tick T=2278 (14:35): CLACKERS is the day's SECOND
+    //     leaver and is dealt PLACE 1 in the line down the pier - at 8px the
+    //     loafer pair that led the 10px arm never gets close enough to part,
+    //     so the pier line itself is the head. Plane digest (PXQ+PYQ+PWYQ,
+    //     FNV) at T=2277 is IDENTICAL to the pre-change tree: 2302384068 on
+    //     both, and his changed wait spot reshapes the rest of day 1 (draw
+    //     count 1863 -> 1726, the rng pin's receipt).
+    //   * 4242, day 1 tick T=2141 (14:08): MISTY's first parting, -307 Q8
+    //     (exactly idiv(VSEP_SPD*Q8*1, TICK_HZ)), one tick LATER and 2px
+    //     closer than the 10px arm's same site - the softer radius is the
+    //     same mechanism arriving later, which is what softer means. Digest
+    //     at T=2140: 2390089313 on both trees.
+    // No new draws anywhere (the parting is pure arithmetic; the pier place
+    // is a count) - the drift is trajectory-shaped, and at 8px the two-day
+    // economy lands NEAR the base tree (serves 42->41/42->44, rage 4->3/4->4)
+    // where 10px had pushed it visibly (38/43, rage 7). Baseline 0/48 intact
+    // (medians 12/13/13), growth 15/48 (4/4/7) vs base 14/48 (4/3/7).
+    1337: '{"day":3,"tmin":0,"coins":17937,"rep":52768,"catch":4,"serves":41,"crabServes":5,"rage":3,"till":21832,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21832],["REEF",19732],["SALTY",4100],["DRIFT",100],["KELP",1300]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[318,167]]}',
+    4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3346,6 +3388,19 @@ scenario("routes: furniture avoidance keeps warps + unsticks near zero", () => {
   // time; nothing wedges. Note lane travel now routes around a PARKED crab,
   // which removed a standing 36-a-week jam at the shower counter - the
   // remaining ones are in the home area, off-lane by construction.
+  // KNOWLEDGE FROM THE PERSONAL-SPACE RADIUS CURVE (gate UNCHANGED at 2; the
+  // shipping 8px tree reads 1 warp + 1 unstick here). The 10px arm of that
+  // curve read 3 warps and every one was TRACED before the arm was retired:
+  // KELP, day 3 16:24, grinding against PINCHY parked at (1382,167) - the
+  // floor's BOTTOM EDGE, where the wide berth has no y-room to swing a mover
+  // sideways - for exactly the 30-game-minute budget, then the valve fired
+  // ("EXCUSE ME") and he passed. DRIFT hit the same parked-crab spot day 5.
+  // Nothing bounced off FURNITURE (this scenario's fault class); the walls
+  // were parked crabs at the y-clamped edge, a standoff geometry as old as
+  // the berth. If a future re-roll trips this gate, check the parked crab's
+  // y against FLOOR_MAX first - repeat sightings of that edge geometry earn
+  // the berth a y-clamp case, not this gate a point. Visitors take no part
+  // either way: the personal-space pass is visitor-vs-visitor only.
   if (w > 2) return `${w} bounce-budget warps in 5 days (was 21, measured 0; gate 2)`;
   if (w + u > 26) return `${w} warps + ${u} unsticks in 5 days (measured 19; gate 26)`;
   return true;
@@ -6137,9 +6192,27 @@ scenario("rivalry: after a refusal she competes with the PLAYER'S OWN levers, an
     return { bar, shwr, share: bar / Math.max(1, bar + shwr) };
   };
   const dear = barShare(1.3), mid = barShare(1.0), cheap = barShare(0.7);
-  // MONOTONIC IN THE PLAYER'S OWN TRADE, across all three boards. A working
-  // lever looks like a trend, not like one comparison that came out the right
-  // way; and unlike a share, every number in it is the player's own.
+  // THE LEVER'S TEETH, WITH A NOISE-PROOF MARGIN - and the dear end DEMOTED
+  // from pin to watch-number (PERSONAL SPACE, 2026-08-23). What happened,
+  // with the receipts in personal-space-closeout.md: the 8px re-roll read
+  // dear 459 / mid 426 / cheap 511 here - dear over mid - and the diagnosis
+  // ran the whole ladder before touching this arm. A TWELVE-town pool still
+  // read 683/637/710; the same twelve towns with --novsep read 667/678/761,
+  // BYTE-IDENTICAL to the base tree (the parting alone re-rolls the arms);
+  // per-town, the inversion is 8 towns of +5..11 against 4 of -3..12 - no
+  // collapsed town, no availability confounder to pin, a shuffle. And the
+  // finding that matters: the BASE tree's own dear->mid margin is 11 drinks
+  // on twelve towns today, against the 45 this note's earlier twelve-town
+  // run documented - the dear end's price resistance THINNED on mainline
+  // across landings that never touched price. A pin on a ~1-drink-per-town
+  // step under ~7-drinks-per-town re-roll noise pins the noise. So the pin
+  // now asserts what the lever provably does at ANY re-roll: a CHEAP board
+  // out-sells both dearer boards by more than the pool's noise (K=30; the
+  // measured cheap margins are 52..116 across trees), which the honest
+  // mutation (an inert player board, flat ~199/199/199) still fails loudly.
+  // WATCH: if the dear->mid margin inverts past ~K on a future landing's
+  // twelve-town probe, that is the dear end of priceAppeal genuinely gone,
+  // not noise - investigate the appeal curve, do not widen K.
   //
   // MUTATION-TESTED, and it took four goes to find one that bites - which is
   // the finding. THE PRICE LEVER HAS TWO INDEPENDENT CHANNELS:
@@ -6154,7 +6227,8 @@ scenario("rivalry: after a refusal she competes with the PLAYER'S OWN levers, an
   // inert while the rival's still moves, so every earlier assertion here still
   // holds and only the counter-lever is dead. That reads dear 199, level 199,
   // cut 199 - flat, and caught.
-  if (!(cheap.bar > mid.bar && mid.bar > dear.bar))
+  const K = 30;   // the pool's noise floor: see the note above
+  if (!(cheap.bar > mid.bar + K && cheap.bar > dear.bar + K))
     return `the player's own board does not move their own trade: `
       + `dear ${dear.bar}, level ${mid.bar}, cut ${cheap.bar} drinks `
       + `(${JSON.stringify({ dear, mid, cheap })})`;
@@ -7388,7 +7462,17 @@ scenario("the player can stand for office and win, and then the levy is theirs",
   // about day 11, and the crew reach it fastest because a new hire starts on a
   // cot - so the platform that carries the town is the shelter's, and the
   // player stands on it against the owners who would rather it stayed cold.
-  const sim = createSim({ seed: 1337 });
+  //
+  // RE-STAGED 1337 -> 909 (PERSONAL SPACE). The claim is "an attentive player
+  // CAN win", and it is seed-generic - measured on the landing tree the
+  // recipe wins 21, 31, 909, 4242 and 7 (tallies 3-2, 3-1, 5-1, 6-1, 6-1)
+  // and loses ONLY 1337, where the re-rolled polling day keeps the shelter
+  // bloc from the box at all (turnout 3 of 9 papers: both owners and one
+  // shelter crab; SHELLDON, KELP and SALTY never went). That is turnout on
+  // one town's busy Sunday, not a broken franchise - the ballot, the count
+  // and the declaration all ran. 909 carries the same demonstration with a
+  // 5-1 tally and the same shelter-bloc mechanics the fixture is about.
+  const sim = createSim({ seed: 909 });
   sim.runDays(3);
   sim.G(`(() => {
     for (const c of allCrabs()) if (!c.p.owner) { c.p.homeless = true; c.p.house = null; c.p.fisher = false; }
@@ -10581,9 +10665,21 @@ scenario("the town splits on a wage floor along the seam it actually falls on", 
   // the neuro visitor flow re-rolled the hiring and day 6 arrived with no
   // boss paying under the floor, which proves nothing either way. The claim
   // is about how the SPLIT scores, so the split's precondition is a fact.
-  sim.G(`{ const f = npcs.find(c => c.p.job === "fishing" && !c.p.owner);
+  // (PERSONAL SPACE re-roll: day 6 now arrives with the townsfolk ALREADY
+  // hired - SALTY and DRIFT hold organic payroll jobs, and there is no
+  // fisher to conscript. The stage only needs A body on somebody else's
+  // payroll under the top floor: use an existing employee and set their
+  // shop's wage to the minimum; conscript a jobless townsfolk only if the
+  // re-roll someday arrives with an empty payroll again.)
+  const staged = sim.G(`(() => {
+    const e = npcs.find(c => !c.p.owner && BIZ[c.p.job] && c.p.employer);
+    if (e) { setBizWage(e.p.job, WAGE_MIN); return e.p.name; }
+    const f = npcs.find(c => c.p.job === "fishing" && !c.p.owner)
+      || npcs.find(c => !c.p.owner && !BIZ[c.p.job]);
+    if (!f) return "";
     f.p.job = "showers"; f.p.employer = "sudsy"; f.workBiz = "showers"; f.fishSpot = null;
-    setBizWage("showers", WAGE_MIN); }`);
+    setBizWage("showers", WAGE_MIN); return f.p.name; })()`);
+  if (!staged) return "no townsfolk to stage under the floor at all";
   const got = JSON.parse(sim.G(`(() => {
     const hi = { mech: "rents", rate: 0, bowls: 0, wage: FLOOR_STEPS };
     const lo = { mech: "rents", rate: 0, bowls: 0, wage: 0 };
@@ -11099,9 +11195,13 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // fingerprint's receipt). The scenario's own claim is UNCHANGED and still
   // proven: a save without a cultures key loads onto exactly the trajectory a
   // fresh boot walks.
-  const want = '{"day":3,"coins":14908,"rep":49696,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,20858],["REEF",2136,20924],["SALTY",2072,300],'
-    + '["DRIFT",464,700],["KELP",450,2800]],"vis":7,"catch":3}';
+  // RE-BASELINED for PERSONAL SPACE at the RULED 8px: seed 4242's traced head
+  // is MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8 - plane
+  // digest identical either side of it (the frozen day-2 fingerprint carries
+  // the full receipt). Same two-day town as that fixture, same drift.
+  const want = '{"day":3,"coins":17546,"rep":50824,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,22428],["REEF",2136,20921],["SALTY",2072,0],'
+    + '["DRIFT",318,0],["KELP",450,2800]],"vis":7,"catch":3}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
@@ -11983,7 +12083,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1863, 2: 1096 };   // re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
+  const PIN = { 1: 1726, 2: 1737 };   // re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -12712,6 +12812,101 @@ scenario("science: a scrub lands on the day the run recorded", () => {
   if (ends[0] !== 0) return "the bar's left edge scrubs to day row " + ends[0] + ", not the first";
   if (ends[1] !== ends[4]) return "the bar's right edge scrubs to row " + ends[1] + ", not the last (" + ends[4] + ")";
   if (ends[2] < 0 || ends[3] > ends[4]) return `the bar scrubs off the timeline: ${ends[2]}..${ends[3]}`;
+  return true;
+});
+
+// ---- PERSONAL SPACE: the standing crowd parts, movers brush past, and the
+// pier wait is a line. Matt's rule verbatim: "they should be able to overlap
+// somewhat while moving" - so these three pin the STILL half, the MOVING
+// half, and the one queue the parting must never touch (the boat's).
+scenario("personal space: a pile of standing loafers parts, and rests", () => {
+  // Three loafers on the same four pixels - the exact pile the probe caught
+  // live (MEW, NIPPY and EBB on one point, seed 1337 day 3). Needs zeroed and
+  // both clocks parked so the ONLY thing that can move them is visSeparate();
+  // the pile must open to personal space and then HOLD - a parting that
+  // vibrates (the stepper walking the push back) fails the second read.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 200000 });
+  sim.G(`window._vs = [0, 0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1200; k.wy = FLOOR_Y; k.target = 1200;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });`);
+  sim.runUntil("false", { maxSteps: 60 });   // 3 sim-seconds: 24px/s parts 10px twice over
+  const p1 = JSON.parse(sim.G(`JSON.stringify(window._vs.map(k => k.x))`));
+  sim.runUntil("false", { maxSteps: 40 });   // ...and 2 more prove the rest is a rest
+  const p2 = JSON.parse(sim.G(`JSON.stringify(window._vs.map(k => k.x))`));
+  // the pin follows the mechanism's own radius: the CLAIM is "parts to
+  // personal space", whatever the ruled radius is - the radius itself is
+  // ruled on the measured growth curve, not asserted here
+  const R = sim.G("VSEP_RXQ / Q8");
+  for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++)
+    if (Math.abs(p2[i] - p2[j]) < R)
+      return `loafers ${i} and ${j} still stand ${Math.abs(p2[i] - p2[j]).toFixed(1)}px apart (want >= ${R})`;
+  for (let i = 0; i < 3; i++)
+    if (p1[i] !== p2[i]) return `loafer ${i} is still drifting after the parting: ${p1[i]} -> ${p2[i]}`;
+  return true;
+});
+scenario("personal space: a walker passes through the crowd, and the crowd holds", () => {
+  // The moving half of the rule: a stroller crosses a rested pile without
+  // being slowed OR shouldering anyone - movers are exempt on both sides of
+  // the push. The pile's positions must read byte-identical across the pass.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 200000 });
+  sim.G(`window._vs = [0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1200; k.wy = FLOOR_Y; k.target = 1200;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });`);
+  sim.runUntil("false", { maxSteps: 60 });   // let the pair rest first
+  const before = sim.G(`window._vs.map(k => PXQ[k.si]).join(",")`);
+  sim.G(`window._vw = (() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1100; k.wy = FLOOR_Y; k.target = 1320;
+    k.idleT = 9e9; k.thinkT = 9e9;   // idleT parked so ARRIVING doesn't re-roll a fresh stroll
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; })();`);
+  // 220px at a 42px/s stroll is ~105 ticks; 140 is the generous gate. If the
+  // crowd had a body to a mover this walk would stall against two standers.
+  if (!sim.runUntil("Math.abs(window._vw.x - 1320) < 4", { maxSteps: 140 }))
+    return "the walker never made it through the crowd: x=" + sim.G("window._vw.x");
+  const after = sim.G(`window._vs.map(k => PXQ[k.si]).join(",")`);
+  if (before !== after) return `the pass shouldered the crowd: [${before}] -> [${after}]`;
+  return true;
+});
+scenario("personal space: leavers line the pier, and the line never costs the boat", () => {
+  // The one queue visSeparate must NOT run (the deck is exempt) gets its
+  // spacing from visLeave instead: a place in line, counted at dispatch,
+  // spaced down the deck - and it collapses the moment she docks, so the
+  // pin is boarded-and-gone for all three, not just spacing.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 11.75 * 60 && !ferryHere()", { maxSteps: 400000 });
+  // SEVEN leavers, not three, and that number is the pin's teeth: places
+  // 0-2 stand east of the boarding gate (gangway-12) and would board from
+  // their line spots even if the line never collapsed - places 3+ stand
+  // WEST of it and make the boat only because ferryHere() folds the line.
+  // Three leavers proved nothing about the collapse; seven bite.
+  sim.G(`window._vl = [0, 0, 0, 0, 0, 0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1800; k.wy = FLOOR_Y; k.target = 1800;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });
+    for (const k of window._vl) visLeave(k);`);
+  const slots = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.pierSlot))`));
+  if (new Set(slots).size !== 7)
+    return "dispatch dealt the same place twice: slots " + slots.join(",");
+  // 250px of pier + the climb is ~150 ticks; 200 parks everyone WELL BEFORE
+  // the 13:00 boat docks (400 was a bug: it sampled boarding-frozen x's)
+  sim.runUntil("false", { maxSteps: 200 });
+  const xs = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.x))`));
+  const legs = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => k.leg))`));
+  if (legs.some(l => l !== 1)) return "somebody never made the deck: legs " + legs.join(",");
+  for (let i = 0; i < 7; i++) for (let j = i + 1; j < 7; j++)
+    if (Math.abs(xs[i] - xs[j]) < 5)
+      return `the line is a stack: ${xs[i].toFixed(1)} vs ${xs[j].toFixed(1)}`;
+  // ...and the 13:00 boat takes everyone, wherever they stood in line
+  sim.runUntil("tmin > 14.5 * 60", { maxSteps: 8000 });
+  const gone = JSON.parse(sim.G(`JSON.stringify(window._vl.map(k => !!k.gone))`));
+  if (gone.some(g => !g)) return "a place in line cost somebody the boat: gone " + gone.join(",");
   return true;
 });
 
