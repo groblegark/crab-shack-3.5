@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-both-19bb103-gsn3",
+  "armId": "wasm-7",
+  "index": 15,
+  "sha": "19bb10323ff7df2d4ecb094a1d765ea5886cce0d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 184461,
+  "verdict": "39/39 passed in slice 7/8 (184.4s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (3315ms)\n  PASS  save/load roundtrip preserves state (1000ms)\n  PASS  sick crabs can still wash (mobility + cure path) (640ms)\n  PASS  slots: the preview card reflects the town it came from (1456ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (894ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (840ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (90ms)\n  PASS  days off: everyone rests their weekday and plays customer (4171ms)\n  PASS  hours: shortened hours really close the shop (494ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (6352ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (795ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (106ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (8756ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (4297ms)\n  PASS  tips: the counter gets a token, the table gets the lot (13ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (534ms)\n  PASS  a town saved mid-errand reloads and keeps running (473ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (127904ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (589ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (3447ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1017ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (8ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1423ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (536ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (2030ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (461ms)\n  PASS  the shop tooltip promises what the button actually does (232ms)\n  PASS  the hire card runs on the wall clock, not the game clock (472ms)\n  PASS  the title screen credits the track that is actually queued (8ms)\n  PASS  a crab may stand in the cabana it has come to clean (7ms)\n  PASS  missing payday costs the crew, not the lease (3759ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (578ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (6ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (228ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (549ms)\n  PASS  saves: a ver-3 envelope is the zero delta (504ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (76ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (6271ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (34ms)\n39/39 passed in slice 7/8 (184.4s)\n"
+}
