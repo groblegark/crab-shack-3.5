@@ -12306,13 +12306,21 @@ scenario("brains: the citizen brain agrees with the errand scorer it distilled",
   // higher-agreement candidates whose ball:fun class was dead). The floor is
   // a floor: it catches a lobotomy, not a personality. MUTATION: zeroing the
   // artifact's w2 collapses it to a constant class and this fails at ~30%.
-  const FLOOR = 0.90;
+  // TWO floors, because this surface's prior is ~97% "none" and a plain
+  // agreement floor is VACUOUS against a lobotomy (measured: a zeroed-w2
+  // constant-none brain read 97%+ here and PASSED the first draft). The
+  // acted floor is the one with teeth: of the thinks where the teacher
+  // actually went somewhere, the brain must have called most of them.
+  const FLOOR = 0.90, ACTED_FLOOR = 0.50;
   const sim = createSim({ seed: 4242 });
   sim.runDays(4);
   const s = JSON.parse(sim.G(`JSON.stringify((window._shadowStats && window._shadowStats.crab || {})["cit_errand.candidate"] || null)`));
   if (!s || s.n < 300) return "citizen shadow saw only " + (s ? s.n : 0) + " thinks - not a measurement";
   if (s.agree / s.n < FLOOR)
     return `the citizen brain agrees with its teacher on ${(s.agree / s.n * 100).toFixed(1)}% of ${s.n} thinks - the floor is ${FLOOR * 100}%`;
+  if (!(s.acted >= 10)) return "the teacher only acted " + s.acted + " times in four days - the acted floor says nothing";
+  if (s.actedAgree / s.acted < ACTED_FLOOR)
+    return `of ${s.acted} acted thinks the brain called ${s.actedAgree} - below the ${ACTED_FLOOR * 100}% acted floor (a constant-none lobotomy reads exactly like this)`;
   return true;
 });
 

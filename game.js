@@ -12281,10 +12281,15 @@ function shadowCitObserve(c, cand, bp, best) {
   brainTvCapture(c, bp, actual);
   const all = window._shadowStats = window._shadowStats || {};
   const cul = all[(c.p && c.p.culture) || "crab"] = all[(c.p && c.p.culture) || "crab"] || {};
-  const s = cul["cit_errand.candidate"] = cul["cit_errand.candidate"] || { n: 0, agree: 0, ring: [] };
+  const s = cul["cit_errand.candidate"] = cul["cit_errand.candidate"] || { n: 0, agree: 0, acted: 0, actedAgree: 0, ring: [] };
   s.n++;
   if (cls === actual) s.agree++;
   else if (s.ring.length < 16) s.ring.push({ t: T, want: bp.classes[cls], got: bp.classes[actual] });
+  // the acted tally, because this surface's prior is ~97% "none": a
+  // lobotomized constant-none brain BEATS a plain agreement floor here, so
+  // the floor that catches a lobotomy is agreement ON THE THINKS THE
+  // TEACHER ACTED ON - measured by mutation, not assumed.
+  if (actual !== 0) { s.acted++; if (cls === actual) s.actedAgree++; }
 }
 // THE COMPILED SCORER's marshal + drain (kernel phase 4). Fills the per-think
 // planes with the same facts the reference reads - the taste row is the
