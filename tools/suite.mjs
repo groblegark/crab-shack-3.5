@@ -5515,7 +5515,8 @@ scenario("the roster outgrows the panel and every crab stays a tap away", () => 
     while (crabs.length < 12) {
       crabs.push({ x: c0.x, y: c0.y, duty: false,
         p: { name: "STAGED " + crabs.length, color: crabs.length % 4, acc: "none",
-             culture: "crab", trait: c0.p.trait, mode: c0.p.mode, sick: false } });
+             culture: "crab", trait: c0.p.trait, mode: c0.p.mode, sick: false,
+             job: c0.p.job, wage: c0.p.wage, wallet: 0 } });   // job: the BILL chip sums shifts over ALL crew
     }
     crabs[7].p.culture = "pig"; crabs[7].p.color = 0;   // the pig in slot eight
     sel = null; followIdx = -1; dossier = null; manage = null; boardView = false;
@@ -5554,6 +5555,7 @@ scenario("the roster outgrows the panel and every crab stays a tap away", () => 
   if (!out.pig || out.pigKey !== "pigc0") return "the pig employee draws from the crab rack (key=" + out.pigKey + ")";
   if (!out.crabNull) return "the crab took the cultured path - hand-tuned pixels lost";
   if (out.bad.length) return "the staged roster prints outside the canvas: " + JSON.stringify(out.bad[0]);
+  return true;
 });
 scenario("one reading surface owns the screen", () => {
   // A BIG CARD UP MEANS NO TABS AND NO TILES - drawn or answered. The panel
@@ -5584,6 +5586,7 @@ scenario("one reading surface owns the screen", () => {
   if (out.tabsDrawn) return "the tab row drew under an open management card";
   if (out.ghost) return "a ghost crew tile answered a tap under an open card";
   if (!out.restored) return "the popped-down selector's restore chip answers nothing";
+  return true;
 });
 scenario("a science run is silent and the mind panel banks at the fold", () => {
   const sim = createSim({ seed: 11 });
@@ -5613,6 +5616,7 @@ scenario("a science run is silent and the mind panel banks at the fold", () => {
   if (!out.thinker) return "no captured citizen thinker to stage the mind panel with - the staging is vacuous";
   if (!out.pager) return "a thirteen-class mind drew no ..MORE row - the bank is not paging";
   if (out.fold >= 176) return "the mind panel still crosses the fold (" + out.fold + " >= panel)";
+  return true;
 });
 scenario("no surface prints off the canvas", () => {
   // THE GENERAL FORM OF THE LEASE BUG. Every full-screen surface is drawn with

@@ -15976,6 +15976,7 @@ let crewPage = 0, _crewPageFollow = -1, menuPage = 0;
 let crewDock = true;   // the selector, popped up (true) or down - the player's own call
 function crewStripGeom() {
   const n = crabs.length, limit = W - NAV_CHIP_W - 4;
+  window._crewN = n;   // the probe tests read (harness + browser alike)
   let fit = 0;
   while (fit < n && 4 + fit * CARD_STEP + CARD <= limit) fit++;
   if (fit >= n) {   // everyone fits: one page, no chip
