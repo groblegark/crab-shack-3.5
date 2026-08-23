@@ -224,6 +224,11 @@ gate is a player lever rather than a metric: "the artifact is the
 requirement, the run is not" (the agents doc, §6), and every candidate is in
 the table above rather than only the winner.
 
+**The branch's history is that story, not a tidied version of it.** Commit
+`0d0c673` lands the seed-7 artifact and quotes its 97.98%; the next commit
+replaces it with seed 11 because the rivalry sweep refused it. What SHIPS is
+seed 11 at 97.816%, and every number in this document is seed 11's.
+
 The pin's own pool went five towns → eight in the same pass, and said why:
 on the five-town pool the shipped artifacts read dear→level margins of 8 (v2)
 and 7 (v3) against the script's 31 — a coin dressed as a measurement. At
