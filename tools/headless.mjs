@@ -384,11 +384,18 @@ if (CITDIVLOG || CITSCRIPT || CITKNOCK.length) {
   // bucket counts and per-seed divergence totals, samples omitted — the
   // full corpus needs --divout and a filesystem that outlives the pod.
   if (CITDIVLOG) {
-    const buckets = {};
-    for (const r of rows) for (const d of r.div || [])
-      buckets[d.brain + ">" + d.script] = (buckets[d.brain + ">" + d.script] || 0) + 1;
+    const buckets = {}, firsts = {};
+    for (const r of rows) for (const d of r.div || []) {
+      const k = d.brain + ">" + d.script;
+      buckets[k] = (buckets[k] || 0) + 1;
+      // two story seeds per pair: the earliest sighting and the latest-day
+      // one, each compact (the receipt keeps only the stdout tail)
+      const f = firsts[k] = firsts[k] || [];
+      if (f.length < 2) f.push({ s: r.seed, d: d.day, name: d.name, job: d.job,
+        w: d.wallet, needs: d.needs });
+    }
     console.log(">> citdivsum " + JSON.stringify({
-      buckets,
+      buckets, firsts,
       seeds: rows.map(r => ({ s: r.seed, evict: r.evict, n: (r.div || []).length })),
     }));
   }
