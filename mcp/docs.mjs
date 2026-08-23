@@ -136,6 +136,15 @@ crabshack://cultureway/research and crabshack://plan for the full text.
   6. cultureway_diff      — against the pigs, to see what you actually made
      different
   7. iterate from 3
+  8. policy_distill       — optionally, compress a decision surface into a
+                            small deterministic BRAIN: the sim's own script
+                            labels the data, and you get back a policies-
+                            section artifact (shadow mode) plus agreement
+                            receipts; policy_verify re-checks any artifact.
+                            The feature vector is yours to declare, per brain,
+                            from the named-observable registry - and brains
+                            never draw. The shipped crab and gull deciders
+                            went through exactly this loop.
 
 ## Running experiments
 

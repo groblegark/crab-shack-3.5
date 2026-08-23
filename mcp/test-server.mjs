@@ -123,6 +123,25 @@ check("sim_sweep reports a distribution", /evictionDays/.test(textOf(sweep)));
 const shortSweep = await call("sim_sweep", { towns: 2, seedbase: 1337, days: 6, jobs: 2 });
 check("a sweep with no evictions returns data and no chart", !imageOf(shortSweep) && /survived/.test(textOf(shortSweep)));
 
+// ---- the policy loop ------------------------------------------------------
+// tiny on purpose: the harness proves the LOOP works end to end, not that a
+// two-town artifact is any good (the suite's agreement-floor scenario judges
+// the shipped ones).
+const dist = JSON.parse(textOf(await call("policy_distill", { towns: 2, days: 3, epochs: 2, hidden: 8 })));
+check("policy_distill returns an artifact with receipts",
+  dist.artifact && dist.artifact.mode === "shadow" && dist.receipts && dist.receipts.data.rows > 50,
+  JSON.stringify(dist).slice(0, 200));
+check("the artifact declares its inputs from the registry",
+  Array.isArray(dist.artifact && dist.artifact.inputs) && dist.artifact.inputs.length === dist.artifact.arch.in);
+const pv = JSON.parse(textOf(await call("policy_verify", { artifact: dist.artifact, towns: 1, days: 2 })));
+check("policy_verify accepts what distill produced", pv.valid === true && typeof pv.agreement === "number",
+  JSON.stringify(pv).slice(0, 200));
+const badArt = JSON.parse(JSON.stringify(dist.artifact));
+badArt.inputs[0] = "stop.gossip.rate:shack";
+const pvBad = JSON.parse(textOf(await call("policy_verify", { artifact: badArt })));
+check("a broken artifact is refused with the observable named",
+  pvBad.valid === false && /stop\.gossip\.rate/.test(pvBad.problem || ""), JSON.stringify(pvBad).slice(0, 200));
+
 // ---- containment ---------------------------------------------------------
 const huge = { meta: { id: "huge" }, people: { names: ["X".repeat(12)] }, big: "y".repeat(600000) };
 const cap = JSON.parse(textOf(await call("cultureway_validate", { document: huge })));

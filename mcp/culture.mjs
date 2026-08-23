@@ -246,6 +246,8 @@ export function loadBundled(id) {
     const raw = JSON.parse(readFileSync(join(ROOT, "tools", "fixtures", "cultures-pig.json"), "utf8"));
     return raw.pig || raw;
   }
+  if (id === "gull")
+    return JSON.parse(readFileSync(join(ROOT, "design", "cultureways", "gullway.json"), "utf8"));
   return null;
 }
 

@@ -220,6 +220,21 @@ the phase plan — no orphan debt.
    the crab baseline's, with the same "regression detector, never a dial"
    doctrine.
 
+## 5½. PHASE STATUS ADDENDUM (2026-08-22, the neuro ladder)
+
+The `policies` section is REAL AHEAD OF SCHEDULE: the neuro ladder landed it
+as schema + loader clamps + two live artifacts (the crab default's brain
+rides BUNDLED_POLICIES beside the cultureways; the gulls' rides their own
+document — THE WINDWARD ROOST is bundled now, the second shipped people and
+the first whose decider is their own). A brain is a per-surface policy of
+kind `brain` with a declared input vector picked from the versioned
+observable registry — the "registry rows" this doc sketches now have their
+first production consumer, and the decision-surface registry
+(`vis_pick.candidate` today) is the hook-taxonomy seed phase D grows.
+Distillation is an MCP tool (`policy_distill`, shadow-mode artifacts,
+promotion is the author's act). Receipts:
+design/cs35-research/numeric-wip/neuro-ladder-closeout.md.
+
 ## 6. THE MIGRATION ORDER (recommendation for the owner)
 
 - **A. Formalize (this doc + files, ~1 session):** schema v2 + JSON Schema
