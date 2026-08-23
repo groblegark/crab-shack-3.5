@@ -123,6 +123,26 @@ function localise(d, verdict) {
     });
   else if (v != null) say("voice.registers", "required when voice is present: a non-empty list");
 
+  // depart-rule weight overrides (registry row 4): ruleId -> int 0..8,
+  // quarters with 4 the identity. The rule ids are the engine's own table.
+  const DEPART_IDS = ["rough", "quits", "quit", "nothing", "foreign", "delight",
+    "unspent", "idle", "hungry", "parched", "grubby", "weary", "bored", "wait",
+    "dues", "missed", "mist", "table", "bed", "spentup", "top", "regular", "quiet"];
+  const dp = d.depart;
+  if (dp != null) {
+    if (typeof dp !== "object" || Array.isArray(dp)) say("depart", "must be an object");
+    else if (dp.weights != null) {
+      if (typeof dp.weights !== "object" || Array.isArray(dp.weights)) say("depart.weights", "must be an object of ruleId -> 0..8");
+      else for (const k in dp.weights) {
+        if (!DEPART_IDS.includes(k))
+          say(`depart.weights.${k}`, `"${k}" is not a departure rule id (${DEPART_IDS.join(", ")})`);
+        const w = dp.weights[k];
+        if (typeof w !== "number" || !Number.isInteger(w) || w < 0 || w > 8)
+          say(`depart.weights.${k}`, "must be an integer 0-8 (quarters; 4 = the engine's own weight)");
+      }
+    }
+  }
+
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");
   const ap = d.appeal;
   if (ap && ap.tastes) for (const k in ap.tastes) {

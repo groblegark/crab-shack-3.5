@@ -299,10 +299,26 @@
      "description": "Drop-nudge terms in AUTHOR units, converted once at install: radius in px, minutes on the game clock, relax quantized to the sim's Q20 grid by the same quantizer the engine's own constant uses, mul100 in appeal's hundredths (130 = x1.3). Fields left out inherit the crab values (72 / 60 / 0.12 / 130).",
      "type": "object",
      "properties": {
-      "radius": { "type": "integer", "minimum": 8, "maximum": 128 },
-      "minutes": { "type": "integer", "minimum": 5, "maximum": 1440 },
-      "relax": { "type": "number", "minimum": 0, "maximum": 0.5 },
-      "mul100": { "type": "integer", "minimum": 100, "maximum": 300 }
+      "radius": {
+       "type": "integer",
+       "minimum": 8,
+       "maximum": 128
+      },
+      "minutes": {
+       "type": "integer",
+       "minimum": 5,
+       "maximum": 1440
+      },
+      "relax": {
+       "type": "number",
+       "minimum": 0,
+       "maximum": 0.5
+      },
+      "mul100": {
+       "type": "integer",
+       "minimum": 100,
+       "maximum": 300
+      }
      }
     }
    }
@@ -483,6 +499,134 @@
   "civics": {
    "type": "object",
    "description": "Phase E - institutions, offices, policy step-tables, calendar phases, errand defs, invariants. Schema lands with the capability APIs."
+  },
+  "depart": {
+   "type": "object",
+   "additionalProperties": false,
+   "description": "Departure-card rule re-weighting (registry row 4). weights: ruleId -> integer 0..8, a QUARTERS multiplier on the engine's rule weight (4 = identity, 0 = silence the rule for this people, 8 = twice as loud). Unknown rule ids are refused at import.",
+   "properties": {
+    "weights": {
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "rough": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "quits": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "quit": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "nothing": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "foreign": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "delight": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "unspent": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "idle": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "hungry": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "parched": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "grubby": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "weary": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "bored": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "wait": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "dues": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "missed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "mist": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "table": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "bed": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "spentup": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "top": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "regular": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      },
+      "quiet": {
+       "type": "integer",
+       "minimum": 0,
+       "maximum": 8
+      }
+     }
+    }
+   }
   }
  },
  "$defs": {

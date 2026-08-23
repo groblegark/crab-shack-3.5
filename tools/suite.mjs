@@ -10941,6 +10941,130 @@ scenario("back pay is paid before tonight's wages, and the bank has a limit", ()
 // The pig fixture is the real step-3 content; here it is a test instrument.
 const PIG_FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/cultures-pig.json", import.meta.url), "utf8"));
 
+// ---- THE CRAB'S OWN VOICE, TABLED (cultureway phase C) ----------------------
+scenario("crab voice: every tabled line is the literal, byte for byte", () => {
+  // The contract that lets the table exist at all: arm the bundled crab voice
+  // and disarm it, feed the same event, and the sentence may not move by one
+  // byte. The fallbacks passed here mirror the call sites; the whole-day
+  // scenario below catches a call site this mirror might drift from.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const k = { name: "MISTY", color: 0, acc: "cap", culture: null };
+    const diary = [
+      ["bought", "BOUGHT FISH TACO AT THE SHACK - $12", { ITEM: "FISH TACO", BIZ: "SHACK", PRICE: 12 }],
+      ["ashore", "CAME ASHORE OFF THE FERRY", null],
+      ["dues", "PAID $4 HARBOUR DUE", { N: 4 }],
+      ["leaving", "HEADING BACK TO THE FERRY", null],
+      ["missedboat", "MISSED THE LAST BOAT - STAYING OVER", null],
+      ["checkin", "CHECKED IN - ROOM 7 AT THE DRIFTWOOD", { N: 7 }],
+      ["checkout", "CHECKED OUT - SLEPT WELL", null],
+      ["rough", "NO ROOM AT THE HOTEL - SLEPT ON THE BEACH", null],
+      ["wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT", null],
+      ["turnin", "TURNED IN FOR THE NIGHT", null],
+      ["gaveup", "GAVE UP WAITING AT THE SHACK", { BIZ: "SHACK" }],
+    ];
+    const departs = [
+      ["foreign", { foreign: 2 }], ["delight", { de: 2 }],
+      ["idle", { left: 70, spent: 30 }],
+      ["hungry", { hunger: Q20, meals: 0, buys: 1, serves: 1, drinks: 1 }],
+      ["parched", { thirst: Q20, drinks: 0 }],
+      ["weary", { tired: Q20, nightsBed: 0 }],
+      ["bored", { bored: Q20, games: 0 }],
+      ["wait", { worstMin: 380, worstBiz: "CRAB SHACK", serves: 1 }],
+      ["missed", { missed: 1 }],
+      ["mist", { mistMin: 300 * GMIN }],
+      ["quiet", {}],
+    ];
+    const speak = () => ({
+      diary: diary.map(([id, fb, slots]) => vline(k, id, fb, slots)),
+      bogus: vline(k, "nosuchevent", "THE LITERAL", null),
+      depart: departs.map(([want, over]) => {
+        const q = visQuote(Object.assign(${DEP_BASE}, over));
+        return [want, q.id, q.line];
+      }),
+      dossier: (crabRegister("cap") || { dossier: ["JUST OFF THE BOAT."] })
+        .dossier[("MISTY".length + 0) % 1],
+    });
+    if (!CRABV) return { err: "the bundled crab voice did not install" };
+    const armed = speak();
+    const s = CRABV; CRABV = null;
+    const bare = speak();
+    CRABV = s;
+    return { armed, bare };
+  })())`));
+  if (got.err) return got.err;
+  for (let i = 0; i < got.armed.diary.length; i++)
+    if (got.armed.diary[i] !== got.bare.diary[i])
+      return "diary diverged at " + i + ": " + got.armed.diary[i] + " vs " + got.bare.diary[i];
+  if (got.armed.bogus !== "THE LITERAL") return "a bogus event did not fall to the fallback";
+  for (let i = 0; i < got.armed.depart.length; i++) {
+    const [want, id, line] = got.armed.depart[i];
+    if (id !== want) return "stage broke: wanted rule " + want + ", got " + id;
+    if (line !== got.bare.depart[i][2])
+      return "depart " + want + " diverged: " + line + " vs " + got.bare.depart[i][2];
+  }
+  if (got.armed.dossier !== "JUST OFF THE BOAT.") return "dossier diverged: " + got.armed.dossier;
+  return true;
+});
+scenario("crab voice: two whole days with the table off are the same town", () => {
+  // The mirror-drift catcher: run the same seed with the crab voice armed and
+  // disarmed and require every visitor's log - real traffic through the real
+  // call sites - to be byte-identical. If a call-site literal ever drifts
+  // from the fixture, this goes red before any player sees the seam.
+  const logs = (disarm) => {
+    const sim = createSim({ seed: 41 });
+    if (disarm) sim.G("CRABV = null");
+    sim.runDays(2);
+    return sim.G(`JSON.stringify(customers.filter(k => k.visitor)
+      .map(k => [k.name, (k.log || []).map(e => e[3])]))`);
+  };
+  const armed = logs(false), bare = logs(true);
+  if (armed !== bare) {
+    const a = JSON.parse(armed).flatMap(v => v[1]), b = JSON.parse(bare).flatMap(v => v[1]);
+    for (let i = 0; i < Math.max(a.length, b.length); i++)
+      if (a[i] !== b[i]) return "first divergent line: " + a[i] + " vs " + b[i];
+    return "logs diverged in shape";
+  }
+  return true;
+});
+scenario("depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one", () => {
+  // Registry row 4 must BITE (substrate 5.2): a declared weight measurably
+  // changes which rule speaks, in both directions, while identity (4) and
+  // absence leave the engine's order untouched. The validator half: 0..8
+  // integers on known rule ids, everything else refused by name.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const r = Object.assign(${DEP_BASE},
+      { cu: "pig", worstMin: 380, worstBiz: "CRAB SHACK", serves: 1, missed: 1 });
+    const was = CULTURES.pig.departW;
+    const pick = (w) => { CULTURES.pig.departW = w; const q = visQuote(r); return q.id; };
+    const out = {
+      base: pick(null),                    // engine order: the long wait speaks
+      identity: pick({ wait: 4 }),         // 4 = quarters identity
+      halved: pick({ wait: 2 }),           // the wait hushed -> missed speaks
+      silenced: pick({ wait: 0 }),
+      doubled: pick({ missed: 8 }),        // the boat missed, twice as loud
+    };
+    CULTURES.pig.departW = was;
+    const doc = JSON.parse(JSON.stringify(BUNDLED_CULTUREWAYS.pig));
+    doc.depart = { weights: { wait: 9 } };  out.hot = cultureProblem(doc);
+    doc.depart = { weights: { wait: 2.5 } }; out.frac = cultureProblem(doc);
+    doc.depart = { weights: { nosuchrule: 4 } }; out.unknown = cultureProblem(doc);
+    doc.depart = { weights: { wait: 2, missed: 8 } }; out.good = cultureProblem(doc);
+    return out;
+  })())`));
+  if (got.base !== "wait") return "stage broke: engine order gave " + got.base;
+  if (got.identity !== "wait") return "identity weight moved the card: " + got.identity;
+  if (got.halved !== "missed") return "a halved wait did not yield: " + got.halved;
+  if (got.silenced !== "missed") return "a silenced rule still spoke: " + got.silenced;
+  if (got.doubled !== "missed") return "a doubled rule did not carry: " + got.doubled;
+  if (got.hot !== "A BAD DEPART WEIGHT") return "9 got in: " + got.hot;
+  if (got.frac !== "A BAD DEPART WEIGHT") return "2.5 got in: " + got.frac;
+  if (got.unknown !== "A BAD DEPART RULE") return "an unknown rule got in: " + got.unknown;
+  if (got.good !== null) return "a good declaration was refused: " + got.good;
+  return true;
+});
+
 scenario("cultureways: a save without cultures changes nothing", () => {
   // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,
   // 2026-08-21), seed 4242, runDays(2) - the registry code must not move a
