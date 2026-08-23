@@ -91,6 +91,7 @@ bad.appeal.tastes.fish = 99;
 bad.appeal.nudge = { mul100: 9000 };
 bad.management = { tableTip: 900 };   // the cents habit - author units are whole dollars
 bad.depart = { weights: { wait: 9, nosuchrule: 4 } };
+bad.settlers = { apron: "yes", walkins: 20 };   // a string answer, and a flood share
 bad.people.names.push("A NAME MUCH TOO LONG");
 bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
 bad.businesses = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
@@ -110,6 +111,8 @@ check("error names the out-of-range taste", /appeal\.tastes\.fish/.test(paths), 
 check("error names the out-of-range nudge thumb", /appeal\.nudge\.mul100/.test(paths), paths);
 check("error names the cents-habit table tip", /management\.tableTip/.test(paths), paths);
 check("error names the hot depart weight", /depart\.weights\.wait/.test(paths), paths);
+check("error names the string apron answer", /settlers\.apron/.test(paths), paths);
+check("error names the flood walk-in share", /settlers\.walkins/.test(paths), paths);
 check("error names the unknown depart rule", /depart\.weights\.nosuchrule/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
 

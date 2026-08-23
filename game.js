@@ -7059,6 +7059,20 @@ function cultureProblem(d, ownId) {
       if (s.cover != null && !(int(s.cover, 240, 1440) && s.cover % 30 === 0)) return "A BAD COVER DOUBLE";
     }
   }
+  // SETTLERS (cultureway phase B, debt items 2-3): may this people STAY?
+  // `apron` - a visitor of this culture accepts the town's job offer and the
+  // persona factory converts her (settlerApron reads the built entry, no
+  // draw). `walkins` - this people's share of anonymous walk-ins and
+  // migrated-save seeding, in TWENTIETHS: 0 is the default and is today's
+  // behavior exactly (walkinCulture short-circuits BEFORE any draw), and the
+  // cap of 8/20 means no document can flood the town off the book.
+  if (d.settlers != null) {
+    const S = d.settlers;
+    if (typeof S !== "object" || Array.isArray(S)) return "A BAD SETTLER TABLE";
+    if (S.apron != null && typeof S.apron !== "boolean") return "A BAD APRON ANSWER";
+    if (S.walkins != null && !(typeof S.walkins === "number" && Number.isInteger(S.walkins)
+      && S.walkins >= 0 && S.walkins <= 8)) return "A BAD WALK-IN SHARE";
+  }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
   if (d.policies != null) { const p = policyProblem(d.policies); if (p) return p; }
@@ -7463,8 +7477,14 @@ function buildCulture(def) {
       };
     }
   }
+  // SETTLERS, built once (phase B): the apron answer and the walk-in share.
+  // Null when undeclared - and settlerApron/walkinCulture treat null as
+  // "today's behavior", so a silent document is byte-inert by construction.
+  const settlers = def.settlers
+    ? { apron: !!def.settlers.apron, walkins: def.settlers.walkins != null ? def.settlers.walkins : 0 }
+    : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -9090,11 +9110,22 @@ function hireShift() {
 // tourist -> resident: release everything the visit holds (abortErrand's
 // checklist, tourist-side: stall, table + plate, any chef mid-claim), drop
 // the customer entity from the queue, and stand a crew crab up in its place
+// THE SETTLER'S DOOR (phase B, debt item 2): may this visitor take the apron?
+// A crab always may - that is the pre-cultures behavior. A cultured guest
+// only when her document declares settlers.apron: the culture decides whether
+// its people stay, not the engine. Reading the built entry costs no draw.
+function settlerApron(k) {
+  if (!k.culture || k.culture === "crab") return true;
+  const cul = CULTURES[k.culture];
+  return !!(cul && cul.settlers && cul.settlers.apron);
+}
 function convertTourist(k) {
-  // A PIG DOES NOT TAKE THE APRON (CS3.5 MVP): a cultured visitor declines in
-  // her own register and stays a visitor - makeCrabPersona never runs on her.
-  // Settlers are a later chapter; today the refusal IS the content.
-  if (k.culture && k.culture !== "crab") {
+  // A CULTURE THAT DOES NOT SETTLE DECLINES (CS3.5 MVP, now the DEFAULT
+  // rather than the rule): a cultured visitor whose document is silent on
+  // settlers refuses in her own register and stays a visitor -
+  // makeCrabPersona never runs on her. A document that declares
+  // settlers.apron sends her through the factory below instead.
+  if (!settlerApron(k)) {
     const reg = visRegister(k);
     popText((reg && reg.refuseHire) || "KIND OFFER. NO.", k.x - 20, custY(k) - 24, [255, 200, 140]);
     visLog(k, "life", (reg && reg.refuseHire) || "TURNED DOWN A JOB");
@@ -9109,6 +9140,12 @@ function convertTourist(k) {
   const p2 = makeCrabPersona(2 + ((srand() * 10) | 0));   // fresh trait/mode roll; identity comes from the tourist
   p2.name = freeCrewName(k.name);
   p2.color = k.color; p2.acc = k.acc;
+  // A SETTLER KEEPS HERSELF (phase B): the culture, the face, the hat, the
+  // name she came ashore with - PETUNIA who settles is still PETUNIA the
+  // farmhand pig, and drawCrab reads her document's tables through p.culture.
+  // Mode pins to walk: the buggy art indexes crab colorways, and a pig at the
+  // wheel of a crab buggy is a crash, not a joke.
+  if (k.culture && k.culture !== "crab") { p2.culture = k.culture; p2.mode = "walk"; }
   p2.shift = hireShift(); p2.homeless = true; p2.house = null;
   const c = newCrab(p2);
   c.x = k.x; c.y = 166;
@@ -9139,12 +9176,14 @@ function hireCrew() {
     || pool.find(k => k.stC !== VS.showering && k.stC !== VS.toStall && k.stC !== VS.waitStall)
     || pool[0];
   let pick = prefer(eligible);
-  // A CULTURED VISITOR DECLINES THE APRON (CS3.5): she refuses out loud and
-  // the ad falls through to the next candidate - a crab if one is about, the
-  // bus if not. The refusal is once per hire, not a barrage.
-  if (pick && pick.culture && pick.culture !== "crab") {
+  // A VISITOR WHOSE CULTURE DOES NOT SETTLE DECLINES THE APRON (CS3.5): she
+  // refuses out loud and the ad falls through to the next candidate - a crab
+  // or a settling guest if one is about, the bus if not. The refusal is once
+  // per hire, not a barrage. A culture that declares settlers.apron never
+  // enters this branch: its people are recruits like anybody else.
+  if (pick && !settlerApron(pick)) {
     convertTourist(pick);   // the refusal quip + diary line; returns null
-    pick = prefer(eligible.filter(k => !k.culture || k.culture === "crab"));
+    pick = prefer(eligible.filter(settlerApron));
   }
   let c, how;
   if (pick) {
@@ -11493,8 +11532,13 @@ function seedVisitors() {
   for (let i = 0; i < n; i++) {
     // about half of them are mid-stay rather than day-tripping, so the town
     // still has a population on DAY 2 (measured: seeding day-trippers only left
-    // day 2 thirty percent down on takings while the first boats rebuilt one)
-    const v = newVisitor(srand() < 0.45);
+    // day 2 thirty percent down on takings while the first boats rebuilt one).
+    // A migrated save's crowd reads the walk-in manifest too (phase B): the
+    // overnight roll draws first, then the culture roll - which draws nothing
+    // at all when no document declares a share, so a pre-cultures save
+    // migrates byte-identically forever.
+    const overnight = srand() < 0.45;
+    const v = newVisitor(overnight, walkinCulture());
     v.stC = VS.roam; v.leg = 1;
     v.x = Math.round(VIS_ROAM[0] + srand() * (VIS_ROAM[1] - VIS_ROAM[0]));
     v.wy = FLOOR_Y; v.y = FLOOR_Y;
@@ -11529,6 +11573,21 @@ function ferryCulture() {
     const cul = CULTURES[id];
     if (!cul) continue;   // the crab entry is null: the default, never a roll
     if (cultureRolls(cul, srand)) return id;
+  }
+  return "crab";
+}
+// THE WALK-IN MANIFEST (phase B, debt item 3): which people an anonymous
+// walk-in or a migrated-save seed belongs to. THE FINGERPRINT RULE, same as
+// cultureRolls: a culture that declares no walk-in share is skipped BEFORE
+// any draw, so a town with no declaring document consumes ZERO extra srand()
+// draws forever - the pre-cultures stream holds by construction. The roll is
+// integer: one u32 image truncated into twentieths against the authored
+// share, one draw per DECLARING culture, in install order like the ferry's.
+function walkinCulture() {
+  for (const id in CULTURES) {
+    const cul = CULTURES[id];
+    if (!cul || !cul.settlers || !cul.settlers.walkins) continue;
+    if (((srand() * 20) | 0) < cul.settlers.walkins) return id;
   }
   return "crab";
 }
@@ -12367,12 +12426,22 @@ const QUEUE_STEP = 45;   // px/s of shuffle: the speed the one-way clamp used
 // ---------------------------------------------------------------- customers
 function newCustomer(bizKey) {
   const biz = BIZ[bizKey];
+  // THE WALK-IN MANIFEST (phase B, debt item 3): an anonymous walk-in may
+  // belong to a declaring people - name, face and hat from that culture's own
+  // tables, the SAME three draws in the same order. walkinCulture() draws
+  // NOTHING when no installed document declares a share, so the pre-cultures
+  // stream (and every frozen fingerprint) holds by construction.
+  const cuId = walkinCulture();
+  const cul = cuId !== "crab" && CULTURES[cuId] ? CULTURES[cuId] : null;
   const r = bizRecipes(bizKey)[(srand() * bizRecipes(bizKey).length) | 0];
   const spawnX = biz.queueX + 150;
   const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
-    name: CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
-    color: (srand() * CRAB_COLORS.length) | 0,
-    acc: ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
+    culture: cul ? cuId : null,
+    name: cul ? freeVisitorName(cul.def.people.names)
+      : CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
+    color: cul ? (srand() * cul.colorways) | 0 : (srand() * CRAB_COLORS.length) | 0,
+    acc: cul ? cul.accKeys[(srand() * cul.accKeys.length) | 0]
+      : ACC_KEYS[(srand() * ACC_KEYS.length) | 0],
     animQ: srand() * 4294967296,   // the raw u32 draw; animTOf() is the old float, exactly
     si: poolAlloc(), spawnXQ: spawnX * Q8, maxPatience: 50 * PQ,
     qSeq: ++qSeqN,   // a walk-in joins the line the moment it is built
@@ -14555,9 +14624,17 @@ function crabHat(c) { return isMayor(c) ? "tophat" : c.duty && !c.p.fisher ? "to
 
 function drawCrab(c) {
   if (c.hidden) return;
-  const arts = CRAB_ARTS[c.p.color];
+  // A SETTLED CULTURED RESIDENT (phase B) draws from her own document's
+  // tables, exactly as she did as a visitor: walk poses a/b, the side-sleep
+  // s, the hat from her own rack. Poses the document does not carry (the
+  // working flip, the buggy) fall back to the walk frames - honest v1, noted
+  // in the close-out. A save whose culture is gone draws as a crab, clamped
+  // into the rack so a foreign colorway index can never walk off the end.
+  const ccul = c.p.culture && c.p.culture !== "crab" ? CULTURES[c.p.culture] : null;
+  const arts = ccul ? ccul.arts[c.p.color] : CRAB_ARTS[c.p.color % CRAB_ARTS.length];
+  const bw = ccul ? ccul.body.w : 16;
   const riding = c.csC === CS.drive && (c.dsC === DS.toWork || c.dsC === DS.toHome);
-  if (riding && c.p.mode === "buggy") {
+  if (riding && c.p.mode === "buggy" && !ccul) {
     wblit(BUGGIES2[c.p.color], c.x - 16, ROAD_Y1 - BUGGIES2[0].h, c.flip);
     return;
   }
@@ -14573,12 +14650,12 @@ function drawCrab(c) {
   const sleeping = napping || (!moving && c.dsC === DS.home && (darkness() > 0.7 || c.p.rough));
   let art;
   if (sleeping) art = arts.s;
-  else if (working) art = ((animTOf(c) * 6) | 0) % 2 ? arts.w : arts.a;
+  else if (working) art = ((animTOf(c) * 6) | 0) % 2 ? (ccul ? arts.b : arts.w) : arts.a;
   else if (moving) art = ((animTOf(c) * 8) | 0) % 2 ? arts.a : arts.b;
   else art = arts.a;
   const bob = sleeping ? (Math.sin(viewT * 1.6 + animTOf(c)) > 0 ? 1 : 0)   // slow breathing
     : working ? -(((animTOf(c) * 6) | 0) % 2) : 0;
-  let y = c.y - 12 + bob;
+  let y = c.y - (ccul ? ccul.body.h : 12) + bob;
   if (riding && c.p.mode === "bike") {
     wblit(BIKE, c.x - 2, ROAD_Y1 - 8, c.flip);
     y = ROAD_Y1 - 8 - 11;
@@ -14586,11 +14663,14 @@ function drawCrab(c) {
   } else {
     wblit(art, c.x, y, c.flip);
   }
-  // hat: toque on duty, personal accessory otherwise (fishers keep their own)
+  // hat: toque on duty, personal accessory otherwise (fishers keep their
+  // own). A settler's OWN accessory lives on her culture's rack - the duty
+  // toque and the mayor's tophat stay the town's, worn by whoever holds the
+  // job, which is exactly the joke.
   const accKey = crabHat(c);
-  const acc = ACCESSORIES[accKey];
+  const acc = ccul && accKey === c.p.acc ? ccul.acc[accKey] : ACCESSORIES[accKey];
   if (acc) {
-    const ax = c.flip ? 16 - acc.dx - acc.art.w : acc.dx;
+    const ax = c.flip ? bw - acc.dx - acc.art.w : acc.dx;
     wblit(acc.art, c.x + ax, y + acc.dy, c.flip);
   }
   if ((c.p.dirt || 0) >= qn(0.66)) wblit(DIRT, c.x, y, c.flip);

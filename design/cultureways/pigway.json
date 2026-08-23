@@ -449,6 +449,10 @@
    }
   ]
  },
+ "settlers": {
+  "apron": true,
+  "walkins": 2
+ },
  "arrival": {
   "repGate": 80,
   "shareMax": 0.25,

@@ -117,6 +117,15 @@ A people, written as a document. Not code — data the engine reads:
             standard WAGE is deliberately NOT declarable yet: a culture's
             customary wage arrives with the settlers slice, when someone
             exists to be paid it.
+  settlers  may this people STAY? apron (boolean, default false): a visitor
+            of this culture accepts a job offer and converts to a resident,
+            keeping her name, face, hat and culture — she works shifts,
+            draws wages and sleeps in town housing exactly as crab crew do;
+            when false her register's refuseHire line stands. walkins
+            (0-8 twentieths, default 0): this people's share of anonymous
+            walk-ins and migrated-save seeding — 0 draws nothing and is
+            byte-identical to today. Business ownership binds to a settler
+            in a later slice.
   arrival   repGate (how well-regarded the town must be before word reaches
             them), shareMax, shareRamp
   foodways  dishes in the BIZ recipe shape a kitchen here can LEARN (author
