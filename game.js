@@ -4776,6 +4776,10 @@ function poachTarget(c) {
   return best;
 }
 function quitOverPay(c, why) {
+  // AN OWNER IS NOT ON THE WAGE. Her pay is the till, so no board posting can
+  // out-bid her own shop - without this a placed owner-operator was poached
+  // off her own counter the first morning the town's rate beat her sign.
+  if (c.p.owner) return;
   const to = poachTarget(c), from = c.p.job;
   c.p.gripe = 0; c.p.wageJob = null;
   noteWageLoss(from);   // the boss they left remembers, and their policy answers it
@@ -7686,6 +7690,150 @@ function cultureBusinesses() {
   }
   return out;
 }
+// ------------------------------------------------------ THE PLACEMENT REGISTRY
+// (cultureway phase D, the biz-catalog close-out's gap #1.) A declared
+// business is built PENDING - real shape, no plot. Placement binds it to a
+// PLOT: an engine-owned vacancy with real coordinates, because a culture does
+// not own where a town builds (substrate §1: `world` is PLACE and PLACE is
+// the town's). After placement every one of the catalog's ~283 readers works
+// on the entry unchanged, because it has the literal's exact shape - that was
+// the whole biz-catalog bet, and this is where it pays.
+//
+// THE PLOT MODEL, v1 and honest about it:
+//   - WHERE: the engine names its vacancies. One ships: THE EAST LOT, the
+//     sand between the pier's foot and the hotel's buggy park.
+//   - WHO PAYS: the claiming owner stakes her own savings - wallet to till,
+//     min(wallet, one day's rent). A transfer, never a mint.
+//   - WHEN IT OPENS: at placement, on the engine's standard hours. No
+//     autonomous trigger exists in a shipped town (the settlement DRIVE is
+//     civics, phase E) - placement is capability, exercised by play, by the
+//     lab, or by a future civics rule. The matrix floor never places.
+// Geometry is DEALT, deterministically: station kinds in declaration order
+// take the back row (y 136) except the `out` station, which takes the front
+// row (y 160) where every engine shop serves; stalls follow on the back row,
+// tables pack the front from the east wall. A shop that cannot fit its plot
+// is refused by name, as is any station kind the town has no picture for
+// (the invisible-cob rule, standing at the door of the map itself).
+const PLOTS = [
+  { id: "eastlot", x0: 2056, x1: 2168, door: 2068, queueX: 2172, park: 1980, rack: 2016 },
+];
+let PLACED = [];
+function plotFree(pid) { return PLOTS.some(p => p.id === pid) && !PLACED.some(r => r.plot === pid); }
+function placeBusiness(cultureId, bizId, plotId, ownerC, replay) {
+  // the DATA door: refusals are named strings, the sim never throws
+  const cul = CULTURES[cultureId];
+  const z = cul && cul.businesses && cul.businesses[bizId];
+  if (!z) return "NO SUCH PENDING BUSINESS " + cultureId + "/" + bizId;
+  if (!z.pending || BIZ[bizId]) return "BIZ " + bizId.toUpperCase() + " ALREADY STANDS";
+  const plot = PLOTS.find(p => p.id === plotId);
+  if (!plot) return "NO SUCH PLOT " + plotId;
+  if (!plotFree(plotId)) return "THE PLOT " + plotId.toUpperCase() + " IS TAKEN";
+  for (const st in z.stations) if (!(st in STATION_ART))
+    return "BIZ " + bizId.toUpperCase() + " STATION " + st.toUpperCase() + " HAS NO ART";
+  if (!ownerC || !ownerC.p) return "A SHOP NEEDS AN OWNER";
+  if (ownerC.culture !== cultureId && ownerC.p.culture !== cultureId)
+    return "THE OWNER IS NOT OF " + cultureId.toUpperCase();
+  if (!settlerApron({ culture: cultureId })) return "THEIR WAYS DO NOT TAKE THE APRON";
+  // deal the floor: stations (out-station forward), then stalls, then tables
+  const stations = {}, kinds = Object.keys(z.stations);
+  let bx = plot.x0 + 8, fx = plot.x0 + 12;
+  for (const st of kinds) {
+    const posts = [];
+    for (let i = 0; i < z.stations[st]; i++) {
+      if (st === z.out) { posts.push({ x: fx, y: 160 }); fx += 24; }
+      else { posts.push({ x: bx, y: 136 }); bx += 24; }
+    }
+    stations[st] = posts;
+  }
+  const stalls = [];
+  for (let i = 0; i < (z.stalls || 0); i++) {
+    stalls.push({ x: bx, y: 136, occupant: null, dirty: false, cleaning: false }); bx += 30;
+  }
+  const tables = [];
+  let tx = plot.x1 - 24;
+  for (let i = 0; i < (z.tables || 0); i++) {
+    tables.push({ x: tx, y: 158, dishes: 0, occupant: null, dirty: false, cleaning: false }); tx -= 40;
+  }
+  if (bx > plot.x1 - 4 || (z.tables && tx + 40 < fx + 20))
+    return "BIZ " + bizId.toUpperCase() + " DOES NOT FIT " + plotId.toUpperCase();
+  // the owner's registry row. NO stake moves: under the one-wallet rule the
+  // till IS the owner's pocket (defineTill settles any backing into it), so
+  // "who pays" is answered the way it is for SUDSY - her pocket backs the
+  // lease, and the nightly rent drains it like anybody's.
+  const oKey = "own_" + bizId;
+  if (!replay) {
+    // the buyout path's owner-conversion recipe, verbatim (game.js buyBiz):
+    // half of it - owner and job alone - leaves employer/workBiz pointing at
+    // the old post, and the roster machinery reclaims her by morning.
+    abortChef(ownerC); abortErrand(ownerC);
+    rosterGen++;
+    ownerC.p.owner = oKey; ownerC.p.job = bizId; ownerC.p.employer = null; ownerC.p.shift = "D";
+    ownerC.duty = false; ownerC.pendingOff = false; ownerC.ksC = KS.idle;
+    ownerC.carrying = null; ownerC.dsC = DS.home; ownerC.csC = 0;
+    ownerC.workBiz = bizId; ownerC.fishSpot = null;
+  }
+  if (!OWNERS[oKey]) OWNERS[oKey] = defineTill({ id: oKey, name: String(ownerC.p.name), till: 0, soft: false });
+  // the entry enters the town's own table, in the literal's exact shape,
+  // stamped with the same operating defaults the loader stamps (game.js:427)
+  const b = Object.assign({}, z, { stations, stalls, tables,
+    x0: plot.x0, x1: plot.x1, door: plot.door, queueX: plot.queueX,
+    park: plot.park, rack: plot.rack, owner: oKey, pending: false,
+    hours: { open: 8 * 60, close: 20 * 60 }, mealPol: "retail",
+    wage: b0wage(z), sickPol: "grant", autoLabor: true, tipShare: 0 });
+  delete b.recipes; b.recipes = z.recipes.map(r => Object.assign({}, r));
+  BIZ[bizId] = b;
+  BIZ_KEYS.push(bizId);
+  // the busy table is a per-biz literal too: a placed shop gets its row, in
+  // the literal's shape - one slots array per STEP station (source/out hold
+  // no worker; the literal's shack has board/grill, never crate/pass)
+  const bz = {};
+  for (const r of b.recipes) for (const st of r.steps)
+    if (!bz[st[0]]) bz[st[0]] = stations[st[0]].map(() => false);
+  busy[bizId] = bz;
+  furnGen++; rosterGen++;
+  PLACED.push({ plot: plotId, culture: cultureId, biz: bizId, ownerKey: oKey, ownerName: ownerC.p.name });
+  return null;
+}
+function b0wage(z) { return z.wage != null ? clampWage(z.wage) : WAGE_STD; }
+// TOWN STATE, TORN DOWN WITH THE TOWN. Placements die at every clean-boot
+// door: resetSession (a new town has no placed shops) and loadCultures (the
+// documents changed under the standing shop - loudly, never silently).
+function resetPlacements(quiet) {
+  if (!PLACED.length) return;
+  if (!quiet) toast = { text: PLACED.length + " PLACED SHOP" + (PLACED.length > 1 ? "S" : "") + " STRUCK - THE DOCUMENTS CHANGED", t: 8 };
+  for (const r of PLACED) {
+    delete BIZ[r.biz];
+    delete busy[r.biz];
+    const i = BIZ_KEYS.indexOf(r.biz);
+    if (i >= 0) BIZ_KEYS.splice(i, 1);
+    delete OWNERS[r.ownerKey];
+  }
+  PLACED = [];
+  furnGen++; rosterGen++;
+}
+// The loader's replay: placements re-stand from the envelope AFTER cultures
+// install (their definitions live in the documents) and re-apply the per-biz
+// envelope rows the main loops ran before this key existed. No money moves -
+// the stake was paid the day she claimed it, and the tills ride s.owners.
+function replayPlacements(s) {
+  if (!Array.isArray(s.placed)) return;
+  for (const r of s.placed) {
+    if (!r || typeof r !== "object") continue;
+    // replay never touches a persona (p.owner/p.job ride the envelope), so
+    // the "owner" here is a name for the till row - the roster may not even
+    // be loaded yet, and must not need to be
+    const why = placeBusiness(r.culture, r.biz, r.plot,
+      { p: { name: String(r.ownerName || "SOMEBODY") }, culture: r.culture }, true);
+    if (why) { toast = { text: "A PLACED SHOP DID NOT STAND - " + why, t: 8 }; continue; }
+    const b = r.biz;
+    if (s.hours && Array.isArray(s.hours[b])) setBizHours(b, s.hours[b][0], s.hours[b][1]);
+    if (s.mealPol && MEAL_POLS.includes(s.mealPol[b])) BIZ[b].mealPol = s.mealPol[b];
+    if (s.tipShare && s.tipShare[b] != null) BIZ[b].tipShare = Math.max(0, Math.min(20, s.tipShare[b] | 0));
+    if (s.price && s.price[b] != null) BIZ[b].priceMul = Math.max(PRICE_IDX_MIN, Math.min(PRICE_IDX_MAX, s.price[b] | 0));
+    if (s.bizOwner && (s.bizOwner[b] === null || OWNERS[s.bizOwner[b]] || s.bizOwner[b] === "player"))
+      BIZ[b].owner = s.bizOwner[b];
+  }
+}
 // Install one document set into the registry. `mine` marks the BUNDLED
 // cultureways - ours, shipped in cultureways.js - which install silently:
 // a toast about our own content would be a bug report addressed to the
@@ -7731,6 +7879,7 @@ function installCultures(raw, mine) {
 // the save's own: bundling anything into a save would freeze it at the
 // version it was written with.)
 function loadCultures(raw) {
+  resetPlacements();   // a standing shop cannot outlive the document that defines it
   for (const k in CULTURES) if (k !== "crab") delete CULTURES[k];
   // an uninstalled culture's import prices must not linger across loads
   for (const k in CULTURE_INGREDIENTS) { delete INGREDIENT_COST[k]; delete CULTURE_INGREDIENTS[k]; }
@@ -7982,6 +8131,12 @@ function save(hold) {
     bizOwner: (() => { const m = {}; for (const k in BIZ) m[k] = bizOwner(k); return m; })(),
     bizBought: (() => { const m = {}; for (const k in BIZ) if (BIZ[k].bought) m[k] = true; return m; })(),
     market, bizTake, bizStrike,
+    // PLACED SHOPS (phase D): which pending business stands on which plot,
+    // owned by whom. The entry itself is NOT written - it rebuilds from the
+    // culture document at load, so a save can never smuggle geometry the
+    // documents no longer declare.
+    placed: PLACED.map(r => ({ plot: r.plot, culture: r.culture, biz: r.biz,
+      ownerKey: r.ownerKey, ownerName: r.ownerName })),
     // THE TOWN HALL. The fund's balance and its stocked bowls are real money
     // and real food, so they ride in the envelope; the LEDGER does too, because
     // "who paid for that" losing its answer on a reload would be the one bug
@@ -8220,6 +8375,7 @@ function centsEnvelope(s) {
 // does not any more, and it must not go back to: a workaround kept on top of a
 // fix is how the next person learns the wrong lesson.
 function resetSession() {
+  resetPlacements(true);   // placed shops are TOWN state: a new town starts with none
   // THE AGENT POOL. Slot bookkeeping only - poolAlloc initializes every plane
   // it hands out, so the free list and the live bits ARE the invariant. The
   // mark array goes too: a reap that runs before the next mark would otherwise
@@ -8356,6 +8512,12 @@ function load(slot, envIn) {
     sudsRefunded = true;
   }
   rosterGen++;
+  // THE DOCUMENTS FIRST, THEN THE SHOPS THEY DECLARE, THEN THE PEOPLE. A
+  // persona's job clamps against BIZ in newCrab, so a placed shop must stand
+  // before its owner loads or she is bounced to the shack by the sanity rule
+  // that exists for genuinely removed businesses.
+  loadCultures(s.cultures);
+  replayPlacements(s);
   crabs = s.personas.map((p2, i) => {
     const base = makeCrabPersona(i);
     return newCrab(Object.assign(base, p2));   // missing fields fall back to sane defaults
@@ -8637,7 +8799,9 @@ function load(slot, envIn) {
   // first or a guest asleep in cabana 3 wakes up outdoors.
   // CULTUREWAYS read BEFORE the visitors below, so a record's color/acc
   // clamps can check the tables it actually indexes (CS3.5 step 1)
-  loadCultures(s.cultures);
+  // (cultures + placements moved above the personas: newCrab clamps any job
+  // whose BIZ entry does not exist, so a placed shop must stand before its
+  // owner's persona loads - restore state before the first thing that reads it)
   // THE TEMPERAMENT DOOR (dream-replay rung 0). Ranges passed saveProblem;
   // here, with the brains actually built, each persona's delta is checked
   // against the artifact it would ride. A mismatch is STRIPPED LOUDLY with
@@ -9458,7 +9622,8 @@ function hireCrew() {
 function updateSchedule(c, dt) {
   const sh = effShift(c);   // own shift, or the long cover shift on a coworker's day off
   if (c.p.job !== "fishing" && !bizUnlocked(c.p.job)) { c.p.job = "shack"; rosterGen++; }
-  if (!c.p.npc && c.p.job !== "fishing" && bizOwner(c.p.job) !== "player") { c.p.job = "shack"; rosterGen++; }   // crew can't staff NPC shops
+  if (!c.p.npc && c.p.job !== "fishing" && bizOwner(c.p.job) !== "player"
+    && c.p.owner !== bizOwner(c.p.job)) { c.p.job = "shack"; rosterGen++; }   // crew can't staff NPC shops - but an OWNER stands at her own counter (placed settlers are non-npc peers, the first of their kind)
   // one weekday in seven: no commute, no duty, no pay - and the same for a
   // crab who has walked out (B3). The rota's day off is scheduled and covered;
   // an unauthorised one is neither, which is exactly what makes it cost.

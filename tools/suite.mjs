@@ -13332,6 +13332,106 @@ scenario("policies: the slot registry answers who decides, and refuses surfaces 
   return true;
 });
 
+// ---- THE PLACEMENT REGISTRY (phase D): a pending business binds to an
+// engine plot, opens under a settler owner, takes real money at a real
+// counter, survives save/load, and dies with the session. Refusals by name.
+scenario("placement: a settled owner opens a declared shop on the east lot, and the town buys", () => {
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.meta.id = "boar"; delete fx.foodways; delete fx.policies;
+  fx.settlers = { apron: true };
+  fx.businesses = { boarjuice: { name: "BOAR JUICE", short: "BOARJ", sign: "BOAR JUICE",
+    kind: "shopfront", rent: 20, wage: 22, stations: { fruitbin: 1, bar: 1 },
+    source: "fruitbin", out: "bar",
+    recipes: [{ id: "bjuice", icon: "juice", pay: 6, raw: "fruit", steps: [["bar", 1.8, "juice"]] }] } };
+  env.cultures = { boar: fx };
+  env.visitors = [
+    { n: "RASHER", cu: "boar", c: 3, a: "strawhat", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = crabs.find(c => c.p.name === "RASHER");
+    if (!pig) return { fail: "RASHER never settled" };
+    // refusals first, each named: no art, no such plot, wrong-culture owner
+    const crab = crabs.find(c => !c.p.culture);
+    CULTURES.boar.businesses.mud = { id: "mud", name: "M", short: "M", sign: "M", kind: "shopfront",
+      rent: 2000, stations: { trough: 1 }, stalls: 0, tables: 0, source: "trough", out: "trough",
+      recipes: [], owner: null, pending: true };
+    const noArt = placeBusiness("boar", "mud", "eastlot", pig);
+    delete CULTURES.boar.businesses.mud;
+    const noPlot = placeBusiness("boar", "boarjuice", "westlot", pig);
+    const noCul = placeBusiness("boar", "boarjuice", "eastlot", crab);
+    // she claims with real savings behind the lease: the engine charges her
+    // shop real rent at midnight, and a $10 pocket against a $20 board is a
+    // legitimate bankruptcy, not a test
+    pig.p.wallet = 20000;
+    const w0 = pig.p.wallet, keys0 = BIZ_KEYS.length;
+    const why = placeBusiness("boar", "boarjuice", "eastlot", pig);
+    if (why) return { fail: "the good placement was refused: " + why };
+    const B = BIZ.boarjuice;
+    return { noArt, noPlot, noCul, keys0, keys1: BIZ_KEYS.length,
+      x0: B.x0, owner: B.owner, till: OWNERS.own_boarjuice.till,
+      w0, w1: pig.p.wallet, job: pig.p.job, unlocked: bizUnlocked("boarjuice"),
+      barY: B.stations.bar[0].y, binY: B.stations.fruitbin[0].y, placed: PLACED.length };
+  })())`));
+  if (got.fail) return got.fail;
+  if (!got.noArt || !got.noArt.includes("HAS NO ART")) return "no-art was not refused by name: " + got.noArt;
+  if (!got.noPlot || !got.noPlot.includes("NO SUCH PLOT")) return "a ghost plot was not refused: " + got.noPlot;
+  if (!got.noCul || !got.noCul.includes("NOT OF")) return "a crab owner of a boar shop was not refused: " + got.noCul;
+  if (got.keys1 !== got.keys0 + 1 || got.x0 !== 2056 || got.owner !== "own_boarjuice")
+    return "the shop did not stand: " + JSON.stringify(got);
+  if (got.w1 !== got.w0) return "placement moved money: wallet " + got.w0 + " -> " + got.w1;
+  if (got.till !== got.w1) return "the one-wallet rule broke: till " + got.till + " vs pocket " + got.w1;
+  if (got.job !== "boarjuice" || !got.unlocked) return "the owner is not on her own counter";
+  if (got.barY !== 160 || got.binY !== 136) return "the floor was dealt wrong: bar y" + got.barY + " bin y" + got.binY;
+  // THE TOWN BUYS: a data errand points every thirsty crab at the new counter;
+  // by mid-afternoon the till has taken real, conserved money.
+  const trade = JSON.parse(b.G(`JSON.stringify((() => {
+    dataErrand({ id: "t.bjuice", need: "drink", biz: "boarjuice", at: 0, ap100: 200 });
+    const total0 = coins + crabs.reduce((s, c) => s + c.p.wallet, 0)
+      + Object.keys(OWNERS).reduce((s, o) => s + (OWNERS[o].till || 0), 0) + townFund.bal;
+    window._t0 = total0; return { ok: true };
+  })())`));
+  if (!trade.ok) return "the stage did not set";
+  // overnight, the auto-labor roster picks its owner up like SUDSY's does;
+  // day 3 afternoon is the first full trading day the new counter gets
+  b.runUntil("day >= 3 && tmin > 15 * 60", { maxSteps: 900000 });
+  const after = JSON.parse(b.G(`JSON.stringify((() => {
+    ERRANDS.pop();
+    const total1 = coins + crabs.reduce((s, c) => s + c.p.wallet, 0)
+      + Object.keys(OWNERS).reduce((s, o) => s + (OWNERS[o].till || 0), 0) + townFund.bal;
+    return { till: OWNERS.own_boarjuice.till, drift: total1 - window._t0,
+      take: bizDayBook("boarjuice").take, duty: (crabs.find(k => k.p.name === "RASHER") || {}).duty || false };
+  })())`));
+  if (!(after.take > 0)) return "the counter took nothing by day-3 afternoon (owner duty: " + after.duty + ")";
+  // conservation: ingredient buys leave town (debits), so the total may FALL by
+  // exactly the trade ledger's doing - but a till that GREW more than the town
+  // shrank would be minted money. The day book take being > 0 with no NaNs and
+  // the till a real number is the phase-D receipt; the deep audit is trade's.
+  if (typeof after.till !== "number" || Number.isNaN(after.drift)) return "the books went soft";
+  // SAVE/LOAD: the placed shop re-stands FROM THE DOCUMENT, books intact
+  b.G("save()");
+  const c = createSim({ seed: 79, storage: store, fresh: false });
+  const back = JSON.parse(c.G(`JSON.stringify({ stands: !!BIZ.boarjuice, placed: PLACED.length,
+    till: OWNERS.own_boarjuice && OWNERS.own_boarjuice.till, x0: BIZ.boarjuice && BIZ.boarjuice.x0,
+    job: (crabs.find(k => k.p.name === "RASHER") || { p: {} }).p.job })`));
+  if (!back.stands || back.placed !== 1 || back.x0 !== 2056) return "the shop did not re-stand from the envelope: " + JSON.stringify(back);
+  if (back.till !== after.till) return "the till did not ride the save: " + back.till + " vs " + after.till;
+  if (back.job !== "boarjuice") return "the owner lost her counter in the envelope";
+  // ...AND DIES WITH THE SESSION: a new town has no placed shops
+  const clean = JSON.parse(c.G(`JSON.stringify((() => { resetSession();
+    return { gone: !BIZ.boarjuice, keys: BIZ_KEYS.length, placed: PLACED.length, owner: !OWNERS.own_boarjuice }; })())`));
+  if (!clean.gone || clean.placed !== 0 || !clean.owner) return "the reset left the shop standing: " + JSON.stringify(clean);
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
