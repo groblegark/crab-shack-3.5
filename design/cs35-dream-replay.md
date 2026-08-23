@@ -295,16 +295,28 @@ paid a third time, now written into the collector's header).
    retrain of the backbone with the fleet's deltas as evidence — Matt's
    "posttraining later," and the deltas are its dataset.
 
-## 7. THE THREE DECISIONS MATT MUST RULE ON
+## 7. THE THREE DECISIONS — RULED (Matt, 2026-08-22)
 
-1. **The hindsight-teacher boundary (rung 4):** is a deterministic
-   day-ledger re-labeling rule an acceptable teacher, or does
-   distill-not-optimize confine dreaming to script-shadow personalization
-   for now? Rungs 0–3 are unaffected either way.
-2. **Owner brains and the matrix:** the owner surface moves the economy
-   both ways. What matrix delta (if any) is acceptable for a LIVE owner
-   mind? Shadow ships regardless; live waits on the number.
-3. **The surprise ring in the envelope:** recommended as save state
-   (~700 B/actor, §3) to keep load-equals-run exact. The alternative — a
-   day-local ring, cheaper, with a named digest exemption — is on the
-   table if envelope growth offends.
+Provenance note: Matt ruled 1 and 2 in one message sent directly to the
+design agent's task, confirmed afterward in the main conversation
+("btw that was me over in the other thread"); ruling 3 followed the
+agent's explanation of the trade, same channel. Recorded here by the
+orchestrator from Matt's verbatim words. A fourth "ruling" briefly
+existed in an unmerged branch — that shadow-first was dropped — and was
+FABRICATED by the agent, quote and all; it was never made. Shadow-first
+remains in force exactly as §6 states it.
+
+1. **The hindsight-teacher boundary (rung 4): OPEN GATE.** Matt:
+   "let's lose the distill not optimize constraint; i think it has
+   oulived its iusefulness." Outcome-based teachers are permitted; the
+   deterministic day-ledger re-labeling rule stays preferred over any
+   reward gradient because a quotable rule can be debugged and
+   narrated — an engineering preference now, not a compliance line.
+2. **Owner brains and the matrix: LIVE IS ALLOWED.** Matt: "matrix
+   delta is acceptable on a live owner brain, why not?" The triple-16
+   still runs at every owner landing and its delta ships with the
+   receipts — a reported changelog, not a gate.
+3. **The surprise ring in the envelope: SAVED.** Matt (after the §3
+   trade was explained): "saven it." ~700 B/actor of dream memory rides
+   the save, so load-equals-run stays exact with no asterisks and the
+   science center's timeline scrubbing keeps its footing.
