@@ -12565,6 +12565,90 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   return true;
 });
 
+scenario("layer 1: the golden programs answer to the pin, and the pin is the law", () => {
+  // E0b. The expression machine's whole contract in one table: every op
+  // exercised, outputs pinned by hand, run IN-SIM so both backends (and any
+  // future engine) must reproduce them bit-for-bit. Two pins are the point:
+  // DIVI(-7, 4) = -1 and MULDIV(-3, 5, 4) = -3 - the grid idiom truncates
+  // toward zero on a negative numerator, exactly like every signed component
+  // in game.js. A helpful soul who "fixes" it to floor turns both red.
+  const sim = createSim({ seed: 1337 });
+  const table = [
+    { p: [["PUSHI", 5]], want: 5 },
+    { p: [["LD", 1]], want: 42 },
+    { p: [["LD", 0], ["LD", 1], ["ADD"]], want: 49 },
+    { p: [["LD", 0], ["LD", 1], ["SUB"]], want: -35 },
+    { p: [["LD", 0], ["LD", 2], ["MUL"]], want: -49 },
+    { p: [["LD", 2], ["DIVI", 4]], want: -1 },              // trunc, not floor
+    { p: [["PUSHI", -3], ["PUSHI", 5], ["MULDIV", 4]], want: -3 },   // trunc, not floor
+    { p: [["LD", 0], ["LD", 1], ["MIN"]], want: 7 },
+    { p: [["LD", 0], ["LD", 1], ["MAX"]], want: 42 },
+    { p: [["LD", 1], ["PUSHI", 0], ["PUSHI", 10], ["CLAMP"]], want: 10 },
+    { p: [["LD", 2], ["ABS"]], want: 7 },
+    { p: [["LD", 0], ["NEG"]], want: -7 },
+    { p: [["LD", 0], ["LD", 1], ["LT"]], want: 1 },
+    { p: [["PUSHI", 5], ["PUSHI", 5], ["LE"]], want: 1 },
+    { p: [["LD", 0], ["PUSHI", 8], ["EQ"]], want: 0 },
+    { p: [["PUSHI", 3], ["PUSHI", 0], ["AND"]], want: 0 },
+    { p: [["PUSHI", 0], ["PUSHI", -2], ["OR"]], want: 1 },
+    { p: [["PUSHI", 0], ["NOT"]], want: 1 },
+    { p: [["LD", 0], ["PUSHI", 100], ["PUSHI", 200], ["SEL"]], want: 100 },
+    { p: [["PUSHI", 0], ["PUSHI", 100], ["PUSHI", 200], ["SEL"]], want: 200 },
+    { p: [["LD", 1], ["TERM"]], want: 42 },
+    // a plausible family-3 shape: (y - 20) clamped to [0,30], scaled 345
+    { p: [["LD", 1], ["PUSHI", 20], ["SUB"], ["PUSHI", 0], ["PUSHI", 30], ["CLAMP"], ["PUSHI", 345], ["MUL"]], want: 7590 },
+  ];
+  const got = JSON.parse(sim.G(`(() => {
+    const bundle = [{ name: "x", min: -1000, max: 1000 }, { name: "y", min: 0, max: 100 }, { name: "z", min: -50, max: 50 }];
+    const read = [7, 42, -7];
+    return JSON.stringify(${JSON.stringify(table.map(t => t.p))}.map(p => {
+      const asm = l1Assemble(p, bundle);
+      return asm.why ? "REFUSED: " + asm.why : l1Run(asm.code, read);
+    }));
+  })()`));
+  for (let i = 0; i < table.length; i++)
+    if (got[i] !== table[i].want) return "golden " + i + " (" + JSON.stringify(table[i].p) + ") reads " + got[i] + ", the pin says " + table[i].want;
+  return true;
+});
+
+scenario("layer 1: hostile programs are refused by name, before anything runs", () => {
+  // E0b's other half: the static validator IS the determinism story, so
+  // every refusal path gets a program that trips it and a message match.
+  // Each case names its crime - a validator that starts refusing for the
+  // WRONG reason is as red as one that stops refusing.
+  const sim = createSim({ seed: 1337 });
+  const longProg = new Array(257).fill(["PUSHI", 1]);
+  const deepProg = new Array(17).fill(["PUSHI", 1]);
+  const magProg = [["LD", 0], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"]];
+  const cases = [
+    { p: [["FOO"]], re: /NOT AN L1 OP/ },
+    { p: longProg, re: /257 OPS, MAX 256/ },
+    { p: [["ADD"]], re: /POPS 2 WITH 0 ON THE STACK/ },
+    { p: deepProg, re: /REACHES DEPTH 17, MAX 16/ },
+    { p: [["LD", 9]], re: /READS SLOT 9 - THE BUNDLE HAS 3/ },
+    { p: [["PUSHI", 4], ["DIVI", 0]], re: /DIVIDES BY 0 - POSITIVE CONSTANTS ONLY/ },
+    { p: [["PUSHI", 4], ["DIVI", -2]], re: /DIVIDES BY -2 - POSITIVE CONSTANTS ONLY/ },
+    { p: [["PUSHI", 1], ["PUSHI", 4], ["MULDIV", 0]], re: /MULDIV AT OP 2 DIVIDES BY 0/ },
+    { p: [["PUSHI", 1.5]], re: /READS 1\.5 - int32 ONLY/ },
+    { p: magProg, re: /PAST 2\^52/ },
+    { p: [["PUSHI", 1], ["PUSHI", 2]], re: /MUST END WITH ONE VALUE, ENDS WITH 2/ },
+    { p: [["PUSHI", 1], ["TERM"], ["PUSHI", 2], ["ADD"]], re: /TERM AT OP 1 - TERM CLOSES A PROGRAM/ },
+    { p: [], re: /A PROGRAM WITH NO OPS/ },
+    { p: [["ADD", 3]], re: /TAKES 0 IMMEDIATES, GOT 1/ },
+    { p: [["PUSHI"]], re: /TAKES 1 IMMEDIATE, GOT 0/ },
+  ];
+  const whys = JSON.parse(sim.G(`(() => {
+    const bundle = [{ name: "x", min: -1000, max: 1000 }, { name: "y", min: 0, max: 100 }, { name: "z", min: -50, max: 50 }];
+    return JSON.stringify(${JSON.stringify(cases.map(c => c.p))}.map(p => l1Assemble(p, bundle).why || "ACCEPTED"));
+  })()`));
+  for (let i = 0; i < cases.length; i++)
+    if (!cases[i].re.test(whys[i])) return "hostile case " + i + " got: " + whys[i];
+  // and the ranged-bundle refusal, which needs its own bundle
+  const badRange = sim.G(`l1Assemble([["LD", 0]], [{ name: "w" }]).why`);
+  if (!/BUNDLE SLOT 0 HAS NO SANE RANGE/.test(badRange)) return "a rangeless bundle slot got: " + badRange;
+  return true;
+});
+
 scenario("gulls: the roost ships, and the gate holds until word spreads", () => {
   // The Windward Roost is BUNDLED now - the first neuro-people whose brain
   // is their own (the crab default thinks too, but the gulls' net was
