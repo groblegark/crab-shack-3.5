@@ -99,7 +99,7 @@ A people, written as a document. Not code — data the engine reads:
             effectively taboo). appeal.nudge holds the drop-nudge terms in
             author units — radius px 8-128, minutes 5-1440, relax 0-0.5,
             mul100 100-300 — each defaulting to the crab values (72/60/
-            0.12/130) when left out. Top-level `tastes` is gone and fails
+            0.12/130) when left out. Top-level "tastes" is gone and fails
             loudly.
   arrival   repGate (how well-regarded the town must be before word reaches
             them), shareMax, shareRamp
