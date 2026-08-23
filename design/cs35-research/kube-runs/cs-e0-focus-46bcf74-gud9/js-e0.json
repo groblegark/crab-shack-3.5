@@ -1,0 +1,23 @@
+{
+  "release": "cs-e0-focus-46bcf74-gud9",
+  "armId": "js-e0",
+  "index": 0,
+  "sha": "46bcf74089e71b61804f8b989ef0da7d2b7f4850",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "layer 1: the golden programs answer to the pin, and the pin is the law",
+    "layer 1: hostile programs are refused by name, before anything runs",
+    "brains: a town full of thinking heads round-trips its save"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 1,
+  "wallMs": 6339,
+  "verdict": "2/3 passed in 6.3s",
+  "failures": [
+    "FAIL  brains: a town full of thinking heads round-trips its save (6252ms)"
+  ],
+  "jsonTail": null,
+  "stdoutTail": "  FAIL  brains: a town full of thinking heads round-trips its save (6252ms)\n        a corrupted temperament left the future untouched - the delta never reached the brain\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (9ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (10ms)\n\n2/3 passed in 6.3s\n"
+}
