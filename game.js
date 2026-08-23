@@ -6970,6 +6970,145 @@ function bizRecipes(b) {
   return extra.length ? BIZ[b].recipes.concat(extra) : BIZ[b].recipes;
 }
 
+// ---------------------------------------------------------------------------
+// LAYER 1 - the cultureway expression machine (phase E0b).
+// Straight-line integer programs: no jumps, no loops, SEL the only
+// conditional, so fuel is program length and the whole determinism story is
+// one static pass. NOTHING in the sim calls this yet - consumers arrive in
+// E3 (depart-rule bodies) and E4 (civics stakes); byte-neutral by
+// construction until then. Kernel port: NOT YET PORTED - every known
+// consumer runs at JS-side decision points; when a kernel-resident consumer
+// exists the interpreter crosses per the appeal precedent.
+// Arithmetic regime: exact integers under 2^53. The validator propagates a
+// static magnitude bound per op from each LD's declared range and refuses a
+// program whose worst case leaves the exact region - and every intermediate
+// product (MUL, MULDIV) is bound-checked too, because the RUNTIME computes
+// it exactly before dividing. Division is DIVI/MULDIV only, by a positive
+// constant, in the house grid idiom (a - a%c)/c - which is truncation
+// toward zero for a negative numerator, same as every signed component in
+// this file. The goldens pin that direction so nobody "fixes" it to floor.
+const L1_MAX_OPS = 256, L1_MAX_DEPTH = 16, L1_MAG = 4503599627370496; // 2^52
+// opcode -> [immediates, pops, pushes]; TERM closes a family-1 named term
+// (the name rides the term list, not the code) and is legal only as the
+// final op with exactly one value on the stack.
+const L1_OPS = {
+  PUSHI: [1, 0, 1], LD: [1, 0, 1],
+  ADD: [0, 2, 1], SUB: [0, 2, 1], MUL: [0, 2, 1],
+  DIVI: [1, 1, 1], MULDIV: [1, 2, 1],
+  MIN: [0, 2, 1], MAX: [0, 2, 1], CLAMP: [0, 3, 1],
+  ABS: [0, 1, 1], NEG: [0, 1, 1],
+  LT: [0, 2, 1], LE: [0, 2, 1], EQ: [0, 2, 1],
+  AND: [0, 2, 1], OR: [0, 2, 1], NOT: [0, 1, 1],
+  SEL: [0, 3, 1], TERM: [0, 1, 1],
+};
+// Assemble + validate a readable program (array of [op] / [op, arg] rows)
+// against a read bundle: an array of { name, min, max } rows whose order is
+// the LD index space (phase D's registries become the real bundle; until a
+// consumer wires one, callers pass the bundle explicitly). Returns
+// { code, why } - code is a flat int array (op ids + immediates), why is a
+// cultureProblem-grade named refusal, and a program with a why has no code.
+const L1_OPIDS = Object.keys(L1_OPS);
+function l1Assemble(prog, bundle) {
+  const no = (why) => ({ code: null, why });
+  if (!Array.isArray(prog) || !prog.length) return no("A PROGRAM WITH NO OPS");
+  if (prog.length > L1_MAX_OPS) return no("A PROGRAM OF " + prog.length + " OPS, MAX " + L1_MAX_OPS);
+  if (!Array.isArray(bundle)) return no("A PROGRAM WITH NO READ BUNDLE");
+  const code = [], st = [];                      // st: static stack of [lo, hi] intervals
+  const pop = () => st.pop();
+  const tdiv = (x, cc) => (x - x % cc) / cc;     // the grid idiom: trunc toward zero
+  for (let n = 0; n < prog.length; n++) {
+    const row = Array.isArray(prog[n]) ? prog[n] : [prog[n]];
+    const op = row[0], spec = L1_OPS[op];
+    if (!spec) return no("OP " + n + " IS \"" + op + "\" - NOT AN L1 OP");
+    if (spec[0] !== row.length - 1) return no("OP " + n + " (" + op + ") TAKES " + spec[0] + " IMMEDIATE" + (spec[0] === 1 ? "" : "S") + ", GOT " + (row.length - 1));
+    if (st.length < spec[1]) return no("OP " + n + " (" + op + ") POPS " + spec[1] + " WITH " + st.length + " ON THE STACK");
+    if (op === "TERM" && n !== prog.length - 1) return no("TERM AT OP " + n + " - TERM CLOSES A PROGRAM");
+    let a, b, c, v;
+    switch (op) {
+      case "PUSHI":
+        v = row[1];
+        if (!Number.isInteger(v) || v < -2147483648 || v > 2147483647) return no("PUSHI AT OP " + n + " READS " + v + " - int32 ONLY");
+        st.push([v, v]); break;
+      case "LD":
+        v = row[1];
+        if (!Number.isInteger(v) || v < 0 || v >= bundle.length) return no("LD AT OP " + n + " READS SLOT " + v + " - THE BUNDLE HAS " + bundle.length);
+        if (!bundle[v] || !Number.isInteger(bundle[v].min) || !Number.isInteger(bundle[v].max) || bundle[v].min > bundle[v].max)
+          return no("BUNDLE SLOT " + v + " HAS NO SANE RANGE");
+        st.push([bundle[v].min, bundle[v].max]); break;
+      case "DIVI":
+        c = row[1];
+        if (!Number.isInteger(c) || c < 1) return no("DIVI AT OP " + n + " DIVIDES BY " + c + " - POSITIVE CONSTANTS ONLY");
+        a = pop(); st.push([tdiv(a[0], c), tdiv(a[1], c)]); break;
+      case "MULDIV": {
+        c = row[1];
+        if (!Number.isInteger(c) || c < 1) return no("MULDIV AT OP " + n + " DIVIDES BY " + c + " - POSITIVE CONSTANTS ONLY");
+        b = pop(); a = pop();
+        const p = [a[0] * b[0], a[0] * b[1], a[1] * b[0], a[1] * b[1]];
+        const pl = Math.min.apply(null, p), ph = Math.max.apply(null, p);
+        if (Math.abs(pl) > L1_MAG || Math.abs(ph) > L1_MAG) return no("OP " + n + " (MULDIV) CAN REACH " + (Math.abs(ph) > L1_MAG ? ph : pl) + " - PAST 2^52");
+        st.push([tdiv(pl, c), tdiv(ph, c)]); break;
+      }
+      case "ADD": b = pop(); a = pop(); st.push([a[0] + b[0], a[1] + b[1]]); break;
+      case "SUB": b = pop(); a = pop(); st.push([a[0] - b[1], a[1] - b[0]]); break;
+      case "MUL": {
+        b = pop(); a = pop();
+        const p = [a[0] * b[0], a[0] * b[1], a[1] * b[0], a[1] * b[1]];
+        const pl = Math.min.apply(null, p), ph = Math.max.apply(null, p);
+        if (Math.abs(pl) > L1_MAG || Math.abs(ph) > L1_MAG) return no("OP " + n + " (MUL) CAN REACH " + (Math.abs(ph) > L1_MAG ? ph : pl) + " - PAST 2^52");
+        st.push([pl, ph]); break;
+      }
+      case "MIN": b = pop(); a = pop(); st.push([Math.min(a[0], b[0]), Math.min(a[1], b[1])]); break;
+      case "MAX": b = pop(); a = pop(); st.push([Math.max(a[0], b[0]), Math.max(a[1], b[1])]); break;
+      case "CLAMP": c = pop(); b = pop(); a = pop(); st.push([Math.min(a[0], b[0]), Math.max(a[1], c[1])]); break;
+      case "ABS": a = pop(); st.push([a[0] <= 0 && a[1] >= 0 ? 0 : Math.min(Math.abs(a[0]), Math.abs(a[1])), Math.max(Math.abs(a[0]), Math.abs(a[1]))]); break;
+      case "NEG": a = pop(); st.push([-a[1], -a[0]]); break;
+      case "LT": case "LE": case "EQ": case "AND": case "OR": pop(); pop(); st.push([0, 1]); break;
+      case "NOT": pop(); st.push([0, 1]); break;
+      case "SEL": b = pop(); a = pop(); pop(); st.push([Math.min(a[0], b[0]), Math.max(a[1], b[1])]); break;
+      case "TERM": break;   // value stays; the name rides the term list
+    }
+    if (st.length > L1_MAX_DEPTH) return no("OP " + n + " (" + op + ") REACHES DEPTH " + st.length + ", MAX " + L1_MAX_DEPTH);
+    const t = st[st.length - 1];
+    if (Math.abs(t[0]) > L1_MAG || Math.abs(t[1]) > L1_MAG) return no("OP " + n + " (" + op + ") CAN REACH " + (Math.abs(t[1]) > L1_MAG ? t[1] : t[0]) + " - PAST 2^52");
+    code.push(L1_OPIDS.indexOf(op));
+    if (spec[0]) code.push(row[1]);
+  }
+  if (st.length !== 1) return no("A PROGRAM MUST END WITH ONE VALUE, ENDS WITH " + st.length);
+  return { code, why: null };
+}
+// Run validated code against the bundle's live values (an int array in the
+// bundle's slot order). No checks here - the validator is the contract; a
+// straight-line validated program cannot underflow, overflow, or loop.
+function l1Run(code, read) {
+  const st = []; let i = 0;
+  while (i < code.length) {
+    const op = L1_OPIDS[code[i++]]; let a, b, c;
+    switch (op) {
+      case "PUSHI": st.push(code[i++]); break;
+      case "LD": st.push(read[code[i++]]); break;
+      case "ADD": b = st.pop(); a = st.pop(); st.push(a + b); break;
+      case "SUB": b = st.pop(); a = st.pop(); st.push(a - b); break;
+      case "MUL": b = st.pop(); a = st.pop(); st.push(a * b); break;
+      case "DIVI": c = code[i++]; a = st.pop(); st.push((a - a % c) / c); break;
+      case "MULDIV": c = code[i++]; b = st.pop(); a = st.pop(); a = a * b; st.push((a - a % c) / c); break;
+      case "MIN": b = st.pop(); a = st.pop(); st.push(a < b ? a : b); break;
+      case "MAX": b = st.pop(); a = st.pop(); st.push(a > b ? a : b); break;
+      case "CLAMP": c = st.pop(); b = st.pop(); a = st.pop(); st.push(a < b ? b : a > c ? c : a); break;
+      case "ABS": a = st.pop(); st.push(a < 0 ? -a : a); break;
+      case "NEG": a = st.pop(); st.push(-a); break;
+      case "LT": b = st.pop(); a = st.pop(); st.push(a < b ? 1 : 0); break;
+      case "LE": b = st.pop(); a = st.pop(); st.push(a <= b ? 1 : 0); break;
+      case "EQ": b = st.pop(); a = st.pop(); st.push(a === b ? 1 : 0); break;
+      case "AND": b = st.pop(); a = st.pop(); st.push(a !== 0 && b !== 0 ? 1 : 0); break;
+      case "OR": b = st.pop(); a = st.pop(); st.push(a !== 0 || b !== 0 ? 1 : 0); break;
+      case "NOT": a = st.pop(); st.push(a === 0 ? 1 : 0); break;
+      case "SEL": b = st.pop(); a = st.pop(); c = st.pop(); st.push(c !== 0 ? a : b); break;
+      case "TERM": break;   // the name rides the term list; the value is already on top
+    }
+  }
+  return st[0];
+}
+// ---------------------------------------------------------------------------
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
 // with a message, not at first draw.
