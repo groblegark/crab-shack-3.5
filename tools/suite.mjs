@@ -11205,6 +11205,9 @@ scenario("management: a cultureway's working norms land in the engine's own unit
   if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own norms";
   if (!got.silentIsCrab) return "a culture that declared no management grew norms anyway";
   if (!got.windowIsFresh) return "the shift-window memo served a cultured worker a crab window (or vice versa)";
+  return true;
+});
+
 scenario("the biz catalog: a declared shop and a priced import build pending, and change no town byte", () => {
   // Phase B, "the BIZ catalog to data". A culture may declare WHOLE SHOPS -
   // catalog SUBSTANCE only (recipes, stations as TYPE+capacity, economics in
