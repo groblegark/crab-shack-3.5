@@ -9168,7 +9168,7 @@ var BUNDLED_POLICIES = {
      ]
     }
    },
-   "mode": "shadow"
+   "mode": "live"
   }
  }
 };

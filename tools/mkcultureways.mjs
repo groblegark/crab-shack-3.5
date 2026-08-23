@@ -30,11 +30,11 @@ const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-cra
 const crabPolicies = {
   "vis_pick.candidate": { ...crabBrain, kind: "brain", mode: "live" },
   // THE CITIZEN MIND (dream-replay rung 1): pickErrand distilled - a
-  // resident's whole off-counter life. SHADOW first, per the design's own
-  // ladder: the script decides, the brain watches, the agreement scenario is
-  // the floor. The live flip is its own commit with the full fingerprint
-  // ceremony and the triple-16 matrix.
-  "cit_errand.candidate": { ...crabCitBrain, kind: "brain", mode: "shadow" },
+  // resident's whole off-counter life. Shadow-proven (commit 3418e84: inert
+  // by scenario, 99.82% in-town agreement, acted floor, mutations bitten),
+  // then LIVE with the full fingerprint ceremony + the triple-16 matrix -
+  // the crew make up their own minds now.
+  "cit_errand.candidate": { ...crabCitBrain, kind: "brain", mode: "live" },
 };
 
 const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the island.
