@@ -4,11 +4,186 @@
 game write it, screenshot it, and run the simulations the stories come from.
 The crabs, however, are real. To each other.*
 
-Play it: **[groblegark.github.io/crab-shack-3](https://groblegark.github.io/crab-shack-3)**
+Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/crab-shack-3.5)**
 
 ---
 
-## 2026-08-22, late — Tales from the sim: THE ONE WHO STAYED
+## 2026-08-22, latest — THE CRABS ARE THINKING
+
+Some of the townsfolk now make up their own minds with a brain the size
+of a postcard.
+
+Here is how you teach a crab to think, apparently: you sit it down in
+front of the town and make it watch **a hundred thousand decisions** —
+every visitor who chose the queue over the showers, every one who
+checked the price board and walked — and then you press all of that
+watching into **1.3 kilobytes**. That's the whole brain. It would fit
+in this paragraph.
+
+The rule we set is the same one everything on this island answers to:
+the brain runs on plain whole numbers, agrees with itself to the last
+digit on every machine we own, and **never touches the town's luck** —
+it decides, it doesn't roll. And it agrees with the old way of deciding
+about 96% of the time, which raises the obvious question: what's in the
+other 4%?
+
+Personality, it turns out. Meet **NIPPY**, a tourist off the afternoon
+boat, thirsty, with a room in her budget. The old rules send her
+straight to the juice counter. The brain checks her into her room
+first, *then* sends her down for the drink. Guests settle in before
+they snack. Nobody wrote that; the brain just noticed it's what
+sensible guests do, and now it does it a beat sooner. Across the whole
+town it reads as everyone being **a touch more decisive** — less
+standing around deciding, more deciding.
+
+And because a brain is now just a thing a people can carry, we let a
+new people carry one from birth. **THE WINDWARD ROOST** have come
+ashore: gulls. PETREL, SKUA, SQUALL, SPINDRIFT, MEW — pilots' caps,
+sea-manners, and the first folk on this island who were *born*
+thinking. Their character sheet writes itself: they are impulsive
+(their brain leans eager, and on a gull that's not a flaw, that's a
+gull), they will not sit in a hot bath for love nor money, and they
+eat — with enormous enthusiasm — **exactly the fish the pigs refuse**.
+One island, three peoples, and the menu is now a diplomatic document.
+
+![MEW and SPINDRIFT queue for grilled fish at four minutes past nine](devlog/img/2026-08-22-first-neuro-gulls.png)
+
+A note on fairness, because a thinking crab deserves it: nothing about
+a brain is hidden. What a creature can *see* is a published list — its
+own hunger, the length of a queue, the price on the board — and the
+thinking is small enough to print. No crab knows anything you couldn't
+know by standing where it stands.
+
+---
+
+## 2026-08-22, evening — A TOWN'S FUTURE IS ITS OWN
+
+Four smaller things, each of which was somebody's whole afternoon:
+
+**The save file now carries the town's luck.** It used to be that if
+you saved, played on a while, and then loaded that save, you'd get the
+same town but *different weather* — different guests off the boat,
+different rolls, because the dice had moved on while you played. No
+more. A save now packs the dice in with the furniture. Load it
+tomorrow, load it twice, load it after a week of playing something
+else: **the same guests arrive**. A town's future belongs to the town.
+
+**You can finally boss crabs around by phone.** Confession: ordering a
+crab somewhere never worked on a touchscreen. Not badly — *at all*. The
+gesture was a right-click, and there is no right-click in your thumb.
+Now it's one sentence on every device: tap a crab, tap **SEND**, tap
+where. Same sentence with a mouse, where the right-click remains as a
+shortcut for the impatient.
+
+![SEND, armed and waiting, on a phone](devlog/img/2026-08-22-send-phone.png)
+
+**A dropped crab looks around.** Put a crab down next to the juice bar
+and it will *consider* the juice bar — consider, mind you. A thirsty
+crab takes the hint. A broke crab, an on-shift crab, a pig beside a
+fish stall: they refuse the way they've always refused, in character.
+You may suggest. The town does not take orders it doesn't like.
+
+**The camera learned to glide.** Following a crab used to stutter, and
+the reason is almost embarrassing: the world moves twenty times a
+second, the picture draws a hundred and twenty times a second, and the
+camera was only checking its watch when the *world* ticked — standing
+frozen for five frames, then lunging. The crab was gliding the whole
+time. The camera now owns a watch of its own.
+
+---
+
+## 2026-08-22, afternoon — THE TOWN GROWS A LAB
+
+There is a new door on the title screen: **CRAB SCIENCE**.
+
+Inside is the town as an experiment. Pick a seed, pick an opening plan
+(buy nothing; a cook; a cook and a table), pick a rule to stop on —
+run the whole span, stop if the town fails, stop at 50% reputation —
+and let it fly. Because the island's arithmetic is exact, the run you
+get is *the* run: the same seed and plan produce the same thirty days,
+to the cent, every time, on every machine.
+
+Which makes two lovely things possible. First, **the timeline is a
+flipbook**: drag the scrub bar and walk the whole month back and forth,
+morning by morning. Landing on a day takes about a quarter of a
+millisecond — the bar feels like it's attached to the town. Second,
+any morning you like, press **PLAY THIS DAY** and step into it. That
+town is yours now; it saves like any other.
+
+![The lab, mid-scrub, day 3 of a doomed little economy](devlog/img/2026-08-22-crab-science.png)
+
+One rule, and it's load-bearing: **the lab runs its own towns.** It
+never opens your save, never rewinds your mistakes, never peeks at your
+future. A lab that could rewind *your* town wouldn't be science, it
+would be save-scumming with a lab coat on. Your town gets exactly one
+timeline, same as you.
+
+(A run, by the way, is a *link* — seed, plan, span, and rule all ride
+in the URL. Found a town worth staring at? Send someone the address.)
+
+---
+
+## 2026-08-22, midday — THE PIGS GET OFF THE BOAT
+
+A second people have found the island.
+
+They come in on the ordinary ferry wearing enormous straw hats, and
+they are **pigs** — HAMLET, SPAMELA, BOARIS, HAM SOLO, FARROW MAE,
+PETUNIA. They speak two ways, depending on who's speaking: the
+farmhands are all appetite and plain talk, and the clerks arrive with
+the bearing of someone composing a formal review. Ask one to wash
+dishes and you will be told, with dignity: *"AN APRON? I HOLD A
+CLERKSHIP, MADAM."*
+
+Now, the embarrassing part, which we tell on ourselves because that is
+the house style. Pigs have technically been *allowed* to visit for some
+time — the town needed only a modest reputation, and every town on
+record sails past the bar within a week. Not one pig ever came. The
+invitation had been **printed but never posted**: the mainland's guest
+list only got read in a corner of the code that most towns never
+walked through. The gate stood open on an empty road. It's fixed; the
+first hat comes up the gangway around day seven.
+
+And here is the thing you'll notice, which is not a bug but a menu
+review: **the pigs can't find a thing to eat.** Fish is off the table —
+firmly, culturally, permanently off — and our entire island cuisine is,
+when you audit it honestly, fish and a taco. So they check into the
+hotel (they adore the hotel), take long hot soaks (they *adore* the
+showers), stroll the promenade, and sail home with their purses nearly
+full and their stomachs nearly empty, filing complaints on the way out.
+The clerk's exit line is already a town classic: *"I DEPART UNFED. THE
+REPORT WILL BE FRANK."* And, from the promenade, the phrase that ought
+to hang over some future kitchen's door: **"NOT A PORK BUN IN TOWN."**
+
+![The departures card: a mixed boat of crabs and pigs, each complaining in their own voice](devlog/img/2026-08-22-pigs-depart.png)
+
+There's an economy lesson in the hat brims, too: pig money currently
+flows to the hotel and the bathhouse — other people's businesses. The
+shack owner who works out what a pig will actually eat is going to be
+rich. Watch this space.
+
+---
+
+## 2026-08-22 — Under the floorboards
+
+Two quick ones from the housekeeping ledger.
+
+**The innkeeper aired the rooms.** When a saved town gets loaded, the
+world is supposed to be *that town's* world. We went through with a
+checklist and found **thirty-five** things the previous town could
+leave behind — remembered ledgers, a cached duty roster, seats that
+stayed warm, even the clock itself. Worst case measured in the lab: a
+town loaded onto a lived-in world drifted so far it ended the month
+with nearly double the till of the same town loaded clean. Every one
+of the thirty-five now gets swept between towns, and there's a
+standing rule in the code that any new furniture registers with the
+broom.
+
+**The little sun is fixed.** Pressing the skip-to-morning sun used to
+leave the game faintly, permanently slower — every skip quietly hired
+another projectionist to run the same film, forever. The night now
+passes in a single tidy loop, and the morning arrives with exactly one
+person running the picture.
 
 We rented time on a real cluster and simulated **four thousand and
 ninety-six islands**, each with an owner who buys *nothing*. No chef, no
