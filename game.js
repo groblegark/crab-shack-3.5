@@ -6885,6 +6885,27 @@ function bizRecipes(b) {
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
 // with a message, not at first draw.
+// The voice clamps, callable on a bare voice object (a document's section OR
+// the crab default's bundled voice, which has no document around it). The
+// checks and their named messages are the ones cultureProblem always carried.
+function voiceProblem(v) {
+  const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
+  if (typeof v !== "object" || Array.isArray(v)) return "A BAD VOICE";
+  if (!Array.isArray(v.registers) || !v.registers.length) return "A VOICE WITH NO REGISTERS";
+  for (const g of v.registers) {
+    if (!g || typeof g !== "object" || Array.isArray(g)) return "A BAD REGISTER";
+    if (typeof g.id !== "string" || !g.id.length || typeof g.acc !== "string") return "A BAD REGISTER";
+    if (g.purseMul != null && !(typeof g.purseMul === "number" && isFinite(g.purseMul)
+      && g.purseMul >= 0.1 && g.purseMul <= 5)) return "A BAD PURSE CLASS";
+    for (const part of ["diary", "depart"]) if (g[part] != null) {
+      if (typeof g[part] !== "object" || Array.isArray(g[part])) return "A BAD REGISTER";
+      for (const k in g[part]) if (!line(g[part][k])) return "A BAD VOICE LINE";
+    }
+    if (g.dossier != null && (!Array.isArray(g.dossier) || g.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
+    for (const k of ["refuseHire", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
+  }
+  return null;
+}
 function cultureProblem(d) {
   if (!d || typeof d !== "object" || Array.isArray(d)) return "NOT A CULTURE";
   const rgb = (c) => Array.isArray(c) && c.length === 3
@@ -6954,22 +6975,24 @@ function cultureProblem(d) {
   // THE HAT IS THE CLASS MARKER (owner ruling): the acc rolled at mint picks
   // the register, so class costs no draw and shows on the sprite. purseMul is
   // the class's money: strawhat folk land lighter than bare-headed clerks.
-  const v = d.voice;
-  const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
-  if (v != null) {
-    if (typeof v !== "object" || Array.isArray(v)) return "A BAD VOICE";
-    if (!Array.isArray(v.registers) || !v.registers.length) return "A VOICE WITH NO REGISTERS";
-    for (const g of v.registers) {
-      if (!g || typeof g !== "object" || Array.isArray(g)) return "A BAD REGISTER";
-      if (typeof g.id !== "string" || !g.id.length || typeof g.acc !== "string") return "A BAD REGISTER";
-      if (g.purseMul != null && !(typeof g.purseMul === "number" && isFinite(g.purseMul)
-        && g.purseMul >= 0.1 && g.purseMul <= 5)) return "A BAD PURSE CLASS";
-      for (const part of ["diary", "depart"]) if (g[part] != null) {
-        if (typeof g[part] !== "object" || Array.isArray(g[part])) return "A BAD REGISTER";
-        for (const k in g[part]) if (!line(g[part][k])) return "A BAD VOICE LINE";
+  // (extracted as voiceProblem so the crab default's bundled voice - a voice
+  // with no document around it - passes the identical clamps.)
+  if (d.voice != null) { const p = voiceProblem(d.voice); if (p) return p; }
+  // DEPART-RULE WEIGHT OVERRIDES (registry row 4): ruleId -> int 0..8, a
+  // multiplier in quarters with 4 the identity, so a culture can silence a
+  // rule (0) or double its salience (8) without touching the rule's own
+  // arithmetic. Unknown rule ids fail LOUD at import - a typo that silently
+  // weighted nothing would be dead data, the vacuous-mutation trap as schema.
+  if (d.depart != null) {
+    const D = d.depart;
+    if (typeof D !== "object" || Array.isArray(D)) return "A BAD DEPART";
+    if (D.weights != null) {
+      if (typeof D.weights !== "object" || Array.isArray(D.weights)) return "A BAD DEPART";
+      for (const k in D.weights) {
+        if (!DEPART_RULES.some(rule => rule.id === k)) return "A BAD DEPART RULE";
+        const w = D.weights[k];
+        if (typeof w !== "number" || !Number.isInteger(w) || w < 0 || w > 8) return "A BAD DEPART WEIGHT";
       }
-      if (g.dossier != null && (!Array.isArray(g.dossier) || g.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
-      for (const k of ["refuseHire", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
     }
   }
   // APPEAL is the one culture-owned table for what draws a people: the
@@ -7248,6 +7271,7 @@ function buildBrain(sid, p) {
 // CULTURES (same lifecycle, same door), so a load never inherits a session's
 // brains — the loader-reset contract, honored by construction.
 let BRAINS = {};
+let CRABV = null;   // the crab default's voice registers, or null = literals only
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -7264,6 +7288,17 @@ function rebuildBrains() {
   // bundled beside the cultureways, same validator, same clamps.
   if (typeof BUNDLED_POLICIES !== "undefined" && BUNDLED_POLICIES)
     for (const id in BUNDLED_POLICIES) if (!BRAINS[id]) add(id, BUNDLED_POLICIES[id]);
+  // THE CRAB'S OWN VOICE, TABLED (phase C). The crab carries no document, so
+  // its sentences ride beside its brain: the same bundle, the same voice
+  // clamps as every stranger's, the same lifecycle door (rebuilt here, so a
+  // load never inherits a session's table — loader-reset by construction).
+  // ONLY the bundle may set this: a save's documents cannot speak for the
+  // island (installCultures skips the crab id for the same reason). Every
+  // tabled line is byte-equal to the code literal it shadows; the code
+  // literals remain the fallbacks and the suite proves the equality.
+  CRABV = null;
+  if (typeof BUNDLED_CRAB_VOICE !== "undefined" && BUNDLED_CRAB_VOICE
+    && !voiceProblem(BUNDLED_CRAB_VOICE)) CRABV = BUNDLED_CRAB_VOICE.registers;
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -7310,8 +7345,13 @@ function buildCulture(def) {
       cover: ms.cover != null ? ms.cover : SHIFT_SPAN.cover,
     } : SHIFT_SPAN,
   } : null;
+  // depart-rule weight overrides, copied once at build (validated ints 0..8;
+  // rule ids proven against DEPART_RULES at import). Null when undeclared,
+  // and visQuote's arithmetic is untouched for a null — identity, not *4/4.
+  const departW = (def.depart && def.depart.weights)
+    ? Object.assign({}, def.depart.weights) : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW };
 }
 // Install one document set into the registry. `mine` marks the BUNDLED
 // cultureways - ours, shipped in cultureways.js - which install silently:
@@ -7393,12 +7433,24 @@ function visRegister(k) {
 function vfmt(tpl, slots) {
   return slots ? tpl.replace(/\{([A-Z]+)\}/g, (m, s) => slots[s] != null ? String(slots[s]) : m) : tpl;
 }
+// The crab default's register for an actor: matched by accessory like any
+// culture's, first register otherwise. Null until the bundle installs one.
+function crabRegister(acc) {
+  if (!CRABV) return null;
+  return CRABV.find(g => g.acc === acc) || CRABV[0];
+}
 // A visitor's line for a diary event: own register first, then the culture's
-// first register, then the crab literal the call site always carried. A crab
-// (or a walk-in with no culture at all) takes the fallback without a lookup.
+// first register, then the crab default's TABLED line (phase C - byte-equal
+// to the literal by contract), then the crab literal the call site always
+// carried. A walk-in with no culture at all reads the crab table too: the
+// island's voice is the default voice.
 function vline(k, id, fallback, slots) {
   const reg = visRegister(k);
-  if (!reg) return fallback;
+  if (!reg) {
+    const g = crabRegister(k && k.acc);
+    const tpl = g && g.diary && g.diary[id];
+    return tpl ? vfmt(tpl, slots) : fallback;
+  }
   const cul = visCulture(k);
   const tpl = (reg.diary && reg.diary[id])
     || (cul.regs[0].diary && cul.regs[0].diary[id]) || null;
@@ -10956,7 +11008,8 @@ function visBenefit(k) {
   visLog(k, "need", vline(k, "bought",
     "BOUGHT " + (ITEM_NAMES[r.icon] || "SOMETHING")
     + " AT THE " + BIZ[k.biz].short + " - $" + $d(menuPrice(k.biz, r)),
-    { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short }));
+    { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short,
+      PRICE: $d(menuPrice(k.biz, r)) }));
 }
 function serve(c) {
   const cust = c.cust;
@@ -15730,7 +15783,7 @@ function drawVisDossier(k) {
   const log = Array.isArray(k.log) ? k.log : [];
   smallText(ctx, "THE VISIT", x + 8, ly, [110, 100, 110]); ly += 8;
   if (!log.length) {
-    const reg = visRegister(k);
+    const reg = visRegister(k) || crabRegister(k.acc);
     const dq = reg && reg.dossier && reg.dossier.length
       ? reg.dossier[(k.name.length + k.color) % reg.dossier.length] : "JUST OFF THE BOAT.";
     smallText(ctx, dq, x + 8, ly, [150, 140, 160]);
@@ -17387,9 +17440,16 @@ const DEPART_RULES = [
 // place the table's ORDER matters at all - and it is written loudest-first, so
 // a tie resolves toward the thing the player most needs to know.
 function visQuote(r) {
+  // A culture may re-weight the rules (registry row 4): int 0..8 in quarters,
+  // 4 the identity. The crab path and every undeclared culture never touch
+  // the arithmetic — the override multiplies only where an author declared
+  // one, so the frozen fingerprints hold by construction, and a 0 silences a
+  // rule for that people without unsorting anyone else's table.
+  const ow = (r.cu && CULTURES[r.cu] && CULTURES[r.cu].departW) || null;
   let best = DEPART_RULES[DEPART_RULES.length - 1], bw = 0;
   for (const rule of DEPART_RULES) {
-    const w = rule.w(r) || 0;
+    let w = rule.w(r) || 0;
+    if (ow && ow[rule.id] != null) w = (w * ow[rule.id]) / 4;
     if (w > bw) { bw = w; best = rule; }
   }
   return { id: best.id, mood: best.mood, weight: bw, line: departLine(r, best) };
@@ -17398,6 +17458,14 @@ function visQuote(r) {
 // may carry its own template for the rule that spoke - same weights, same
 // winner, different voice. Slots are resolved from the row alone, so this
 // stays the pure function the scenarios hand hand-built stays to.
+function departSlots(r) {
+  return {
+    LEFT: r.left, PURSE: r.purse, STOPS: r.buys, DAYS: r.days,
+    N: r.nightsBed, ITEM: r.topItem || "SOMETHING",
+    MINS: depMins(r.quits ? r.quitMin : r.worstMin),
+    BIZ: r.quits ? r.quitBiz : (r.worstMin >= 1 ? r.worstBiz : (r.topBiz || "COUNTER")),
+  };
+}
 function departLine(r, rule) {
   if (r.cu && CULTURES[r.cu]) {
     const cul = CULTURES[r.cu];
@@ -17406,12 +17474,14 @@ function departLine(r, rule) {
       || (rule.id === "foreign" ? reg.foreign : null)
       || (cul.regs[0].depart && cul.regs[0].depart[rule.id])
       || (rule.id === "foreign" ? cul.regs[0].foreign : null));
-    if (tpl) return vfmt(tpl, {
-      LEFT: r.left, PURSE: r.purse, STOPS: r.buys, DAYS: r.days,
-      N: r.nightsBed, ITEM: r.topItem || "SOMETHING",
-      MINS: depMins(r.quits ? r.quitMin : r.worstMin),
-      BIZ: r.quits ? r.quitBiz : (r.worstMin >= 1 ? r.worstBiz : (r.topBiz || "COUNTER")),
-    });
+    if (tpl) return vfmt(tpl, departSlots(r));
+  } else {
+    // the crab default speaks from its own table where a template can say
+    // exactly what the literal says (phase C); branching literals stay code.
+    const g = crabRegister(r.acc);
+    const tpl = g && ((g.depart && g.depart[rule.id])
+      || (rule.id === "foreign" ? g.foreign : null));
+    if (tpl) return vfmt(tpl, departSlots(r));
   }
   return rule.line(r);
 }
