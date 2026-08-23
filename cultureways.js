@@ -470,18 +470,20 @@ var BUNDLED_CULTUREWAYS = {
     }
    ]
   },
-  "tastes": {
-   "taco": 0.6,
-   "fish": 0.5,
-   "juice": 1.6,
-   "cooler": 1.8,
-   "clawgame": 1,
-   "skeerun": 1,
-   "gamenight": 1.1,
-   "room": 1.7,
-   "rinse": 1.3,
-   "soak": 2,
-   "porkbun": 2
+  "appeal": {
+   "tastes": {
+    "taco": 0.6,
+    "fish": 0.5,
+    "juice": 1.6,
+    "cooler": 1.8,
+    "clawgame": 1,
+    "skeerun": 1,
+    "gamenight": 1.1,
+    "room": 1.7,
+    "rinse": 1.3,
+    "soak": 2,
+    "porkbun": 2
+   }
   },
   "arrival": {
    "repGate": 80,
@@ -804,12 +806,14 @@ var BUNDLED_CULTUREWAYS = {
     }
    ]
   },
-  "tastes": {
-   "fish": 2.2,
-   "taco": 1.1,
-   "juice": 0.7,
-   "soak": 0.2,
-   "room": 0.9
+  "appeal": {
+   "tastes": {
+    "fish": 2.2,
+    "taco": 1.1,
+    "juice": 0.7,
+    "soak": 0.2,
+    "room": 0.9
+   }
   },
   "arrival": {
    "repGate": 60,

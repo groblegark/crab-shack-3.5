@@ -123,10 +123,23 @@ function localise(d, verdict) {
     });
   else if (v != null) say("voice.registers", "required when voice is present: a non-empty list");
 
-  if (d.tastes) for (const k in d.tastes) {
-    const w = d.tastes[k];
+  if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");
+  const ap = d.appeal;
+  if (ap && ap.tastes) for (const k in ap.tastes) {
+    const w = ap.tastes[k];
     if (typeof w !== "number" || !isFinite(w) || w < 0.1 || w > 5)
-      say(`tastes.${k}`, `${w} is outside 0.1-5 (1.0 is neutral; below 1 is dislike, 0.1 is taboo)`);
+      say(`appeal.tastes.${k}`, `${w} is outside 0.1-5 (1.0 is neutral; below 1 is dislike, 0.1 is taboo)`);
+  }
+  if (ap && ap.nudge) {
+    const n = ap.nudge, int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (n.radius != null && !(int(n.radius) && n.radius >= 8 && n.radius <= 128))
+      say("appeal.nudge.radius", `${n.radius} is outside 8-128 px (the crab value is 72)`);
+    if (n.minutes != null && !(int(n.minutes) && n.minutes >= 5 && n.minutes <= 1440))
+      say("appeal.nudge.minutes", `${n.minutes} is outside 5-1440 game-minutes (the crab value is 60)`);
+    if (n.mul100 != null && !(int(n.mul100) && n.mul100 >= 100 && n.mul100 <= 300))
+      say("appeal.nudge.mul100", `${n.mul100} is outside 100-300 hundredths (the crab value is 130 = x1.3)`);
+    if (n.relax != null && !(typeof n.relax === "number" && isFinite(n.relax) && n.relax >= 0 && n.relax <= 0.5))
+      say("appeal.nudge.relax", `${n.relax} is outside 0-0.5 (the crab value is 0.12)`);
   }
   return hits;
 }
@@ -223,7 +236,7 @@ export async function cultureTest(doc, { seed = 1337, days = 20, id = null } = {
 // author actually has ("how is mine unlike the pigs?").
 export function cultureDiff(a, b) {
   const out = { tastes: {}, purse: {}, art: {}, voice: {} };
-  const ta = a.tastes || {}, tb = b.tastes || {};
+  const ta = (a.appeal && a.appeal.tastes) || {}, tb = (b.appeal && b.appeal.tastes) || {};
   for (const k of new Set([...Object.keys(ta), ...Object.keys(tb)])) {
     const va = ta[k] ?? 1, vb = tb[k] ?? 1;
     if (va !== vb) out.tastes[k] = { a: va, b: vb };
