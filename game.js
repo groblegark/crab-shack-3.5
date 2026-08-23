@@ -5140,6 +5140,7 @@ let hireCard = null;
 const HIRE_CARD_T = 8;      // long enough to read five lines and still watch them walk
 let dayOpen = 0;
 let camX = 1180, followIdx = -1, followNpc = null, followCust = null, tab = "crew";
+let brainTv = false;   // the BRAIN INSPECTOR panel ('t', or the MIND> chip): pure view, saved nowhere
 // SELECTION is not the camera. Click a crab to select (and focus) them; pan
 // away and the camera lets go but the selection - and its card, and the right-
 // click orders that read it - stay with the crab you picked.
@@ -7182,7 +7183,11 @@ function buildBrain(sid, p) {
     }
     return best;
   };
-  return { mode: p.mode || "live", readers, classify, logits, f, classes: p.classes, classIdx };
+  // inputs/w1/b1/w2/R1 ride along for the BRAIN INSPECTOR (drawBrainPanel):
+  // pure references to data already held by the closure, read by the view
+  // only - nothing in the sim enumerates this object's keys.
+  return { mode: p.mode || "live", readers, classify, logits, f, classes: p.classes, classIdx,
+    inputs: p.inputs, arch: p.arch, w1: p.w1, b1: p.b1, w2: p.w2, R1: p.shifts.R1 };
 }
 // cultureId -> { surfaceId: builtBrain }. Rebuilt by loadCultures alongside
 // CULTURES (same lifecycle, same door), so a load never inherits a session's
@@ -11663,7 +11668,27 @@ function brainVisPick(k, bp) {
     if (!e) continue;                       // the brain wants what the town can't sell: not a candidate
     bestL = bp.logits[ci]; best = e;
   }
+  brainTvCapture(k, bp, best ? bp.classIdx[best.biz + ":" + best.need] : 0);
   return visSettle(k, best);
+}
+// SPECTATOR TELEMETRY (the brain inspector). A copy of the think - the vector
+// the brain SAW, the logits it RETURNED, what it acted on - keyed by the
+// thinker in a WeakMap the sim never reads and save() never walks. Pure
+// copies of values already computed: no draws, no state writes, identical
+// work whether the panel is open or not, so the fingerprints cannot move.
+// New session, new visitor objects: the old entries fall to the collector,
+// which is the loader-reset contract honored for free.
+const BRAINTV = new WeakMap();
+function brainTvCapture(k, bp, acted) {
+  let e = BRAINTV.get(k);
+  if (!e) BRAINTV.set(k, e = { ring: [] });
+  e.t = T; e.tmin = tmin; e.mode = bp.mode;
+  e.f = bp.f.slice(); e.logits = bp.logits.slice();
+  let am = 0;
+  for (let i = 1; i < e.logits.length; i++) if (e.logits[i] > e.logits[am]) am = i;
+  e.argmax = am; e.acted = acted; e.sal = null;   // saliency is the panel's to compute, lazily
+  e.ring.push(acted);
+  if (e.ring.length > 16) e.ring.shift();
 }
 // SHADOW MODE: the brain runs beside the decider on every think - same
 // declared inputs, same artifact path - and only a tally moves. _shadowStats
@@ -11676,6 +11701,7 @@ function shadowObserve(k, bp, e) {
   neuroVector(k, bp.readers, bp.f);
   const cls = bp.classify(bp.f);
   const actual = e ? (bp.classIdx[e.biz + ":" + e.need] != null ? bp.classIdx[e.biz + ":" + e.need] : 0) : 0;
+  brainTvCapture(k, bp, actual);   // the inspector shows a shadow brain's mind too, tagged SHADOW
   const all = window._shadowStats = window._shadowStats || {};
   const cul = all[k.culture || "crab"] = all[k.culture || "crab"] || {};
   const s = cul["vis_pick.candidate"] = cul["vis_pick.candidate"] || { n: 0, agree: 0, ring: [] };
@@ -13076,6 +13102,8 @@ cv.addEventListener("click", (ev) => {
       sfx.ding(); return;
     }
     if (tapSendChip(p)) return;   // the SEND chip sits on the card: it is tested before the card opens
+    // the MIND> chip too - same rule, first refusal over the card-opens-dossier tap
+    if (sel && brainOf(sel) && p.x >= 5 && p.x < 32 && p.y >= 51 && p.y < 59) { brainTv = !brainTv; sfx.ding(); return; }
     if (sel && p.x >= 2 && p.x < 130 && p.y >= 2 && p.y < 60) { dossier = sel; sfx.ding(); return; }
   }
   // the little sun: fast-forward to morning
@@ -13211,6 +13239,7 @@ addEventListener("keydown", (e) => {
   if (e.key === "n") toggleMusic();
   if (e.key === "b" && musicOn) playTrack(pickTrack());    // skip: another one that fits
   if (e.key === "f") ffMode = (ffMode + 1) % 4;            // fast-forward 1x/2x/3x/6x
+  if (e.key === "t") brainTv = !brainTv;                   // the brain inspector: a thinker's thoughts
   // [ and ] step the selection through the town, exactly what the little crab
   // cycler's chevrons do - the camera comes along, unlike an arrow-key pan
   // H AND ? BOTH OPEN THE HELP. `?` is the key every player tries and `h` is
@@ -14410,6 +14439,12 @@ function drawCustCard(k) {
     smallText(ctx, "$" + $d(k.wallet) + " LEFT OF $" + $d(k.purse)
       + (k.room ? "  ROOM " + k.roomN : ""), 29, 28, [140, 110, 40]);
     visBars(k, 6, 37, 118);
+    // the phone's door to the brain inspector: MORE> already reads as a tap,
+    // so its row carries the sibling chip - lit while the panel is open
+    if (brainOf(k)) {
+      rect(ctx, 5, 51, 27, 8, brainTv ? [190, 120, 230] : [60, 45, 80]);
+      smallText(ctx, "MIND>", 7, 52, [255, 255, 255]);
+    }
     smallText(ctx, "MORE>", 126 - smallTextWidth("MORE>"), 52, [150, 140, 160]);
     return;
   }
@@ -14499,6 +14534,136 @@ function drawFollowCard() {
     rect(ctx, bx + 11, 45, 13, 4, [30, 20, 36]);
     rect(ctx, bx + 12, 46, Math.round(11 * frac), 2,
       frac > 0.5 ? [96, 200, 120] : frac > 0.25 ? [235, 200, 90] : [235, 90, 90]);
+  }
+}
+
+// ------------------------------------------------------------ the brain inspector
+// "i would love to be able to see what the output of the crab's brain is at
+// any given time" (Matt, 2026-08-22). The panel is an instrument, not a debug
+// dump: it shows the vector the brain SAW (from the telemetry copy, never
+// re-read from live state - what is drawn is exactly what was thought), the
+// logits it returned as a ranked meter bank, what it acted on, why (a
+// first-order saliency over the winning class), and its last sixteen calls.
+// EVERY LINE IS DRAW-ONLY, floats welcome: it reads the BRAINTV WeakMap and
+// writes pixels. Toggled by 't' or the MIND> chip on a thinker's card.
+const BRAINTV_CLS = {   // surface classes -> [label, meter color]
+  "none":           ["WAIT IT OUT", [150, 140, 160]],
+  "shack:food":     ["SHACK: MEAL", [235, 160, 60]],
+  "juicebar:drink": ["JUICE: SIP",  [80, 200, 190]],
+  "shack:drink":    ["SHACK: SIP",  [235, 200, 90]],
+  "showers:clean":  ["A WASH",      [96, 170, 220]],
+  "arcade:fun":     ["THE CADE",    [190, 120, 230]],
+  "hotel:room":     ["A BED",       [96, 200, 120]],
+};
+// a thinker = a selected VISITOR whose culture ships a vis_pick brain
+function brainOf(k) {
+  if (!k || k.p || !k.visitor) return null;
+  const b = BRAINS[k.culture || "crab"];
+  return (b && b["vis_pick.candidate"]) || null;
+}
+// registry name + the encoded value the brain saw -> [plain label, reading].
+// Decoders are the registry's own units, inverted for the eye.
+function brainTvObs(name, v) {
+  const colon = name.indexOf(":");
+  const base = colon === -1 ? name : name.slice(0, colon);
+  const stop = colon === -1 ? "" : BIZ[name.slice(colon + 1)].short;
+  const pct = Math.round(v * 100 / 16384) + "%", yn = v >= 4096 ? "YES" : "NO";
+  switch (base) {
+    case "need.hunger.q20":    return ["HUNGER", pct];
+    case "need.thirst.q20":    return ["THIRST", pct];
+    case "need.dirt.q20":      return ["GRIME", pct];
+    case "need.bored.q20":     return ["BOREDOM", pct];
+    case "wallet.cents":       return ["WALLET", "$" + $d(v)];
+    case "room.reserve.cents": return ["BED FUND", "$" + $d(v)];
+    case "clock.tmin":         return ["THE HOUR", fmtClock((v / 16) | 0)];
+    case "self.cultured":      return ["FROM AWAY", yn];
+    case "self.x.px":          return ["SPOT", ((v / 8) | 0) + "PX"];
+    case "room.wants":         return ["WANTS A BED", yn];
+    case "room.free":          return ["BEDS FREE", yn];
+    case "room.price.cents":   return ["BED PRICE", "$" + $d((v / 8) | 0)];
+    case "stop.open":          return [stop + " OPEN", yn];
+    case "stop.roomfor":       return [stop + " ROOM", yn];
+    case "stop.afford.count":  return [stop + " AFFORDS", ((v / 1024) | 0) + " DISHES"];
+    case "stop.dist.px":       return [stop + " AWAY", ((v / 8) | 0) + "PX"];
+    case "stop.appeal.q16":    return [stop + " PRICES", "X" + (v * 8 / 65536).toFixed(2)];
+    case "stop.taste.best":    return [stop + " TASTE", (v / 2048).toFixed(1)];
+    default:                   return [name.toUpperCase().slice(0, 12), "" + v];
+  }
+}
+// FIRST-ORDER SALIENCY toward one class: gradient x input through the active
+// hidden units (dead ReLUs drop out exactly; the rare saturated unit is
+// treated as live, which overstates it - fine for an instrument panel).
+function brainTvSaliency(bp, f, cls) {
+  const a = bp.arch, contrib = new Array(a.in).fill(0);
+  for (let i = 0; i < a.hidden; i++) {
+    let acc = bp.b1[i]; const wi = bp.w1[i];
+    for (let j = 0; j < a.in; j++) acc += wi[j] * f[j];
+    if ((acc >> bp.R1) <= 0) continue;
+    const g = bp.w2[cls][i];
+    if (!g) continue;
+    for (let j = 0; j < a.in; j++) contrib[j] += g * wi[j] * f[j];
+  }
+  return contrib;
+}
+function drawBrainPanel() {
+  if (!brainTv) return;
+  // the same full-screen-card deference the follow card pays, plus the help
+  if (dossier || manage || boardView || saveView || reportT > 0 || departT > 0 || helpView) return;
+  if (tab === "menu") return;
+  const px = 2, py = 62, pw = 128;
+  const frame = (h) => { rect(ctx, px, py, pw, h, [30, 20, 36]); rect(ctx, px + 1, py + 1, pw - 2, h - 2, [22, 16, 38]); };
+  const bp = brainOf(sel);
+  if (!bp) {   // honest about what it needs, in its own voice
+    frame(16);
+    smallText(ctx, sel && !sel.p ? "RUNS ON INSTINCT - NO BRAIN" : "SELECT A VISITOR TO SEE A MIND",
+      px + 5, py + 5, [150, 140, 160]);
+    return;
+  }
+  const e = BRAINTV.get(sel);
+  if (!e) {
+    frame(16);
+    smallText(ctx, "HASN'T HAD A THOUGHT YET", px + 5, py + 5, [150, 140, 160]);
+    return;
+  }
+  frame(104);
+  smallText(ctx, fitSmall("THE MIND OF " + sel.name.split(" ")[0], pw - 34), px + 5, py + 4, [225, 215, 255]);
+  if (e.mode === "shadow") smallText(ctx, "SHADOW", px + pw - 4 - smallTextWidth("SHADOW"), py + 4, [235, 200, 90]);
+  const ago = Math.max(0, (tmin - e.tmin) | 0);
+  smallText(ctx, ago <= 0 ? "THINKING RIGHT NOW" : "LAST THOUGHT " + fmtClock(e.tmin | 0) + " - " + ago + "M AGO",
+    px + 5, py + 11, [120, 110, 145]);
+  // THE METER BANK: one row a class, bars normalized over this think's spread
+  let lo = e.logits[0], hi = e.logits[0];
+  for (const v of e.logits) { if (v < lo) lo = v; if (v > hi) hi = v; }
+  const span = hi - lo || 1;
+  for (let ci = 0; ci < bp.classes.length; ci++) {
+    const [lbl, col] = BRAINTV_CLS[bp.classes[ci]] || [bp.classes[ci].toUpperCase(), [150, 140, 160]];
+    const ry = py + 19 + ci * 7;
+    const on = ci === e.acted, wanted = ci === e.argmax && e.argmax !== e.acted;
+    smallText(ctx, lbl, px + 5, ry, on ? [255, 255, 255] : wanted ? col : [110, 100, 130]);
+    const bw = Math.max(1, Math.round(48 * (e.logits[ci] - lo) / span));
+    rect(ctx, px + 58, ry + 1, 50, 3, [40, 30, 56]);
+    rect(ctx, px + 59, ry + 1, bw, 3, on ? col : [col[0] * 0.55 | 0, col[1] * 0.55 | 0, col[2] * 0.55 | 0]);
+    if (on) smallText(ctx, "<PICK", px + 111, ry, col);
+    // the brain wanted it, the town couldn't sell it - personality meets stock
+    if (wanted) smallText(ctx, "N/A", px + 111, ry, [190, 80, 80]);
+  }
+  // BECAUSE: the three loudest inputs behind the acted class, sign and all
+  if (!e.sal) e.sal = brainTvSaliency(bp, e.f, e.acted);
+  const order = e.sal.map((c, j) => [Math.abs(c), c, j]).sort((a, b) => b[0] - a[0]);
+  smallText(ctx, "BECAUSE", px + 5, py + 70, [120, 110, 145]);
+  for (let r = 0; r < 3 && r < order.length; r++) {
+    const [, c, j] = order[r];
+    const [lbl, val] = brainTvObs(bp.inputs[j], e.f[j]);
+    const ry = py + 77 + r * 7;
+    smallText(ctx, c >= 0 ? "+" : "-", px + 5, ry, c >= 0 ? [96, 200, 120] : [235, 90, 90]);
+    smallText(ctx, fitSmall(lbl, 62), px + 11, ry, [180, 170, 205]);
+    smallText(ctx, val, px + pw - 4 - smallTextWidth(val), ry, [225, 215, 255]);
+  }
+  // LATELY: the last sixteen calls, oldest left, in the classes' own colors
+  smallText(ctx, "PAST", px + 5, py + 98, [120, 110, 145]);
+  for (let i = 0; i < e.ring.length; i++) {
+    const col = (BRAINTV_CLS[bp.classes[e.ring[i]]] || [0, [150, 140, 160]])[1];
+    rect(ctx, px + 25 + i * 6, py + 98, 4, 4, col);
   }
 }
 
@@ -17492,6 +17657,7 @@ const HELP_PAGES = [
     // rather than drawn - a "??  ??" row would be worse than no row at all
     ["k", "BRACKET KEYS", "STEP THROUGH THE CRABS"],
     ["k", "ARROWS", "PAN THE TOWN"],
+    ["k", "T", "A THINKER'S MIND (THE BRAIN PANEL)"],
     ["k", "M / N / B", "MUTE / MUSIC / NEXT TRACK"],
     ["k", "ESC", "BACK OUT OF ANYTHING"],
     ["k", "H  OR  ?", "THIS CARD"],
@@ -18486,6 +18652,7 @@ function viewFrame(dt) {
   drawManage();
   drawDossier();   // above the management card: a census row opens a dossier ON TOP of it
   drawFollowCard();
+  drawBrainPanel();
   drawCycler();   // < crab > : step the selection (and the camera) through the town
   drawSendChip();   // SEND: the order gesture every device can make
   drawPanel();
