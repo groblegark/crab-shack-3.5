@@ -75,6 +75,24 @@ if (BODYMUL) JSON.parse(BODYMUL);
 //               first. (dormExtra() clamps at MAX - BASE, so the rent stays $10.)
 const NOANNEXE = args.includes("--noannexe");
 const NODORM = args.includes("--nodorm");
+// ---- SCIENCE PROBES (the citizen-mind attribution experiment) -------------
+// Analysis instruments only: default-off, harness-side wraps, no shipped-code
+// change. The paired arm and the causal knockouts behind
+// design/cs35-research/citizen-mind-science.md.
+//   --citscript      the script arm: citizen policy mode forced off (the same
+//                    A/B lever as the citizen-mind matrix's "script arm").
+//   --citdivlog      log every brain-vs-script divergent think (the script
+//                    counterfactual is computed inline; both scorers are
+//                    draw-free, so the trajectory is untouched — proven by
+//                    eviction-day identity with the plain live arm). Result
+//                    gains a `_div` field.
+//   --citknock a,b   the causal arm: where brain and script DISAGREE and the
+//                    disagreement matches an entry, the script rules that
+//                    think. Entry "X>Y" matches brain-class X vs script-class
+//                    Y exactly; a bare class matches either side.
+const CITSCRIPT = args.includes("--citscript");
+const CITDIVLOG = args.includes("--citdivlog");
+const CITKNOCK = (opt("citknock", "") || "").split(",").filter(Boolean);
 const SEEDS = parseInt(opt("seeds", "1"));
 // `--realm main` (or SIMLIB_REALM=main) runs the game files in the main realm
 // instead of a vm context - the vm escape; simlib.loadGame owns the mechanics.
@@ -157,6 +175,35 @@ if (NOCAP) G(`window._noCap = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
+// SCIENCE PROBES: the citizen A/B arm and the divergence/knockout wrap.
+// brainCitPick is a top-level function declaration — a mutable binding in
+// both realms — so the wrap is pure harness, and both scorers are draw-free.
+if (CITSCRIPT) G(`if (BRAINS.crab && BRAINS.crab["cit_errand.candidate"]) BRAINS.crab["cit_errand.candidate"].mode = "off";`);
+if (CITDIVLOG || CITKNOCK.length) G(`
+  window._citdiv = [];
+  window._citknock = ${JSON.stringify(CITKNOCK)};
+  const _bcp0 = brainCitPick;
+  brainCitPick = function (c, cand, bp) {
+    let sB = null, sN = 0, sD = 1;
+    for (const e of cand) {
+      const s = errandScore(c, e);
+      if (ratGt(s.n, s.d, sN, sD)) { sN = s.n; sD = s.d; sB = e; }
+    }
+    const b = _bcp0(c, cand, bp);
+    const bc = b ? citErrandClass(b) : "none", sc = sB ? citErrandClass(sB) : "none";
+    if (bc !== sc) {
+      if (${CITDIVLOG ? "true" : "false"}) window._citdiv.push({
+        t: T, day, tmin: Math.round(tmin), name: c.p.name, job: c.p.job,
+        brain: bc, script: sc, wallet: c.p.wallet,
+        needs: { food: needLevel(c, "food"), drink: needLevel(c, "drink"),
+                 fun: needLevel(c, "fun"), clean: needLevel(c, "clean") },
+        till: coins });
+      for (const k of window._citknock)
+        if (k.indexOf(">") >= 0 ? k === bc + ">" + sc : (k === bc || k === sc)) return sB;
+    }
+    return b;
+  };
+`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
 const buyFn = BUY.length ? mkFn(`
   if (tmin >= 9 * 60 && tmin <= 19 * 60 && Math.abs(tmin - Math.round(tmin / 60) * 60) < ${STEP} * TS / 2) {
@@ -241,6 +288,7 @@ const labour = G(`JSON.stringify({
   roomShort: window._stats.roomShort || 0,
 })`);
 return { dayRows, wall, labour, lifetime: G("$d(lifetime)"), stats: G("JSON.stringify(window._stats)"),
+  _div: (CITDIVLOG || CITKNOCK.length) ? G("JSON.stringify(window._citdiv)") : null,
   over: G("gameOver"), bankrupt: G("bankrupt"), debt: G("$d(credit.bal)"), day: G("day"), rent: G("$d(rentAmount())"), rep: G("repPts(rep)"), wal: G("JSON.stringify(window._wal)"),
   coins: G("$d(coins)"), ups: G(`Object.keys(UPS).map(k => k + ":" + UPS[k].lvl).join(" ")`) };
 }
@@ -312,3 +360,22 @@ if (SEEDS > 1) {
     + `; rough ${sum(l => l.roughNights)}; roomShort ${sum(l => l.roomShort)}`);
 }
 console.log(`(${results.reduce((s, r) => s + r.wall, 0)}ms total)`);
+// SCIENCE PROBES: bank the divergence corpus and the election record per seed
+// (JSON receipt beside wherever --divout points; the write-up's numbers all
+// trace here). Also emit a per-seed eviction/poll summary line for pairing.
+if (CITDIVLOG || CITSCRIPT || CITKNOCK.length) {
+  const DIVOUT = opt("divout", null);
+  const rows = results.map((r, i) => ({
+    seed: seedList[i], evict: r.over ? r.day : null,
+    polls: (JSON.parse(r.stats).polls || []).map(p => ({ day: p.day, turnout: p.turnout, roll: p.roll })),
+    div: r._div ? JSON.parse(r._div) : null,
+  }));
+  if (DIVOUT) {
+    const { writeFileSync, mkdirSync } = await import("fs");
+    mkdirSync(DIVOUT, { recursive: true });
+    const tag = `sb${SEEDBASE}${CITSCRIPT ? "-script" : ""}${CITKNOCK.length ? "-knock_" + CITKNOCK.join("_").replace(/[^a-z0-9_]/gi, "-") : ""}`;
+    writeFileSync(join(DIVOUT, `cit-${tag}.json`), JSON.stringify(rows));
+    console.log(`>> science receipt: ${join(DIVOUT, `cit-${tag}.json`)}`);
+  }
+  console.log(">> polls turnout/roll:", rows.map(r => r.polls.map(p => p.turnout + "/" + p.roll).join(" ") || "-").join(" | "));
+}
