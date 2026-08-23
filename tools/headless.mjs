@@ -380,4 +380,16 @@ if (CITDIVLOG || CITSCRIPT || CITKNOCK.length) {
     console.log(`>> science receipt: ${join(DIVOUT, `cit-${tag}.json`)}`);
   }
   console.log(">> polls turnout/roll:", rows.map(r => r.polls.map(p => p.turnout + "/" + p.roll).join(" ") || "-").join(" | "));
+  // one compact line for the kube receipt (stdoutTail keeps ~4KB): the
+  // bucket counts and per-seed divergence totals, samples omitted — the
+  // full corpus needs --divout and a filesystem that outlives the pod.
+  if (CITDIVLOG) {
+    const buckets = {};
+    for (const r of rows) for (const d of r.div || [])
+      buckets[d.brain + ">" + d.script] = (buckets[d.brain + ">" + d.script] || 0) + 1;
+    console.log(">> citdivsum " + JSON.stringify({
+      buckets,
+      seeds: rows.map(r => ({ s: r.seed, evict: r.evict, n: (r.div || []).length })),
+    }));
+  }
 }
