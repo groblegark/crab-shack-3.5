@@ -7089,8 +7089,8 @@ function l1Run(code, read) {
       case "ADD": b = st.pop(); a = st.pop(); st.push(a + b); break;
       case "SUB": b = st.pop(); a = st.pop(); st.push(a - b); break;
       case "MUL": b = st.pop(); a = st.pop(); st.push(a * b); break;
-      case "DIVI": c = code[i++]; a = st.pop(); st.push((a - a % c) / c); break;
-      case "MULDIV": c = code[i++]; b = st.pop(); a = st.pop(); a = a * b; st.push((a - a % c) / c); break;
+      case "DIVI": c = code[i++]; a = st.pop(); st.push(Math.floor(a / c)); break;
+      case "MULDIV": c = code[i++]; b = st.pop(); a = st.pop(); a = a * b; st.push(Math.floor(a / c)); break;
       case "MIN": b = st.pop(); a = st.pop(); st.push(a < b ? a : b); break;
       case "MAX": b = st.pop(); a = st.pop(); st.push(a > b ? a : b); break;
       case "CLAMP": c = st.pop(); b = st.pop(); a = st.pop(); st.push(a < b ? b : a > c ? c : a); break;
