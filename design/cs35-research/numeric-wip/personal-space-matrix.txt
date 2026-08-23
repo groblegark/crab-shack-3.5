@@ -1,0 +1,30 @@
+== baseline sb=0
+BANKRUPT day 10 (rent $230, had $59, debt $0, rep 100) — chef:2 grill:0 board:0 table:0 juicebar:0 arcade:0 cadegear:0
+>> survived 0/16; eviction days: 6,9,9,10,11,11,11,12,12,13,14,14,14,17,18,19 (median 12)
+>> lifetime $57466; housing boat/house/cot 14/54/59; crew housed 2/32; purse $15257; walkouts 73; quits 3; roomLets 1146; unhoused 523; hotelier 12/16; beds 64 (+0); cabanas 35; rough 57; roomShort 207
+(68866ms total)
+== growth sb=0
+BANKRUPT day 10 (rent $230, had $59, debt $0, rep 100) — chef:2 grill:0 board:0 table:0 juicebar:0 arcade:0 cadegear:0
+>> survived 4/16; eviction days: 9,10,10,11,12,13,13,14,14,14,15,16,31,31,31,31 (median 14)
+>> lifetime $101115; housing boat/house/cot 28/74/57; crew housed 25/48; purse $21145; walkouts 109; quits 3; roomLets 1680; unhoused 738; hotelier 15/16; beds 64 (+0); cabanas 45; rough 86; roomShort 257
+(103212ms total)
+== baseline sb=16
+BANKRUPT day 7 (rent $230, had $212, debt $36, rep 85) — chef:2 grill:0 board:0 table:0 juicebar:0 arcade:0 cadegear:0
+>> survived 0/16; eviction days: 7,9,10,11,11,11,12,13,13,14,15,15,16,19,19,21 (median 13)
+>> lifetime $61727; housing boat/house/cot 14/53/61; crew housed 1/32; purse $16167; walkouts 76; quits 1; roomLets 1149; unhoused 617; hotelier 13/16; beds 64 (+0); cabanas 32; rough 56; roomShort 210
+(74283ms total)
+== growth sb=16
+BANKRUPT day 7 (rent $230, had $212, debt $36, rep 85) — chef:2 grill:0 board:0 table:0 juicebar:0 arcade:0 cadegear:0
+>> survived 2/16; eviction days: 7,10,11,12,12,13,13,13,14,16,18,18,19,21,31,31 (median 14)
+>> lifetime $88718; housing boat/house/cot 19/64/61; crew housed 15/42; purse $18386; walkouts 93; quits 1; roomLets 1481; unhoused 720; hotelier 13/16; beds 65 (+1); cabanas 41; rough 82; roomShort 238
+(95418ms total)
+== baseline sb=32
+BANKRUPT day 12 (rent $230, had $128, debt $9, rep 100) — chef:2 grill:0 board:0 table:0 juicebar:0 arcade:0 cadegear:0
+>> survived 0/16; eviction days: 8,8,9,10,11,11,11,11,12,13,14,14,14,16,20,20 (median 12)
+>> lifetime $57896; housing boat/house/cot 13/55/60; crew housed 2/32; purse $15625; walkouts 73; quits 1; roomLets 1116; unhoused 511; hotelier 13/16; beds 65 (+1); cabanas 35; rough 56; roomShort 216
+(73891ms total)
+== growth sb=32
+BANKRUPT day 8 (rent $230, had $0, debt $14, rep 100) — chef:2 grill:0 board:0 table:1 juicebar:0 arcade:0 cadegear:0
+>> survived 3/16; eviction days: 8,10,11,11,11,12,12,13,13,14,16,17,19,31,31,31 (median 13)
+>> lifetime $90101; housing boat/house/cot 21/71/49; crew housed 19/42; purse $19830; walkouts 86; quits 2; roomLets 1495; unhoused 711; hotelier 14/16; beds 65 (+1); cabanas 37; rough 83; roomShort 263
+(102943ms total)
