@@ -1,17 +1,17 @@
 {
  "corpus": {
-  "rows": 7287,
+  "rows": 35660,
   "towns": 16,
   "days": 12
  },
  "zeroDelta": {
-  "checked": 7287,
+  "checked": 35660,
   "identical": true
  },
  "pooled": {
-  "before": 0.838,
-  "after": 0.9079,
-  "v3": 0.8264,
+  "before": 0.9619,
+  "after": 0.9767,
+  "v3": 0.9869,
   "nights": 40,
   "perNight": 256,
   "draws": 10240
@@ -20,134 +20,134 @@
   "towns": [
    {
     "town": 0,
-    "ring": 187,
-    "test": 126,
-    "before": 0.8095,
-    "after": 0.8175
+    "ring": 1192,
+    "test": 796,
+    "before": 0.9711,
+    "after": 0.9774
    },
    {
     "town": 1,
-    "ring": 270,
-    "test": 181,
-    "before": 0.8453,
-    "after": 0.8674
+    "ring": 1542,
+    "test": 1029,
+    "before": 0.9572,
+    "after": 0.966
    },
    {
     "town": 2,
-    "ring": 93,
-    "test": 63,
-    "before": 0.9683,
-    "after": 0.9683
+    "ring": 1234,
+    "test": 823,
+    "before": 0.9635,
+    "after": 0.9721
    },
    {
     "town": 3,
-    "ring": 448,
-    "test": 299,
-    "before": 0.6388,
-    "after": 0.7625
+    "ring": 1390,
+    "test": 928,
+    "before": 0.945,
+    "after": 0.9666
    },
    {
     "town": 4,
-    "ring": 157,
-    "test": 105,
-    "before": 0.8762,
-    "after": 0.9143
+    "ring": 1440,
+    "test": 961,
+    "before": 0.9896,
+    "after": 0.9958
    },
    {
     "town": 5,
-    "ring": 357,
-    "test": 238,
-    "before": 0.979,
-    "after": 1
+    "ring": 1540,
+    "test": 1028,
+    "before": 0.963,
+    "after": 0.9728
    },
    {
     "town": 6,
-    "ring": 223,
-    "test": 150,
-    "before": 0.9333,
-    "after": 0.9533
+    "ring": 1556,
+    "test": 1038,
+    "before": 0.9855,
+    "after": 0.9894
    },
    {
     "town": 7,
-    "ring": 259,
-    "test": 174,
-    "before": 0.6379,
-    "after": 0.7471
+    "ring": 1632,
+    "test": 1089,
+    "before": 0.9578,
+    "after": 0.9798
    },
    {
     "town": 8,
-    "ring": 198,
-    "test": 132,
-    "before": 0.9015,
-    "after": 0.9318
+    "ring": 1569,
+    "test": 1047,
+    "before": 0.9608,
+    "after": 0.9742
    },
    {
     "town": 9,
-    "ring": 479,
-    "test": 320,
-    "before": 0.7531,
-    "after": 0.9187
+    "ring": 1499,
+    "test": 1000,
+    "before": 0.974,
+    "after": 0.979
    },
    {
     "town": 10,
-    "ring": 156,
-    "test": 104,
-    "before": 0.8846,
-    "after": 1
+    "ring": 645,
+    "test": 431,
+    "before": 0.9559,
+    "after": 0.9768
    },
    {
     "town": 11,
-    "ring": 210,
-    "test": 140,
-    "before": 0.7786,
-    "after": 0.8429
+    "ring": 1176,
+    "test": 784,
+    "before": 0.9413,
+    "after": 0.9528
    },
    {
     "town": 12,
-    "ring": 367,
-    "test": 245,
-    "before": 0.8776,
-    "after": 0.9061
+    "ring": 1069,
+    "test": 714,
+    "before": 0.965,
+    "after": 0.972
    },
    {
     "town": 13,
-    "ring": 315,
-    "test": 210,
-    "before": 0.8714,
-    "after": 0.8762
+    "ring": 1242,
+    "test": 828,
+    "before": 0.9336,
+    "after": 0.965
    },
    {
     "town": 14,
-    "ring": 428,
-    "test": 286,
-    "before": 0.965,
-    "after": 1
+    "ring": 1369,
+    "test": 914,
+    "before": 0.9803,
+    "after": 0.9825
    },
    {
     "town": 15,
-    "ring": 220,
-    "test": 147,
-    "before": 0.8776,
-    "after": 0.9184
+    "ring": 1293,
+    "test": 862,
+    "before": 0.9339,
+    "after": 0.9466
    }
   ],
-  "up": 15,
-  "flat": 1,
+  "up": 16,
+  "flat": 0,
   "down": 0
  },
  "stability": {
   "nights": 1000,
   "maxW": 127,
-  "maxB": 8028160,
-  "saturated": 52,
+  "maxB": 2289664,
+  "saturated": 21,
   "of": 168
  },
  "mutation": {
-  "unclampedMaxW": 3055,
+  "unclampedMaxW": 631,
   "bites": true
  },
  "xengine": {
-  "hash": "445912c6",
+  "hash": "9933dad0",
   "draws": 5120,
   "engines": [
    "node/V8",
@@ -156,9 +156,9 @@
   "identical": true
  },
  "cost": {
-  "usPerReplay": 3.29,
+  "usPerReplay": 1.23,
   "replaysPerNight": 32,
-  "usPerActorNight": 105.2,
-  "pctOfSimDay10Dreamers": 1.05
+  "usPerActorNight": 39.3,
+  "pctOfSimDay10Dreamers": 0.39
  }
 }
