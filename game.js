@@ -4323,17 +4323,26 @@ const _swinBy = {};
 function bizShiftWindow(b, kind, spans) {
   spans = spans || SHIFT_SPAN;
   const h = BIZ[b].hours;
+  // AN INSTITUTION KEEPS ITS OWNER'S DAY (rhythm R2): a shop whose owner's
+  // culture declared shiftStarts anchors its clock-ins there, and the end
+  // derives as start + span - the other half of the frame the mgmt slice
+  // moved. The identity test is on the SS TABLE (a culture that declared only
+  // a lie-in inherits RHYTHM.SS itself and derives like everyone). The
+  // covering double stays the full trading window either way.
+  const ss = bizRhythm(b).SS;
+  const anchored = ss !== RHYTHM.SS && kind !== "cover";
   // the memo serves ONLY the native table (identity, not equality): a cultured
   // worker's window derives from THEIR spans and is computed fresh - rare by
   // construction until settlers, and never allowed to poison the shared cache
-  const native = spans === SHIFT_SPAN;
+  const native = spans === SHIFT_SPAN && !anchored;
   const bb = _swinBy[b] || (_swinBy[b] = {});
   if (native) {
     const hit = bb[kind];
     if (hit && hit.o === h.open && hit.c === h.close) return hit.w;
   }
   const mid = h.open + Math.round((h.close - h.open) / 2 / 30) * 30;
-  const raw = kind === "M" ? { start: h.open, end: mid }
+  const raw = anchored ? { start: ss[kind], end: ss[kind] + (spans[kind] || spans.cover) }
+    : kind === "M" ? { start: h.open, end: mid }
     : kind === "E" ? { start: mid, end: h.close }
     : kind === "D" ? { start: h.open + 30, end: h.close - 90 }
     : { start: h.open, end: h.close };   // covering double: the full window
@@ -7920,10 +7929,15 @@ function placeBusiness(cultureId, bizId, plotId, ownerC, replay) {
   if (!OWNERS[oKey]) OWNERS[oKey] = defineTill({ id: oKey, name: String(ownerC.p.name), till: 0, soft: false });
   // the entry enters the town's own table, in the literal's exact shape,
   // stamped with the same operating defaults the loader stamps (game.js:427)
+  // the shop opens on its owner-culture's default sign (rhythm R2): the
+  // engine values for an undeclared culture, so the stamp is byte-identical
+  // to the old literal; hours remain the owner's lever thereafter. cu is the
+  // institution's culture - bizRhythm reads it for the shift anchors.
+  const rh0 = (cul && cul.rhythm) || RHYTHM;
   const b = Object.assign({}, z, { stations, stalls, tables,
     x0: plot.x0, x1: plot.x1, door: plot.door, queueX: plot.queueX,
-    park: plot.park, rack: plot.rack, owner: oKey, pending: false,
-    hours: { open: 8 * 60, close: 20 * 60 }, mealPol: "retail",
+    park: plot.park, rack: plot.rack, owner: oKey, pending: false, cu: cultureId,
+    hours: { open: rh0.HOURS.open, close: rh0.HOURS.close }, mealPol: "retail",
     wage: b0wage(z), sickPol: "grant", autoLabor: true, tipShare: 0 });
   delete b.recipes; b.recipes = z.recipes.map(r => Object.assign({}, r));
   BIZ[bizId] = b;
