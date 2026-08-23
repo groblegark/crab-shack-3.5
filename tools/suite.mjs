@@ -11912,9 +11912,13 @@ scenario("settlers: the walk-in manifest draws nothing until a share is declared
   const sim = createSim({ seed: 21 });
   // count draws by wrapping srand itself: the harness tap hides the cursor
   sim.G("window._drawN = 0; { const o = srand; srand = () => { window._drawN++; return o(); }; }");
+  // the BUNDLED pigway declares now, so silence is STAGED: strip the built
+  // entry's settlers, prove the zero-draw rule, and hand it back below
   const silent = JSON.parse(sim.G(`JSON.stringify((() => {
+    const kept = CULTURES.pig.settlers; CULTURES.pig.settlers = null;
     const c0 = window._drawN; const id = walkinCulture(); const c1 = window._drawN;
     const w = newCustomer("shack");
+    CULTURES.pig.settlers = kept;
     return { id, moved: c0 !== c1, cu: w.culture, name: w.name }; })())`));
   if (silent.id !== "crab" || silent.moved) return "an undeclared manifest drew from the stream";
   if (silent.cu !== null) return "a crab walk-in carries a culture: " + silent.cu;
