@@ -1,0 +1,16 @@
+{
+  "name": "trunk-spike",
+  "resources": { "requests": { "cpu": "2", "memory": "6Gi" }, "limits": { "cpu": "2", "memory": "10Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [{ "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }],
+  "arms": [
+    { "id": "sep-s7",    "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "sep",      "--seed", "7"]  },
+    { "id": "sep-s11",   "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "sep",      "--seed", "11"] },
+    { "id": "sep-s42",   "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "sep",      "--seed", "42"] },
+    { "id": "trunk-s7",  "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "trunk",    "--seed", "7"]  },
+    { "id": "trunk-s11", "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "trunk",    "--seed", "11"] },
+    { "id": "trunk-s42", "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "trunk",    "--seed", "42"] },
+    { "id": "zeroshot",  "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "zeroshot", "--seed", "7"]  },
+    { "id": "delta",     "entry": "tools/neuro/trunk-spike/run.mjs", "args": ["--mode", "delta",    "--seed", "7"]  }
+  ]
+}

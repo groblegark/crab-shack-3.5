@@ -1,0 +1,45 @@
+{
+  "release": "cs-trunk-spike-4fb4afe-80kf",
+  "armId": "sep-s11",
+  "index": 1,
+  "sha": "4fb4afeaf7bd4ce7a2951aaa32bf94712826a8b0",
+  "entry": "tools/neuro/trunk-spike/run.mjs",
+  "args": [
+    "--mode",
+    "sep",
+    "--seed",
+    "11"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 545512,
+  "verdict": null,
+  "failures": [],
+  "jsonTail": {
+    "mode": "sep",
+    "seed": 11,
+    "U": 80,
+    "E": 8,
+    "H": 66,
+    "sepParams": 7200,
+    "trunkParams": 7128,
+    "tasks": {
+      "vis-crab": {
+        "int": 0.9849,
+        "n": 24622,
+        "params": 2352
+      },
+      "vis-gull": {
+        "int": 0.9845,
+        "n": 23525,
+        "params": 2352
+      },
+      "cit-crab": {
+        "int": 0.9812,
+        "n": 55295,
+        "params": 2496
+      }
+    }
+  },
+  "stdoutTail": "corpora: vis-crab 88192, vis-gull 91702, cit 215012 rows (498s)\n{\"mode\":\"sep\",\"seed\":11,\"U\":80,\"E\":8,\"H\":66,\"sepParams\":7200,\"trunkParams\":7128,\"tasks\":{\"vis-crab\":{\"int\":0.9849,\"n\":24622,\"params\":2352},\"vis-gull\":{\"int\":0.9845,\"n\":23525,\"params\":2352},\"cit-crab\":{\"int\":0.9812,\"n\":55295,\"params\":2496}}}\n"
+}

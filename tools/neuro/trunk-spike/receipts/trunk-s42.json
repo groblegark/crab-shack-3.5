@@ -1,0 +1,65 @@
+{
+  "release": "cs-trunk-spike-4fb4afe-80kf",
+  "armId": "trunk-s42",
+  "index": 5,
+  "sha": "4fb4afeaf7bd4ce7a2951aaa32bf94712826a8b0",
+  "entry": "tools/neuro/trunk-spike/run.mjs",
+  "args": [
+    "--mode",
+    "trunk",
+    "--seed",
+    "42"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 597120,
+  "verdict": null,
+  "failures": [],
+  "jsonTail": {
+    "mode": "trunk",
+    "seed": 42,
+    "U": 80,
+    "E": 8,
+    "H": 66,
+    "sepParams": 7200,
+    "trunkParams": 7128,
+    "tasks": {
+      "vis-crab": {
+        "agree": 0.991,
+        "n": 24622
+      },
+      "vis-gull": {
+        "agree": 0.9882,
+        "n": 23525
+      },
+      "cit-crab": {
+        "agree": 0.982,
+        "n": 55295
+      }
+    },
+    "emb": [
+      [
+        2072,
+        1775,
+        2652,
+        2373,
+        2827,
+        2430,
+        2863,
+        4243
+      ],
+      [
+        1619,
+        1303,
+        2194,
+        2196,
+        758,
+        1969,
+        1456,
+        1295
+      ]
+    ],
+    "R1": 6
+  },
+  "stdoutTail": "corpora: vis-crab 88192, vis-gull 91702, cit 215012 rows (484s)\ntrunk: IN=88 (U=80+E=8) H=66 heads=[7,13] train 291464 rows\ntrunk epoch 6/18\ntrunk epoch 12/18\ntrunk epoch 18/18\n{\"mode\":\"trunk\",\"seed\":42,\"U\":80,\"E\":8,\"H\":66,\"sepParams\":7200,\"trunkParams\":7128,\"tasks\":{\"vis-crab\":{\"agree\":0.991,\"n\":24622},\"vis-gull\":{\"agree\":0.9882,\"n\":23525},\"cit-crab\":{\"agree\":0.982,\"n\":55295}},\"emb\":[[2072,1775,2652,2373,2827,2430,2863,4243],[1619,1303,2194,2196,758,1969,1456,1295]],\"R1\":6}\n"
+}
