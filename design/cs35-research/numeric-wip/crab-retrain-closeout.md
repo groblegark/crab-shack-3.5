@@ -313,6 +313,24 @@ and **zero console errors and zero warnings**. Nothing was staged into a save
 slot, so the fresh-boot autosave had nothing to clobber. Picture (the
 software renderer, contention-free): `crab-retrain-town.png`.
 
+## Mutations, honestly (run after the commit, on a copy — no file touched)
+
+The floor scenario's own instrument, seed 4242, four days, against the
+shipped artifact:
+
+| mutation | agreement | floor (90%) | day-2 fingerprint |
+|---|---|---|---|
+| none (shipped) | 98.21% | passes | `14420 / 52674 / …` |
+| `w2` zeroed — the lobotomy | **85.56%** | **FAILS (bites)** | `0 / 25200 / …` (a dead town) |
+| `shifts.R1` off by one | 98.07% | passes | `20565 / 58312 / …` (moved) |
+
+**RECORDED AS NEARLY VACUOUS AGAINST THIS GATE:** a one-bit error in the
+rescale shift costs 0.14 points of agreement and the floor never notices. It
+is caught, but elsewhere — it re-rolls the town (the frozen fingerprints
+bite) and it changes every logit (the cross-engine hash bites). The floor is
+a lobotomy detector, not a numeric-recipe detector, and saying so is the
+rule. Layered, like the caps.
+
 ## Lessons banked
 
 - **Look upstream of the lever you were handed.** The close-out proposed
