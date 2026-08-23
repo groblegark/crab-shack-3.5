@@ -23,7 +23,7 @@
 // Job's backoffLimit (kept low) is the only retry policy.
 
 import { readFileSync } from "fs";
-import { spawnSync, execSync } from "child_process";
+import { spawnSync } from "child_process";
 import https from "https";
 
 const need = (k) => {
@@ -61,7 +61,9 @@ for (const [k, v] of Object.entries(arm.env || {})) {
   childEnv[k] = String(v);
 }
 
-const sha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+// node:26-slim has no git - the clone lives in the init container. A
+// detached checkout leaves the raw SHA in .git/HEAD.
+const sha = readFileSync(".git/HEAD", "utf8").trim();
 console.log(`kube-arm: release=${release} index=${index} arm=${arm.id || index} sha=${sha}`);
 console.log(`kube-arm: node ${arm.entry} ${args.join(" ")}  env=${JSON.stringify(arm.env || {})}`);
 
