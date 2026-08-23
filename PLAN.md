@@ -9,6 +9,25 @@ Three games, all live on GitHub Pages, all built on the snescat toy PPU
 | CRAB SHACK 2 | groblegark/crab-shack-2 | groblegark.github.io/crab-shack-2 | done + refined |
 | CRAB SHACK 3 | groblegark/crab-shack-3 | groblegark.github.io/crab-shack-3 | active |
 
+## THE PRIORITY (Matt, 2026-08-22): THE CULTUREWAY MIGRATION, CONTENT-FIRST
+
+The next work phase is the substrate doc's migration ladder
+(design/cs35-cultureway-substrate.md), taken **B-before-D** — content
+first, platform second, ruled after the pigs shipped hungry:
+
+- **Phase B first: foodways + management.** Pig dishes exist so pigs
+  stop leaving unspent (16/16 towns see pigs by ~day 7 and BIG-PALP-class
+  purses go home whole — the measured hook this phase answers); the BIZ
+  catalog to data; pig settlers. This is also where NUDGE + tastes
+  become ONE culture-owned appeal table (the seam is noted in both the
+  drop-nudge and pig close-outs).
+- Then C (voice completion, crab strings tabled), then D (capability
+  APIs: errand registry, hook taxonomy, policy slots, placement), then
+  E (Layer-1 bytecode + civics — 3.5's definition of done).
+- The NEURAL substrate is live and rides along (registries, policies
+  section, distill loop via MCP `policy_distill`); neuro step 5
+  (SIMD, evolutionary search) stays behind its measured triggers.
+
 ## STATE OF PLAY — start here (rewritten 2026-08-20, after a second day)
 
 **Suite 230 scenarios, green. Baseline 0/16 (median eviction day 12).
