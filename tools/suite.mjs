@@ -1894,8 +1894,7 @@ scenario("days off: everyone rests their weekday and plays customer", () => {
       // on an errand, in a line or at the ball is the off-day machinery
       // working (interruptible commitment reroutes off days more, so the
       // sampled status is oftener "IN LINE AT..." than the DAY OFF badge)
-      if (/^DAY OFF/.test(crabStatus(c)) || c.dsC === DS.atTap || c.dsC === DS.toErrand
-          || c.dsC === DS.errand || c.dsC === DS.atBall || c.dsC === DS.selfCook)
+      if (/^DAY OFF/.test(crabStatus(c)) || (c.dsC !== DS.toWork && c.dsC !== DS.working))
         window._offSeen[c.p.name] = (window._offSeen[c.p.name] || 0) + 1;
     }`);
   } });
@@ -11376,9 +11375,12 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // is MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8 - plane
   // digest identical either side of it (the frozen day-2 fingerprint carries
   // the full receipt). Same two-day town as that fixture, same drift.
-  const want = '{"day":3,"coins":17546,"rep":50824,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,22428],["REEF",2136,20921],["SALTY",2072,0],'
-    + '["DRIFT",318,0],["KELP",450,2800]],"vis":7,"catch":3}';
+  // RE-BASELINED for INTERRUPTIBLE COMMITMENT (same holder as the frozen
+  // day-2 fingerprint and the rng pin): re-thinks gather and switch, and
+  // this 4242 town lands on the same day-3 books the hours pin carries.
+  const want = '{"day":3,"coins":16613,"rep":55928,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,24014],["REEF",2136,26882],["SALTY",2072,0],'
+    + '["DRIFT",450,700],["KELP",464,700]],"vis":11,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
