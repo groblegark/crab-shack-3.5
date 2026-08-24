@@ -36,8 +36,18 @@ cards** — twelve towns, thirty days each.
 
 **Ninety-four percent of every card the game shows you is an unmet need, and
 the top three — eighty percent — are all sour.** Seven rules have never won a
-card. One of them is `delight`, the only *glad* line in the table: *"FOUND MY
-DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."*
+card. One of them is `delight`: *"FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY
+SO AT HOME."*
+
+The kind lines aren't absent, though — they're *rare*. Cards that read glad or
+delighted came to sixty-six out of the 4,399, which is one in sixty-six: mostly
+`table` (waited on properly), a few `spentup`, and one each of `bed`, `top` and
+`regular`. We nearly missed that, in a way worth admitting. The census tool
+printed a top-eight table, every one of those winners sits in the tail below the
+cutoff, and the first write-up read *absent from the list* as *never happened* —
+then said the card had one register and could only complain. The tool's own
+"never won" line was right there beside it, correctly not naming them. **A
+histogram's tail is not a zero.**
 
 The obvious diagnosis was that the weights were wrong — the numbers were
 written for a world where needs ran 0 to 1, and they now read fixed-point
@@ -53,13 +63,21 @@ Because the cause isn't the weights, it's the **gates**. A need rule only
 fires on a guest the town genuinely failed — thirst past the line, and not a
 single drink bought — and a guest like that has no competing story to tell.
 Rescaling the needs just redistributes misery among the needs. And `delight`
-was never in the running at any weight: its gate wants a non-crab guest
-eating their own cuisine, so a crab who ate well, bathed, played and slept
-indoors has no path to a glad card, ever.
+was never in the running at any weight: its gate wants a non-crab guest eating
+their own cuisine, so **no crab can trip it, ever** — not rarely, but never, and
+by two locks rather than one. The counter it reads is only ever written for a
+non-crab guest, and the taste test behind it returns exactly 1 for a crab
+against a threshold of 1.5. Either lock alone is enough. That's the difference
+between a rule that's tuned badly and a rule a whole species is locked out of,
+and only the second is a defect.
 
-So the game's main feedback surface could only ever scold you. That isn't a
-bug in a number; it's a decision about what the town is allowed to say — and
-while this entry was being written, the owner made it.
+Which sharpens the complaint rather than dissolving it. A well-run stay *can*
+already come home happy — a guest who bought the answer to a need can't be
+scolded for it, because every need rule wants that purchase count at zero, and
+one who spent up says so on the way out. What it can't do is say it *often*, or
+say the particular kind thing `delight` was written to say. That isn't a bug in
+a number; it's a decision about what the town is allowed to say — and while this
+entry was being written, the owner made it.
 
 **Ruled: widen the gate, not the weight.** A stay that went well should be
 able to earn a glad card, and the road there is the *condition*, not the
