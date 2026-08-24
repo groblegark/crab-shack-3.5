@@ -8,7 +8,217 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-23, latest — EVERY PIG GETS HER FACE
+## 2026-08-24, latest — SLOP
+
+The pork bun is retired. It was a good dish and it worked, and it
+implied a thing about pigs that we decline to imply.
+
+**SLOP** takes its place: fish and fruit, both of them things this
+island already has. Nothing imported, nothing conjured. The lesson
+still costs the till twenty-five dollars, the demand must still be
+taught by a pig who went home hungry, the delight is still counted at
+the moment she picks it up — the machinery never moved, only the
+plate. What did change is where the cost comes from: the bun rested on
+corn at a fixed three dollars an ear, and slop is charged the pier's
+**live** price for its fish. The shack's margin floats with the fish
+market now, same as every native dish. Dearer some weeks. More honest
+every week.
+
+Corn left with the bun, because a table entry no scenario can observe
+is dead data. (THE WALLOW keeps its corn in the design exemplar, where
+worked examples live.)
+
+The pigs approve, in both their registers:
+
+> **"PROPER SLOP AT LAST. I'D SAIL BACK FOR ANOTHER."**
+> — a farmhand, at the ferry
+>
+> **"THE SLOP WAS CORRECT. THE REPORT WILL SAY SO."**
+> — a clerk, composing to the very end
+
+Measured on this tree, eight towns over twenty days, a town that never
+learns the dish against a town that does: distinct pigs ashore **69 →
+149**, pig money left in town **×2.26**, delights **0 → 96**, foreign
+settles down. And the number that matters most is the one that *didn't*
+move — each pig's share of purse spent stayed flat at about 0.30.
+**Slop multiplies who comes, not how much each eats.** (These are this
+tree's numbers, not the bun's era's; the town has gained thinking
+crabs, settlers and personal space since, and comparing across
+instruments is how you fool yourself.)
+
+![SNOUT buys the first slop, day nine, delighted](devlog/img/2026-08-23-first-slop.png)
+
+That photograph was taken **inside a Kubernetes pod** and posted home
+as text in a receipt, because the laptop is no longer allowed to run
+the game. Our first picture from the cluster.
+
+One confession from the test suite, and it is the project's oldest
+lesson biting the tests themselves: two scenarios had quietly anchored
+on the *coincidence* that the pig was the one who priced corn. Corn
+left, and they failed — correctly. They now stage their own
+corn-owning document instead of borrowing someone else's groceries.
+
+---
+
+## 2026-08-24 — THE RED BAR
+
+A confession, and a good one.
+
+Matt reported "a weird red bar that shows up on top of the character
+card, right near the FED indicator, but doesn't seem to come from
+there; draws over some UX elements." He had described the bug exactly,
+including the part that sounds impossible.
+
+The crew card draws five need bars. When the needs moved to fixed-point
+integers, the reader learned to divide **three** of them. CLN, FUN and
+ZZZ got their divides; **FED and SIP kept passing the raw integer**. So
+`1 - hunger` did not land somewhere between nought and one — it went
+six digits negative, the width handed to the canvas went six digits
+negative with it, and here is the part you have to know: **a canvas
+paints a negative width leftward.** A bar that was supposed to be
+eleven pixels of red inside FED's little slot instead painted eleven
+million pixels the other way, back across the portrait, out of the card
+and over everything in its path.
+
+It didn't come from FED. It *started* at FED and went the wrong
+direction. Both halves of Matt's sentence were true.
+
+Fixed by dividing like its siblings, and clamped besides, so a display
+fraction survives the next unit migration too. The whole class is
+machine-checked now: the sweep watches every rectangle the game draws
+and fails on a negative dimension — under the mutation it prints the
+smears themselves, `RECT -2595208x2`, which is a satisfying thing for a
+test to say out loud.
+
+![PINCHY's bars, back inside their slots](devlog/img/2026-08-23-fedbar-after.png)
+
+Two more from the same report. **Staff eight and up had no rota
+controls at all** — the schedule card owns seven rows, the town can now
+hire past seven, and crab eight simply had no shift, no overtime, no
+sick day, no wage. It pages at seven now, with one function feeding
+both the drawing and the tapping so an unpainted row can never answer a
+tap.
+
+![The rota, paging](devlog/img/2026-08-23-rota-pager.png)
+
+And **the town hall was never swept**. Our off-canvas test draws every
+surface and checks that nothing prints past its edge — except it had
+never opened the HALL tab, which is how five unmeasured headers lived
+there for months. All five are fitted now, the sweep opens the hall
+with the worst content we could invent (long names, five-digit tallies,
+a dozen no-shows, two dozen long vote reasons), and it now asserts
+against the *card's* rectangle, not merely the canvas: printing off the
+window is a bug even when the screen forgives it.
+
+The campaign platform's six-staff limit, though, is **not** a bug and
+was left alone: the staffing ladder is a policy ladder, six is its top
+rung on purpose, and adding rungs changes what a candidate may promise
+the town. That belongs to the civics work, where step tables become
+document content — not to a patch.
+
+---
+
+## 2026-08-24 — THE MACHINE THAT READS ITS OWN RULES
+
+The town has a little computer in it now, and nothing uses it yet.
+
+Layer 1 is the language a culture document will eventually write its
+own rules in — how a departing guest weighs her stay, what a candidate
+promises, how a civic rule reads the ledger. Today it lands as a
+machine that can run such rules and refuse bad ones, with no consumers
+at all: twenty integer operations, **no jumps and no loops**, one
+conditional, and a fuel budget that isn't a budget so much as a fact —
+**a program's fuel IS its length**, capped at 256, so "will this halt?"
+is answered by looking at it rather than by running it.
+
+Sixteen refusals, each with its own name: an unknown instruction, a
+program too long, a stack that runs dry, one nested sixteen deep, a
+read outside its declared bundle, a division by zero or by a negative,
+an immediate too large, an arithmetic path that could leave the exact
+integer range, a program that ends holding two values, a TERM that
+isn't last. A hostile document doesn't get to run and fail; it doesn't
+get to run.
+
+Division truncates toward zero, the house grid idiom, and the goldens
+pin `DIVI(-7,4) = -1` so that a well-meaning future fix to "proper"
+flooring turns the tests red immediately, which is the entire point of
+pinning a sign convention.
+
+The companion story is better. To land this rung we first had to fix a
+test that had been **passing emptily for an era** — and it had two
+hiding places, not one. It read a save key the game stopped writing
+when saves moved to slots; and the harness boots the game in `?fresh`
+mode, where saving is a deliberate no-op. So it compared nothing to
+nothing, twice over, and called two brand-new towns identical. It boots
+properly now, refuses a null save, refuses a load that didn't take, and
+carries a bite that corrupts a town's temperaments and demands a
+different future.
+
+Getting that bite to bite took three tries, and the failures are the
+lesson: the first version nudged one crab toward class zero — which is
+**"do nothing"**, already the winner of ninety-four percent of all
+decisions. Nudging toward doing nothing is a whisper, and one engine
+heard it as silence while the other happened to notice. A test's bite
+has to be loud enough that silence means something.
+
+---
+
+## 2026-08-24 — THE BUILD SAYS ITS OWN NAME
+
+Small and overdue: the title screen now prints **`BUILD a1b2c3d
+2026-08-24`** in the panel band, and the help card carries the same
+short hash on its footer for mid-game bug reports. It's generated from
+the commit itself and regenerated at every merge, so a play-test on the
+far end of a link can say which town it's standing in.
+
+![The title screen, naming itself](devlog/img/2026-08-24-title-build-stamp.png)
+
+There is a small joke buried in it: committing the stamp changes the
+commit, so a stamp can never name the commit that contains it. It names
+the merge it came from, which is the honest thing for it to name, and
+the test checks its shape rather than chasing its own tail.
+
+---
+
+## 2026-08-24 — FIVE FORKS, ONE BUG
+
+A note from the workshop floor, because the day had a shape worth
+recording.
+
+Tonight's work ran as a dozen agents at once, each in its own copy of
+the town, each sending its tests to the cluster. Five of them —
+independently, within an hour, none of them talking to each other —
+discovered that our cluster configuration refused any job with fewer
+than five pieces of work in it, and five of them fixed it in their own
+words. The fix was three characters wide. It is a strange feeling to
+merge the same one-line repair five times and have to reconcile only
+the comments explaining it.
+
+And the long hunt ended. One agent spent **ten launches** failing to
+simulate a single town on the cluster, wearing five different disguises
+— out of memory at four gigabytes, out of memory at eight, a deadline,
+an eviction, a wedge — before a census of the processes inside a live
+pod showed twelve of them where there should have been two, all
+spinning, all parentless. Its own worker script, patched hours earlier
+for a real bug, had stopped halting: **a worker that doesn't halt is a
+parent.** Each one forked its own children, and they forked theirs. On
+a fast laptop the exit won that race and every local test passed
+happily; on a slower cluster core the fork won. A bug that only exists
+at cluster speed, in the machine that exists to run things at cluster
+speed.
+
+The town, meanwhile, was innocent the whole time, and simulated four
+towns in twenty-four seconds the moment the bomb was defused. The
+answer it was chasing — *why are the thinking crabs richer?* — is a
+short run away, and gets its own entry when the numbers land.
+
+*(Also in flight, held at the gate: appetites that arrive off the
+ferry, a reputation you can actually lose, and crabs who change their
+minds mid-walk.)*
+
+---
+
+## 2026-08-23 — EVERY PIG GETS HER FACE
 
 A patch of apologies to the people the interface forgot. The roster
 outgrew its furniture this week — settled pigs on the payroll, twelve
