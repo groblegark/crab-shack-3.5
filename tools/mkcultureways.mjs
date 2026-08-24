@@ -14,6 +14,8 @@ const gull = JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json
 const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v3.json", import.meta.url), "utf8"));
 const crabVoiceSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-voice.json", import.meta.url), "utf8"));
 const crabVoice = { registers: crabVoiceSrc.registers };   // the _comment stays in the fixture
+const crabDepartSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-depart.json", import.meta.url), "utf8"));
+const crabDepart = { rules: crabDepartSrc.rules };         // phase E3: the rule table as programs
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
@@ -65,10 +67,11 @@ const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the isl
 
 const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)};\n`
   + `var BUNDLED_POLICIES = ${JSON.stringify({ crab: crabPolicies }, null, 1)};\n`
-  + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`;
-const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; }\n`;
+  + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`
+  + `var BUNDLED_CRAB_DEPART = ${JSON.stringify(crabDepart, null, 1)};\n`;
+const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }\n`;
 
 writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",
   Object.keys({ pig, gull }).join(","), "; policies: crab ; crab voice:",
-  crabVoice.registers.length, "register(s)");
+  crabVoice.registers.length, "register(s) ; crab depart:", crabDepart.rules.length, "rules");
