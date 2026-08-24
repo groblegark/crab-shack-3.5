@@ -17269,15 +17269,32 @@ function drawTitle() {
   // 175px from x=14, ending at 189 on a 256px screen. (A report of 264px was
   // measured in the 5x7 font; this call site is 3x5.) fitSmall is still on it,
   // because the next track somebody adds does not get to break the title.
+  // THE CREDITS START BELOW THE SCIENCE BUTTON, DERIVED FROM IT - they used to
+  // sit at fixed PANEL_Y offsets while the button's own y MOVES with hasSave
+  // (sciTitleRect: (hasSave ? 138 : 122) + 46). Two independent positions over
+  // one patch of screen: with a save the button spanned y 184-200 and the music
+  // credit drew at exactly 184 and the PPU line at 196, straight through it.
+  //
+  // That independence is why this came back. Matt reported the button occluded,
+  // somebody nudged one of the two numbers, and the next change to EITHER side
+  // re-collided. A fix that leaves them independent is a fix with a fuse on it.
+  // So the credit block is now computed from the button's own bottom edge and
+  // cannot overlap it at any hasSave state or ladder position.
+  const sci = sciTitleRect();
+  const creditTop = Math.max(PANEL_Y + 8, sci.y + sci.h + 4);
+  // It fits on one line: measured, the longest is CARNIVAL OF THE GLITCH at
+  // 175px from x=14, ending at 189 on a 256px screen. (A report of 264px was
+  // measured in the 5x7 font; this call site is 3x5.) fitSmall is still on it,
+  // because the next track somebody adds does not get to break the title.
   smallText(ctx, fitSmall("MUSIC: " + PLAYLIST[trackIdx].name + " - MATT CLANKER", W - 20),
-    14, PANEL_Y + 8, [170, 150, 135]);
-  smallText(ctx, "BUILT ON THE SNESCAT TOY PPU", 44, PANEL_Y + 20, [140, 120, 105]);
+    14, creditTop, [170, 150, 135]);
+  smallText(ctx, "BUILT ON THE SNESCAT TOY PPU", 44, creditTop + 12, [140, 120, 105]);
   // THE STAMP NAMES THE BUILD. Remote play-testing needs to know which commit
   // it is looking at; version.js is regenerated at every merge, and if it is
   // missing the title just goes unstamped (typeof guard, never a crash).
   if (typeof GAME_BUILD === "object" && GAME_BUILD && GAME_BUILD.sha) {
     const s = "BUILD " + GAME_BUILD.sha + (GAME_BUILD.date ? " " + GAME_BUILD.date : "");
-    smallText(ctx, s, W - smallTextWidth(s) - 4, PANEL_Y + 32, [120, 105, 95]);
+    smallText(ctx, s, W - smallTextWidth(s) - 4, creditTop + 24, [120, 105, 95]);
   }
 }
 // THE THIRD ENDING. EVICTED and BANKRUPT are the landlord and the bank; this

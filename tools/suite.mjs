@@ -5382,6 +5382,51 @@ scenario("the nav strip: one table draws it, hit-tests it and jumps the camera",
   return true;
 });
 
+scenario("the title's credit block never lands on the science button", () => {
+  // Matt, twice, the second time with the word that mattered: "the crab
+  // science button is STILL occluded by messaging text."
+  //
+  // It was not a z-order flake, it was two independent positions over one
+  // patch of screen. sciTitleRect's y MOVES with hasSave ((hasSave ? 138 :
+  // 122) + 46) while the three credit lines were pinned at fixed PANEL_Y
+  // offsets. With a save the button spanned y 184-200 and the music credit
+  // drew at exactly 184, the PPU line at 196 - straight through it.
+  //
+  // THAT INDEPENDENCE IS WHY IT CAME BACK. Somebody nudged one of the two
+  // numbers, and the next change to EITHER side re-collided. So the credit
+  // block is now derived from the button's own bottom edge, and this pins
+  // the derivation rather than the numbers: a fix without a scenario is a
+  // fix with a fuse on it, and this one had already burned once.
+  //
+  // Checked at BOTH hasSave states, because the bug only showed at one.
+  const sim = createSim({ seed: 11 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    for (const save of [false, true]) {
+      hasSave = save;
+      const r = sciTitleRect();
+      out[save ? "withSave" : "noSave"] = {
+        btnTop: r.y, btnBottom: r.y + r.h,
+        creditTop: Math.max(PANEL_Y + 8, r.y + r.h + 4),
+        screenH: H,
+      };
+    }
+    return out;
+  })())`));
+  for (const k of ["noSave", "withSave"]) {
+    const g = got[k];
+    if (g.creditTop < g.btnBottom)
+      return `${k}: the credit block starts at y ${g.creditTop}, inside the science button (${g.btnTop}-${g.btnBottom})`;
+    // ...and the credits must still fit on the screen, or "below the button"
+    // would be satisfied by shoving them off the bottom edge - which is the
+    // lazy way to pass this and would be a different occlusion bug.
+    const lastLine = g.creditTop + 24 + 6;
+    if (lastLine > g.screenH)
+      return `${k}: the build stamp ends at y ${lastLine}, past the ${g.screenH}px screen`;
+  }
+  return true;
+});
+
 scenario("no card prints text on top of its own text", () => {
   // Matt: "the tips slider is mushed up with the other text; might be a couple
   // of instances like that." There were: the SCHEDULE tab had three strings in
