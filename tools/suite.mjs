@@ -14547,6 +14547,59 @@ scenario("cards: a declared card reads live values off the registry, and an unkn
   return true;
 });
 
+// ---- VISITOR STATS (Matt, 2026-08-23: "tourists dont seem to have real
+// stats? and they come at 9%"): the card's meters were pre-Q20 (any nonzero
+// need pegged the bar), and the boat landed every unloaded need at 8%. The
+// meters now speak the plane's units, and arrival anchors to the citizen
+// hire band. See visitor-stats-closeout.md.
+scenario("the card's meters speak Q20: a half-hungry visitor reads half", () => {
+  const sim = createSim({ seed: 5 });
+  sim.runUntil("customers.some(k => k.visitor && !k.gone)", { maxSteps: 300000 });
+  const got = sim.G(`(() => { const k = customers.find(k => k.visitor && !k.gone);
+    k.hunger = Math.round(Q20 / 2); k.thirst = Q20; k.dirt = 0;
+    return [barFrac(k, "hunger"), barFrac(k, "thirst"), barFrac(k, "dirt")]; })()`);
+  // the meter's fraction IS the plane over Q20 - exactly, not approximately:
+  // this is the unit boundary, and a mutation that drops the /Q20 reads 1/1/0
+  if (got[0] !== 0.5) return "half a stomach read " + got[0] + ", want 0.5";
+  if (got[1] !== 1) return "a full thirst read " + got[1] + ", want 1";
+  if (got[2] !== 0) return "a clean shell read " + got[2] + ", want 0";
+  return true;
+});
+scenario("the boat lands a citizen's body: arrival needs sit in the hire band", () => {
+  // Every unloaded need lands inside its VIS_ARRIVE window (floors are the
+  // point - nobody disembarks at 8% everything anymore), the 1-2 LOADED
+  // needs may exceed it up to qn(0.95), and nothing exceeds that. Mechanism,
+  // not coincidence: assert against the table itself, across a whole boat.
+  const sim = createSim({ seed: 5 });
+  sim.runUntil("customers.filter(k => k.visitor && !k.gone).length >= 6", { maxSteps: 600000 });
+  const bad = sim.G(`(() => { const out = [];
+    const lomax = Math.max(...Object.values(VIS_ARRIVE).map(a => a[0] + a[1]));
+    for (const k of customers.filter(k => k.visitor && !k.gone)) {
+      let over = 0;
+      for (const key in VIS_ARRIVE) {
+        const v = k[key], [lo, span] = VIS_ARRIVE[key];
+        if (v > qn(0.95)) out.push(k.name + " " + key + " over the loaded cap: " + v);
+        if (v > lo + span) over++;   // a LOADED need - allowed for at most two
+        // needs decay upward in play, so no floor assertion on lived visitors;
+        // the fresh-boat pin below owns the floor
+      }
+      if (over > 2) out.push(k.name + " has " + over + " loaded needs, max 2");
+    }
+    // THE FRESH-BOAT PIN: mint one visitor at the door and check the floors
+    // exactly (no play has moved her yet). Counted-stream discipline: this
+    // consumes draws, so it runs LAST in the scenario's own sim.
+    const v = newVisitor(false);
+    for (const key in VIS_ARRIVE) {
+      const [lo, span] = VIS_ARRIVE[key];
+      if (v[key] < lo) out.push("fresh " + key + " under its floor: " + v[key] + " < " + lo);
+      if (v[key] > qn(0.95)) out.push("fresh " + key + " over the loaded cap: " + v[key]);
+    }
+    // the probe visitor joins no list, so the next poolReap reclaims her slot
+    return out; })()`);
+  if (bad.length) return bad.join("; ");
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
