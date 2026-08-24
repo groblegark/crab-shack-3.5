@@ -75,6 +75,30 @@ tree does not exist to it.**
 Receipts: design/cs35-research/kube-baseline/. Rough cost per suite run:
 ~7-12 m5 nodes x ~10 min ≈ well under a dollar.
 
+### What a gasboat fleet pod (project `cs`) can actually do — measured 2026-08-24
+
+Don't re-derive this, and don't assume a denial you haven't seen. From a fresh
+cs pod (SA `gasboat-system/gasboat-agent`, token at
+`/var/run/secrets/kubernetes.io/serviceaccount/`), `kubectl auth can-i`:
+
+| verb | ns crab-science | note |
+|---|---|---|
+| create jobs | **yes** | and **no** in `kafka` — least privilege intact |
+| create secrets / configmaps | yes | helm 3 release state + receipts |
+| get pods/log, list events | yes | forensics work |
+| delete jobs, create serviceaccounts | yes | |
+| **get/create roles, rolebindings** | **NO** | blocks `helm install` — the chart ships a per-release Role/RoleBinding |
+
+Tooling: helm **3.20.2**, kubectl **1.35.4** against server **1.31.14-eks**.
+Note `kubectl version --short` was REMOVED in 1.35 — use bare `kubectl version`.
+`aws eks describe-cluster` SUCCEEDS from the pod; only `eks:ListClusters` is
+denied, so "the pod has no eks:*" is wrong.
+
+So a pod reaches `helm install` and stops at the rbac verbs — see
+kd-l5LLfwzfxk / escalation kd-Y7RzIznJAw. Until that lands, a pod's route to a
+full verdict is the in-pod suite (~88 min vs ~103s sharded, roughly 50x, and
+it LOOKS like a hang — budget for it rather than concluding it wedged).
+
 ## Lessons with scars (do not relearn)
 
 1. **Receipts are the verdict; Job status is a mood.** A pod can complete
@@ -103,6 +127,27 @@ Receipts: design/cs35-research/kube-baseline/. Rough cost per suite run:
    growth (13/48 at dc0f4b7) is not the citizen close-out's headless
    same-instrument A/B (19 vs 15). Never quote across instruments; run
    both arms in the same manifest.
+9. **"Permission denied" was OUR TOOL three times running.** Every reported
+   cs-pod blocker so far turned out to be kube.mjs, not the substrate: the
+   hardcoded `cs35repo` remote, an injected `AWS_PROFILE` that destroyed the
+   pod's IRSA identity and reported it as "AWS session dead", and preflight
+   reading a pod's legitimately-EMPTY `kubectl config current-context` as
+   "not the gasboat cluster". A pod has no kubeconfig at all. Before filing
+   an access escalation, run the denied thing directly (`kubectl auth can-i
+   <verb> -n crab-science`) and compare — if kubectl says yes and the tool
+   says no, the tool is wrong.
+10. **A pod proves its cluster by CA bytes, the Mac by context name.**
+   In-cluster callers compare the kubelet-mounted `ca.crt` against the CA
+   the EKS control plane reports for `prod-gasboat-eks`; they must match
+   byte-for-byte or preflight refuses. That is STRONGER than the name
+   regex it falls back from — a context name is chosen locally and can
+   lie. The account rule (nothing may ever point at fics-prod-v2) is
+   enforced harder in the pod path, not relaxed.
+11. **Don't shell to `openssl` from a pod.** The agent image has none, and
+   `shq()` swallows "command not found" and returns null — which reads as
+   a failed check rather than a missing binary. Use node's `crypto`. Cost
+   one armed mutation to find, in the very function meant to REMOVE a
+   false negative.
 
 ## How a fork prepares a run
 
