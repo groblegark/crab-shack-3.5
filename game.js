@@ -10655,7 +10655,13 @@ function updateErrand(c, dt) {
             && !e2.ball && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
           const s2 = errandScore(c, e2), s1 = errandScore(c, c.errand);
           if (ratGt(4 * s2.n, s2.d, 5 * s1.n, s1.d)) {
-            if (window._stats) window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+            if (window._stats) {
+              window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+              window._stats.rethinkCit = (window._stats.rethinkCit || 0) + 1;
+              if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
+                { day, tmin, who: c.p.name, from: c.errand.biz + ":" + (c.errand.need || "?"),
+                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
+            }
             if (e2.selfCook) startSelfCook(c, e2);
             else if (e2.ball) startBallStop(c);
             else if (e2.vote || e2.soup || e2.tap != null) startTapStop(c, e2);
@@ -13070,7 +13076,12 @@ function visRethink(k) {
   if (e.biz === k.biz && e.need === k.need) return false;   // same plan: hold course
   if (!(4 * visScoreOne(k, e) > 5 * visScoreOne(k, { biz: k.biz, need: k.need, recipe: k.recipe })))
     return false;
-  if (window._stats) window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+  if (window._stats) {
+    window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+    window._stats.rethinkVis = (window._stats.rethinkVis || 0) + 1;
+    if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
+      { day, tmin, who: k.name, from: k.biz + ":" + k.need, to: e.biz + ":" + e.need, inLine: inLine(k) };
+  }
   visAbandon(k);
   visGo(k, e);
   return true;
