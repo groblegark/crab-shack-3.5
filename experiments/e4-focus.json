@@ -1,0 +1,24 @@
+{
+  "name": "e4-focus",
+  "note": "The E4 civics-stake scenarios alone (the transcription grid sweep tabled==lambda, the coefficient mutation demo the sweep CAN see, the hostile stake battery). Against a deliberately broken tree the sweep and the mutation demo go RED for the right named reason; against the shipping tree, green on both backends. Full-suite verdicts still come from the tip's suite-312 manifest.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [{ "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }],
+  "arms": [
+    {
+      "id": "js-e4",
+      "entry": "tools/suite.mjs",
+      "args": ["civics stakes"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "wasm-e4",
+      "entry": "tools/suite.mjs",
+      "args": ["civics stakes"],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ]
+}

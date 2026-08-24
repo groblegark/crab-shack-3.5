@@ -11855,6 +11855,137 @@ scenario("depart programs: real traffic tells the same story, and the debts are 
   return true;
 });
 
+scenario("civics stakes: the transcription and the lambda agree on every platform, every voter", () => {
+  // PHASE E4'S WHOLE CONTRACT IN ONE ROOM. platValue re-expressed as a list of
+  // named term-programs must equal the coefficient lambda EXACTLY - and unlike
+  // E3's scaled-space depart weights, this is BYTE-equality on the raw value,
+  // because every read platValue touches is an exact integer. A growth town is
+  // grown the game's own way (hire the crew, trade a fortnight) so the roster
+  // carries owners, wage earners, the homeless and the sick, and a funded pot -
+  // then EVERY (real crab, real platform) pair is scored both ways and must
+  // match. Real crabs and real platforms sidestep the allCrabs() rosterGen
+  // memoization trap (synthetic crabs would leave bizHeads reading a stale
+  // roster): platValue is A/B'd on the town as it actually stands.
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);   // the game's own recruitment path
+  sim.runDays(15);
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABCIV || !CRABCIV.platform) return { err: "the bundled crab civics stakes did not install" };
+    if (CRABCIV.platform.length !== 6) return { err: "the platform stake has " + CRABCIV.platform.length + " terms, not 6" };
+    const crabs = allCrabs(), grid = allPlatforms();
+    platClamped = 0;
+    const nz = [0, 0, 0, 0, 0, 0];   // per-term nonzero counts: no term may be dead in this town
+    let pairs = 0;
+    for (const c of crabs) for (const p of grid) {
+      const read = platReads(c, p);
+      for (let i = 0; i < 6; i++) if (l1Run(CRABCIV.platform[i].code, read) !== 0) nz[i]++;
+      window._nol1plat = true;  const lam = platValue(c, p);
+      window._nol1plat = false; const tab = platValue(c, p);
+      if (lam !== tab)
+        return { err: "diverged on " + c.p.job + "/" + p.mech + " rate " + p.rate
+          + " bowls " + p.bowls + " wage " + p.wage + " cap " + p.cap + ": lambda " + lam + " vs tabled " + tab };
+      pairs++;
+    }
+    window._nol1plat = false;
+    return { pairs, crabs: crabs.length, clamped: platClamped, nz,
+      names: CRABCIV.platform.map(t => t.name) };
+  })())`));
+  if (got.err) return got.err;
+  if (got.clamped !== 0) return "platReads clamped " + got.clamped + " reads - PLAT_BUNDLE's ranges lie";
+  if (got.pairs < 30000) return "the sweep shrank: only " + got.pairs + " pairs";
+  // every term must actually MOVE in this town, or a coefficient defect in a
+  // dead term would hide (the E3 vacuity lesson, applied to the stake terms).
+  for (let i = 0; i < 6; i++) if (got.nz[i] === 0) return "term " + got.names[i] + " is dead in the sweep town - a defect there would hide";
+  return true;
+});
+scenario("civics stakes: a coefficient defect is caught (the mutation the sweep can see)", () => {
+  // The proof that the sweep is not vacuous - and the contrast with E3, whose
+  // scaled space made a +/-1 weight typo INVISIBLE. Here the equality is on the
+  // raw value, so corrupting a single compiled coefficient by one MUST make the
+  // tabled path disagree with the lambda. A sweep that cannot fail is not
+  // evidence; this one fails on the smallest possible drift.
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);
+  sim.runDays(15);
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABCIV || !CRABCIV.platform) return { err: "no stakes installed" };
+    const crabs = allCrabs(), grid = allPlatforms();
+    const out = {};
+    // corrupt each of the six terms' leading PUSHI coefficient by +1 in turn
+    // and sweep until the FIRST divergence, then restore. Every term must be
+    // detectable somewhere in this town - early-exit keeps the demo cheap while
+    // still proving the sweep can fail on the smallest possible drift.
+    for (let ti = 0; ti < 6; ti++) {
+      const t = CRABCIV.platform[ti], orig = t.code[1];
+      t.code[1] = orig + 1;
+      let detected = false;
+      outer: for (const c of crabs) for (const p of grid) {
+        window._nol1plat = true;  const lam = platValue(c, p);
+        window._nol1plat = false; const tab = platValue(c, p);
+        if (lam !== tab) { detected = true; break outer; }
+      }
+      t.code[1] = orig;
+      out[t.name] = detected;
+    }
+    window._nol1plat = false;
+    return out;
+  })())`));
+  if (got.err) return got.err;
+  for (const name of ["potStake", "roof", "floorRaise", "floorBill", "capStake", "purseCost"])
+    if (got[name] !== true) return "a +1 defect in " + name + " went undetected";
+  return true;
+});
+scenario("civics stakes: a hostile table is refused by name", () => {
+  // Every refusal the stakes validator owns, each named - and the good case is
+  // the bundled fixture itself, which stakesProblem must accept verbatim. The
+  // family-1 laws: a term is signed (negative bounds are FINE, unlike a depart
+  // weight), but it must close with TERM and assemble clean against PLAT_BUNDLE.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (typeof BUNDLED_CRAB_CIVICS === "undefined" || !BUNDLED_CRAB_CIVICS)
+      return { err: "no bundled stakes to test against" };
+    const base = () => JSON.parse(JSON.stringify(BUNDLED_CRAB_CIVICS));
+    const out = { good: stakesProblem(base()) };
+    let d = base(); d.stakes = [];
+    out.empty = stakesProblem(d);
+    d = base(); d.stakes.push(JSON.parse(JSON.stringify(d.stakes[0])));
+    out.twice = stakesProblem(d);
+    d = base(); d.stakes[0].id = "plat";   // the engine reads "platform" - a rename is a silent miss
+    out.wrongid = stakesProblem(d);
+    d = base(); d.stakes[0].terms = [];
+    out.noterms = stakesProblem(d);
+    d = base(); d.stakes[0].terms.push(JSON.parse(JSON.stringify(d.stakes[0].terms[0])));
+    out.termtwice = stakesProblem(d);
+    d = base(); d.stakes[0].terms[0].prog = [["LD","vibes"],["TERM"]];
+    out.ld = stakesProblem(d);
+    d = base(); d.stakes[0].terms[0].prog = [["JMP",3],["TERM"]];
+    out.op = stakesProblem(d);
+    d = base(); d.stakes[0].terms[0].prog = [["PUSHI",1],["PUSHI",2]];   // no TERM
+    out.noterm = stakesProblem(d);
+    d = base(); d.stakes[0].terms[0].prog = [["LD","fb"],["PUSHI",2000000000],["MUL"],["PUSHI",2000000000],["MUL"],["TERM"]];
+    out.mag = stakesProblem(d);
+    // a NEGATIVE term bound must be ACCEPTED - floorBill/purseCost subtract
+    d = base(); d.stakes[0].terms[0].prog = [["PUSHI",-9200],["LD","fb"],["MUL"],["TERM"]];
+    out.negOK = stakesProblem(d);
+    return out;
+  })())`));
+  if (got.err) return got.err;
+  if (got.good !== null) return "the bundled stakes were refused: " + got.good;
+  if (got.empty !== "A CIVICS SECTION WITH NO STAKES") return "an empty stake list slid by: " + got.empty;
+  if (got.wrongid !== "A CIVICS SECTION MISSING THE PLATFORM STAKE") return "a renamed platform stake slid by: " + got.wrongid;
+  if (got.twice !== "A STAKE TWICE: platform") return "a doubled stake slid by: " + got.twice;
+  if (got.noterms !== "STAKE platform HAS NO TERMS") return "a termless stake slid by: " + got.noterms;
+  if (!/NAMES A TERM TWICE/.test(got.termtwice)) return "a doubled term slid by: " + got.termtwice;
+  if (!/NOT A BUNDLE ROW/.test(got.ld)) return "a bad LD name slid by: " + got.ld;
+  if (!/NOT AN L1 OP/.test(got.op)) return "a bad op slid by: " + got.op;
+  if (!/DOES NOT CLOSE WITH TERM/.test(got.noterm)) return "a program without TERM slid by: " + got.noterm;
+  if (!/PAST 2\^52/.test(got.mag)) return "an overflowing term slid by: " + got.mag;
+  if (got.negOK !== null) return "a legitimately-negative term was refused: " + got.negOK;
+  return true;
+});
+
 scenario("cultureways: a save without cultures changes nothing", () => {
   // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,
   // 2026-08-21), seed 4242, runDays(2) - the registry code must not move a

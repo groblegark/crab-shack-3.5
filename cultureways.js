@@ -11280,4 +11280,148 @@ var BUNDLED_CRAB_DEPART = {
   }
  ]
 };
-if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }
+var BUNDLED_CRAB_CIVICS = {
+ "stakes": [
+  {
+   "id": "platform",
+   "terms": [
+    {
+     "name": "potStake",
+     "prog": [
+      [
+       "PUSHI",
+       345000
+      ],
+      [
+       "LD",
+       "potStake20"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "LD",
+       "pBowls"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "roof",
+     "prog": [
+      [
+       "PUSHI",
+       2070000
+      ],
+      [
+       "LD",
+       "roofWeight20"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "LD",
+       "roof"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "floorRaise",
+     "prog": [
+      [
+       "PUSHI",
+       18000
+      ],
+      [
+       "LD",
+       "fr"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "floorBill",
+     "prog": [
+      [
+       "PUSHI",
+       -9200
+      ],
+      [
+       "LD",
+       "fb"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "capStake",
+     "prog": [
+      [
+       "PUSHI",
+       414000
+      ],
+      [
+       "LD",
+       "capStake100"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "purseCost",
+     "prog": [
+      [
+       "PUSHI",
+       -69
+      ],
+      [
+       "LD",
+       "purseCost100"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "LD",
+       "pTake"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    }
+   ]
+  }
+ ]
+};
+if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }

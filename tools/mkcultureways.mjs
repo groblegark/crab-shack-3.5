@@ -54,6 +54,8 @@ const crabArt = { colorways: crabArtSrc.colorways, founders: crabArtSrc.founders
 }
 const crabDepartSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-depart.json", import.meta.url), "utf8"));
 const crabDepart = { rules: crabDepartSrc.rules };         // phase E3: the rule table as programs
+const crabCivicsSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-civics.json", import.meta.url), "utf8"));
+const crabCivics = { stakes: crabCivicsSrc.stakes };       // phase E4: platValue as named term-programs
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
@@ -109,8 +111,9 @@ const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)
   + `var BUNDLED_CRAB_TRAITS = ${JSON.stringify(crabTraits, null, 1)};\n`
   + `var BUNDLED_CRAB_PEOPLE = ${JSON.stringify(crabPeople, null, 1)};\n`
   + `var BUNDLED_CRAB_ART = ${JSON.stringify(crabArt, null, 1)};\n`
-  + `var BUNDLED_CRAB_DEPART = ${JSON.stringify(crabDepart, null, 1)};\n`;
-const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }\n`;
+  + `var BUNDLED_CRAB_DEPART = ${JSON.stringify(crabDepart, null, 1)};\n`
+  + `var BUNDLED_CRAB_CIVICS = ${JSON.stringify(crabCivics, null, 1)};\n`;
+const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }\n`;
 
 writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",

@@ -1593,6 +1593,28 @@ function pBowls(p) { return p._bowls != null ? p._bowls : platBowls(p); }
 // compare exactly instead of through a 1e-9 blur. Only ever compared or
 // sorted - nothing reads the absolute scale.
 function platValue(c, p) {
+  // THE TABLED PATH (phase E4): a civics stake table re-expresses this function
+  // as a LIST of named term-programs; the platform's value is their SUM, run
+  // against the nine reads platReads gathers by calling the real helpers. The
+  // sum is byte-equal to the lambda below - proven on a (real crab, real
+  // platform) grid sweep across poor and growth towns, both backends, and
+  // unlike E3's scaled-space depart weights the equality is on the RAW value,
+  // so a coefficient typo is visible (every +/-1 flips hundreds of pairs).
+  // window._nol1plat is the arm-off hatch (attribution + the sweep's own A/B).
+  //
+  // NO SIDE EFFECT TO PRESERVE (the E3 lesson, checked): platValue and its whole
+  // call chain (potStake20/roofWeight20/purseCost100/purseYield/platTake/
+  // platBowls/floorRaise/floorBill/capStake100) fire NO hooks and mutate
+  // nothing - the only observable is the return value, so value-equality IS
+  // behavioural equality here. If that ever stops being true, this path must do
+  // whatever the lambda does on the way out, or the transcription is a lie.
+  const civ = (typeof window !== "undefined" && window._nol1plat) ? null : CRABCIV;
+  if (civ && civ.platform) {
+    const read = platReads(c, p);
+    let v = 0;
+    for (const t of civ.platform) v += l1Run(t.code, read);
+    return v;
+  }
   const roof = pYield(p) >= shelterRent() ? 1 : 0;
   const floor = floorOf(p);
   const fr = floor > 0 ? floorRaise(c, floor) : 0, fb = floor > 0 ? floorBill(c, floor) : 0;
@@ -7298,6 +7320,117 @@ function departCompile(dep) {
   return out;
 }
 // ---------------------------------------------------------------------------
+// THE PLATFORM-VALUE READ BUNDLE (phase E4) - the nine numbers platValue reads
+// to score a platform for a voter, as the LD index space for the STAKE
+// term-programs. Order is the ABI: programs compiled against these rows run
+// against platReads' vector, so rows only ever APPEND.
+//
+// WHY THESE NINE AND NOT THE PLATFORM ITSELF: platValue's terms multiply
+// COEFFICIENTS by helper OUTPUTS, and two of those helpers - floorBill (a loop
+// over every crab on this owner's payroll) and capStake100 (a loop over every
+// business) - are LOOPS, which a straight-line Layer-1 program cannot express.
+// pBowls/pTake/roof likewise fold town-wide reads (purseYield walks the roster).
+// So the honest transcription is: the ENGINE computes each helper (once, in
+// platReads, by calling the real function - never a reimplementation, per the
+// rungreach.mjs lesson), and the term-programs do only the coefficient
+// arithmetic platValue's own body does. Every read is an exact integer
+// (clampWage snaps wages to whole cents; POT_MAX/steps/stakes are fixed-point
+// ints), so the tabled value equals the lambda value EXACTLY - byte, not blur.
+//
+// RANGES are honest bounds MEASURED on real towns (poor + growth, both engines)
+// with generous headroom, and are the validator's magnitude proof: the worst
+// term (floorBill at -9200 * fb) bounds near 3.7e10, six orders under 2^52.
+// platReads clamps to them and counts every clamp - a read outside its declared
+// range is a loud dev-gate failure (the sweep asserts platClamped stays 0),
+// never a silent divergence from the lambda.
+const PLAT_BUNDLE = [
+  { name: "potStake20", min: 0, max: 20 },        // potStake20: clamped 0..20
+  { name: "pBowls", min: 0, max: POT_MAX },       // bowls the purse can pay for
+  { name: "roofWeight20", min: 0, max: 24 },      // (homeless?12:4) * seen(1|2)
+  { name: "roof", min: 0, max: 1 },               // pYield >= shelterRent ? 1 : 0
+  { name: "fr", min: 0, max: 3200 },              // floorRaise <= top floor step
+  { name: "fb", min: 0, max: 4000000 },           // floorBill: sum over a payroll
+  { name: "capStake100", min: -2000, max: 300 },  // signed: your own hands vs theirs
+  { name: "purseCost100", min: 0, max: 100 },     // int hundredths, 2..100
+  { name: "pTake", min: 0, max: 20000 },          // what the purse would actually take
+];
+let platClamped = 0;   // dev tripwire: the stake sweep asserts this stays 0
+// The nine reads, in PLAT_BUNDLE order, each an ENGINE call (not a copy). The
+// roof flag and the fr/fb floor>0 guards are resolved here exactly as
+// platValue's own body resolves them, so the term-programs stay pure
+// coefficient arithmetic and the transcription is obviously faithful.
+function platReads(c, p) {
+  const roof = pYield(p) >= shelterRent() ? 1 : 0;
+  const floor = floorOf(p);
+  const fr = floor > 0 ? floorRaise(c, floor) : 0;
+  const fb = floor > 0 ? floorBill(c, floor) : 0;
+  const raw = [
+    potStake20(c), pBowls(p), roofWeight20(c), roof, fr, fb,
+    capStake100(c, p), purseCost100(c, p.mech), pTake(p),
+  ];
+  for (let i = 0; i < raw.length; i++) {
+    // every read is an exact integer by the feasibility proof (clampWage snaps
+    // wages to whole cents; the stakes are fixed-point ints), so no rounding is
+    // needed - and NO int32 coercion, which would wrap a large fb before the
+    // clamp could see it. The clamp is the only transform: a read outside its
+    // declared range is a loud dev-gate failure, never a silent bend.
+    const v = raw[i], b = PLAT_BUNDLE[i];
+    if (v < b.min || v > b.max) { platClamped++; raw[i] = v < b.min ? b.min : b.max; }
+  }
+  return raw;
+}
+// THE STAKE TABLE'S CLAMPS (phase E4). A civics stake table re-expresses
+// platValue as a LIST of named term-programs (family 1): each term is a
+// straight-line program yielding a SIGNED int, and the platform's value is the
+// SUM. Unlike a depart weight (compared in a scaled space, so non-negative by
+// contract), a stake term is legitimately negative - floorBill and purseCost
+// SUBTRACT - so the validator permits negative bounds; only the magnitude
+// (2^52) rail applies. The term NAME rides the list, so voteReason can be
+// derived from the largest-magnitude term: the receipt and the valuation from
+// one definition (substrate section 3's legibility ruling).
+function stakesProblem(civ) {
+  if (!civ || typeof civ !== "object" || Array.isArray(civ)) return "A BAD CIVICS SECTION";
+  if (!Array.isArray(civ.stakes) || !civ.stakes.length) return "A CIVICS SECTION WITH NO STAKES";
+  const seen = {};
+  for (const st of civ.stakes) {
+    if (!st || typeof st !== "object") return "A BAD STAKE ROW";
+    if (typeof st.id !== "string" || !st.id.length) return "A STAKE WITH NO ID";
+    if (seen[st.id]) return "A STAKE TWICE: " + st.id;
+    seen[st.id] = 1;
+    if (!Array.isArray(st.terms) || !st.terms.length) return "STAKE " + st.id + " HAS NO TERMS";
+    const tseen = {};
+    for (const t of st.terms) {
+      if (!t || typeof t !== "object" || typeof t.name !== "string" || !t.name.length)
+        return "A BAD TERM ON STAKE " + st.id;
+      if (tseen[t.name]) return "STAKE " + st.id + " NAMES A TERM TWICE: " + t.name;
+      tseen[t.name] = 1;
+      if (!Array.isArray(t.prog) || !t.prog.length) return "STAKE " + st.id + " TERM " + t.name + " HAS NO PROGRAM";
+      // a family-1 term CLOSES with TERM - the marker that this program yields a
+      // named term rather than a bare expression. TERM is legal only last, so
+      // this also proves the shape the assembler will accept.
+      const last = t.prog[t.prog.length - 1];
+      if (!(Array.isArray(last) ? last[0] === "TERM" : last === "TERM"))
+        return "STAKE " + st.id + " TERM " + t.name + " DOES NOT CLOSE WITH TERM";
+      const a = l1Assemble(t.prog, PLAT_BUNDLE);
+      if (a.why) return "STAKE " + st.id + " TERM " + t.name + ": " + a.why;
+    }
+  }
+  // THE ENGINE OWNS THE ID SPACE (the E3 discipline: a culture may re-express
+  // an engine consumer, not invent one). platValue reads the "platform" stake,
+  // so a civics section that omits it would install CRABCIV and then SILENTLY
+  // run the lambda - a broken bundle that costs neither a console error nor a
+  // suite red. Requiring it keeps the "broken bundle -> loud refusal" contract.
+  if (!seen.platform) return "A CIVICS SECTION MISSING THE PLATFORM STAKE";
+  return null;
+}
+// Compile a VALIDATED civics stake table to run form: id -> [{ name, code }].
+function stakesCompile(civ) {
+  const out = {};
+  for (const st of civ.stakes)
+    out[st.id] = st.terms.map(t => ({ name: t.name, code: l1Assemble(t.prog, PLAT_BUNDLE).code }));
+  return out;
+}
+// ---------------------------------------------------------------------------
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
 // with a message, not at first draw.
@@ -8117,6 +8250,7 @@ function traitOfP(p) {
 }
 function traitOf(c) { return traitOfP(c.p); }
 let CRABD = null;   // the crab default's depart TABLE, compiled - null = lambdas
+let CRABCIV = null; // the crab default's civics STAKES, compiled - null = lambda
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -8163,6 +8297,18 @@ function rebuildBrains() {
     const why = departProblem(BUNDLED_CRAB_DEPART);
     if (why) console.error("crab depart table refused: " + why);
     else CRABD = departCompile(BUNDLED_CRAB_DEPART);
+  }
+  // THE CRAB'S CIVICS STAKES, TRANSCRIBED (phase E4). platValue as a list of
+  // named term-programs, same bundle door, same validator discipline as a
+  // stranger's document, same lifecycle. The transcription is byte-equal to the
+  // coefficient lambda by the (crab, platform) grid sweep; the lambda remains
+  // the engine fallback, so a broken bundle costs a console error and a suite
+  // red, never a town.
+  CRABCIV = null;
+  if (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS) {
+    const why = stakesProblem(BUNDLED_CRAB_CIVICS);
+    if (why) console.error("crab civics stakes refused: " + why);
+    else CRABCIV = stakesCompile(BUNDLED_CRAB_CIVICS);
   }
 }
 // The build: pose art per colorway through the same parseArt/swap machinery

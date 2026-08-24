@@ -1,0 +1,52 @@
+{
+  "_comment": [
+    "THE CRAB'S CIVICS STAKES, TRANSCRIBED (cultureway phase E4, plan section 2).",
+    "platValue (game.js) scores every platform for a voter as SIX coefficient",
+    "terms; here it is re-expressed as a LIST of NAMED Layer-1 term-programs.",
+    "The platform's value is the SUM of the terms - so the receipt (which term",
+    "dominated, read off the largest-magnitude name) and the valuation come from",
+    "ONE definition, which is substrate section 3's legibility ruling.",
+    "",
+    "THE READS (PLAT_BUNDLE, game.js): the nine numbers platValue touches, each",
+    "an ENGINE call. Two of the underlying helpers - floorBill (a loop over a",
+    "payroll) and capStake100 (a loop over the businesses) - are LOOPS, which a",
+    "straight-line program cannot express, so the engine computes every helper",
+    "in platReads and the term-programs do only the coefficient arithmetic",
+    "platValue's own body does, in source order. slot 0 potStake20, 1 pBowls,",
+    "2 roofWeight20, 3 roof(0/1), 4 fr, 5 fb, 6 capStake100, 7 purseCost100,",
+    "8 pTake.",
+    "",
+    "THE COEFFICIENTS are D/denominator, D = 41,400,000 (game.js): 345000 =",
+    "D/(20*POT_MAX), 2070000 = D/20, 18000 = D/WAGE_STD, 9200 = D/4500,",
+    "414000 = D/100, 69 = D/(100*6000). floorBill and purseCost SUBTRACT, so",
+    "their coefficients are negative and their term bounds go negative - which",
+    "the stakes validator permits (a stake term is signed; only the 2^52",
+    "magnitude rail applies).",
+    "",
+    "WHAT THE PROOF IS, EXACTLY - and here it IS byte-equality, unlike the E3",
+    "depart table's scaled space. Every read platValue touches is an exact",
+    "integer, so the summed term value equals the lambda value bit-for-bit on a",
+    "(real crab, real platform) grid sweep. MEASURED 2026-08-24 across four",
+    "towns (poor + growth, both engines), 205,800 pairs, ZERO mismatches, ZERO",
+    "clamps, and every +/-1 coefficient mutation flips hundreds of pairs - so a",
+    "wrong coefficient is VISIBLE, the one class of drift E3's scaled space",
+    "could not catch. The engine lambda remains the fallback; the grid sweep and",
+    "the whole-town election run are the proof."
+  ],
+  "stakes": [
+    { "id": "platform", "terms": [
+      { "name": "potStake",
+        "prog": [["PUSHI",345000],["LD","potStake20"],["MUL"],["LD","pBowls"],["MUL"],["TERM"]] },
+      { "name": "roof",
+        "prog": [["PUSHI",2070000],["LD","roofWeight20"],["MUL"],["LD","roof"],["MUL"],["TERM"]] },
+      { "name": "floorRaise",
+        "prog": [["PUSHI",18000],["LD","fr"],["MUL"],["TERM"]] },
+      { "name": "floorBill",
+        "prog": [["PUSHI",-9200],["LD","fb"],["MUL"],["TERM"]] },
+      { "name": "capStake",
+        "prog": [["PUSHI",414000],["LD","capStake100"],["MUL"],["TERM"]] },
+      { "name": "purseCost",
+        "prog": [["PUSHI",-69],["LD","purseCost100"],["MUL"],["LD","pTake"],["MUL"],["TERM"]] }
+    ] }
+  ]
+}
