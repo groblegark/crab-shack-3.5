@@ -196,3 +196,21 @@ word / hearsay / soured independently of the number).
 3. Whether the ferry's VOLUME should read the crabs' word (it does) or the
    arriving culture's own. Today a beloved-by-pigs, disliked-by-crabs town
    still sails small boats.
+
+## THE SHIPPED SURFACE
+
+`devlog/img/2026-08-23-rep-word-abroad.png` - REP 61 in the corner, and
+under it the word abroad: PIG 23 in red, GULL 52 in green, worst first,
+clear of the sun button. One glance says a town beloved by gulls and
+poison to pigs, which is a sentence the game could not say before.
+
+## FILES
+
+    game.js            repC + repAdd (the one door) + 9 call sites; the
+                       three new sinks; the gate's three ears; the HUD row;
+                       save/load (repc, unconditional clear); sci notes
+    the suite          5 new scenarios (rep:), 2 stagings walked, 3 pins
+    the matrix tools   end-rep distribution in both instruments (report-only)
+    fixtures + ways    gate translation; the bundle regenerated
+    experiments/       rep-focus.json, rep-repin.json
+    the chart          maxFailedIndexes <= arms (the 1-arm manifest's edge)
