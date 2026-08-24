@@ -85,22 +85,62 @@ contract, design review is not this slice) — but the bands and the comments
 now disagree with the arithmetic, and someone should rule on which is the
 intended table.
 
-## Gates — QUEUED (the operator's AWS session was expired throughout)
+## Gates — DONE (2026-08-24), and they found a real bug
 
-Everything below batched for when the session returns, in order:
-1. `helm list`-first cleanup of any stale releases (the double-spend lesson).
-2. Green check: `node tools/kube.mjs run experiments/e3-focus.json --ref <SHA> --wait`
-   (6 scenarios × both backends — the three new E3 rows plus the three phase
-   C voice/weights instruments they extend).
-3. Mutation demo 1 (transcription drift): PUSHI 36000 → 36001 in
-   crab-depart.json's rough weight, regenerate the bundle → the sweep must
-   red NAMING the diverging row; revert.
-4. Mutation demo 2 (all-or-nothing): delete the quiet rule from the fixture,
-   regenerate → "A DEPART TABLE MISSING QUIET" through the hostile scenario
-   AND the aboard-check red; revert. (One armed defect at a time.)
-5. Rebase onto cs35repo/cs35 once E0 lands (absorb the interpreter's final
-   form), re-run e3-focus, then the tip's full suite manifest + MCP battery
-   on the final SHA.
-6. Frozen fingerprints are expected to HOLD (visQuote runs at card-build,
-   display-side; the sweep's equality is the behavioral proof) — if any pin
-   moves, that is a finding, not a re-pin.
+1. **Stale-release cleanup** — done.
+2. **Green check** — `e3-focus` **12/12**, both backends.
+3. **Mutation demo 1 — VACUOUS, and that is the finding.** `PUSHI 36000 ->
+   36001` in the rough weight shipped **12/12 GREEN** on both engines with
+   the drift live in the bundle. The diagnostic separates instrument from
+   magnitude: the same constant cut 100x (`36000 -> 360`) reds the sweep at
+   **row 456**, naming both verdicts (`quits/sour` vs `rough/sour`). The
+   sweep works; ±1 never flips an argmax across ~4100 rows.
+
+   This is STRUCTURAL. The scaled space (`300 * purse * w`) makes a program's
+   weight value deliberately different from the lambda's float, so comparing
+   them numerically is a category error, not a stronger test. The fixture's
+   header claimed a "byte-equality proof" it never had; it now states the
+   real guarantee and this measured blind spot.
+4. **Mutation demo 2 — BIT**, naming it exactly: `A DEPART TABLE MISSING
+   QUIET`. Reverted; 23 rules restored, bundle byte-exact.
+5. **Rebase** — E3 sits directly on `main` (the trunk moved from `cs35`;
+   0 behind, 11 ahead). The E0 interpreter's final form was absorbed, and
+   absorbing it exposed a merge defect: E0 declared the assembler's per-op
+   `row` as `const` (its goldens address slots by integer), while E3 added
+   LD-by-name which REWRITES the row so the emit pushes the resolved index.
+   Correct on each branch, illegal together — `TypeError: Assignment to
+   constant variable` out of `departProblem`, taking all six E3 scenarios red
+   on both engines with one exception. Fixed with `let`.
+6. **Frozen fingerprints HELD**, as predicted.
+
+### THE BUG THE SWEEP COULD NOT SEE
+
+The full battery read **678/680**, with `hooks: all four points fire with
+primitive ctx…` red on both engines: *no settlement aggregate in two lived
+days*. Controlled, one scenario two trees:
+
+| tree | hooks control |
+| --- | --- |
+| `main` | **2/2 green** |
+| E3 | **0/2**, both engines |
+
+Attributable to E3 alone. The cause: `visQuote` has two paths. The lambda
+fallback fires the phase-D `settlementAggregate` hook before returning;
+**E3's Layer-1 path returned early and skipped the dispatch.** Because the
+crab depart table now ships in the bundle, `CRABD` is always loaded, so the
+Layer-1 path always wins — and a hook point silently stopped firing.
+
+**Why the sweep was structurally incapable of catching it**, which is the
+lesson: the sweep compares `id`/`mood`/`line` between the two paths over
+~4100 rows. A hook is a **side effect of taking a path, not a value in its
+return**. Equality of the return value is not equality of behaviour. The
+blind spot documented in `crab-depart.json`'s header during demo 1 bit for
+real within the hour, in a different place than anyone was looking.
+
+A hypothesis rejected on the way, recorded so it is not re-run: the new
+culture-validator branch (`if (D.rules != null) departProblem(D)`) *can*
+refuse a culture document, and a refused pig is a pig that never settles —
+but it only fires when a culture declares `rules`, and none do.
+
+**Final gates on the fix (`afd15de`): suite 680/680 across 20 arms, both
+backends; hooks control 2/2; bundle byte-exact at 117583 bytes, 23 rules.**
