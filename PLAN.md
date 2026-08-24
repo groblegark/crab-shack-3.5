@@ -50,6 +50,22 @@ parent `09d78ba` — **identical seed-for-seed on both sides**, which is how the
 E4 house-limit ladder was shown to be inert on the floor. Receipt:
 `design/cs35-research/kube-runs/cs-e4-ladder-matrix-inpod-ekc/`.
 
+**The departure card is 94% unmet need, and `delight` never wins.** 4,399 cards
+over 12 towns × 30 days: hungry 41.7%, parched 21.5%, grubby 17.2%, and seven
+rules never win at all. Measured twice independently — Matt's run
+(`design/cs35-research/depart-census-2026-08-24.md`) and a captain re-run at
+`e50b6b2`, agreeing to the card. **The cause is the GATES, not the weights**, and
+that is a mutation result rather than a reading: deflating `hungry`'s weight by
+2^20 with its gate untouched moved it 40.3%→24.1% but handed the share to the
+*other need rules* — not one new rule won a card, the same ten stayed at zero.
+A need rule only fires on a guest the town genuinely failed, and those guests
+have no competing story to tell. So rescaling the need weights redistributes
+*within* the needs; it does not let circumstance in. `delight` is a separate
+shape: already weight 66 (higher than hungry's 44 base), it never *enters* —
+its gate needs a non-crab guest eating their own cuisine (`game.js:13453`), so
+a crab who ate, bathed, played and slept indoors has no path to a glad card at
+any weight. Open decision: `kd-d0eIIm5FJF`.
+
 **A NUMBER WITHOUT ITS TREE IS NOT QUOTABLE.** Every figure above names the SHA
 it was measured at and the receipt it came from, because that is the one rule
 this project does not bend. If you are about to cite a growth number, re-measure
