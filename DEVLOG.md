@@ -42,9 +42,12 @@ DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."*
 The obvious diagnosis was that the weights were wrong — the numbers were
 written for a world where needs ran 0 to 1, and they now read fixed-point
 integers, so they're inflated some fifty thousand times over. Plausible, and
-wrong. Deflating `hungry` by a factor of a million moved its share from 40.3%
-to 24.1% and handed **every** point it lost to the *other need rules*. Not one
-new rule won a single card. The same ten stayed at zero.
+wrong. On a smaller arm — four towns, the same seeds, run twice side by side —
+deflating `hungry` by a factor of a million moved its share from 40.3% to
+24.1% and handed **every** point it lost to the *other need rules*. Not one
+new rule won a single card. Ten rules read zero on *both* sides of the
+mutation — `wait`, `quits`, `missed` and `foreign` among them, exactly the
+circumstance rules the rescale was supposed to let in.
 
 Because the cause isn't the weights, it's the **gates**. A need rule only
 fires on a guest the town genuinely failed — thirst past the line, and not a
@@ -54,9 +57,27 @@ was never in the running at any weight: its gate wants a non-crab guest
 eating their own cuisine, so a crab who ate well, bathed, played and slept
 indoors has no path to a glad card, ever.
 
-So the game's main feedback surface can only scold you. That's not a bug in a
-number; it's a decision about what the town is allowed to say, and it's with
-the owner.
+So the game's main feedback surface could only ever scold you. That isn't a
+bug in a number; it's a decision about what the town is allowed to say — and
+while this entry was being written, the owner made it.
+
+**Ruled: widen the gate, not the weight.** A stay that went well should be
+able to earn a glad card, and the road there is the *condition*, not the
+coefficient. That's the mutation earning its keep: the write-up that found the
+94% recommended giving `delight` enough weight to win, and the demo showed a
+coefficient can't get there from any starting value — `delight`'s base already
+sits above `hungry`'s, and it still never enters. The need arithmetic stays as
+it is; what changes is the float-era band comments, which will be corrected to
+describe the card the game actually ships instead of the one they were written
+for. Ninety-four percent unmet need is now a reading somebody has looked at and
+accepted, rather than a number nobody had counted.
+
+What *isn't* settled is the interesting half: what earns a crab a glad card.
+`delight` is a foodways word — a guest finding their own cuisine somewhere it
+had no business being — and a crab at home on their own island can't be that
+guest by construction. The register can't be opened by loosening the existing
+test; something has to be named that a local can actually *do*. That's a
+question about what this town is proud of, and it's the next thing to answer.
 
 ### The ladder nobody climbs
 
@@ -84,10 +105,18 @@ a majority is structurally against any limit at all. The dial works
 perfectly. The electorate just doesn't want it.
 
 The ruling was to **leave the dead rungs in**. An unused rung is room for a
-town that argues differently — a degree of freedom, not dead weight. Which is
-a different judgement from the one above, and worth saying why: an unused
-*rung* is a road not taken, while an unused emotional *register* is a thing
-the game cannot say no matter how well you play.
+town that argues differently — a degree of freedom, not dead weight.
+
+Two findings, then, both of the shape *this thing never fires* — and they were
+ruled in opposite directions on the same afternoon. Keep the rung; open the
+register. That's not inconsistency, it's the distinction doing work: an unused
+*rung* is a road not taken, a choice available to anyone who argues for it,
+while an unused emotional *register* is something the game cannot say no matter
+how well you play. The first is room. The second is a missing word. The
+project's own standing bar — *a mutation must bite, a rule must be load-bearing*
+— turns out to govern instruments, not expressive range, and the owner said so
+in as many words: not every rule needs to be instantly load-bearing in a
+complex culture; at some point extra degrees of freedom have to be allowed.
 
 ### The hook that stopped firing
 
