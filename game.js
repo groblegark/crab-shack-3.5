@@ -12651,14 +12651,33 @@ function freeVisitorName(pool) {
   if (!free.length) return pool[(srand() * pool.length) | 0];
   return free[(srand() * free.length) | 0];
 }
-// STATUS BARS IN VARIOUS CONDITIONS (the directive's own words). Everybody
-// comes off the boat with a low baseline and ONE OR TWO needs genuinely
-// pressing, which is what makes a batch legible from the pier: this one is
-// starving, that one has been on a boat all morning and wants a wash.
+// THE BOAT RIDE IS PART OF THE STAY (Matt, 2026-08-23: "they should come in
+// some semi sane initilized state and have same stats as citizens"). Arrival
+// anchors to the band the town's own crabs are hired at (qn(0.1)-qn(0.3),
+// the persona literals above newCrab): the crossing makes a body hungry,
+// thirsty and a little bored; nobody boards filthy. The old floor was
+// qn(0.08) for everything - a tourist stepped off a three-hour ferry less
+// worn than a local waking up. ONE OR TWO needs still land genuinely
+// pressing (the LOADED mechanic, unchanged), which is what keeps a batch
+// legible from the pier: this one is starving, that one wants a wash.
+// Draw discipline: same draw count, same order, same sites as the old form -
+// only the authored constants moved, so every draw-count pin holds.
+// A culture's own arrival init is a natural future `body` field; this table
+// is the dispatch point when that day comes.
+const VIS_ARRIVE = {                       // [floor, span], Q20 at the boundary
+  hunger: [qn(0.25), qn(0.30)],            // the ride was long
+  thirst: [qn(0.30), qn(0.30)],            // sea air
+  dirt:   [qn(0.10), qn(0.20)],            // they washed for the trip
+  bored:  [qn(0.20), qn(0.30)],            // a ferry is a bench
+  tired:  [qn(0.10), qn(0.25)],            // depends who slept aboard
+};
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
-  for (const key of keys) n[key] = qn(0.08) + Math.floor(srand() * qn(0.32));
+  for (const key of keys) {
+    const a = VIS_ARRIVE[key];
+    n[key] = a[0] + Math.floor(srand() * a[1]);
+  }
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
