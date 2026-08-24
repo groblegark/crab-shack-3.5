@@ -6561,10 +6561,12 @@ function heatShimmerQ12(c) {
 // sick -> drag -> shimmer in that documented order, flooring each fold -
 // the float version was one order-free product, so the fold order is now
 // behavior and this comment is its record.
-const MOVE_Q8 = {};
-for (const k of Object.keys(TRAITS)) MOVE_Q8[k] = Math.round(40 * TRAITS[k].move * Q8);
+// E2: moveQ8 rides each trait entry now - buildTraits stamps built tables;
+// the code-literal fallback is stamped here with the same arithmetic, so the
+// number is identical whichever table answers.
+for (const k of Object.keys(TRAITS)) TRAITS[k].moveQ8 = Math.round(40 * TRAITS[k].move * Q8);
 function crabMoveQ8(c) {
-  let v = MOVE_Q8[c.p.trait];
+  let v = traitOf(c).moveQ8;
   const over = Math.max(0, (c.p.bored || 0) - qn(0.5));
   v -= idiv(v * over, 5 * Q20);                    // 1 - 0.2*(over/Q20), 0.2 = 1/5
   if (c.p.sick) v = idiv(v, 2);
@@ -6572,7 +6574,7 @@ function crabMoveQ8(c) {
   v = idiv(v * heatShimmerQ12(c), 4096);
   return v;
 }
-function crabWork(c) { return TRAITS[c.p.trait].work; }
+function crabWork(c) { return traitOf(c).work; }
 // needs -> output: a well-kept crab works at 1.0. Let hunger or dirt slide
 // and the crew's timed work slows (station prep, kitchen hustle, stall
 // cleaning): hunger past 0.3 costs up to -18%, dirt past 0.6 up to -6%
@@ -7010,6 +7012,52 @@ function voiceProblem(v) {
   }
   return null;
 }
+// E2: the trait clamps, callable on a bare traits table (a document's
+// people.traits OR the crab default's bundled table). Multipliers are integer
+// TWENTIETHS (20 = 1.0), clamped to [4,60] = 0.2x-3.0x - a people may be
+// twice as slow or thrice as brisk, but a 99x tipper is refused by name.
+function traitsProblem(t) {
+  const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
+  const m20 = (n) => Number.isInteger(n) && n >= 4 && n <= 60;
+  if (!t || typeof t !== "object" || Array.isArray(t)) return "A BAD TRAIT TABLE";
+  const ids = Object.keys(t);
+  if (!ids.length || ids.length > 12) return "A BAD TRAIT TABLE";
+  for (const id of ids) {
+    const r = t[id];
+    if (!r || typeof r !== "object" || Array.isArray(r)) return "A BAD TRAIT";
+    if (!line(r.label) || r.label.length > 20) return "A BAD TRAIT LABEL";
+    for (const k of ["move20", "work20", "tip20"]) if (!m20(r[k])) return "A BAD TRAIT MULTIPLIER";
+    if (r.lateMin != null && !(Number.isInteger(r.lateMin) && r.lateMin >= 0 && r.lateMin <= 240)) return "A LATENESS PAST ALL PATIENCE";
+    if (r.pauses != null && typeof r.pauses !== "boolean") return "A BAD TRAIT";
+    if (!r.quips || typeof r.quips !== "object" || Array.isArray(r.quips)) return "A TRAIT WITH NOTHING TO SAY";
+    for (const q in r.quips) {
+      if (!["commute", "work", "home"].includes(q)) return "A QUIP FOR NOWHERE";
+      if (!Array.isArray(r.quips[q]) || !r.quips[q].length) return "A TRAIT WITH NOTHING TO SAY";
+      if (r.quips[q].some(s => !line(s))) return "A BAD VOICE LINE";
+    }
+    for (const q of ["commute", "work", "home"]) if (!r.quips[q]) return "A TRAIT WITH NOTHING TO SAY";
+  }
+  return null;
+}
+// The build: twentieths to the engine's exact shape, once at load. n/20 in
+// doubles is the correctly-rounded double of n/20, which is the same double
+// the code literal parses to (both are nearest-double of the same rational) -
+// so the built table equals the literal bit-for-bit, and the suite proves it.
+// moveQ8 is stamped per entry with the same arithmetic the old boot loop used.
+function buildTraits(src) {
+  const out = {};
+  for (const id of Object.keys(src)) {
+    const r = src[id];
+    out[id] = {
+      label: r.label, move: r.move20 / 20, work: r.work20 / 20, tip: r.tip20 / 20,
+      quips: r.quips,
+    };
+    if (r.lateMin != null) out[id].lateMin = r.lateMin;
+    if (r.pauses) out[id].pauses = true;
+    out[id].moveQ8 = Math.round(40 * out[id].move * Q8);
+  }
+  return out;
+}
 function cultureProblem(d, ownId) {
   if (!d || typeof d !== "object" || Array.isArray(d)) return "NOT A CULTURE";
   // ownId: the id this document is being installed AS - the install map key,
@@ -7022,6 +7070,8 @@ function cultureProblem(d, ownId) {
   if (!d.people || !Array.isArray(d.people.names) || !d.people.names.length) return "NO NAME POOL";
   for (const n of d.people.names)
     if (typeof n !== "string" || !n.length || n.length > 12) return "A BAD NAME";
+  // E2: a people may carry its own trait table (validated like the island's).
+  if (d.people.traits != null) { const p = traitsProblem(d.people.traits); if (p) return p; }
   const a = d.art;
   if (!a || typeof a !== "object" || !a.palette || typeof a.palette !== "object") return "NO ART";
   for (const ch in a.palette) {
@@ -7721,6 +7771,18 @@ function idleLines(c, key, fallback) {
   const cul = c && c.p && c.p.culture && CULTURES[c.p.culture];
   return (cul && cul.idle && cul.idle[key]) || (CRABIDLE && CRABIDLE[key]) || fallback;
 }
+// E2: whose personality table? The person's culture if it declares
+// people.traits, else the island's - which is the bundled transcription when
+// it loads, and the code literal BY IDENTITY when it doesn't. Every value in
+// the transcription equals the literal bit-for-bit (the suite's proof), so
+// which table answers is unobservable for a crab town.
+let CRABT = TRAITS;  // the island's active trait table
+function traitOfP(p) {
+  const cul = p && p.culture && CULTURES[p.culture];
+  const t = (cul && cul.traits) || CRABT;
+  return t[p.trait] || CRABT[p.trait] || TRAITS[p.trait];
+}
+function traitOf(c) { return traitOfP(c.p); }
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -7751,6 +7813,12 @@ function rebuildBrains() {
     CRABV = BUNDLED_CRAB_VOICE.registers;
     CRABIDLE = BUNDLED_CRAB_VOICE.idle || null;   // E1: same bundle, same door
   }
+  // E2: the island's traits, tabled - same bundle, same validator discipline,
+  // same lifecycle door. The code literal is the fallback BY IDENTITY.
+  CRABT = TRAITS;
+  if (typeof BUNDLED_CRAB_TRAITS !== "undefined" && BUNDLED_CRAB_TRAITS
+    && BUNDLED_CRAB_TRAITS.traits && !traitsProblem(BUNDLED_CRAB_TRAITS.traits))
+    CRABT = buildTraits(BUNDLED_CRAB_TRAITS.traits);
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -7774,6 +7842,9 @@ function buildCulture(def) {
   // E1: a culture's idle quips (validated by voiceProblem at import) - null
   // when undeclared, and idleLines falls through to the island's table.
   const idle = (def.voice && def.voice.idle) ? def.voice.idle : null;
+  // E2: a culture's own trait table (validated by traitsProblem at import) -
+  // null when undeclared, and traitsOf falls through to the island's.
+  const traits = (def.people && def.people.traits) ? buildTraits(def.people.traits) : null;
   // the culture's nudge terms, converted from author units ONCE, here, into
   // the exact internal forms the crab constants use (px, ticks, Q20 via the
   // same qn, hundredths) - the hot path never sees a float or a conversion.
@@ -7862,7 +7933,7 @@ function buildCulture(def) {
     HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
   } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -9225,7 +9296,7 @@ function maybeQuip(c, dt) {
   c.quipT -= dtT;
   if (c.quipT <= 0 && !c.hidden) {
     const isNight = darkness() > 0.7 && c.dsC === DS.home;
-    let lines = isNight ? ["ZZZ..."] : TRAITS[c.p.trait].quips[quipContext(c)];
+    let lines = isNight ? ["ZZZ..."] : traitOf(c).quips[quipContext(c)];
     if (c.p.homeless && quipContext(c) === "home" && !isNight)
       lines = ["SAVING FOR A PLACE", "SHELTER SOUP AGAIN", "I'LL BOUNCE BACK"];
     if (offToday(c) && !c.p.sick && quipContext(c) === "home" && !isNight && tmin >= rhythmOf(c).LIEIN)
@@ -9257,10 +9328,10 @@ function commuteGmin(c) {
   const dist = Math.abs(jobDoor(c) - homeX(c));
   const m = c.p.mode;
   if (m === "bus") return 100;                       // walk + wait + ride, rough
-  return dist / (MODES[m].speed * TRAITS[c.p.trait].move) * TS + 12;
+  return dist / (MODES[m].speed * traitOf(c).move) * TS + 12;
 }
 function leaveGmin(c) {
-  const late = TRAITS[c.p.trait].lateMin || 0;
+  const late = traitOf(c).lateMin || 0;
   return effShift(c).start - commuteGmin(c) - 20 + late;
 }
 
@@ -9518,7 +9589,7 @@ function updateCommute(c, dt) {
     sleepRough(c);
     return;
   }
-  const m = c.p.mode, tr = TRAITS[c.p.trait];
+  const m = c.p.mode, tr = traitOf(c);
   const wspd = crabMoveQ8(c), vspd = Math.round(MODES[m].speed * tr.move * Q8);
 
   if (tr.pauses && c.pauseT <= 0 && srand() < dt * 0.06) c.pauseT = 1.3 * SEC;
@@ -11799,7 +11870,7 @@ function payAndBenefit(c, cust) {
     if (cust.need === "fun") { cust.crab.p.bored = 0; cust.crab.quip = { text: "BEST DAY EVER!", t: 2.4 * SEC }; }
     popText(ITEM_NAMES[cust.recipe.icon], cust.x - 14, 116, [140, 255, 160]);
   } else {
-    const tipMult = TRAITS[c.p.trait].tip * (1 - 0.3 * ((c.p.dirt || 0) / Q20))
+    const tipMult = traitOf(c).tip * (1 - 0.3 * ((c.p.dirt || 0) / Q20))
       * (1 - ((c.p.tired || 0) >= qn(0.85) ? 0.15 : 0));   // an EXHAUSTED server fumbles the charm (0.85 = the mood line; evenings routinely reach the old 0.66)
     // TABLE SERVICE KEEPS THE WHOLE TIP; the counter keeps a token of it.
     // `seatedWaiting` is exactly "this plate is going out to a seated guest" -
@@ -15893,7 +15964,7 @@ function drawFollowCard() {
     rect(ctx, 36, 51, 27, 8, brainTv ? [190, 120, 230] : [60, 45, 80]);
     smallText(ctx, "MIND>", 38, 52, [255, 255, 255]);
   }
-  smallText(ctx, TRAITS[p.trait].label + " " + MODES[p.mode].label, 29, 13, [120, 90, 60]);
+  smallText(ctx, traitOfP(p).label + " " + MODES[p.mode].label, 29, 13, [120, 90, 60]);
   smallText(ctx, crabStatus(c).slice(0, 26), 29, 21, [30, 110, 60]);
   // SHIFT reads the hours they ACTUALLY work today, so an OT day shows the
   // longer window with the OT tag right beside it
@@ -17297,12 +17368,12 @@ function drawDossier() {
     if (acc) blit(ctx, art2("a" + hatKey, acc.art), x + 8 + acc.dx * 2, y + 8 + acc.dy * 2);
   }
   text(ctx, p.name, x + 48, y + 5, [255, 240, 210]);
-  smallText(ctx, TRAITS[p.trait].label + " - " + MODES[p.mode].label + (p.npc ? " - TOWNSFOLK" : " - CREW"), x + 48, y + 15, [210, 190, 170]);
+  smallText(ctx, traitOfP(p).label + " - " + MODES[p.mode].label + (p.npc ? " - TOWNSFOLK" : " - CREW"), x + 48, y + 15, [210, 190, 170]);
   // what they're saying (their live quip, or a line true to their trait)
   {
     let line = c.quip && c.quip.text;
     if (!line) {
-      const lines = TRAITS[p.trait].quips[quipContext(c)] || [];
+      const lines = traitOfP(p).quips[quipContext(c)] || [];
       if (lines.length) line = lines[(p.name.length * 7 + p.color * 3 + day) % lines.length];
     }
     if (line) smallText(ctx, "'" + line + "'", x + 48, y + 24, [255, 215, 150]);

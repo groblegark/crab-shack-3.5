@@ -9237,4 +9237,142 @@ var BUNDLED_CRAB_VOICE = {
   ]
  }
 };
-if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; }
+var BUNDLED_CRAB_TRAITS = {
+ "traits": {
+  "speedy": {
+   "label": "SPEEDY",
+   "move20": 28,
+   "work20": 20,
+   "tip20": 20,
+   "quips": {
+    "commute": [
+     "GOTTA GO FAST",
+     "ZOOM ZOOM",
+     "NO TIME!"
+    ],
+    "work": [
+     "ORDER UP!",
+     "FASTER! FASTER!",
+     "DONE ALREADY"
+    ],
+    "home": [
+     "LAPS ON THE BEACH",
+     "CAN'T SIT STILL"
+    ]
+   }
+  },
+  "lazy": {
+   "label": "LAZY",
+   "move20": 17,
+   "work20": 17,
+   "tip20": 20,
+   "lateMin": 45,
+   "quips": {
+    "commute": [
+     "5 MORE MINS...",
+     "WHY SO EARLY",
+     "YAWN"
+    ],
+    "work": [
+     "BREAK TIME YET?",
+     "SO MANY ORDERS",
+     "UGH, TOURISTS"
+    ],
+    "home": [
+     "NAP O'CLOCK",
+     "ZZZ...",
+     "COMFY SAND"
+    ]
+   }
+  },
+  "cheery": {
+   "label": "CHEERY",
+   "move20": 20,
+   "work20": 20,
+   "tip20": 25,
+   "quips": {
+    "commute": [
+     "WHAT A MORNING!",
+     "HI SEAGULLS!",
+     "LOVE THIS TOWN"
+    ],
+    "work": [
+     "SERVICE W. A SMILE",
+     "ENJOY!",
+     "MY PLEASURE!"
+    ],
+    "home": [
+     "BEST DAY EVER",
+     "SUNSETS RULE"
+    ]
+   }
+  },
+  "grumpy": {
+   "label": "GRUMPY",
+   "move20": 20,
+   "work20": 23,
+   "tip20": 18,
+   "quips": {
+    "commute": [
+     "TRAFFIC. GREAT.",
+     "SAND IN MY SHOES",
+     "HMPH"
+    ],
+    "work": [
+     "YES YES, TACO",
+     "I'M CHOPPING OK",
+     "TOURISTS..."
+    ],
+    "home": [
+     "FINALLY. QUIET.",
+     "DON'T KNOCK"
+    ]
+   }
+  },
+  "tidy": {
+   "label": "TIDY",
+   "move20": 20,
+   "work20": 22,
+   "tip20": 21,
+   "quips": {
+    "commute": [
+     "CLAWS WASHED",
+     "EARLY IS ON TIME"
+    ],
+    "work": [
+     "MISE EN PLACE",
+     "CLEAN AS YOU GO",
+     "SPOTLESS"
+    ],
+    "home": [
+     "SWEEPING MY DUNE",
+     "ALL SHIPSHAPE"
+    ]
+   }
+  },
+  "dreamy": {
+   "label": "DREAMY",
+   "move20": 19,
+   "work20": 18,
+   "tip20": 23,
+   "pauses": true,
+   "quips": {
+    "commute": [
+     "LOOK, A CLOUD...",
+     "THE WAVES SING",
+     "OOH SHINY SHELL"
+    ],
+    "work": [
+     "WAIT, WHAT ORDER?",
+     "THE GRILL DANCES",
+     "PRETTY FLAMES"
+    ],
+    "home": [
+     "COUNTING STARS",
+     "THE SEA CALLS"
+    ]
+   }
+  }
+ }
+};
+if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; }

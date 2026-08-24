@@ -56,6 +56,33 @@ function localise(d, verdict) {
     if (typeof n !== "string" || !n.length) say(`people.names[${i}]`, "must be a non-empty string");
     else if (n.length > 12) say(`people.names[${i}]`, `"${n}" is ${n.length} chars, max is 12`);
   });
+  // E2: people.traits - multipliers in twentieths [4,60], quips for all three
+  // moments, clamped lines. Mirrors the engine's traitsProblem names.
+  const tt = d.people && d.people.traits;
+  if (tt != null) {
+    if (typeof tt !== "object" || Array.isArray(tt) || !Object.keys(tt).length || Object.keys(tt).length > 12)
+      say("people.traits", "must be an object of 1-12 traits (A BAD TRAIT TABLE)");
+    else for (const id in tt) {
+      const r = tt[id];
+      if (!r || typeof r !== "object") { say(`people.traits.${id}`, "must be an object (A BAD TRAIT)"); continue; }
+      if (typeof r.label !== "string" || !r.label.length || r.label.length > 20)
+        say(`people.traits.${id}.label`, "must be a string of 1-20 chars (A BAD TRAIT LABEL)");
+      for (const k of ["move20", "work20", "tip20"])
+        if (!(Number.isInteger(r[k]) && r[k] >= 4 && r[k] <= 60))
+          say(`people.traits.${id}.${k}`, `twentieths, integer 4-60 (A BAD TRAIT MULTIPLIER) - got ${r[k]}`);
+      if (r.lateMin != null && !(Number.isInteger(r.lateMin) && r.lateMin >= 0 && r.lateMin <= 240))
+        say(`people.traits.${id}.lateMin`, "integer minutes 0-240 (A LATENESS PAST ALL PATIENCE)");
+      for (const q of ["commute", "work", "home"]) {
+        const arr = r.quips && r.quips[q];
+        if (!Array.isArray(arr) || !arr.length) say(`people.traits.${id}.quips.${q}`, "required: a non-empty array of lines (A TRAIT WITH NOTHING TO SAY)");
+        else arr.forEach((s, i) => {
+          if (typeof s !== "string" || !s.length || s.length > 120) say(`people.traits.${id}.quips.${q}[${i}]`, "must be a string of 1-120 chars");
+        });
+      }
+      if (r.quips) for (const q in r.quips)
+        if (!["commute", "work", "home"].includes(q)) say(`people.traits.${id}.quips.${q}`, "unknown quip moment (A QUIP FOR NOWHERE)");
+    }
+  }
 
   for (const ch in pal) {
     if (ch === ".") {
