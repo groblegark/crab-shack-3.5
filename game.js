@@ -7067,7 +7067,7 @@ function l1Assemble(prog, bundle) {
       case "SEL": b = pop(); a = pop(); pop(); st.push([Math.min(a[0], b[0]), Math.max(a[1], b[1])]); break;
       case "TERM": break;   // value stays; the name rides the term list
     }
-    if (st.length > L1_MAX_DEPTH) return no("OP " + n + " (" + op + ") REACHES DEPTH " + st.length + ", MAX " + L1_MAX_DEPTH);
+    // MUTATION DEMO 2 (will be reverted): the depth wall, removed
     const t = st[st.length - 1];
     if (Math.abs(t[0]) > L1_MAG || Math.abs(t[1]) > L1_MAG) return no("OP " + n + " (" + op + ") CAN REACH " + (Math.abs(t[1]) > L1_MAG ? t[1] : t[0]) + " - PAST 2^52");
     code.push(L1_OPIDS.indexOf(op));
