@@ -194,10 +194,6 @@
         ["PUSHI",0],["SEL"]],
       "line": { "select": [["LD","days"],["PUSHI",1],["EQ"],["PUSHI",0],["PUSHI",1],["SEL"]],
         "templates": ["{LIST} - {STOPS} STOPS IN {DAYS} DAY.",
-                      "{LIST} - {STOPS} STOPS IN {DAYS} DAYS."] } },
-    { "id": "quiet", "mood": "flat",
-      "weight": [["LD","purse"],["PUSHI",300],["MUL"]],
-      "line": { "select": [["PUSHI",0]],
-        "templates": ["A DAY BY THE SEA. I'VE HAD WORSE."] } }
+                      "{LIST} - {STOPS} STOPS IN {DAYS} DAYS."] } }
   ]
 }

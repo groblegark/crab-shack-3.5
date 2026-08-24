@@ -11249,34 +11249,6 @@ var BUNDLED_CRAB_DEPART = {
      "{LIST} - {STOPS} STOPS IN {DAYS} DAYS."
     ]
    }
-  },
-  {
-   "id": "quiet",
-   "mood": "flat",
-   "weight": [
-    [
-     "LD",
-     "purse"
-    ],
-    [
-     "PUSHI",
-     300
-    ],
-    [
-     "MUL"
-    ]
-   ],
-   "line": {
-    "select": [
-     [
-      "PUSHI",
-      0
-     ]
-    ],
-    "templates": [
-     "A DAY BY THE SEA. I'VE HAD WORSE."
-    ]
-   }
   }
  ]
 };
