@@ -122,8 +122,24 @@ process.exit(0);
 
 ## STATE: instruments proven, science not yet run (handoff, 2026-08-23)
 
+**The fix is confirmed on the cluster.** One witnessed arm (live-t0, 4 towns
+x 30 days, 2 workers) at ref 886b91a: **exit 0 in 24 seconds of arm wall**,
+receipt banked, verdict `survived 0/4; eviction days: 8,11,12,13`, and a
+divergence corpus of **790 disagreements across the 4 towns** (268/164/146/212
+per seed). Receipt:
+`design/cs35-research/kube-runs/cs-cit-science-probe1-886b91a-mhv3/live-t0.json`.
+Twenty-four seconds against the wedge's 173 minutes — and note the corollary
+for planning: a 24-arm corpus is minutes of compute, not the hours every
+earlier projection assumed.
+
+Two instrument bugs the receipt itself exposed, both fixed in the same
+session (de54c45): the summary line exceeded the receipt's 4KB stdout tail
+and lost the buckets off its FRONT — they now ride their own line, printed
+LAST, with compact story seeds; and the analyzer now reads the survived line
+from the receipt's own `verdict` field rather than the truncatable tail.
+
 Everything below is built, committed, and cluster-ready; no experimental
-number exists yet, and none is guessed here. What exists:
+number about crab BEHAVIOR exists yet, and none is guessed here. What exists:
 
 - `tools/headless.mjs` probes (default-off, tools-only, shipped game.js
   untouched): `--citscript` (the A/B arm), `--citdivlog` (divergence corpus
