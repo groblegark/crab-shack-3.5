@@ -83,9 +83,25 @@ worse. Nothing tuned.
 
 ## Gates
 
-- slop-gates (focus scenarios both backends + voice pins + the economics
-  instrument): PENDING
-- Matrix byte-identity branch-vs-base: PENDING
-- Mutation demos (armed, expected red, reverted): PENDING
-- Full suite both backends + MCP battery at the final SHA: PENDING
-- Screenshot: PENDING (cluster arm)
+- slop-gates (focus both backends + voice pins + economics): **11/11 green**
+  at ba7ec5f (receipts: kube-runs/cs-slop-gates-ba7ec5f-gc1w).
+- Matrix byte-identity branch-vs-base: **HOLDS**, all six blocks (see above).
+- Mutation demo: **BIT on both backends** — the artless slop (e55014c,
+  reverted) turned the foodways family red on js AND wasm, and the voice
+  chain scenario red with it (a refused document moves everything downstream
+  of the install — the refusal design working). Receipts:
+  kube-runs/cs-slop-gates-e55014c-ud7a. The named-refusal assertion (the
+  hostile PICTURE row, plus the new raw2 "SECOND INGREDIENT" row) passed in
+  the green run.
+- Screenshot: **banked** — devlog/img/2026-08-23-first-slop.png, shot
+  POD-SIDE and carried home as base64 in the receipt's jsonTail (SNOUT, day
+  9, delight 1; REP 93 on the HUD). The kube policy's first picture.
+- Full suite at the final rebased SHA 826ebd4: **RUNNING at handoff** —
+  cs-suite-318-826ebd4-1qxj was installed and running when the operator's
+  AWS session expired mid-ceremony; its receipts bank as ConfigMaps and
+  survive. The MCP battery was NOT yet launched (the session died between
+  the two installs). After `aws sso login --profile gasboat-prod`:
+    node tools/kube.mjs collect cs-suite-318-826ebd4-1qxj   # expect 654+6/654+6 style verdict
+    node tools/kube.mjs clean   cs-suite-318-826ebd4-1qxj
+    node tools/kube.mjs run experiments/phased-gates.json --ref 826ebd4 --wait
+  The merge holds until both are green.
