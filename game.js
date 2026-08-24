@@ -13074,7 +13074,7 @@ function visRethink(k) {
   }
   if (!e) return false;
   if (e.biz === k.biz && e.need === k.need) return false;   // same plan: hold course
-  if (!(4 * visScoreOne(k, e) > 5 * visScoreOne(k, { biz: k.biz, need: k.need, recipe: k.recipe })))
+  if (!(1 * visScoreOne(k, e) > 1 * visScoreOne(k, { biz: k.biz, need: k.need, recipe: k.recipe })))
     return false;
   if (window._stats) {
     window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
