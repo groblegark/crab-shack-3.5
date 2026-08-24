@@ -437,6 +437,17 @@
     }
    }
   },
+  "manner": {
+   "description": "Census C4: how this people carries itself. speed: a visitor's stroll in px/s (crab: 42) - the stepper, the JS reference, AND the ferry ETA all read the same dispatched value, so a slow culture is never promised a boat it cannot catch. stroll: how far one stroll wanders in px (crab: 340); the promenade band itself (VIS_ROAM) is the town's geography and stays engine. space: personal-space radius in px (crab: 8, RULED on a measured growth curve - declaring wider buys the same detour tax that cost 5 escapes in 48 at 10px; capped at 16 so no document can gridlock a counter; a mixed pair parts to the LARGER radius, give_berth's own max rule). walkMul20: a settled resident's gait in twentieths (20 = the crab pace), composing with the trait multiplier. rides: may this people take the buggy - REFUSED true until a culture-ride art seam exists (the buggy art indexes crab colorways); false is the settlers walk pin, as data. Fields left out inherit the crab values.",
+   "type": "object",
+   "properties": {
+    "speed": { "type": "integer", "minimum": 8, "maximum": 120 },
+    "stroll": { "type": "integer", "minimum": 60, "maximum": 800 },
+    "space": { "type": "integer", "minimum": 4, "maximum": 16 },
+    "walkMul20": { "type": "integer", "minimum": 10, "maximum": 40 },
+    "rides": { "type": "boolean" }
+   }
+  },
   "arrival": {
    "type": "object",
    "properties": {
@@ -454,7 +465,10 @@
      "type": "integer",
      "minimum": 1,
      "maximum": 1000
-    }
+    },
+    "daytrip20": { "type": "integer", "minimum": 0, "maximum": 20 },
+    "patienceSecs": { "type": "integer", "minimum": 20, "maximum": 400 },
+    "thinkDs": { "type": "integer", "minimum": 4, "maximum": 80 }
    }
   },
   "body": {

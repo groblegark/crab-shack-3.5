@@ -13015,6 +13015,15 @@ scenario("cultureways: broken art is refused with a message and the town still l
     ["a lavish table tip", mut(d => d.management = { tableTip: 900 })],   // author units are DOLLARS - 900 is the cents habit, refused
     ["a fractional counter share", mut(d => d.management = { counter20: 3.5 })],
     ["a shift off the half-hour", mut(d => d.management = { shifts: { std: 361 } })],
+    // manner + stay shape (census C4+C5): each row carries its EXPECTED
+    // refusal so a loosened clamp cannot hide behind a different crime
+    ["a rocket stroll", mut(d => d.manner = { speed: 10000 }), "A BAD STROLL SPEED"],
+    ["a mile-wide berth", mut(d => d.manner = { space: 40 }), "A BAD PERSONAL SPACE"],
+    ["a fractional gait", mut(d => d.manner = { walkMul20: 20.5 }), "A BAD WALKING PACE"],
+    ["a pig at the wheel", mut(d => d.manner = { rides: true }), "NO RIDE ART FOR THIS PEOPLE"],
+    ["a flooded daytrip share", mut(d => d.arrival = { daytrip20: 21 }), "A BAD DAYTRIP SHARE"],
+    ["a saint's patience", mut(d => d.arrival = { patienceSecs: 4000 }), "A BAD PATIENCE"],
+    ["a racing mind", mut(d => d.arrival = { thinkDs: 1 }), "A BAD THINK CADENCE"],
     // catalog rows carry the EXPECTED refusal, so a loosened clamp cannot
     // hide behind a different crime in the same document (the vacuous-
     // mutation lesson): each doc below is valid EXCEPT for its one sin
@@ -13369,6 +13378,96 @@ scenario("rhythm: an institution keeps its owner's day - anchored clock-ins, the
   if (got.covS !== 660 || got.covE !== 1380) return "the covering double left the trading window: " + got.covS + "-" + got.covE;
   if (!got.nativeMemo) return "the native shack window stopped memoizing";
   if (got.nS !== 480 || got.nE !== 840) return "the native shack window moved: " + got.nS + "-" + got.nE;   // 8:00 + the standard 6h
+  return true;
+});
+
+scenario("manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk", () => {
+  // The C4+C5 seam, proved the appeal/management way: buildCulture converts
+  // author units (px across the Q8 boundary, seconds into PQ patience,
+  // deciseconds into ticks) into EXACTLY the forms the crab constants hold;
+  // mannerOf serves both culture homes; arrivalOf serves the guest; everyone
+  // undeclared gets MANNER / ARRIVE verbatim (===, the behavior-neutral
+  // guarantee); RIDES builds false for a cultured people REGARDLESS - the
+  // walk pin as data - and culRides answers the crab yes it always did.
+  const sim = createSim({ seed: 9 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.manner = { speed: 60, stroll: 200, space: 12, walkMul20: 30 };
+  fx.arrival = Object.assign({}, fx.arrival, { daytrip20: 0, patienceSecs: 200, thinkDs: 32 });
+  const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  part.meta.id = "partpig";
+  delete part.foodways;   // the fixture's corn is PIG's priced import; a clone under another id may not claim it
+  part.manner = { space: 10 };   // speed, stroll, gait and rides inherit crab values
+  sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const m = CULTURES.pig.manner, p = CULTURES.partpig.manner, s = CULTURES.pig.stay;
+    return {
+      full: m, want: { SPEED: 60, STROLL: 200, SPACEQ: 12 * Q8, WMUL20: 30, RIDES: false },
+      part: p, partWant: { SPEED: MANNER.SPEED, STROLL: MANNER.STROLL, SPACEQ: 10 * Q8, WMUL20: 20, RIDES: false },
+      stay: s, stayWant: { DT: 0, PATQ: 200 * PQ, THINK: idiv(32 * SEC, 10) },
+      picksPigGuest: mannerOf({ culture: "pig" }) === m,
+      picksPigWorker: mannerOf({ p: { culture: "pig" } }) === m,
+      staysPig: arrivalOf({ culture: "pig" }) === s,
+      crabIsCrab: mannerOf({ p: {} }) === MANNER && mannerOf(null) === MANNER
+        && arrivalOf({ visitor: true }) === ARRIVE && arrivalOf(null) === ARRIVE,
+      silentIsCrab: (() => { const g = CULTURES.gull; return !g || (g.manner === null && g.stay === null); })(),
+      ridesCrab: culRides("crab") && culRides(null),
+      ridesPig: !culRides("pig") && !culRides("partpig"),
+      gait: (() => {
+        // walkMul20 composes where the trait multiplier lives: a speedy pig at
+        // 30/20 walks exactly idiv(v*30,20) of the crab's own value. (Post-E2
+        // the crab trait table is read through traitOf; pig declares no traits,
+        // so its speedy base IS the crab's - which is what makes 30/20 the whole
+        // observable difference.)
+        const v0 = traitOf({ p: { trait: "speedy" } }).moveQ8;
+        return crabMoveQ8({ p: { trait: "speedy", culture: "pig" } }) === idiv(v0 * 30, 20)
+          && crabMoveQ8({ p: { trait: "speedy" } }) === v0;
+      })(),
+    };
+  })())`));
+  for (const k of ["SPEED", "STROLL", "SPACEQ", "WMUL20", "RIDES"]) {
+    if (got.full[k] !== got.want[k]) return `manner.${k} built as ${got.full[k]}, want ${got.want[k]}`;
+    if (got.part[k] !== got.partWant[k]) return `partial manner.${k} built as ${got.part[k]}, want ${got.partWant[k]}`;
+  }
+  for (const k of ["DT", "PATQ", "THINK"])
+    if (got.stay[k] !== got.stayWant[k]) return `stay.${k} built as ${got.stay[k]}, want ${got.stayWant[k]}`;
+  if (!got.picksPigGuest || !got.picksPigWorker) return "mannerOf did not serve both culture homes";
+  if (!got.staysPig) return "arrivalOf did not hand a pig guest her own stay table";
+  if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own manner";
+  if (!got.silentIsCrab) return "a culture that declared no manner grew one anyway";
+  if (!got.ridesCrab) return "the crab lost the buggy";
+  if (!got.ridesPig) return "a cultured people was handed the wheel - the ride-art guard failed";
+  if (!got.gait) return "walkMul20 did not compose with the trait multiplier (or moved the crab's own gait)";
+  return true;
+});
+
+scenario("manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs", () => {
+  // The observable half (the data-must-bite rule): a culture declaring
+  // space: 12 stands 12px clear of a crab neighbour - the pair takes the
+  // LARGER radius, give_berth's own max rule - while a crab-crab pair on the
+  // same promenade still parts to the engine's 8. Staged the personal-space
+  // scenarios' own way: parked loafers, thinks and strolls frozen.
+  const sim = createSim({ seed: 31 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.manner = { space: 12 };
+  sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
+  sim.runUntil("tmin > 9 * 60", { maxSteps: 200000 });
+  sim.G(`window._vp = (() => { const k = newVisitor(false, "pig");
+    k.state = "roam"; k.x = 1200; k.wy = FLOOR_Y; k.target = 1200;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; })();
+  window._vc = [0, 0].map(() => { const k = newVisitor(false);
+    k.state = "roam"; k.x = 1200; k.wy = FLOOR_Y; k.target = 1200;
+    k.idleT = 9e9; k.thinkT = 9e9;
+    k.hunger = 0; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    customers.push(k); return k; });`);
+  sim.runUntil("false", { maxSteps: 120 });   // let the pile resolve
+  const xs = JSON.parse(sim.G(`JSON.stringify([window._vp, ...window._vc].map(k => PXQ[k.si] / Q8))`));
+  const gapPig1 = Math.abs(xs[0] - xs[1]), gapPig2 = Math.abs(xs[0] - xs[2]);
+  const gapCrab = Math.abs(xs[1] - xs[2]);
+  if (gapPig1 < 12 || gapPig2 < 12)
+    return `the pig's 12px berth was not honored: gaps ${gapPig1.toFixed(1)}, ${gapPig2.toFixed(1)}`;
+  if (gapCrab < 8) return `the crab pair lost the engine's own 8px: gap ${gapCrab.toFixed(1)}`;
   return true;
 });
 

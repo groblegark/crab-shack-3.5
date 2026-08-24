@@ -214,6 +214,16 @@ A people, written as a document. Not code — data the engine reads:
             walk-ins and migrated-save seeding — 0 draws nothing and is
             byte-identical to today. Business ownership binds to a settler
             in a later slice.
+  manner    how this people carries itself, each field defaulting to the
+            crab value when left out. speed: a visitor's stroll in px/s
+            (crab 42; the ferry ETA reads the same value, so a slow people
+            is never promised a boat it cannot catch). stroll: how far one
+            stroll wanders, px (crab 340; the promenade band is the town's).
+            space: personal-space radius, px 4-16 (crab 8, on a measured
+            growth curve — wider costs the town; a mixed pair parts to the
+            larger). walkMul20: a settled resident's gait in twentieths
+            (20 = crab pace, composes with traits). rides: REFUSED true
+            until a culture-ride art seam exists; false = walks, as data.
   rhythm    when this people sleep and work, relative to the world's one sun
             (the sun never moves — a nocturnal culture moves its bodies).
             Integer game-minutes on the 30-minute grain: wake/bed (the
@@ -227,7 +237,11 @@ A people, written as a document. Not code — data the engine reads:
             >= 4h, not before 6:00 — a sign across midnight waits on R3).
             Visitor bed/wake and the ferry-vs-nocturnal-guest rule are R3.
   arrival   repGate (how well-regarded the town must be before word reaches
-            them), shareMax, shareRamp
+            them), shareMax, shareRamp — and the STAY SHAPE: daytrip20
+            (0-20 twentieths, crab 12 = 0.60; 0 = a culture of overnighters),
+            patienceSecs (20-400, crab 100 — how long a guest gives a
+            counter), thinkDs (4-80 tenths of a second, crab 16 — the
+            what-do-I-fancy cadence, which is also brain-call cadence)
   body      THE CULTURAL BODY: multipliers in twentieths of the crab
             constants (20 = 1x exactly; converted once at install,
             round-half-up). rates {hunger thirst dirt bored tired} 10-40:

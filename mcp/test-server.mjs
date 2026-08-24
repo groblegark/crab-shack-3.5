@@ -98,6 +98,8 @@ bad.civics = { stakes: [{ id: "levy", terms: [{ name: "potStake", prog: [["PUSHI
   relief: { shelter: { rent: -1 } },
   eligibility: { vote: [["PUSHI", 1]] } };   // no platform stake, a term that never closes with TERM, a ballot ladder that deletes step 0, a purse grid with no NO-TAKE rung, a weekday past the week, a negative rent, and a franchise that declares who may vote but not who may stand
 bad.settlers = { apron: "yes", walkins: 20 };   // a string answer, and a flood share
+bad.manner = { speed: 10000, rides: true };   // a rocket stroll, and a pig at the wheel
+bad.arrival = { daytrip20: 21 };   // one twentieth too many
 bad.people.names.push("A NAME MUCH TOO LONG");
 bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
 bad.cards = [{ title: "THE LEDGER", rows: [{ label: "MOOD", obs: "vibes.q20" }] }];   // an unregistered observable
@@ -120,6 +122,9 @@ check("error names the cents-habit table tip", /management\.tableTip/.test(paths
 check("error names the hot depart weight", /depart\.weights\.wait/.test(paths), paths);
 check("error names the string apron answer", /settlers\.apron/.test(paths), paths);
 check("error names the flood walk-in share", /settlers\.walkins/.test(paths), paths);
+check("error names the rocket stroll", /manner\.speed/.test(paths), paths);
+check("error refuses the wheel for want of art", /manner\.rides/.test(paths), paths);
+check("error names the flooded daytrip share", /arrival\.daytrip20/.test(paths), paths);
 check("error names the unknown depart rule", /depart\.weights\.nosuchrule/.test(paths), paths);
 check("error names the civics term that never closes with TERM", /civics\.stakes\[0\]\.terms\[0\]\.prog/.test(paths), paths);
 check("error names the civics stakes missing the platform stake", /civics\.stakes\b/.test(paths), paths);
