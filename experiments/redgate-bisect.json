@@ -1,0 +1,31 @@
+{
+  "name": "redgate-bisect",
+  "note": "The three scenarios that went red on tonight's merges (b20b497, 9254340, 1ae51ed all identical, both engines). Both engines produced byte-identical failures, so the bisect runs js only - engine divergence is already ruled out and a second arm would buy nothing. Point this at one SHA at a time to find where the drift entered; the last green suite was 79b5563 (648/648) and the published tip 2479cb2 has never been gated against these three by itself.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "arms": [
+    {
+      "id": "js-bisect",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "hours: defaults are behavior-identical (frozen day-2 fingerprint)",
+        "rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered",
+        "cultureways: a save without cultures changes nothing"
+      ],
+      "env": { "SIMLIB_REALM": "main" }
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}
