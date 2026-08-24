@@ -7,12 +7,11 @@
     "to the game.js literal it tables (the literals stay in code as the",
     "fallbacks); the tabled==literal suite scenario is the proof, so this",
     "file can never drift from the code without a red row.",
-    "NOT TABLED, with reasons in the phase C close-out: depart lines whose",
-    "literal branches on the stay (rough/quit/quits/nothing/unspent/grubby/",
-    "table/bed/spentup/top/regular - a template cannot express a conditional",
-    "until Layer 1), depart dues (no DUES slot in the depart slot set), and",
-    "refuseHire (the code carries TWO literals behind that one key - the pop",
-    "and the log line - so tabling one key cannot reproduce both)."
+    "The phase C debts are PAID in phase E3: the branching depart lines",
+    "(rough/quit/quits/nothing/unspent/grubby/table/bed/spentup/top/regular)",
+    "and dues speak from crab-depart.json's Layer-1 select programs and",
+    "templates, and refuseHire rides TWO keys here (refuseHire for the pop,",
+    "refuseHireLog for the log line), each byte-equal to its literal."
   ],
   "registers": [
     {
@@ -44,7 +43,9 @@
         "mist": "THE MIST CAME IN AND I NEVER DID SEE THE FAR SHORE.",
         "quiet": "A DAY BY THE SEA. I'VE HAD WORSE."
       },
-      "dossier": ["JUST OFF THE BOAT."]
+      "dossier": ["JUST OFF THE BOAT."],
+      "refuseHire": "KIND OFFER. NO.",
+      "refuseHireLog": "TURNED DOWN A JOB"
     }
   ]
 }

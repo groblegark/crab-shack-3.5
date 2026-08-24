@@ -11187,6 +11187,165 @@ scenario("depart weights: a culture's thumb re-orders the card, and the clamps r
   if (got.good !== null) return "a good declaration was refused: " + got.good;
   return true;
 });
+scenario("depart programs: the transcription and the lambdas agree on every staged stay", () => {
+  // PHASE E3'S WHOLE CONTRACT IN ONE ROOM. The crab's rule table re-expressed
+  // as Layer-1 programs must pick the same rule, wear the same mood, and say
+  // the same sentence as the code lambdas - on per-rule stages that walk each
+  // rule's own dimensions AND on a deterministic combinatorial sample where
+  // rules fight for the argmax. visQuote is a pure function of the row, so
+  // the comparison costs no sim days: arm the table, disarm it (_nol1depart),
+  // same row, triple must match byte for byte. The capture clamps must never
+  // fire on a staged row either - a clamp is a lie about the bundle's ranges.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABD) return { err: "the bundled crab depart table did not install" };
+    const rows = [];
+    const stage = (over) => rows.push(Object.assign(${DEP_BASE}, over));
+    // per-rule stages: each rule's own dials, walked
+    for (const rough of [1, 2, 5]) for (const w of [null, "broke", "shut", "unmade", "full"])
+      for (const m of [0, 1]) stage({ rough, sandWhy: w, missed: m, nights: rough });
+    for (const q of [1, 2, 4]) for (const qm of [0, 1, 300]) stage({ quits: q, quitMin: qm, quitBiz: "SHOWERS" });
+    for (const b of [null, "shut", "full", "broke"]) stage({ buys: 0, blocked: b, meals: 0 });
+    for (const f of [2, 3, 7]) stage({ cu: null, foreign: f });
+    for (const de of [1, 2, 6]) stage({ de });
+    for (const p of [1, 25, 90, 300, 1700]) for (const frac of [0, 6, 12, 13, 50, 88, 100]) {
+      const l = Math.floor(p * frac / 100);
+      stage({ purse: p, left: l, spent: p - l, blocked: "full", full: 5 });
+      stage({ purse: p, left: l, spent: p - l });
+    }
+    for (const h of [891289, 891290, Q20]) for (const meals of [0, 1]) stage({ hunger: h, meals });
+    for (const t of [891290, Q20]) stage({ thirst: t, drinks: 0 });
+    for (const d of [891290, Q20]) for (const days of [1, 2, 9]) stage({ dirt: d, washes: 0, days });
+    stage({ tired: Q20, nightsBed: 0 }); stage({ bored: Q20, games: 0 });
+    for (const wm of [239, 240, 241, 408, 3000]) for (const s of [0, 1]) stage({ worstMin: wm, serves: s });
+    for (const du of [1, 4, 40]) stage({ dues: du });
+    stage({ missed: 2 });
+    for (const mm of [499, 500, 501, 2700, 90000]) stage({ mistMin: mm });
+    for (const tb of [1, 2, 3, 6]) stage({ tables: tb });
+    for (const nb of [1, 2, 5]) stage({ nightsBed: nb, nights: nb });
+    for (const tp of [9, 10, 11, 60]) stage({ topItem: "CRAB PLATE", topBiz: "SHACK", topPaid: tp });
+    for (const b of [2, 3, 9]) for (const days of [1, 3]) stage({ buys: b, days, meals: 1, drinks: 1, washes: 1, games: 1, rooms: 1 });
+    stage({ buys: 0, meals: 0, serves: 0 });   // quiet's floor... via nothing; and the true floor:
+    stage({ buys: 1, left: 20, purse: 100 });
+    // the combinatorial sample: a counted LCG walks the dial space so rules
+    // FIGHT - co-firing truth the per-rule stages cannot see. Deterministic:
+    // same rows every run, on every backend.
+    let x = 12345;
+    const nxt = (n) => { x = (x * 1103515245 + 12345) % 2147483648; return x % n; };
+    const P = [1, 25, 90, 300, 1700], WHY = [null, "broke", "shut", "unmade", "full"];
+    const BLK = [null, "shut", "full", "broke"];
+    for (let i = 0; i < 4000; i++) {
+      const p = P[nxt(5)], l = Math.floor(p * nxt(101) / 100);
+      rows.push(Object.assign(${DEP_BASE}, {
+        purse: p, left: l, spent: p - l,
+        rough: nxt(4), sandWhy: WHY[nxt(5)], missed: nxt(3), nights: nxt(5),
+        quits: nxt(3), quitMin: nxt(400), quitBiz: "SHOWERS",
+        buys: nxt(5), blocked: BLK[nxt(4)], serves: nxt(3), tables: nxt(4),
+        meals: nxt(2), drinks: nxt(2), washes: nxt(2), games: nxt(2), rooms: nxt(2),
+        nightsBed: nxt(3), days: 1 + nxt(9), dues: nxt(3) === 0 ? nxt(50) : 0,
+        worstMin: nxt(3) === 0 ? 200 + nxt(400) : nxt(100),
+        mistMin: nxt(4) === 0 ? nxt(4000) : 0,
+        foreign: nxt(4), de: nxt(4),
+        topItem: nxt(2) ? "CRAB PLATE" : null, topBiz: "SHACK", topPaid: nxt(80),
+        hunger: nxt(3) === 0 ? 891290 + nxt(Q20 - 891290) : nxt(891290),
+        thirst: nxt(3) === 0 ? 891290 + nxt(Q20 - 891290) : nxt(891290),
+        dirt: nxt(891289), bored: nxt(3) === 0 ? Q20 : 0, tired: nxt(3) === 0 ? Q20 : 0,
+      }));
+    }
+    departClamped = 0;
+    let n = 0;
+    for (const r of rows) {
+      window._nol1depart = false; const a = visQuote(r);
+      window._nol1depart = true;  const b = visQuote(r);
+      window._nol1depart = false;
+      if (a.id !== b.id || a.mood !== b.mood || a.line !== b.line)
+        return { err: "row " + n + " diverged: " + a.id + "/" + a.mood + "/" + a.line
+          + " vs " + b.id + "/" + b.mood + "/" + b.line + " on " + JSON.stringify(r) };
+      n++;
+    }
+    return { n, clamped: departClamped };
+  })())`));
+  if (got.err) return got.err;
+  if (got.clamped !== 0) return "the capture clamped " + got.clamped + " reads - the bundle's ranges lie";
+  if (got.n < 4100) return "the sweep shrank: only " + got.n + " rows";
+  return true;
+});
+scenario("depart programs: a hostile table is refused by name", () => {
+  // Every refusal the validator owns, each named - and the all-or-nothing
+  // law: one scaled space or no table at all. The good case is the bundled
+  // fixture itself, which departProblem must accept verbatim.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (typeof BUNDLED_CRAB_DEPART === "undefined" || !BUNDLED_CRAB_DEPART)
+      return { err: "no bundled table to test against" };
+    const base = () => JSON.parse(JSON.stringify(BUNDLED_CRAB_DEPART));
+    const out = { good: departProblem(base()) };
+    let d = base(); d.rules = d.rules.filter(t => t.id !== "quiet");
+    out.missing = departProblem(d);
+    d = base(); d.rules.push(JSON.parse(JSON.stringify(d.rules[0])));
+    out.twice = departProblem(d);
+    d = base(); d.rules[0].id = "vanish";
+    out.unknown = departProblem(d);
+    d = base(); d.rules[0].mood = "smug";
+    out.mood = departProblem(d);
+    d = base(); d.rules[0].weight = [["JMP", 3]];
+    out.op = departProblem(d);
+    d = base(); d.rules[0].weight = [["LD", "vibes"]];
+    out.ld = departProblem(d);
+    d = base(); d.rules[0].weight = [["LD", "left"], ["NEG"]];
+    out.neg = departProblem(d);
+    d = base(); d.rules[0].line.select = [["LD", "rough"]];
+    out.pick = departProblem(d);
+    d = base(); d.rules[0].line.templates = ["X".repeat(200)];
+    out.tpl = departProblem(d);
+    return out;
+  })())`));
+  if (got.err) return got.err;
+  if (got.good !== null) return "the bundled table was refused: " + got.good;
+  if (got.missing !== "A DEPART TABLE MISSING QUIET") return "a missing rule slid by: " + got.missing;
+  if (got.twice !== "A DEPART RULE TWICE: rough") return "a doubled rule slid by: " + got.twice;
+  if (got.unknown !== "A DEPART RULE NOBODY LEAVES BY: vanish") return "an unknown id slid by: " + got.unknown;
+  if (got.mood !== "A MOOD NOBODY WEARS: smug") return "a bad mood slid by: " + got.mood;
+  if (!/NOT AN L1 OP/.test(got.op)) return "a bad op slid by: " + got.op;
+  if (!/NOT A BUNDLE ROW/.test(got.ld)) return "a bad LD name slid by: " + got.ld;
+  if (got.neg !== "DEPART rough WEIGHT CAN GO NEGATIVE") return "a negative weight slid by: " + got.neg;
+  if (!/PICKS TEMPLATE/.test(got.pick)) return "an out-of-range select slid by: " + got.pick;
+  if (got.tpl !== "A BAD DEPART TEMPLATE ON rough") return "an overlong template slid by: " + got.tpl;
+  return true;
+});
+scenario("depart programs: real traffic tells the same story, and the debts are paid", () => {
+  // Two days of real visitors, then every live stay's record quoted both
+  // ways - the co-firing truth of an actual town, not a staged grid. Plus
+  // the two named debts from the voice close-out, retired: the dues line
+  // speaks from the table through its new slot, and refuseHire's two
+  // sentences ride two keys, each byte-equal to its literal.
+  const sim = createSim({ seed: 41 });
+  sim.runDays(2);
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABD) return { err: "the bundled crab depart table did not install" };
+    const rows = customers.filter(k => k.visitor).map(k => departRecord(k));
+    let n = 0;
+    for (const r of rows) {
+      window._nol1depart = false; const a = visQuote(r);
+      window._nol1depart = true;  const b = visQuote(r);
+      window._nol1depart = false;
+      if (a.id !== b.id || a.mood !== b.mood || a.line !== b.line)
+        return { err: "live row " + n + " diverged: " + a.line + " vs " + b.line };
+      n++;
+    }
+    const dues = visQuote(Object.assign(${DEP_BASE}, { dues: 4 }));
+    const g = crabRegister("cap");
+    return { n, dues: dues.id + "|" + dues.line,
+      pop: g && g.refuseHire, log: g && g.refuseHireLog };
+  })())`));
+  if (got.err) return got.err;
+  if (got.n < 1) return "no live visitors to quote - the stage says nothing";
+  if (got.dues !== "dues|CHARGED ME $4 JUST TO STEP OFF THE PLANK.")
+    return "the dues debt is unpaid: " + got.dues;
+  if (got.pop !== "KIND OFFER. NO.") return "refuseHire pop drifted: " + got.pop;
+  if (got.log !== "TURNED DOWN A JOB") return "refuseHire log drifted: " + got.log;
+  return true;
+});
 
 scenario("cultureways: a save without cultures changes nothing", () => {
   // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,

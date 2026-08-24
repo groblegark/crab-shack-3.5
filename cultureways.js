@@ -9205,7 +9205,9 @@ var BUNDLED_CRAB_VOICE = {
    },
    "dossier": [
     "JUST OFF THE BOAT."
-   ]
+   ],
+   "refuseHire": "KIND OFFER. NO.",
+   "refuseHireLog": "TURNED DOWN A JOB"
   }
  ]
 };
