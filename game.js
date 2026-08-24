@@ -19376,6 +19376,19 @@ function visQuote(r) {
       if (w > bw) { bw = w; best = rule; }
     }
     const t = dR[best.id];
+    // THE SETTLEMENT-AGGREGATE POINT FIRES ON THIS PATH TOO. It is duplicated
+    // rather than hoisted because the two paths build their return
+    // differently, and the duplication is the lesser evil: when E3 added this
+    // branch it returned early and the phase-D hook simply STOPPED FIRING -
+    // green on main, red on E3, caught by the hooks scenario and nothing else.
+    // The per-rule sweep could never have caught it: the sweep compares
+    // id/mood/line between the two paths, and a hook is a SIDE EFFECT it does
+    // not look at. Behavioural equivalence on the return value is not
+    // behavioural equivalence. If a third path ever appears here, it fires
+    // this point too, or the point is a lie.
+    if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
+      { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+        buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
     return { id: best.id, mood: t.mood || best.mood, weight: bw,
       line: departLine(r, best, t, read) };
   }
