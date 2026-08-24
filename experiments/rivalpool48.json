@@ -1,0 +1,24 @@
+{
+  "name": "rivalpool48",
+  "note": "Forty-eight towns, three prices, parting ON only - the _novsep control was already validated at twelve towns (both trees returned byte-identical novsep columns, 767/647/661, proving the float-aim fix reaches this arm ONLY through the parting). Run against the green tree and the float-aim tree and compare the paired per-town cheap-mid difference: twelve towns gave -2.1 +/- 1.5 (t ~ -1.4, decides nothing), forty-eight puts SE under 0.75. The question is whether the fix genuinely thins the cheap end or merely re-rolls the pool.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "arms": [
+    { "id": "dear48",  "entry": "tools/rivalpool.mjs", "args": ["--mul", "1.3", "--towns", "48"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "mid48",   "entry": "tools/rivalpool.mjs", "args": ["--mul", "1.0", "--towns", "48"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "cheap48", "entry": "tools/rivalpool.mjs", "args": ["--mul", "0.7", "--towns", "48"], "env": { "SIMLIB_REALM": "main" } }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}

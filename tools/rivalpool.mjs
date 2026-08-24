@@ -40,6 +40,18 @@ const NOVSEP = process.argv.includes("--novsep");
 // the scenario so an 8-town slice of this pool is comparable to the suite's own
 // number; the extra four are the pool's added power and nothing else.
 const SEEDS = [909, 1337, 4242, 21, 77, 5, 13, 101, 313, 1009, 66, 2027];
+// ...and past twelve, generated. The cheap->mid step is ~2-4 drinks a town
+// against a per-town sd of ~5, so twelve towns carry SE ~1.5 and cannot
+// resolve K=30 either way - the twelve-town read was 54 (green) vs 29 (fix),
+// a paired difference of -2.1 +/- 1.5, t ~ -1.4, which decides nothing.
+// Forty-eight towns put SE under 0.75. The generator is the pricehours
+// stride so the extra towns are drawn the same way the rest of the project
+// draws them, and the first twelve stay in place so any 8- or 12-town slice
+// remains comparable to every number already recorded.
+for (let i = 0; SEEDS.length < 64; i++) {
+  const s = 1337 + i * 991;
+  if (!SEEDS.includes(s)) SEEDS.push(s);
+}
 
 let bar = 0, shwr = 0;
 const perTown = [];
