@@ -12676,7 +12676,7 @@ function visNeeds() {
   const keys = Object.keys(n);
   for (const key of keys) {
     const a = VIS_ARRIVE[key];
-    n[key] = Math.floor(srand() * a[1]);
+    n[key] = a[0] + Math.floor(srand() * a[1]);
   }
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
