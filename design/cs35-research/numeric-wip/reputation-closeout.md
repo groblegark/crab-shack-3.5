@@ -214,3 +214,25 @@ poison to pigs, which is a sentence the game could not say before.
     fixtures + ways    gate translation; the bundle regenerated
     experiments/       rep-focus.json, rep-repin.json
     the chart          maxFailedIndexes <= arms (the 1-arm manifest's edge)
+
+## THE RE-PIN DIAGNOSTIC, RESOLVED
+
+Seven scenarios, both backends, iterated on the cluster (receipts under
+`kube-runs/cs-rep-repin-*`):
+
+    68a9ea5   5/7   pins + stagings took; hours(4242) and pigs still red
+    97b0b86   6/7   4242 pinned (the pure case: only rep moved); pigs red
+    53efc9d   6/7   gate 55 -> 45: PIGS LAND - and moved the 1337 pins
+    2870aef   7/7   the 1337 pins follow the gate down. GREEN.
+
+The last two lines are the honest shape of a balance change: lowering the
+bar put a pig on seed 1337's boat inside the pinned window, and a pig on
+the boat is a different day (rage 3 -> 2, serves 46 -> 45, day-2 draws
+1603 -> 1586 as her errands replace a crab's). Every pin carries that
+story in its own comment.
+
+**Not run (wind-down):** the final full suite-318 + phased-gates battery on
+2870aef. The slice's own five are green (10/10 both backends at b24e8ae),
+the seven previously-red scenarios are green (7/7 at 2870aef), and the
+full battery's only reds were exactly those seven - but the combination
+has not been gated as one tree. **That battery is the merge's price.**
