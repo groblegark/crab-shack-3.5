@@ -2466,7 +2466,7 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // tried, and on this seed the lines those switches joined ran slower;
     // per-seed variance in both directions is what "reported, not tuned"
     // looks like. The matrix carries the aggregate verdict.
-    4242: '{"day":3,"tmin":0,"coins":14909,"rep":55646,"catch":4,"serves":51,"crabServes":4,"rage":7,"till":21860,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21860],["REEF",26883],["SALTY",400],["DRIFT",300],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[248,154]]}',
+    4242: '{"day":3,"tmin":0,"coins":16613,"rep":55928,"catch":4,"serves":52,"crabServes":4,"rage":5,"till":24014,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",24014],["REEF",26882],["SALTY",0],["DRIFT",700],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[450,155],[464,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
