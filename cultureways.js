@@ -536,7 +536,16 @@ var BUNDLED_CULTUREWAYS = {
      ]
     },
     "slop": {
-     "name": "SLOP"
+     "name": "SLOP",
+     "art": [
+      "..L.L.L..",
+      ".........",
+      "..KKKKK..",
+      ".KQPQPQK.",
+      ".KPQPQPK.",
+      "..KKKKK..",
+      "...KKK..."
+     ]
     }
    }
   }
