@@ -9505,7 +9505,7 @@ var BUNDLED_CRAB_ART = {
    "id": "teal",
    "hi": [
     88,
-    205,
+    206,
     188
    ],
    "lo": [
