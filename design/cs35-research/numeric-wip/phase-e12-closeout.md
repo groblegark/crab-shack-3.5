@@ -75,5 +75,28 @@ cultured hat fit in small trait cards is the UX close-out's named debt.
 
 ## Gates
 
-(filled after the cluster battery — focus 4 arms, two mutation demos, full
-suite + MCP on the final SHA)
+**Green check (banked): `e12-focus` 4/4 arms passed, both backends**, at
+df68096 — receipts `design/cs35-research/kube-runs/cs-e12-focus-df68096-rqj4`
+(idle-js, idle-wasm, traits-js, traits-wasm, each exit=0, 1/1). So the tabled
+idle quips and the tabled traits are proven equal to the literals they shadow
+— every key, every value, every quip, and the trait key order — on both the
+reference and the wasm kernel.
+
+**Remaining when work resumes** (wind-down called; nothing is mid-flight and
+no armed defect is in the tree — verified by `git status` clean and the
+fixture/`buildTraits` spot-check):
+1. Mutation demo 1 — drift one byte of the fixture's idle table; the idle
+   scenario must go red naming the drifted line; revert.
+2. Mutation demo 2 — `buildTraits` misreads `work20` as `move20`; the traits
+   scenario must go red naming `speedy.work 1.4 vs 1.0`; revert.
+3. Rebase check against cs35repo/cs35 (manner-machinery may land above this
+   branch; expect suite/schema/mcp union conflicts, mind the brace trap).
+4. Full battery on the rebased tree: `experiments/suite-318.json` (both
+   backends) + `experiments/phased-gates.json` (MCP), then this section gets
+   its final verdicts.
+
+**Chart note carried in this branch**: 88ece78 cherry-picks mainline's
+`maxFailedIndexes` clamp (k8s refuses `maxFailedIndexes > completions`, which
+would refuse this very 4-arm manifest under the per-index retry change). The
+green check above ran on the pre-clamp chart, so it is a valid verdict for the
+CODE; the clamp's own render is revalidated by the next run on this branch.
