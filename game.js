@@ -6813,10 +6813,18 @@ function beep(freq, dur, type, vol, when) {
   g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + dur);
 }
+// The iOS shell answers this; every other host has no webkit bridge and it
+// costs nothing. Wired to the two moments the PLAYER caused - a purchase and a
+// refusal - and deliberately NOT to coin, which lands dozens of times a day and
+// would turn the phone into a pager.
+function haptic(weight) {
+  const wk = typeof window !== "undefined" && window.webkit && window.webkit.messageHandlers;
+  if (wk && wk.crabshack) wk.crabshack.postMessage({ cmd: "haptic", weight: weight || "light" });
+}
 const sfx = {
   coin: () => { beep(880, .08); beep(1320, .12, "square", .04, .07); },
-  buy: () => { beep(520, .06); beep(700, .08, "square", .04, .05); },
-  angry: () => { beep(220, .15, "sawtooth", .03); beep(160, .2, "sawtooth", .03, .12); },
+  buy: () => { haptic("light"); beep(520, .06); beep(700, .08, "square", .04, .05); },
+  angry: () => { haptic("heavy"); beep(220, .15, "sawtooth", .03); beep(160, .2, "sawtooth", .03, .12); },
   ding: () => beep(1560, .1, "triangle", .05),
   bus: () => beep(300, .2, "triangle", .04),
   // ambient color, kept very quiet
@@ -9587,16 +9595,28 @@ function exportSlot(i) {
   try { raw = localStorage.getItem(slotKey(i)); } catch (e) {}
   const m = slotCard(i);
   if (!raw || !m) { saveMsg = { text: "NOTHING IN SLOT " + i + " TO EXPORT", t: 4, bad: true }; return; }
+  const name = saveFileName(i, m);
+  // The iOS shell takes this route instead: inside a web view an <a download>
+  // is INERT - the tap does nothing and reports nothing - so the native side
+  // (ios/Sources/SaveBridge.swift) opens the system share sheet with the save.
+  // The message is deliberately the same one the download path prints; a new
+  // string here is a new width to fit on the card for no player benefit.
+  const wk = typeof window !== "undefined" && window.webkit && window.webkit.messageHandlers;
+  if (wk && wk.crabshack) {
+    wk.crabshack.postMessage({ cmd: "exportSave", name: name, json: raw });
+    saveMsg = { text: "SAVED " + name, t: 6, bad: false };
+    return;
+  }
   if (typeof Blob === "undefined" || typeof URL === "undefined" || !URL.createObjectURL) {
     saveMsg = { text: "THIS BROWSER CAN'T DOWNLOAD FILES", t: 5, bad: true }; return;
   }
   const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
   // a real in-document anchor: Firefox ignores .click() on a detached one
   const a = (document.getElementById && document.getElementById("exportSave")) || document.createElement("a");
-  a.href = url; a.download = saveFileName(i, m);
+  a.href = url; a.download = name;
   if (a.click) a.click();
   setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 4000);
-  saveMsg = { text: "SAVED " + a.download, t: 6, bad: false };
+  saveMsg = { text: "SAVED " + name, t: 6, bad: false };
 }
 // Parse + validate ONLY. Nothing is written to a slot and no game state is
 // touched until the player confirms the target (commitImport).
