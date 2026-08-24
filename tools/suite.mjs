@@ -14698,6 +14698,215 @@ scenario("cards: a declared card reads live values off the registry, and an unkn
   return true;
 });
 
+// ===========================================================================
+// PHASE E5 - families 3-5 MACHINERY, byte-neutral, NO bundled declaration.
+// The proof is INVERTED: no lambda to equal, so each family hands the engine a
+// declared curve IN THE TEST, shows it moves a band, and shows the machinery is
+// INERT (byte-identical) when nothing declares it - a curve that "bites" with
+// the machinery ripped out would be worthless (design/cs35-rulings-2026-08-24
+// ruling 5: assert a declared option CAN be exercised and is refused when
+// malformed; never that every option IS exercised).
+// ===========================================================================
+
+// ---- FAMILY 3: URGENCY RAMP (host-capped, attaching to a registered errand).
+scenario("E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const c = allCrabs()[0];
+    const held = c.p.culture, base = c.p.hunger;
+    c.p.hunger = qn(0.1);                        // a comfortable crab, well below any threshold
+    // BASELINE, machinery present but nothing declared: needLevel is the raw need.
+    const inert = needLevel(c, "food");
+    // A culture whose people snack proactively: an urgency ramp on a REGISTERED
+    // errand (meal.counter, need food) that lifts food urgency to 0.7 flat.
+    const cap = qn(0.7);
+    const ramp = { errand: "meal.counter", cap, prog: [["PUSHI", cap]] };
+    CULTURES.snacker = buildCulture(Object.assign(JSON.parse(JSON.stringify(${JSON.stringify(PIG_FIXTURE)})),
+      { meta: { id: "snacker" }, appeal: { urge: [ramp] } }));
+    delete CULTURES.snacker.businesses;         // the pig fixture's shops are not this test's subject
+    c.p.culture = "snacker";
+    const ramped = needLevel(c, "food");        // the band moves: 0.1 -> 0.7
+    // HOST-SIDE CAP, not trusted to the expression: a ramp whose program returns
+    // a huge urgency is clamped to the engine ceiling below survival at RUNTIME.
+    CULTURES.snacker.urge.food.code = l1Assemble([["PUSHI", 2000000000]], URGE_BUNDLE).code;
+    const hostile = needLevel(c, "food");
+    // ...and even at the MAXIMUM legal cap (the engine ceiling), a hostile
+    // program cannot reach survival: the ceiling is a grain below DIRE.
+    CULTURES.snacker.urge.food.cap = HOST_URGE_CAP;
+    const ceiling = needLevel(c, "food");
+    c.p.culture = held; c.p.hunger = base;
+    return { inert, ramped, hostile, ceiling, cap, DIRE, HOST_URGE_CAP };
+  })())`));
+  if (got.ramped !== got.cap) return "the ramp did not move the band: " + got.ramped + " want " + got.cap;
+  if (got.inert >= got.ramped) return "PROVE-BY-BREAKING: needLevel did not rise under the ramp (" + got.inert + " -> " + got.ramped + "), so the curve is not load-bearing";
+  if (got.hostile >= got.DIRE) return "the host cap did not hold: a hostile ramp reached " + got.hostile + " >= survival " + got.DIRE;
+  // the program returned 2e9; the result is the declared cap, not the program's
+  // number - the cap is host-side, not trusted to the expression. And the cap
+  // itself can never reach survival (the CAP AT/ABOVE SURVIVAL refusal below),
+  // so ramped urgency is provably always below DIRE.
+  if (got.hostile !== got.cap) return "the runtime clamp did not hold to the declared cap: " + got.hostile + " vs " + got.cap;
+  if (got.ceiling !== got.HOST_URGE_CAP || got.ceiling >= got.DIRE) return "at the ceiling the host cap did not hold below survival: " + got.ceiling + " vs DIRE " + got.DIRE;
+  // the refusals, each NAMED (registerErrand / cultureProblem voice)
+  for (const [bad, name] of [
+    [`[{ errand: "meal.counter", cap: qn(0.95), prog: [["PUSHI",1]] }]`, "CAP AT/ABOVE SURVIVAL"],
+    [`[{ errand: "no.such.errand", cap: 100, prog: [["PUSHI",1]] }]`, "UNREGISTERED ERRAND"],
+    [`[{ errand: "meal.counter", cap: 100, prog: [["LD","nope"]] }]`, "NOT A BUNDLE ROW"],
+    [`[{ errand: "meal.counter", cap: 100, prog: [] }]`, "NO OPS"]]) {
+    const msg = sim.G(`urgeProblem(${bad})`);
+    if (!msg || !msg.includes(name)) return "a bad ramp was not refused by name: " + bad + " -> " + msg;
+  }
+  // and two ramps on the same need is ambiguous data, refused (both errands are
+  // registered and both serve food)
+  const dup = sim.G(`urgeProblem([{ errand: "meal.counter", cap: 100, prog: [["PUSHI",1]] }, { errand: "meal.self", cap: 100, prog: [["PUSHI",1]] }])`);
+  if (!dup || !dup.includes("SAME NEED")) return "two ramps for one need were not refused: " + dup;
+  // INERT: with the ramp culture gone, needLevel is the raw need again
+  const back = sim.G(`(() => { delete CULTURES.snacker; const c = allCrabs()[0]; const h = c.p.hunger; c.p.hunger = qn(0.1); const v = needLevel(c, "food"); c.p.hunger = h; return v; })()`);
+  if (Number(back) !== sim.G("qn(0.1)")) return "the machinery is not inert once undeclared: needLevel reads " + back;
+  return true;
+});
+
+// ---- FAMILY 4: TASTE-DRIFT written to a data plane, fired on settlement.
+scenario("E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    // weight' = prev + buys*100 (milli), starting from the declared base 1.0x.
+    // SETTLE_BUNDLE = [prev, buys, days, nights, delight, purse, left].
+    const prog = [["LD","prev"],["LD","buys"],["PUSHI",100],["MUL"],["ADD"]];
+    const doc = Object.assign(JSON.parse(JSON.stringify(${JSON.stringify(PIG_FIXTURE)})),
+      { meta: { id: "driftway" },
+        appeal: { tastes: { slop: 1.0 }, drift: [{ recipe: "slop", floor: 100, cap: 5000, prog }] } });
+    installCultures({ driftway: doc }, false); rebuildBrains();   // the real loadCultures door: validate, build, then register the e5 hook + reset planes
+    if (!CULTURES.driftway) return { fail: "driftway did not install: " + (toast && toast.text) };
+    const hooked = HOOKS.settlementAggregate.some(h => h.id === "e5.update");
+    const rec = (over) => Object.assign({ n: "PORKY", cu: "driftway", days: 1, nightsBed: 0, purse: 100, left: 20,
+      buys: 0, meals: 1, drinks: 0, washes: 0, games: 0, rooms: 0, delight: 0,
+      hunger: qn(0.1), thirst: qn(0.1), dirt: qn(0.1), bored: qn(0.1), tired: qn(0.1),
+      rough: 0, serves: 1, tables: 0, topItem: null, topBiz: null, topPaid: 0, tips: 0, dues: 0,
+      worstMin: 10, quits: 0, quitMin: 0, mistMin: 0, missed: 0, blocked: null, sandWhy: null, foreign: 0, de: 0 }, over);
+    // fake tasteW read BEFORE any settlement: the declared base, no drift yet
+    const taste0 = tasteW({ culture: "driftway" }, { id: "slop" });
+    // settle a stay with 3 buys through the REAL fire path (visQuote)
+    visQuote(rec({ buys: 3 }));
+    const plane1 = TASTE_DRIFT.driftway && TASTE_DRIFT.driftway.slop;   // 1000 + 300 = 1300
+    const taste1 = tasteW({ culture: "driftway" }, { id: "slop" });     // 1.3
+    // a second stay drifts further from the new prev
+    visQuote(rec({ buys: 2 }));
+    const plane2 = TASTE_DRIFT.driftway && TASTE_DRIFT.driftway.slop;    // 1300 + 200 = 1500 (defensive read: a ripped-out write reds cleanly, not by TypeError)
+    return { hooked, taste0, plane1, taste1, plane2 };
+  })())`));
+  if (got.fail) return got.fail;
+  if (!got.hooked) return "no e5.update hook was registered for a drift-declaring culture";
+  if (got.taste0 !== 1) return "the base taste is not the declared 1.0x before any drift: " + got.taste0;
+  if (got.plane1 !== 1300) return "the drift did not write the plane: " + got.plane1 + " want 1300";
+  if (Math.abs(got.taste1 - 1.3) > 1e-9) return "tasteW did not follow the drift plane: " + got.taste1;
+  if (got.plane2 !== 1500) return "the second stay did not drift from prev: " + got.plane2 + " want 1500";
+  // HOST CLAMP: a rule that overshoots the declared cap is clamped, and the
+  // declared cap itself is clamped to the host band.
+  const clamp = JSON.parse(sim.G(`JSON.stringify((() => {
+    CULTURES.driftway.drift = driftCompile([{ recipe: "big", floor: 100, cap: 3000, prog: [["PUSHI", 2000000000]] }]);
+    TASTE_DRIFT.driftway = {};
+    visQuote({ n: "P", cu: "driftway", days: 1, nightsBed: 0, purse: 100, left: 20, buys: 0, meals: 0,
+      drinks: 0, washes: 0, games: 0, rooms: 0, delight: 0, hunger: qn(0.1), thirst: qn(0.1), dirt: qn(0.1),
+      bored: qn(0.1), tired: qn(0.1), rough: 0, serves: 0, tables: 0, topItem: null, topBiz: null, topPaid: 0,
+      tips: 0, dues: 0, worstMin: 10, quits: 0, quitMin: 0, mistMin: 0, missed: 0, blocked: null, sandWhy: null });
+    return { big: TASTE_DRIFT.driftway.big, DRIFT_MAX };
+  })())`));
+  if (clamp.big !== 3000) return "the declared cap did not clamp the drift: " + clamp.big;
+  // the refusals, each NAMED
+  for (const [bad, name] of [
+    [`[{ recipe: "slop", floor: 50, cap: 200, prog: [["PUSHI",1]] }]`, "OUTSIDE"],
+    [`[{ recipe: "slop", floor: 5000, cap: 100, prog: [["PUSHI",1]] }]`, "BAD FLOOR/CAP"],
+    [`[{ recipe: "slop", floor: 100, cap: 5000, prog: [["LD","ghost"]] }]`, "NOT A BUNDLE ROW"],
+    [`[{ recipe: "slop", floor: 100, cap: 5000, prog: [["PUSHI",1]] }, { recipe: "slop", floor: 100, cap: 5000, prog: [["PUSHI",1]] }]`, "DRIFT RULE TWICE"]]) {
+    const msg = sim.G(`driftProblem(${bad})`);
+    if (!msg || !msg.includes(name)) return "a bad drift rule was not refused by name: " + bad + " -> " + msg;
+  }
+  // INERT: with the drift culture gone, no hook, the plane empties, tasteW is base
+  const inert = JSON.parse(sim.G(`(() => { delete CULTURES.driftway; rebuildBrains();
+    return JSON.stringify({ hook: HOOKS.settlementAggregate.some(h=>h.id==="e5.update"),
+      planes: Object.keys(TASTE_DRIFT).length }); })()`));
+  if (inert.hook || inert.planes !== 0) return "the machinery is not inert once undeclared: " + JSON.stringify(inert);
+  return true;
+});
+
+// ---- FAMILY 5: ACCEPTANCE, a town-level meter per culture pair, on a plane.
+scenario("E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    // meter' = prev + days (a stay warms the pair). SETTLE_BUNDLE prev/days.
+    const prog = [["LD","prev"],["LD","days"],["ADD"]];
+    const doc = Object.assign(JSON.parse(JSON.stringify(${JSON.stringify(PIG_FIXTURE)})),
+      { meta: { id: "warmway" }, accept: [{ pair: "crab", base: 0, cap: 1000, prog }] });
+    installCultures({ warmway: doc }, false); rebuildBrains();   // the real loadCultures door
+    if (!CULTURES.warmway) return { fail: "warmway did not install: " + (toast && toast.text) };
+    const hooked = HOOKS.settlementAggregate.some(h => h.id === "e5.update");
+    const before = acceptOf("warmway", "crab");     // null: no stay yet
+    const rec = (days) => ({ n: "HAMM", cu: "warmway", days, nightsBed: 0, purse: 100, left: 20, buys: 1,
+      meals: 1, drinks: 0, washes: 0, games: 0, rooms: 0, delight: 0, hunger: qn(0.1), thirst: qn(0.1),
+      dirt: qn(0.1), bored: qn(0.1), tired: qn(0.1), rough: 0, serves: 1, tables: 0, topItem: null,
+      topBiz: null, topPaid: 0, tips: 0, dues: 0, worstMin: 10, quits: 0, quitMin: 0, mistMin: 0,
+      missed: 0, blocked: null, sandWhy: null });
+    visQuote(rec(4));                                // 0 + 4 = 4
+    const m1 = acceptOf("warmway", "crab");
+    visQuote(rec(3));                                // 4 + 3 = 7
+    const m2 = acceptOf("warmway", "crab");
+    return { hooked, before, m1, m2 };
+  })())`));
+  if (got.fail) return got.fail;
+  if (!got.hooked) return "no e5.update hook was registered for an accept-declaring culture";
+  if (got.before !== null) return "the meter read non-null before any stay: " + got.before;
+  if (got.m1 !== 4) return "the accept rule did not move the meter: " + got.m1 + " want 4";
+  if (got.m2 !== 7) return "the meter did not accumulate from prev: " + got.m2 + " want 7";
+  // HOST CEILING: a rule that overshoots is clamped to the declared cap.
+  const clamp = sim.G(`(() => {
+    CULTURES.warmway.accept = acceptCompile([{ pair: "crab", base: 0, cap: 250, prog: [["PUSHI", 2000000000]] }]);
+    ACCEPT.warmway = {};
+    visQuote({ n: "P", cu: "warmway", days: 1, nightsBed: 0, purse: 100, left: 20, buys: 0, meals: 0,
+      drinks: 0, washes: 0, games: 0, rooms: 0, delight: 0, hunger: qn(0.1), thirst: qn(0.1), dirt: qn(0.1),
+      bored: qn(0.1), tired: qn(0.1), rough: 0, serves: 0, tables: 0, topItem: null, topBiz: null, topPaid: 0,
+      tips: 0, dues: 0, worstMin: 10, quits: 0, quitMin: 0, mistMin: 0, missed: 0, blocked: null, sandWhy: null });
+    return acceptOf("warmway", "crab");
+  })()`);
+  if (Number(clamp) !== 250) return "the declared cap did not clamp the meter: " + clamp;
+  // the refusals, each NAMED
+  for (const [bad, name] of [
+    [`[{ pair: "crab", base: 5000, cap: 100, prog: [["PUSHI",1]] }]`, "BAD BASE"],
+    [`[{ pair: "crab", base: 0, cap: 9999, prog: [["PUSHI",1]] }]`, "BAD CAP"],
+    [`[{ pair: "crab", base: 0, cap: 100, prog: [["LD","ghost"]] }]`, "NOT A BUNDLE ROW"],
+    [`[{ pair: "crab", base: 0, cap: 100, prog: [["PUSHI",1]] }, { pair: "crab", base: 0, cap: 100, prog: [["PUSHI",1]] }]`, "ACCEPT RULE TWICE"]]) {
+    const msg = sim.G(`acceptProblem(${bad})`);
+    if (!msg || !msg.includes(name)) return "a bad accept rule was not refused by name: " + bad + " -> " + msg;
+  }
+  // INERT: gone, no hook, empty plane
+  const inert = JSON.parse(sim.G(`(() => { delete CULTURES.warmway; rebuildBrains();
+    return JSON.stringify({ hook: HOOKS.settlementAggregate.some(h=>h.id==="e5.update"), planes: Object.keys(ACCEPT).length }); })()`));
+  if (inert.hook || inert.planes !== 0) return "the machinery is not inert once undeclared: " + JSON.stringify(inert);
+  return true;
+});
+
+// ---- BYTE-NEUTRALITY: the shipped bundle declares NONE of the three families,
+// so the machinery is dead weight on the shipping tree - the whole point of the
+// slice. If a bundled culture ever declares one, this red is the reminder to
+// re-gate the fingerprints and matrix on purpose.
+scenario("E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires", () => {
+  const sim = createSim({ seed: 31 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const decl = [];
+    for (const id in CULTURES) {
+      const c = CULTURES[id];
+      if (c && c.urge) decl.push(id + ".urge");
+      if (c && c.drift) decl.push(id + ".drift");
+      if (c && c.accept) decl.push(id + ".accept");
+    }
+    return { decl, hook: HOOKS.settlementAggregate.some(h => h.id === "e5.update"),
+      drift: Object.keys(TASTE_DRIFT).length, accept: Object.keys(ACCEPT).length };
+  })())`));
+  if (got.decl.length) return "a bundled culture declares an E5 family - re-gate on purpose: " + got.decl.join(",");
+  if (got.hook) return "the e5.update hook is registered with nothing to drive it";
+  if (got.drift || got.accept) return "a data plane is non-empty on a fresh shipped town";
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used

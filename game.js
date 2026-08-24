@@ -7646,7 +7646,21 @@ function cultureProblem(d, ownId) {
       if (n.relax != null && !(typeof n.relax === "number" && isFinite(n.relax)
         && n.relax >= 0 && n.relax <= 0.5)) return "A BAD NUDGE RELAX";
     }
+    // URGENCY RAMPS (phase E5 family 3): errand need-curves, host-capped BELOW
+    // survival - the cap is host-side, not trusted to the expression. Attaches
+    // to a REGISTERED errand (the phase-D registry is the id space). urgeProblem
+    // owns the named refusals, including the cap-at-survival refusal.
+    if (A.urge != null) { const p = urgeProblem(A.urge); if (p) return p; }
+    // TASTE DRIFT (phase E5 family 4): weight' = f(weight, exposures), the
+    // Victoria-3 mechanic as one update rule, written to the TASTE_DRIFT plane
+    // on settlement. driftProblem owns the named refusals.
+    if (A.drift != null) { const p = driftProblem(A.drift); if (p) return p; }
   }
+  // ACCEPTANCE (phase E5 family 5): the CK3-style town-level meter per culture
+  // pair, updated on settlement and written to the ACCEPT plane. Top-level (it
+  // is a between-peoples fact, not an appeal one). acceptProblem owns the
+  // named refusals.
+  if (d.accept != null) { const p = acceptProblem(d.accept); if (p) return p; }
   // MANAGEMENT is the culture's working norms (cultureway phase B, debt item
   // 7): what a guest of this people leaves on the table, the jar's token share
   // of it, and the shape of their working day. Author units are whole dollars
@@ -8310,6 +8324,22 @@ function rebuildBrains() {
     if (why) console.error("crab civics stakes refused: " + why);
     else CRABCIV = stakesCompile(BUNDLED_CRAB_CIVICS);
   }
+  // THE E5 DATA PLANES AND UPDATE DRIVER (phase E5, families 4 & 5). Loader-
+  // reset by construction: the planes clear here, and any prior e5.update hook
+  // is spliced out before a fresh one is (maybe) registered - so a reload never
+  // inherits a session's drift, and re-registering never trips the duplicate-id
+  // throw. The hook is registered ONLY if some built culture declares a drift
+  // or accept rule; with none declared (the shipped bundle: crab/pig/gull all
+  // declare nothing), HOOKS.settlementAggregate stays empty and the fire sites'
+  // length-guard skips - byte-identical, nothing allocated. Family 3's ramp
+  // needs no hook: it is a pure read wired into needLevel, inert by the same
+  // per-culture guard.
+  TASTE_DRIFT = {}; ACCEPT = {};
+  const i = HOOKS.settlementAggregate.findIndex(h => h.id === "e5.update");
+  if (i >= 0) HOOKS.settlementAggregate.splice(i, 1);
+  let anyRule = false;
+  for (const id in CULTURES) { const c = CULTURES[id]; if (c && (c.drift || c.accept)) { anyRule = true; break; } }
+  if (anyRule) registerHook("settlementAggregate", { id: "e5.update", fn: e5Settle });
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -8427,8 +8457,16 @@ function buildCulture(def) {
     } : RHYTHM.SS,
     HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
   } : null;
+  // THE E5 RULES, compiled once here (phase E5, validated by cultureProblem so
+  // the compiles cannot fail). Null when undeclared - and needLevel/tasteW/
+  // e5Settle all treat null as "today's behaviour", so a silent document is
+  // byte-inert by construction. urge keys by need (needLevel's O(1) lookup);
+  // drift/accept ride as arrays the settlement driver walks.
+  const urge = (def.appeal && def.appeal.urge) ? urgeCompile(def.appeal.urge) : null;
+  const drift = (def.appeal && def.appeal.drift) ? driftCompile(def.appeal.drift) : null;
+  const accept = def.accept ? acceptCompile(def.accept) : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, businesses: biz, settlers, phys, rhythm };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, businesses: biz, settlers, phys, rhythm, urge, drift, accept };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -8715,6 +8753,12 @@ function vline(k, id, fallback, slots) {
 function tasteW(k, recipe) {
   if (!k || !k.culture || k.culture === "crab" || !recipe) return 1;
   const cul = CULTURES[k.culture];
+  // FAMILY 4 (phase E5): a drifted taste weight, if this culture's drift rule
+  // has written one for this recipe into the data plane. Byte-neutral: the
+  // plane is empty for every culture that declares no drift (crab exits above,
+  // pig/gull declare none), so this falls through to the base exactly as today.
+  const dr = TASTE_DRIFT[k.culture];
+  if (dr && dr[recipe.id] != null) return dr[recipe.id] / 1000;
   const t = cul && cul.def.appeal && cul.def.appeal.tastes;
   const w = t && t[recipe.id];
   return typeof w === "number" ? w : 1;
@@ -10603,9 +10647,193 @@ const DETOUR_SCALE = 400;   // px of added walking that halves a stop's appeal
 const DETOUR_MAX = 900;     // ~half the promenade: not before a shift, it can wait
 const DIRE = qn(0.9);           // this needy and geography stops mattering
 const CHAIN_PX = 260;       // a second stop this close beats walking home and back out
+// ------------------------------------------------------------ THE E5 MACHINERY
+// (cultureway phase E5, substrate §3 families 3-5.) THREE families of Layer-1
+// rule, shipped as MACHINERY WITH NO CONTENT: nothing in the bundle declares a
+// ramp, a drift curve or an acceptance update, so every fingerprint, matrix
+// number and scenario is UNCHANGED and a moved one is a BUG. Each family is
+// proven INVERTED - a declared curve handed to the engine IN A SCENARIO must
+// move a band, while the shipped bundle (which declares nothing) stays byte-
+// identical to today.
+//
+// FAMILY 3, URGENCY RAMP: an errand need-curve, host-capped BELOW survival.
+// The cap is HOST-SIDE, not trusted to the expression (substrate §3): the
+// engine constant below is the ceiling, the declared cap is refused if it
+// reaches it, and the runtime clamps to it regardless of what the program
+// computes. The ramp can only ADD urgency, never suppress a real need - so it
+// is civicUrge's "special trip" generalized, and it can never make a crab walk
+// off a survival need (max(base, cappedRamp) below).
+const HOST_URGE_CAP = DIRE - 1;   // one Q20 grain below survival: nobody rides a ramp off a shift
+const DRIFT_MIN = 100, DRIFT_MAX = 5000;   // family 4: milli-weight, 0.1x..5.0x, the appeal.tastes range
+const ACCEPT_MAX = 1000;                    // family 5: the culture-pair meter's ceiling
+// FAMILY 3 read bundle: the ramp reads the crab's raw need level and the minute
+// of the day - civicUrge's inputs, generalized. Order is the LD index space.
+const URGE_BUNDLE = [{ name: "base", min: 0, max: Q20 }, { name: "tmin", min: 0, max: 1439 }];
+// FAMILIES 4 & 5 read bundle: the settlementAggregate ctx projected as the
+// "exposures" of one lived stay, plus `prev` (the current plane value) so the
+// update rule is exactly weight' = f(weight, exposures). Order is the LD index.
+const SETTLE_BUNDLE = [
+  { name: "prev", min: 0, max: DRIFT_MAX },
+  { name: "buys", min: 0, max: 255 }, { name: "days", min: 0, max: 64 },
+  { name: "nights", min: 0, max: 64 }, { name: "delight", min: 0, max: 9999 },
+  { name: "purse", min: 1, max: 20000 }, { name: "left", min: 0, max: 20000 },
+];
+// THE DATA PLANES (families 4 & 5). Reset on load in rebuildBrains (loader-
+// reset, like BRAINS/CRABD). NOT serialized: a save-format key with no consumer
+// is non-byte-neutral surface, deferred to a content phase.
+let TASTE_DRIFT = {};   // cultureId -> { recipeId: milliWeight }
+let ACCEPT = {};        // cultureId -> { pairId: meter }
 function needLevel(c, need) {
-  return need === "food" ? (c.p.hunger || 0) : need === "drink" ? (c.p.thirst || 0)
+  const base = need === "food" ? (c.p.hunger || 0) : need === "drink" ? (c.p.thirst || 0)
     : need === "clean" ? (c.p.dirt || 0) : need === "vote" ? civicUrge(c) : (c.p.bored || 0);
+  // FAMILY 3 (phase E5): a cultured crab whose culture declares an urgency ramp
+  // on a registered errand serving THIS need runs the ramp. Crab-native short-
+  // circuits to base (byte-neutral, the tasteW/idleLines seam). needLevel is a
+  // PURE read - civicUrge and l1Run take no draws and fire no hooks - so value-
+  // equality IS behavioural equality and the ramp adds no side effect a second
+  // path could skip (the E3 lesson). The ramp reshapes the SCORING urgency
+  // only, never the stored need, and can only RAISE it (max below), host-capped
+  // BELOW survival - so it can never suppress a real need or ride a crab off a
+  // shift, whatever the expression computes.
+  const cul = c && c.p && c.p.culture && c.p.culture !== "crab" && CULTURES[c.p.culture];
+  const r = cul && cul.urge && cul.urge[need];
+  if (!r) return base;
+  const b = base < 0 ? 0 : base > Q20 ? Q20 : base;   // clamp to the declared LD range, the departReads discipline
+  const v = l1Run(r.code, [b, tmin]);
+  const capped = v < 0 ? 0 : v > r.cap ? r.cap : v;   // host-side: the engine ceiling, not the expression
+  return base > capped ? base : capped;
+}
+// FAMILY 3 validator: every refusal NAMED, the registerErrand/cultureProblem
+// voice. A ramp ATTACHES to a registered errand (the phase-D registry is the
+// id space) and its cap is HOST-CAPPED below survival - a declared cap that
+// reaches the ceiling is refused here, by name, before anything runs.
+function urgeProblem(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "AN URGE TABLE WITH NO RAMPS";
+  const seen = {}, seenNeed = {};
+  for (const u of arr) {
+    if (!u || typeof u !== "object" || Array.isArray(u)) return "A BAD URGE RAMP";
+    if (typeof u.errand !== "string") return "A RAMP WITH NO ERRAND";
+    const e = ERRANDS.find(x => x.id === u.errand);
+    if (!e) return "A RAMP ON AN UNREGISTERED ERRAND: " + u.errand;
+    if (seen[u.errand]) return "A RAMP TWICE: " + u.errand;
+    seen[u.errand] = 1;
+    // one need has one urgency, so one curve: two ramps on the same need is
+    // ambiguous data, the vacuous-declaration trap - refused by name, not
+    // silently dropped by the need-keying in urgeCompile.
+    if (seenNeed[e.need]) return "TWO RAMPS FOR THE SAME NEED: " + e.need;
+    seenNeed[e.need] = 1;
+    if (!Number.isInteger(u.cap) || u.cap < 0) return "RAMP " + u.errand + " HAS A BAD CAP";
+    if (u.cap > HOST_URGE_CAP) return "RAMP " + u.errand + " CAP AT/ABOVE SURVIVAL";
+    const a = l1Assemble(u.prog, URGE_BUNDLE);
+    if (a.why) return "RAMP " + u.errand + ": " + a.why;
+  }
+  return null;
+}
+// FAMILY 4 validator: a drift rule updates one recipe's taste weight from the
+// stay's exposures. Host floor/cap inside DRIFT_MIN..DRIFT_MAX (belt to the
+// runtime clamp's suspenders); every refusal named.
+function driftProblem(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "A DRIFT TABLE WITH NO RULES";
+  const seen = {};
+  for (const d of arr) {
+    if (!d || typeof d !== "object" || Array.isArray(d)) return "A BAD DRIFT RULE";
+    if (typeof d.recipe !== "string" || !d.recipe.length) return "A DRIFT RULE WITH NO RECIPE";
+    if (seen[d.recipe]) return "A DRIFT RULE TWICE: " + d.recipe;
+    seen[d.recipe] = 1;
+    if (!Number.isInteger(d.floor) || !Number.isInteger(d.cap) || d.floor > d.cap)
+      return "DRIFT " + d.recipe + " HAS A BAD FLOOR/CAP";
+    if (d.floor < DRIFT_MIN || d.cap > DRIFT_MAX)
+      return "DRIFT " + d.recipe + " CAP OUTSIDE " + DRIFT_MIN + ".." + DRIFT_MAX;
+    const a = l1Assemble(d.prog, SETTLE_BUNDLE);
+    if (a.why) return "DRIFT " + d.recipe + ": " + a.why;
+  }
+  return null;
+}
+// FAMILY 5 validator: an acceptance rule updates a town-level meter per culture
+// pair. Base and cap inside 0..ACCEPT_MAX; every refusal named.
+function acceptProblem(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "AN ACCEPT TABLE WITH NO RULES";
+  const seen = {};
+  for (const a of arr) {
+    if (!a || typeof a !== "object" || Array.isArray(a)) return "A BAD ACCEPT RULE";
+    if (typeof a.pair !== "string" || !a.pair.length) return "AN ACCEPT RULE WITH NO PAIR";
+    if (seen[a.pair]) return "AN ACCEPT RULE TWICE: " + a.pair;
+    seen[a.pair] = 1;
+    if (!Number.isInteger(a.base) || a.base < 0 || a.base > ACCEPT_MAX) return "ACCEPT " + a.pair + " HAS A BAD BASE";
+    if (!Number.isInteger(a.cap) || a.cap < 0 || a.cap > ACCEPT_MAX) return "ACCEPT " + a.pair + " HAS A BAD CAP";
+    const p = l1Assemble(a.prog, SETTLE_BUNDLE);
+    if (p.why) return "ACCEPT " + a.pair + ": " + p.why;
+  }
+  return null;
+}
+// Compile VALIDATED tables to run form. urgeCompile keys by NEED (needLevel
+// looks up by need in O(1)); the cap is host-floored here too, so the runtime
+// never trusts the declaration alone.
+function urgeCompile(arr) {
+  const out = {};
+  for (const u of arr) {
+    const e = ERRANDS.find(x => x.id === u.errand);
+    out[e.need] = { errand: u.errand, need: e.need,
+      cap: Math.min(u.cap, HOST_URGE_CAP), code: l1Assemble(u.prog, URGE_BUNDLE).code };
+  }
+  return out;
+}
+function driftCompile(arr) {
+  return arr.map(d => ({ recipe: d.recipe, floor: d.floor, cap: d.cap,
+    code: l1Assemble(d.prog, SETTLE_BUNDLE).code }));
+}
+function acceptCompile(arr) {
+  return arr.map(a => ({ pair: a.pair, base: a.base, cap: a.cap,
+    code: l1Assemble(a.prog, SETTLE_BUNDLE).code }));
+}
+// A culture's declared base taste for a recipe, in milli - the value a drift
+// rule departs from on the first settlement (else 1.0x = 1000).
+function e5BaseMilli(cul, recipe) {
+  const t = cul.def.appeal && cul.def.appeal.tastes;
+  const w = t && t[recipe];
+  return typeof w === "number" ? Math.round(w * 1000) : 1000;
+}
+// THE UPDATE DRIVER (families 4 & 5). Registered as a SINGLE settlementAggregate
+// hook in rebuildBrains iff some culture declares a rule, so a hookless town
+// allocates nothing and stays byte-identical (the phase-D guarded dispatch).
+// Runs the declaring culture's drift + accept programs over one stay's
+// exposures and writes the data planes, each output host-clamped - the mutation
+// verb the phase-D contract deferred to "Layer-1's fuel-counted bytecode".
+function e5Settle(ctx) {
+  const cul = CULTURES[ctx.culture];
+  if (!cul) return;   // the crab default carries no document; a crab never drifts
+  // The exposures are CLAMPED to the SETTLE_BUNDLE ranges the validator proved
+  // its static magnitude bound against - the departReads/platReads discipline:
+  // a live stay longer or richer than the declared range is bent to the range,
+  // never fed past it, so the 2^52 bound the validator promised is an honest
+  // guarantee and not an assumption. `prev` (slot 0) is set per rule below and
+  // is already in range by construction (each write is host-clamped).
+  const clamp = (v, i) => { const b = SETTLE_BUNDLE[i]; v = Math.round(v || 0); return v < b.min ? b.min : v > b.max ? b.max : v; };
+  const exp = [0, clamp(ctx.buys, 1), clamp(ctx.days, 2), clamp(ctx.nights, 3),
+    clamp(ctx.delight, 4), clamp(ctx.purse, 5), clamp(ctx.left, 6)];
+  if (cul.drift) for (const d of cul.drift) {
+    const cur = TASTE_DRIFT[ctx.culture] && TASTE_DRIFT[ctx.culture][d.recipe];
+    exp[0] = cur != null ? cur : e5BaseMilli(cul, d.recipe);
+    let v = l1Run(d.code, exp);
+    v = v < d.floor ? d.floor : v > d.cap ? d.cap : v;              // the declared band
+    v = v < DRIFT_MIN ? DRIFT_MIN : v > DRIFT_MAX ? DRIFT_MAX : v;  // the host band, not trusted to the expression
+    (TASTE_DRIFT[ctx.culture] = TASTE_DRIFT[ctx.culture] || {})[d.recipe] = v;
+  }
+  if (cul.accept) for (const a of cul.accept) {
+    const cur = ACCEPT[ctx.culture] && ACCEPT[ctx.culture][a.pair];
+    exp[0] = cur != null ? cur : a.base;
+    let v = l1Run(a.code, exp);
+    v = v < 0 ? 0 : v > a.cap ? a.cap : v;                          // the declared band
+    v = v > ACCEPT_MAX ? ACCEPT_MAX : v;                            // the host ceiling
+    (ACCEPT[ctx.culture] = ACCEPT[ctx.culture] || {})[a.pair] = v;
+  }
+}
+// FAMILY 5 accessor: the culture-pair acceptance meter, or null. No live
+// consumer this phase (ruling 5: a declared option CAN be exercised, need not
+// BE) - the scenario reads the plane the rule wrote.
+function acceptOf(cu, pair) {
+  const m = ACCEPT[cu];
+  return m && m[pair] != null ? m[pair] : null;
 }
 // where this trip ends no matter what: the job while a shift is still coming
 // (or under way), home the rest of the time
