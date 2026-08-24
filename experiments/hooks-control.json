@@ -1,0 +1,26 @@
+{
+  "name": "hooks-control",
+  "note": "One scenario, two trees. E3's battery read 678/680 with 'hooks: all four points fire...' red on BOTH engines ('no settlement aggregate in two lived days'), yet E3's game.js diff versus main is entirely additive depart machinery and one comment merge in convertTourist - it does not touch settlement. Either the scenario is flaky or E3 perturbs it indirectly. Run this at main and at the E3 tip: red on main too means pre-existing and not E3's to fix.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ],
+  "arms": [
+    {
+      "id": "hooks-js",
+      "entry": "tools/suite.mjs",
+      "args": ["hooks: all four points fire"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "hooks-wasm",
+      "entry": "tools/suite.mjs",
+      "args": ["hooks: all four points fire"],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ]
+}
