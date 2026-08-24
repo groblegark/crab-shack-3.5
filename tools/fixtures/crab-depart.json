@@ -17,7 +17,7 @@
   "rules": [
     { "id": "rough", "mood": "sour",
       "weight": [["PUSHI",0],["LD","rough"],["LT"],
-        ["LD","purse"],["PUSHI",360],["PUSHI",9000],["LD","rough"],["MUL"],["ADD"],["MUL"],
+        ["LD","purse"],["PUSHI",36001],["PUSHI",9000],["LD","rough"],["MUL"],["ADD"],["MUL"],
         ["PUSHI",0],["SEL"]],
       "line": { "select": [["PUSHI",1],["LD","rough"],["LT"],["PUSHI",0],["PUSHI",1],["SEL"]],
         "templates": ["{WHY}. {NIGHTS} NIGHTS ON THE SAND.",
