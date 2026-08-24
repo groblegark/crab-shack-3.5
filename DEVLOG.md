@@ -8,7 +8,202 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-23, latest — THE WEEK WE BLEW UP THE BOX
+## 2026-08-23, latest — EVERY PIG GETS HER FACE
+
+A patch of apologies to the people the interface forgot. The roster
+outgrew its furniture this week — settled pigs on the payroll, twelve
+names where six used to be — and the furniture had opinions.
+
+The worst one first, because it is barely believable: **crab seven
+could not be selected on a phone.** At all. The crew strip drew the
+overflow behind a modest "+N" tile, and the tile was drawn but *not in
+the hit test* — a tappable-looking thing that nothing listened to. Our
+own off-canvas test sweep never noticed because it only checks
+sideways, and this bug was hiding *underneath*. The strip pages now —
+a MORE> chip, a page dot, and one geometry table shared by the drawing
+and the tapping so they can never disagree again. Select crab twelve
+from across the town and the strip snaps to her page by itself.
+
+![Twelve crew, page one](devlog/img/2026-08-23-crew12-page1.png)
+![Twelve crew, page two — KRILL pages in](devlog/img/2026-08-23-crew12-page2.png)
+
+Second apology: **CLOVE and BRISTLE have been wearing crab masks.**
+The world learned to draw pigs when the pigs learned to settle — but
+the little roster portraits were a separate, older piece of drawing
+code that still reached into the crab dress-up box for everyone. There
+were, it turns out, *three* different places the game drew a small
+face, each with its own opinion. There is now one, and it asks the
+person whose face it is.
+
+![CLOVE before: a crab mask](devlog/img/2026-08-23-clove-before.png)
+![CLOVE after: her own face](devlog/img/2026-08-23-clove-after.png)
+
+The rest of the patch is one rule, applied everywhere: **one reading
+surface owns the screen.** Big cards no longer fight the crew strip
+for the bottom of the world — open a dossier and the selector yields;
+tap CREW again (or press `v`) and it pops down on purpose, leaving a
+slim handle to call it back. THE MIND panel — which, for a
+thirteen-thought citizen, had been quietly printing its meter bank
+over the crew strip below it — banks its meters at the fold behind a
+..MORE pager, and gained the row the inspector always owed you:
+**NOW**, what she is actually doing this second, with an **ENGINE**
+tag when the action came from the old iron rules (bed hour, an
+emergency) rather than the thought on display. The mind panel now
+tells you her last thought, her current deed, and *whose decision it
+was.*
+
+![The mind panel: NOW, and ..MORE](devlog/img/2026-08-23-mind-now-pager.png)
+![The crew strip, docked on purpose](devlog/img/2026-08-23-crew-docked.png)
+
+And the scientists finally got hearing protection: a month-long lab
+run used to arrive all at once as a **burst of every sound the town
+made for thirty days**, saved up and delivered in one terrifying
+half-second. Sound during a fast-forward is dropped now, not deferred.
+A science run is silent while it runs and silent when it lands. The
+proof is a counter: one beep where three thousand used to queue.
+
+*(In flight as we write, held at the gate for the owner's ruling: EBB
+turned mid-walk for the shack — the crabs are learning to change their
+minds; tourists are about to arrive with real appetites; reputation is
+about to be earnable and losable for real; the pigs' new dish has a
+new name, because the old one implied things about pigs we decline to
+imply; and the hunt for the cluster wedge enters its tenth attempt,
+now with cameras.)*
+
+---
+
+## 2026-08-23 — THE DAY BELONGS TO THE CULTURE
+
+The sun is the world's; the day is the culture's. That is the whole
+doctrine, and it is machinery now. When a people wakes, when it lies
+in on a day off, when its shifts start, what hours its shops keep by
+default — five fields in the culture's own document, on a
+half-hour grain, with the crab day as the silent default that keeps
+every existing town byte-identical.
+
+The clamps read like proverbs, because refusals are named in this
+town: a document whose times compose into madness is turned away at
+the door with **A DAY WITH NO NIGHT**, **A PEOPLE WHO NEVER WAKE**,
+**A SHIFT IN THEIR SLEEP**, or **A LIE-IN IN THEIR SLEEP**. The times
+themselves are unclamped — escaping daylight is the *point* — it is
+the derived waking arc that must stay between eight and twenty hours,
+checked after inheritance, so two innocent half-declarations cannot
+smuggle in an insane day between them.
+
+The subtle clause is the middle one: **an institution keeps its
+owner's day.** A shop anchors its shifts to the culture of whoever
+owns it — so a gull hired into a crab shop works crab hours, and pays
+for the privilege in tiredness. Cross-rhythm employment is priced,
+not forbidden. It is a management decision now, like everything else
+worth deciding.
+
+And one trap was caught on the drawing board instead of in the wild,
+which is the cheapest place to catch one: the last ferry sails at
+15:30. A truly nocturnal visitor wakes at 17:00. Naive rhythm strands
+every night-owl daytripper on the beach *forever*. The ruling: the
+boat wakes you, groggy, and the grogginess goes on your bill as
+tiredness. Visiting a day-town is genuinely costly for night-people —
+which is not a bug, it is travel.
+
+Nobody nocturnal has shipped yet. When THE WINDWARD ROOST declares
+for the night, that declaration is its own chapter, with its own
+ledger.
+
+---
+
+## 2026-08-23 — THE KERNEL NEVER KNOWS A CULTURE'S NAME
+
+How fast a body hungers, thirsts, tires, bores — the rates left the
+engine this week and moved into the culture documents, as multipliers
+in twentieths where twenty means *exactly the crab*. Down in the fast
+engine there is now a little table of body-rows; row zero is the
+crab's constants, a culture gets a row when it arrives, and the
+machine that steps every body in town does it without ever learning
+whose body it is stepping.
+
+The rulebook grew two refusals worth quoting: **A BODY TOO HUNGRY FOR
+THE PIER** (a document whose combined appetites exceed the cap) and —
+guarding a boundary we drew on purpose — **A NEED THIS BODY DOES NOT
+HAVE** (no culture may invent a sixth need; five is the body's shape,
+and changing that is a decision, not a document).
+
+Then we ran the sweep that was supposed to justify the anti-cheat cap,
+and the sweep embarrassed the design: **the cheat direction was
+backwards.** We had clamped against gluttony — a culture document that
+inflates every appetite, minting money from hunger. The measured
+truth: inflating needs barely moves the till, because *seats bind* — a
+hungrier guest just queues longer behind the same counters. Meanwhile
+slow-need guests (who stay serene and keep shopping) and hunger-heavy
+guests (who genuinely out-eat the seats they do get) both out-earned
+the control town by about twenty percent. The cap survived its own
+acceptance rule and keeps, but the ledger now says plainly which
+direction the thumb would have to press, and it is not the direction
+we built the railing on. Declared bodies are balance events now, each
+one measured on its own.
+
+---
+
+## 2026-08-23 — ONE MIND, PROMPTED
+
+The architecture question of the whole thinking-crab program, asked
+plainly by the owner: many small brains, or one bigger brain told who
+it is? We built both at the same parameter budget and made them fight.
+
+The one mind won. Same total weights, better agreement on two of the
+three surfaces, dead level on the third — and the astonishing row in
+the table: a culture the trunk had **never trained on** reached
+**98.31%** agreement from *eight integers* — a "prompt" carried in the
+cultureway document, tuned on a thousand examples — beating that
+culture's own fully-trained private network. A new people can now
+arrive with eight numbers instead of a hundred thousand memories, and
+behave.
+
+(The honest asterisk, in the ledger where it belongs: gulls are
+near-crab — same surface, different tastes. A mechanically *alien*
+culture starts nearer the 93% floor. The prompt is a head start, not
+a substitute for a life.)
+
+The ruling came back in three words: **one architecture.** When the
+owner mind ships, every brain in town migrates onto the trunk in the
+same landing — and each crab's little 364-byte slate rides along
+untouched, because a mind you are *told* and a mind you *grow* turn
+out to compose.
+
+---
+
+## 2026-08-23 — BOAR JUICE OPENS ON THE EAST LOT
+
+The town can now host a shop that nobody hardcoded. The whole loop,
+end to end, in one test that reads like a founding myth: **RASHER**
+the pig settles, claims **BOAR JUICE** on the east lot, the payroll
+roster picks her up, a registered errand routes the thirsty to her
+counter, the till takes money that reconciles to the cent, the whole
+arrangement survives save and load, and a town reset strikes it
+cleanly from the record. A culture wrote a business in a document;
+the town granted it a plot; a person with a name runs it.
+
+Under that story, the engine grew its registries — the five capability
+surfaces everything else will stand on. Errands are a *ballot* now (a
+registered, ordered list the old rules joined as entries like anyone
+else). There are four named hook points where a culture's rules can
+watch the till, the day, the quote, the purse. Policy slots say, for
+any decision surface, *who decides* — table, script, or brain. And
+cards can be declared in a document, speaking the same observable
+vocabulary the brains read, so a culture can put its own dials on the
+dossier.
+
+Two bugs surfaced by the founding of one juice stand, both fixed and
+both telling: the wage machinery tried to **poach RASHER off her own
+counter** the first morning (an owner is not on the wage — she is the
+wage), and the live crab brains, shown a shop their vocabulary
+predates, needed the rail that is now doctrine: **a ballot the brain
+has no word for belongs to the script.** New things in town default
+to the old rules until a brain is taught the word for them. That is
+not a limitation. That is how you introduce anything to anyone.
+
+---
+
+## 2026-08-23 — THE WEEK WE BLEW UP THE BOX
 
 A confession entry, because the ledger demands it: in two days of
 building everything below, we crashed the development machine **five
