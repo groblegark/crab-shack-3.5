@@ -12161,6 +12161,7 @@ scenario("foodways: the validator names its refusals", () => {
   const cases = [
     ["d => d.foodways.dishes[0].steps[0][0] = 'kiln'", "STATION"],
     ["d => d.foodways.dishes[0].raw = 'moonbeam'", "INGREDIENT"],
+    ["d => d.foodways.dishes[0].raw2 = 'moonbeam'", "SECOND INGREDIENT"],
     ["d => d.foodways.items.taco = { name: 'NOT A TACO' }", "PANTRY"],
     ["d => { d.foodways.dishes[0].icon = 'ghost'; delete d.foodways.items.slop; }", "PICTURE"],
     ["d => d.foodways.dishes[0].pay = 9999", "PRICE"],
