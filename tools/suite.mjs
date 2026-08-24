@@ -8217,6 +8217,21 @@ scenario("departures: three ways to be turned away are three different counters"
     const read = (k) => [k.stay.shut, k.stay.full, k.stay.broke];
     const out = {};
     const hrs = { open: BIZ.shack.hours.open, close: BIZ.shack.hours.close };
+    // THE FIXTURE OWNS THE LINE, which it did not before. visRoomFor reads
+    // lineCounts, and lineCounts counts the WHOLE queue (allQ < QUEUE_MAX),
+    // crabs included - so an arm that means to test the BROKE door can be
+    // turned away as FULL by whoever the town happened to have standing at
+    // the counter at lunchtime. That is exactly what happened when hungrier
+    // arrivals started buying more: the broke arm read (0,1,0), full raised
+    // and broke never reached.
+    //
+    // It was never an engine bug - the three counters are mutually exclusive
+    // by construction, each stayBlocked followed by a return - and the
+    // suspicion recorded in the close-out that the accounting "may increment
+    // two counters when both are true" is REFUTED at the counter sites.
+    // The fixture was simply reading a line it did not control.
+    const world = customers.slice();
+    customers = [];
 
     // 1. SHUT: the shack's own hours put it outside trading, nothing else moves
     { const k = mk(); BIZ.shack.hours = { open: 0, close: 1 };
@@ -8240,6 +8255,7 @@ scenario("departures: three ways to be turned away are three different counters"
 
     // ...and the control: open, room, and money. Nothing is blamed on anybody.
     { const k = mk(); visPick(k); out.ok = read(k); }
+    customers = world;   // the town gets its queue back
     return JSON.stringify(out);
   })()`));
   const named = ["shut", "full", "broke"];
