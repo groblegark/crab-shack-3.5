@@ -84,6 +84,24 @@ the document picker exactly as it does in Safari.
 Save-on-background needs no bridge either: `game.js:21288` already saves on
 `visibilitychange`, and WebKit fires that when the app backgrounds.
 
+## Verified in the simulator, 2026-08-24 (iPhone 17, iOS 26.5)
+
+Build `ae8c625`, first run ever. The app builds, launches, and plays.
+
+- [x] **localStorage survives a cold launch.** Played into day 1, hard-killed
+      with `simctl terminate`, relaunched: the title screen came back with
+      CONTINUE lit and `1 TOWN SAVED`. **This is the one that decides the
+      custom-scheme call, and it passed** — the `file://` route would very
+      likely have lost that town.
+- [x] Safe-area pinning is right: nothing renders under the Dynamic Island or
+      the home indicator, and the band around the bezel reads as the page.
+- [x] The web payload serves — art, font, the WASM kernel, the build stamp, and
+      a music track selected on the title screen.
+- [x] The whole sim runs: crabs working, tips landing, the ferry arriving.
+
+The simulator cannot speak to audio output, haptics, real touch, or storage
+under memory pressure. Those are below.
+
 ## What only a device can prove
 
 The suite cannot see any of this. Walk it once per release:

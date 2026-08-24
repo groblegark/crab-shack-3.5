@@ -28,7 +28,10 @@ final class GameViewController: UIViewController {
         web.scrollView.bounces = false
         web.scrollView.contentInsetAdjustmentBehavior = .never
         web.allowsBackForwardNavigationGestures = false
-        web.isInspectable = true                        // Safari Web Inspector on debug builds
+        // Safari Web Inspector. Gated because the property arrived in 16.4 and
+        // the deployment floor is 16.0 - dropping the floor to reach a debug
+        // affordance would be the wrong way round.
+        if #available(iOS 16.4, *) { web.isInspectable = true }
 
         let container = UIView()
         container.backgroundColor = .crabShackVoid
