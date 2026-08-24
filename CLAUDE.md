@@ -57,10 +57,14 @@ locally.
 
 ## Suite discipline
 - `node tools/suite.mjs` (all scenarios) must be green before any commit.
-- Balance changes need a headless matrix re-run. Measured 2026-08-21: baseline
-  (buy nothing) **0/16, median eviction 11**; growth (`--buy chef,table`)
-  **2/16** across both 8-seed blocks (1/8 + 1/8). That growth number is the
-  intended difficulty, not a regression to fix — see STATE OF PLAY in PLAN.md.
+- Balance changes need a headless matrix re-run. Measured 2026-08-24 in-pod at
+  `83fb0f4` over 48 towns (`--seedbase 0,16,32`): baseline (buy nothing)
+  **0/48**; growth (`--buy chef,table`) **15/48** — and the blocks were `sb0: 5`,
+  `sb16: 2`, `sb32: 8`, so **any single 16-town block is a coin**. Receipt:
+  `design/cs35-research/kube-runs/cs-e4-ladder-matrix-inpod-ekc/`. That growth
+  number is the intended difficulty, not a regression to fix — see STATE OF PLAY
+  in PLAN.md. **Do not cite these figures for a different tree**: re-measure
+  against the tree you are landing on, which is the whole point of the rule.
 - **Arm-off hatches for attribution**, all of them `window._no*` flags the
   harness sets: `--nohall` (the whole office), `--nofloor` (the wage floor
   only, office still running), `--nocap` (the house limit only), `--norival`,

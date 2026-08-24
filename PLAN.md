@@ -38,14 +38,38 @@ first, platform second, ruled after the pigs shipped hungry:
   section, distill loop via MCP `policy_distill`); neuro step 5
   (SIMD, evolutionary search) stays behind its measured triggers.
 
-## STATE OF PLAY — start here (rewritten 2026-08-20, after a second day)
+## STATE OF PLAY — start here (numbers re-measured 2026-08-24)
 
-**Suite 230 scenarios, green. Baseline 0/16 (median eviction day 12).
-Growth `--buy chef,table` 2/16 — the difference from 3/16 is one town, i.e.
-noise; see the note below on why this number moves and why it is not a dial.**
+**Suite 341 scenarios, GREEN both backends — 341/341 js and 341/341 wasm at
+`ec6f74b`, whose game engine is byte-identical to the current tip. Receipt:
+`design/cs35-research/kube-runs/inpod-suite-ec6f74b-18z/`.**
 
-**GROWTH IS 3/16, AND THE DIFFICULTY IS NOT A TARGET TO HIT** — ruled by Matt,
-2026-08-20 at 1/16: *"1/16 is ok, we'll do better than the tests, as players."*
+**Baseline 0/48. Growth `--buy chef,table` 15/48.** Measured 2026-08-24 in-pod
+over 48 towns (`--seedbase 0,16,32`, 30 days) at `83fb0f4` AND at its ladder
+parent `09d78ba` — **identical seed-for-seed on both sides**, which is how the
+E4 house-limit ladder was shown to be inert on the floor. Receipt:
+`design/cs35-research/kube-runs/cs-e4-ladder-matrix-inpod-ekc/`.
+
+**A NUMBER WITHOUT ITS TREE IS NOT QUOTABLE.** Every figure above names the SHA
+it was measured at and the receipt it came from, because that is the one rule
+this project does not bend. If you are about to cite a growth number, re-measure
+it against the tree you are landing on — do not cite this paragraph.
+
+**AND THE BLOCKS DISAGREE WITH EACH OTHER, WHICH IS THE POINT.** That 15/48 is
+`sb0: 5`, `sb16: 2`, `sb32: 8` — the same build, the same day, three 16-town
+blocks ranging 2 to 8. Any single block is a coin. This is why the old "2/16 vs
+3/16" framing was noise being read as signal, and why 8 seeds is never enough
+to defend a change.
+
+**THE DIFFICULTY IS NOT A TARGET TO HIT** — ruled by Matt, 2026-08-20 at 1/16:
+*"1/16 is ok, we'll do better than the tests, as players."* The ruling is about
+the POSTURE, not the number: do not tune toward any figure on this page.
+
+### History — how the number moved, and why none of it was tuning
+
+Everything below is the 2026-08-20 record, kept because the *lessons* are load
+bearing. The `/16` figures in it are superseded by the 48-town numbers above;
+read them as a story about how the floor moves, not as current measurements.
 
 **It moved from 1/16 to 3/16 the same day, and NOT by tuning.** The beach ball
 turned out to be drawn behind the crab shack — invisible since it landed — and
@@ -60,13 +84,15 @@ either direction** — 1/16 was where four features left it and 3/16 is where a
 bug fix left it, and both are the floor a bot reaches, not a ceiling a player
 does.
 
-The documented pillar used to be 2–3 escapes per 8-seed block. It is now 1/16,
+The documented pillar used to be 2–3 escapes per 8-seed block. It fell to 1/16,
 and the drop was real: four changes in one day, each costing about one escape —
 the empty opening day (−2), polling day (−1), accommodation (inside the noise).
 Each was measured at 8 seeds where one town is a coin flip, so each passed
-honestly and the erosion only showed up when they were added together. **That
-trap is still worth knowing about** (see the note below), but the number itself
-is now the target rather than a regression.
+honestly and the erosion only showed up when they were added together. **THIS IS
+THE MOST IMPORTANT PARAGRAPH ON THIS PAGE**: a pillar can be eroded to nothing
+by changes that are each individually defensible and each honestly measured. It
+is also why the 48-town, three-block shape above is now the standard — the
+erosion was invisible at 8 seeds precisely because a single block is a coin.
 
 **AND THE REASON THE NUMBER IS NOT WHAT IT LOOKS LIKE.** `tools/headless.mjs`
 does not play well. It buys a fixed list in a fixed order and then trades on
