@@ -1,0 +1,15 @@
+{
+  "name": "rungprobe",
+  "note": "Vacuity check for the house-limit ladder. Growing HEAD_CAP.steps to [0,2,3,4,6,8,12] enlarged allPlatforms() ~40% and the full suite still read 680/680 with no fingerprint moved. Either the new rungs are unreachable (the change is cosmetic) or no pinned scenario runs an election long enough to see them (a gap in the pins). This asks the towns directly: over 30 lived days, what cap index does idealPlatform actually pick, per crab?",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ],
+  "arms": [
+    { "id": "rungs", "entry": "tools/rungprobe.mjs", "args": ["--days", "30", "--towns", "8"], "env": { "SIMLIB_REALM": "main" } }
+  ]
+}
