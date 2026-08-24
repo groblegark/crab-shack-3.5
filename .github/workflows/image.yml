@@ -42,11 +42,16 @@ jobs:
             | map(.key)
             | sort_by(split(".") | map(tonumber? // 0))
             | last')
+          # Take the tarball URL from the index too, not just the shasum. The
+          # first cut of this built the URL by hand and 404'd: upstream ships
+          # zig-x86_64-linux-<ver>.tar.xz, not zig-linux-x86_64-<ver>.tar.xz.
+          url=$(echo "$idx" | jq -r --arg v "$ver" '.[$v]["x86_64-linux"].tarball')
           sha=$(echo "$idx" | jq -r --arg v "$ver" '.[$v]["x86_64-linux"].shasum')
-          test -n "$ver" && test "$sha" != "null"
+          test -n "$ver"; test "$url" != "null"; test "$sha" != "null"
           echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "url=$url"     >> "$GITHUB_OUTPUT"
           echo "sha256=$sha"  >> "$GITHUB_OUTPUT"
-          echo "resolved zig $ver"
+          echo "resolved zig $ver -> $url"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -63,7 +68,7 @@ jobs:
           file: images/Dockerfile
           push: true
           build-args: |
-            ZIG_VERSION=${{ steps.zig.outputs.version }}
+            ZIG_URL=${{ steps.zig.outputs.url }}
             ZIG_SHA256=${{ steps.zig.outputs.sha256 }}
           tags: |
             ghcr.io/groblegark/crab-shack-toolchain:latest

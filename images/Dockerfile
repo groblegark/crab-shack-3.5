@@ -45,19 +45,19 @@ RUN set -eux; \
 # shasum, so neither this file nor the workflow hardcodes a version that would
 # rot, and the tarball is verified against upstream's own number rather than
 # one somebody typed.
-ARG ZIG_VERSION
+# ZIG_URL is the tarball URL FROM THE INDEX, not one assembled here. The first
+# version of this file built the URL by hand as
+# zig-linux-${arch}-${ver}.tar.xz and 404'd (curl exit 22): upstream publishes
+# zig-x86_64-linux-0.16.0.tar.xz — arch and OS in the OTHER order. The naming
+# convention changed at some point and a hand-built URL cannot know that.
+# The same rule already applied to the checksum and should have applied here:
+# take what upstream publishes, do not reconstruct it.
+ARG ZIG_URL
 ARG ZIG_SHA256
-ARG TARGETARCH=amd64
 RUN set -eux; \
-    test -n "${ZIG_VERSION}" || { echo "ZIG_VERSION build-arg is required"; exit 1; }; \
-    test -n "${ZIG_SHA256}"  || { echo "ZIG_SHA256 build-arg is required";  exit 1; }; \
-    case "${TARGETARCH}" in \
-      amd64) zarch=x86_64 ;; \
-      arm64) zarch=aarch64 ;; \
-      *) echo "unsupported TARGETARCH ${TARGETARCH}"; exit 1 ;; \
-    esac; \
-    url="https://ziglang.org/download/${ZIG_VERSION}/zig-linux-${zarch}-${ZIG_VERSION}.tar.xz"; \
-    curl -fsSL "$url" -o /tmp/zig.tar.xz; \
+    test -n "${ZIG_URL}"    || { echo "ZIG_URL build-arg is required";    exit 1; }; \
+    test -n "${ZIG_SHA256}" || { echo "ZIG_SHA256 build-arg is required"; exit 1; }; \
+    curl -fsSL "${ZIG_URL}" -o /tmp/zig.tar.xz; \
     echo "${ZIG_SHA256}  /tmp/zig.tar.xz" | sha256sum -c -; \
     mkdir -p /opt/zig; \
     tar -xJf /tmp/zig.tar.xz -C /opt/zig --strip-components=1; \

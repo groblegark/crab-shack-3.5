@@ -37,11 +37,19 @@ routing around it:
 | **git** | `tools/kube.mjs` clones the tree at an explicit ref; the arms need it in-container. |
 | **zig** | `tools/kernel/build.sh` builds the movement kernel with `zig cc -target wasm32-freestanding`. Without it the wasm kernel can only be *trusted*, never rebuilt — and the suite's proof that the wasm kernel and the JS reference agree byte-for-byte is worth much less if nobody in the loop can regenerate the artefact being compared. |
 
-**Zig is resolved at build time from ziglang.org's own download index, using
-THEIR published shasum.** Neither the Dockerfile nor the workflow hardcodes a
-version, so nothing rots, and the tarball is verified against upstream's number
-rather than one somebody typed months ago. Both build args are required and
-have no defaults: a build that cannot verify the tarball fails loudly.
+**Zig is resolved at build time from ziglang.org's own download index — both
+the tarball URL and the shasum come from upstream.** Neither the Dockerfile nor
+the workflow hardcodes a version or a filename, so nothing rots, and the
+tarball is verified against upstream's own number rather than one somebody
+typed months ago. Both build args are required and have no defaults: a build
+that cannot verify the tarball fails loudly.
+
+The URL is taken from the index rather than assembled, and that is not
+fastidiousness — the first build failed on it. It constructed
+`zig-linux-x86_64-<ver>.tar.xz`; upstream publishes
+`zig-x86_64-linux-<ver>.tar.xz`, arch and OS in the other order. The rule was
+already being applied to the checksum and simply had not been applied to the
+URL: **take what upstream publishes, do not reconstruct it.**
 
 ## What it deliberately does NOT contain
 
