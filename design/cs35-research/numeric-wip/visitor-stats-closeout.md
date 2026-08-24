@@ -147,3 +147,68 @@ the counter sites before re-staging anything).
 **The recommended sequence at the gate:** rule the anchor (as-authored, or
 smaller) → one pin-harvest battery on the ruled constants → the six
 re-stagings/walks above → one final green battery. One ceremony, not two.
+
+## THE CEREMONY, WALKED (2026-08-24, post-ruling)
+
+Matt ruled the anchor AS-AUTHORED ("land all three, measure after"), which
+unblocked the ceremony. Rebased visstats-gate onto main's E4 staff-ladder tip
+(83fb0f4) FIRST — clean, no conflicts — so every pin was harvested against the
+tree the trio will actually land on, not a stale base. Then, in order:
+
+**The REEF finding — reading (b), and it is a CORRECTION not a loosening.**
+`p.owner != null` fired because REEF legitimately owns something ELSE by day 9,
+not the hotel he sold. Traced on seed 909: the handover clears his `p.owner` to
+null the instant BRASS buys the Driftwood (day 7, he goes back to fishing rich);
+on day 9 SUDSY leaves town, her SHOWERS hit the death-seam market
+(`listForSale "gone"`), and REEF — jobless and flush, the deepest pocket in the
+succession pool — buys them. The assertion is sharpened to "owns no HOTEL" plus
+a dangling-id guard, and it is mutation-proven to still catch both shapes of the
+real bug (a): a handover that left his id on the hotel BRASS now owns
+(`holds.includes("hotel")`), or dangling on a business that is gone
+(`!holds.length`, the field the death seam reads). Owning another shop is the
+asset market working, the same shape as the wage-market hire-back the next check
+already allows.
+
+**Three economy-coupled stagings, all one root cause but the closure soak.**
+- *closure soak "the shop never closed":* the doubled economy made REEF a buyer,
+  so the showers closed and re-opened under him in the SAME settlement before the
+  fixture read `forSale`. Clamped every wallet under the buyable threshold on the
+  closing miss (the `missOneLease` extraDrain hatch, its own comment: "keeps REEF
+  from queue-jumping its failed shop"), staging the honest "nobody can afford it".
+- *wage-quit "nobody left"* and *cpu-wage "never moved her wage":* SAME cause —
+  the day-7 election sets a $32 wage floor (KELP/the mayor's policy) that lifts
+  every effective wage to $32, so the underpaid rate under test is never FELT: no
+  grievance climbs, no policy trigger fires. Armed `_noFloor`, the narrow hatch
+  the hotelier wage scenario already uses (office and policy still run, only the
+  floor goes). Both then behave exactly as written.
+
+**Two mechanism walks, both DECIDED by mechanism.**
+- *sickness M-vs-E (read x6.17):* the roll sites say it is the ROSTER-COMPOSITION
+  CONFOUND, not a conditioned roll — `illRisk()` carries no shift term, and the
+  rig's `--swap` shows risk follows the CRAB (PINCHY ~0.0045 on either shift;
+  aggregate M/E barely moves x1.51→x1.48 when the founders are swapped). x6.17 was
+  transient hires landing on M in a richer, churning town. The cure is SAMPLE, not
+  a wider band: the ratio falls monotonically as the pool grows (7d x6.17 →
+  crew8/7d x1.94 → crew6/14d x1.61), and crew6/14d reads x1.61 on TWO independent
+  seed blocks (511/516 crab-nights). Extended the soak 7d→14d, sample floor
+  180→400; band and claim unchanged.
+- *election tie (PINCHY:3 SUDSY:3, lost to the incumbent):* a staged coincidence,
+  re-staged per its own protocol. The doubled economy re-shuffled turnout so seed
+  7 fell to a dead heat the tie-break hands to the incumbent. Re-staged 7→5 for a
+  clear 4-1 shelter-bloc margin (swept the tree: 5/21/31/42/63/1337 win on the
+  modal platform, only the near-ties 7/11/909/4242 lose).
+
+**Three pins re-harvested LAST**, against the corrected fixtures (project rule 6):
+- rng draw count {1:1726,2:1616} → {1:2207,2:2740}. VALUE re-point only — the draw
+  STRUCTURE is provably intact (the game.js diff moved only the arrival
+  `[floor,span]` literals; visNeeds still walks five keys × one srand). Day-1 2207
+  matches the pre-rebase prediction, a receipt that the E4 rebase left the
+  day-boundary stream alone.
+- frozen day-2 fingerprint (both seeds) and cultureways A/B (save-without-cultures,
+  the SAME 4242 town — coins/rep/REEF-wallet cross-check byte-exact): re-baselined
+  for commit B's arrival table + the E4 rebase.
+
+Only `tools/suite.mjs` changed — pure test-fixture work, game.js untouched vs the
+branch's own start, bundle byte-identical. Do NOT merge solo: held for the
+combination matrix (kd-vr8HmkknUh); version.js is deliberately NOT re-stamped on a
+held branch.

@@ -2448,19 +2448,32 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // trajectory, not a leak. 4242 crosses NOWHERE in two days and its pin
     // stands untouched - one seed moving and one holding is itself the
     // receipt that the brain only moves what it decides.
-    1337: '{"day":3,"tmin":0,"coins":13717,"rep":53426,"catch":4,"serves":44,"crabServes":5,"rage":5,"till":22627,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22627],["REEF",20920],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[520.3,167.3],[2136,154],[450,155],[2072,154],[318,167]]}',
-    // RE-AUTHORED for THE FLOAT-AIM FIX (Matt: "we'll re author the frozen
-    // pins", 2026-08-23). vsepPush stopped writing a float into k.target, so
-    // the parting's aim lands on whole pixels and 4242's trajectory moves.
-    // The traced crossing is the one this pin's sibling already names -
-    // MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8: the very
-    // push whose old form wrote target=...09765625. Same event, third
-    // appearance in this file, now integer.
-    // The drift: coins 17546 -> 17628, serves 44 -> 43, till 22428 -> 21443,
-    // REEF +2. CRAB POSITIONS ARE BYTE-IDENTICAL either side, which is the
-    // trap - it is what made the first diagnosis rule vsepPush out. Identical
-    // sampled positions do not mean identical trajectories; do not repeat it.
-    4242: '{"day":3,"tmin":0,"coins":17628,"rep":50918,"catch":3,"serves":43,"crabServes":4,"rage":4,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",20923],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
+    //
+    // RE-BASELINED for VISITOR-STATS, this branch rebased onto main's E4 staff-
+    // ladder tip (83fb0f4). TWO changes moved this two-day town and the drift is
+    // the sum of them, neither a surprise: (1) commit B re-authored the tourist
+    // arrival table from a flat qn(0.08)/qn(0.32) floor to the hire-band anchor
+    // (VIS_ARRIVE) - a fingerprint-moving sim change by construction, the whole
+    // point of the slice - so a boat of hungrier, thirstier, more bored bodies
+    // spends the town's day differently from the first sailing on; and (2) the
+    // rebase carries main's E4 rungs (HEAD_CAP.steps + the founding cap), which
+    // the dispatch note flagged as able to move a shared fingerprint. The draw
+    // STRUCTURE is intact (the rng pin re-points by VALUE, not shape - same five
+    // arrival draws, same LOADED count), so this is a trajectory re-roll off new
+    // constants, not a leak. 1337: coins 13717 -> 19263, serves 44 -> 42, rage
+    // 5 -> 3, REEF 20920 -> 18532, and DRIFT/KELP end the night at different
+    // stops (the day re-rolled behind the richer arrivals). 4242: coins 17628 ->
+    // 15913, catch 3 -> 1, rage 4 -> 7, REEF up to 22126 and SALTY back on the
+    // rail. Re-pointed LAST in the ceremony, after every fixture was corrected,
+    // so this freezes the ruled town and not a fixture bug (project rule 6).
+    1337: '{"day":3,"tmin":0,"coins":19263,"rep":53310,"catch":4,"serves":42,"crabServes":4,"rage":3,"till":22805,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22805],["REEF",18532],["SALTY",400],["DRIFT",1400],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[460.1,167.1]]}',
+    // 4242, re-baselined in the same VISITOR-STATS pass and for the same two
+    // reasons - the arrival table and the E4 rebase. This seed's history before
+    // it: RE-AUTHORED for THE FLOAT-AIM FIX (vsepPush stopped writing a float
+    // into k.target - MISTY's first parting, day 1 T=2141, push -307 Q8 - so the
+    // aim landed on whole pixels; coins 17546 -> 17628, and CRAB POSITIONS WERE
+    // BYTE-IDENTICAL either side, the trap that first ruled vsepPush out).
+    4242: '{"day":3,"tmin":0,"coins":15913,"rep":54468,"catch":1,"serves":42,"crabServes":4,"rage":7,"till":18868,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18868],["REEF",22126],["SALTY",700],["DRIFT",0],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[464,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3761,7 +3774,21 @@ scenario("closure soak: a town with no shower house runs for weeks without wedgi
   const sim = createSim({ seed: 64 });
   const det = stuckDetector(sim);
   sim.runUntil("day >= 2 && tmin > 8 * 60", keep({ maxSteps: 400000 }));
-  for (let i = 0; i < 3; i++) missOneLease(sim, "showers");
+  // THE CLOSE AND THE BUYOUT ARE THE SAME SETTLEMENT. listForSale (the third
+  // strike) and runSuccession (the market clearing) both fire in one rent run,
+  // so a crab flush enough to buy the failed shop takes it before this fixture
+  // ever reads `forSale`. The doubled visitor economy put REEF there: on this
+  // seed he ends the second miss holding ~$27.9k against a $23.6k ask, so the
+  // showers close and re-open under him in the same tick and the scenario read
+  // "the shop never closed". The soak loop below already stages the honest
+  // "nobody can afford it" by clamping wallets under the asking price - that
+  // clamp just started one settlement too late. The closing miss carries it
+  // now, through the same extraDrain hatch missOneLease exposes for exactly
+  // this (its own comment: "keeps REEF from queue-jumping its failed shop"), so
+  // no crab is an eligible buyer AT the settlement that closes the shop.
+  const brokeAll = `{ const cap = askingPrice(window._drain) - SALE_CFG.RESERVE - 1;
+    for (const k of allCrabs()) if (k.p.wallet > cap) k.p.wallet = cap; }`;
+  for (let i = 0; i < 3; i++) missOneLease(sim, "showers", i === 2 ? brokeAll : "");
   if (!sim.G('forSale("showers")')) return "the shop never closed";
   const startDay = sim.G("day"), serves0 = sim.G("window._stats.tourServes");
   // nobody in town can afford it: that is the honest state, and the town has
@@ -4642,12 +4669,27 @@ scenario("wage: an underpaid NPC quits the shop - and a better payer poaches the
   // her shop goes up for sale, and the run reads "nobody left" when what
   // happened is that the employer died. Same prop the hours scenarios use -
   // this is a test about PAY.
+  //
+  // THE MAYOR'S FLOOR SWALLOWED THE QUIT. This town holds its first election on
+  // day 7, and the doubled visitor economy elects KELP - the very showers crab
+  // this fixture is underpaying - who then sets a $32 wage floor. From day 8
+  // wageRate() reads max(minWage 3200, raw 2000) = 3200, KELP's payRatio jumps
+  // to 1.39, his climbing grievance (0.13/night, at 0.52 by day 7) sheds to
+  // zero, and nobody ever reaches LEAVE: the run read "nobody left". The floor
+  // is a DIFFERENT mechanism with its own scenarios; here it is masking the pay
+  // quit under test. _noFloor is the narrow measurement hatch the hotelier
+  // wage scenario already uses for exactly this (its own note: "the office
+  // keeps running, only the floor goes") - armed through the whole fortnight so
+  // the crab's raw $20 is what his grievance is measured against.
+  sim.G(`window._noFloor = true;`);
   sim.runDays(14, { tickEvery: 200, onTick: (G) =>
-    G(`OWNERS.sudsy.till = Math.max(OWNERS.sudsy.till, 400); coins = Math.max(coins, 300000);
+    G(`window._noFloor = true;
+       OWNERS.sudsy.till = Math.max(OWNERS.sudsy.till, 400); coins = Math.max(coins, 300000);
        for (const k of allCrabs()) if (k.p.job === "showers" || k.p.owner === "sudsy") {
          k.p.sick = null; k.p.hunger = Math.min(k.p.hunger || 0, qn(0.4));
          k.p.thirst = Math.min(k.p.thirst || 0, qn(0.4)); k.p.dirt = Math.min(k.p.dirt || 0, qn(0.4));
        }`) });
+  sim.G(`window._noFloor = false;`);
   const quits = JSON.parse(sim.G("JSON.stringify(window._stats.wageQuits || [])"));
   if (!quits.length) return "a fortnight underpaid at SUDS SHOWERS and nobody left";
   if (quits.some(q => q.day < 4)) return "somebody quit before the warnings could land: " + JSON.stringify(quits);
@@ -4726,12 +4768,25 @@ scenario("cpu wage: a peer owner's wage policy converges and never thrashes", ()
   // walks her up, and it STOPS - it must never oscillate.
   // Her till is propped for the same reason the hours-policy scenario props
   // it: a bankrupt shop cannot demonstrate 30 days of anything.
+  //
+  // THE MAYOR'S FLOOR ERASED THE ORGANIC CASE. This town elects a mayor on day
+  // 7 (SANDY/HERMIE across the doubled economy) whose policy sets a $32 wage
+  // floor, and from day 8 wageRate() lifts every showers hand to $32 whatever
+  // SUDSY's $20 sign says. With no crab under the going rate nobody grumbles,
+  // her policy has no trigger, and she "never moved her wage" for the month -
+  // the exact opposite of a policy failure: there was nothing to respond to.
+  // The organic climb this scenario measures needs the shop's own low rate to
+  // be what the staff feel, so _noFloor is armed - the same narrow hatch the
+  // hotelier and wage-quit scenarios use, floor off, office and policy still
+  // running. With it armed she climbs $20 -> $21 (day 8) -> $22 -> $23 and
+  // settles at the town rate, which is exactly the convergence under test.
   const sim = createSim({ seed: 1337 });
-  sim.G("OWNERS.sudsy.till = 60000;");
+  sim.G("OWNERS.sudsy.till = 60000; window._noFloor = true;");
   const rates = [];
   sim.runDays(30, { tickEvery: 200, onTick: (G) => {
-    G("OWNERS.sudsy.till = Math.max(OWNERS.sudsy.till, 300); coins = Math.max(coins, 300000);");
+    G("window._noFloor = true; OWNERS.sudsy.till = Math.max(OWNERS.sudsy.till, 300); coins = Math.max(coins, 300000);");
   } });
+  sim.G("window._noFloor = false;");
   const moves = JSON.parse(sim.G("JSON.stringify(window._stats.wageMoves || [])"));
   if (!moves.length) return "SUDSY opened $3 under the town rate for a month and never moved her wage";
   // one move a day, never two days running (cd = 1)
@@ -7248,9 +7303,27 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // simply agree.
   if (Math.abs(deal.buyerPaid - deal.sellerGain) > 1)
     return `money was minted or burned: she paid $${deal.buyerPaid} net, REEF banked $${deal.sellerGain}`;
-  // REEF is out of the hotel trade, not out of the town, and he is rich
+  // REEF is out of the HOTEL trade, not out of the town, and he is rich. The
+  // assertion here used to be `reef.owner != null` - "he owns nothing" - and
+  // that was too blunt: p.owner is an owner-ID, not a business, and REEF
+  // legitimately becomes an owner AGAIN by day 9. SUDSY leaves the town, her
+  // SHOWERS go on the market through the death seam (listForSale "gone"), and
+  // REEF - jobless and flush with the hotel money, the deepest pocket in the
+  // succession pool - buys them. That is the asset market working, the exact
+  // same shape as the wage-market hire-back the NEXT check deliberately allows,
+  // not the handover failing. So the sharpened check reads "owns no HOTEL", not
+  // "owns nothing", and it still catches bug (a) in both its shapes: a handover
+  // that failed to clear his id would leave it holding the hotel BRASS now owns
+  // (holds.includes "hotel"), or DANGLING - pointing at a business that is gone
+  // (holds empty), which is the very field the death seam reads. Owning some
+  // OTHER shop is the correction; it is not a leak.
   const reef = JSON.parse(sim.G(`JSON.stringify((allCrabs().find(k => k.p.name === "REEF") || { p: {} }).p)`));
-  if (reef.owner != null) return "REEF still owns a hotel he sold";
+  if (reef.owner != null) {
+    const holds = JSON.parse(sim.G(`JSON.stringify(Object.keys(BIZ).filter(b => bizOwner(b) === ${JSON.stringify(reef.owner)}))`));
+    if (holds.includes("hotel")) return "REEF still owns the hotel he sold: " + JSON.stringify(holds);
+    if (!holds.length) return "REEF's owner-id survived the sale but names no business (dangling): " + reef.owner;
+    // else: he holds some OTHER lease (SUDSY's showers, off the day-9 market) - allowed.
+  }
   // ...but the town may HIRE him back across the same counter: under the
   // neuro visitor flow the hotel runs busy enough that BRASS posts a vacancy
   // and REEF - jobless, experienced, standing right there - takes it. That is
@@ -7799,18 +7872,22 @@ scenario("the player can stand for office and win, and then the levy is theirs",
   // cot - so the platform that carries the town is the shelter's, and the
   // player stands on it against the owners who would rather it stayed cold.
   //
-  // RE-STAGED 1337 -> 909 (PERSONAL SPACE) -> 7 (THE CITIZEN MIND). The
-  // claim is "an attentive player CAN win", and it is seed-generic - on the
-  // citizen-mind landing tree the recipe wins 7 and 63 and loses 21, 31,
-  // 909, 4242, 1337, because BRAIN-ERA TURNOUT IS LOWER: temperament now
-  // decides whether a free crab walks to the box, and tallies dropped from
-  // 5-7 papers to 3-4 across the sweep. That is a REPORTED behavioral shift
-  // (the citizen-mind close-out carries it; civics in phase E is where the
-  // franchise gets its own levers), not a broken mechanism - the ballot,
-  // the count and the declaration all run, and the player who reads the
-  // roster still carries the room on the seeds above. 7 demonstrates with a
-  // 5-1 tally and the same shelter-bloc mechanics the fixture is about.
-  const sim = createSim({ seed: 7 });
+  // RE-STAGED 1337 -> 909 (PERSONAL SPACE) -> 7 (THE CITIZEN MIND) -> 5
+  // (VISITOR-STATS). The claim is "an attentive player CAN win", and it is
+  // seed-generic - the seed only decides the MARGIN, and this fixture wants a
+  // margin, not a tie the incumbent breaks. On the visitor-stats landing tree
+  // the doubled economy re-shuffled turnout and seed 7 fell to a 3-3 DEAD HEAT
+  // (PINCHY:3 SUDSY:3 REEF:1) that declarePoll's tie-break hands to the
+  // incumbent SUDSY - the player carried exactly as many votes and still lost,
+  // which is the staged-coincidence trap this project keeps re-learning: 7 was
+  // never a rule, it was a tally that happened to clear the incumbent. The
+  // recipe still wins the room wherever the shelter bloc is a plurality - swept
+  // this tree, it takes 5 (PINCHY:4 SUDSY:1), 21 (3-2-1), 31 (2-1), 42 (2-1),
+  // 63 (2-1) and 1337 (3-2-2), and loses only the near-ties (7, 11, 909,
+  // 4242). Seed 5 is chosen for the CLEAREST margin - a 4-1 shelter-bloc
+  // majority, no tie-break in the result at all - which is the same "5-1 tally,
+  // shelter-bloc mechanics" demonstration 7 gave before the economy moved.
+  const sim = createSim({ seed: 5 });
   sim.runDays(3);
   sim.G(`(() => {
     for (const c of allCrabs()) if (!c.p.owner) { c.p.homeless = true; c.p.house = null; c.p.fisher = false; }
@@ -9280,6 +9357,25 @@ scenario("sickness: shift kind does not predict the roll across the roster", () 
   // to x0.37, four hundredths outside a band it never had the samples to
   // defend. Four more towns, and the sample floor raised to match; the claim,
   // the band and the full rig's x0.98 are unchanged.
+  //
+  // FOURTEEN DAYS, NOT SEVEN (visitor-stats ceremony, 2026-08-24). The doubled
+  // visitor economy read x6.17 at 7 days - and the reflex is to call that a
+  // shift effect. It is not: it is the ROSTER-COMPOSITION CONFOUND the section
+  // header warns about, decided HERE by comparing the roll SITES, not the
+  // sample. illRisk() reads four instantaneous needs and carries no `shift`
+  // term, so the shift cannot condition the roll directly. The rig's own --swap
+  // experiment confirms it on this tree: exchange the two founders' shifts and
+  // the RISK FOLLOWS THE CRAB, not the shift - PINCHY reads ~0.0045 on M and on
+  // E, CLAWDIA reads higher on either, and the aggregate M/E barely moves
+  // (x1.51 -> x1.48). The x6.17 was which transient hires happened to land on M
+  // in a richer town that churns more crew - a ~130-night arm is dominated by
+  // one or two of them (GARY alone was a third of the M risk). The cure is
+  // SAMPLE, exactly as the full rig's 2124 crab-nights read x0.98: the ratio
+  // falls monotonically as the pool grows (crew6/7d x6.17 -> crew8/7d x1.94 ->
+  // crew6/14d x1.61), and crew6/14d reads x1.61 on BOTH the default seeds and a
+  // fresh six-seed block (511 vs 516 nights) - stable, in band, composition
+  // averaged toward the honest number. The band and the claim are unchanged;
+  // only the soak is longer and the sample floor raised to match.
   const rows = [];
   for (const seed of [1337, 2674, 909, 4242, 21, 77]) {
     const sim = createSim({ seed });
@@ -9287,7 +9383,7 @@ scenario("sickness: shift kind does not predict the roll across the roster", () 
     sim.runUntil("day >= 2 && tmin >= 7 * 60", { maxSteps: 200000 });
     sim.G(`coins = 300000; UPS.chef.lvl = Math.max(UPS.chef.lvl, 6);
            while (crabs.length < 6) hireCrew();`);
-    for (let d = 0; d < 7; d++) {
+    for (let d = 0; d < 14; d++) {
       if (sim.G("gameOver")) break;
       sim.G("if (coins < 50000) coins = 90000;");
       if (!sim.runUntil("lastRentDay === day", { maxSteps: 200000 })) break;
@@ -9299,7 +9395,7 @@ scenario("sickness: shift kind does not predict the roll across the roster", () 
     return r.length ? { n: r.length, risk: r.reduce((s, x) => s + x.risk, 0) / r.length } : null; };
   const m = arm("M"), e = arm("E");
   if (!m || !e) return "one of the two shifts never appeared on the roster";
-  if (m.n + e.n < 180) return `only ${m.n + e.n} M/E rolls - not enough to say anything`;
+  if (m.n + e.n < 400) return `only ${m.n + e.n} M/E rolls - not enough to say anything`;
   const ratio = e.risk > 0 ? m.risk / e.risk : (m.risk > 0 ? Infinity : 1);
   // ~40 crab-nights an arm swings this by a third on stream order alone
   // (measured: 0.75 to 1.12 across trajectories at 180 an arm), so the window
@@ -11930,10 +12026,19 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // day 1 T=2141, push -307 Q8, the push whose residue the fix removed. The
   // scenario's own claim is UNCHANGED and still proven: a save without a
   // cultures key loads onto exactly the trajectory a fresh boot walks.
-  // Note `vis` 7 -> 6 alongside the till and coin move.
-  const want = '{"day":3,"coins":17628,"rep":50918,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,21443],["REEF",2136,20923],["SALTY",2072,0],'
-    + '["DRIFT",318,0],["KELP",450,2800]],"vis":6,"catch":3}';
+  // RE-BASELINED for VISITOR-STATS (this branch rebased onto main's E4 tip),
+  // the SAME two-day 4242 town as the frozen day-2 fingerprint above and the
+  // SAME drift for the same two reasons - commit B's hire-band arrival table
+  // and the E4 staff-ladder rebase. The cross-check is exact: this town's coins
+  // (15913), rep (54468) and REEF's wallet (22126) match the frozen fingerprint
+  // byte for byte, which is the proof this is one town measured two ways and
+  // not two different drifts. The scenario's own claim is UNTOUCHED and still
+  // proven: a save with no cultures key loads onto exactly the trajectory a
+  // fresh boot walks - only the trajectory itself re-rolled off the new arrival
+  // constants. Note `vis` back to 7 and `catch` 3 -> 1 alongside the coin move.
+  const want = '{"day":3,"coins":15913,"rep":54468,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,18868],["REEF",2136,22126],["SALTY",450,700],'
+    + '["DRIFT",2072,0],["KELP",464,400]],"vis":7,"catch":1}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
@@ -13188,7 +13293,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1726, 2: 1616 };   // day 2 re-pointed for THE CITIZEN MIND live: DRIFT's held-off drink (think 397, T=7606, day 1) spends no draw of its own - day 1 holds at 1726 - but the trajectory it opens reshapes day 2's custom to 1616. Same shape as every holder before it: the count is THE SPEC, only its holder changed. Previously re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
+  const PIN = { 1: 2207, 2: 2740 };   // RE-POINTED for VISITOR-STATS (arrival table anchored to the hire band, this branch rebased onto the E4 staff-ladder tip). The DRAW STRUCTURE is provably untouched - visNeeds still walks the same five keys with one srand() apiece and the same 1-2 LOADED draws (the game.js diff moved only the authored [floor,span] constants, qn(0.08)/qn(0.32) -> the VIS_ARRIVE table), so this is a VALUE re-point, not a structural one, exactly the class this pin is built to survive. Hungrier arrivals think and buy more, so a day's custom lengthens: day 1 1726 -> 2207, day 2 1616 -> 2740. The close-out predicted 2207 for day 1 pre-rebase and it held after the rebase onto main's E4 tip, which is itself a receipt that the ladder commits did not perturb this seed's day-boundary stream. Previously re-pointed for THE CITIZEN MIND live (DRIFT's held-off drink, think 397 T=7606: day 1 held at 1726, day 2 reshaped to 1616), and before that for PERSONAL SPACE at 8px (CLACKERS dealt pier place 1, T=2278: 1863 -> 1726) and THE CRAB RETRAIN (NIPPY's uncrossing think 9 T=1358: 1857/2265 v2 -> the retrain). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
