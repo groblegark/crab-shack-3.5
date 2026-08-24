@@ -17795,7 +17795,7 @@ function drawHall(R, chip) {
   const m = mayorCrab(), p = hall.policy, P = purseOf(p);
   const shut = shelterShut();
   smallText(ctx, "MAYOR", x + 8, y + 33, [58, 42, 38]);
-  smallText(ctx, (hall.mayor || "VACANT") + (m && !m.p.npc ? " (YOURS)" : ""), x + 42, y + 33,
+  smallText(ctx, fitSmall((hall.mayor || "VACANT") + (m && !m.p.npc ? " (YOURS)" : ""), w2 - 50), x + 42, y + 33,
     m && !m.p.npc ? [190, 110, 40] : [40, 30, 40]);
   const rollPages = Math.max(1, Math.ceil(((hall.poll && hall.poll.lines.length) || 0) / ROLL_ROWS));
   chip(R.hview, (HALL_VIEW_LABEL[hallView] || "BOOKS")
@@ -17874,7 +17874,7 @@ function drawHall(R, chip) {
     const poll = hall.poll;
     if (!poll) smallText(ctx, "NOBODY HAS VOTED YET", x + 8, y + 68, [150, 140, 160]);
     else {
-      smallText(ctx, "HOW THE TOWN VOTED - DAY " + poll.day, x + 8, y + 66, [58, 42, 38]);
+      smallText(ctx, fitSmall("HOW THE TOWN VOTED - DAY " + poll.day, w2 - 16), x + 8, y + 66, [58, 42, 38]);
       if (rollPages > 1)
         smallText(ctx, "TAP THE CHIP FOR THE REST", x + w2 - 6 - smallTextWidth("TAP THE CHIP FOR THE REST"),
           y + 66, [150, 140, 160]);
@@ -17891,7 +17891,7 @@ function drawHall(R, chip) {
     // the player sees here is exactly what a crab walking past the table sees:
     // who is on the paper, how many have voted, and how much paper is left.
     // A running total would quietly undo the whole point of counting by hand.
-    smallText(ctx, "TODAY'S BALLOT - " + B0.printed + " PAPERS PRINTED", x + 8, y + 66, [58, 42, 38]);
+    smallText(ctx, fitSmall("TODAY'S BALLOT - " + B0.printed + " PAPERS PRINTED", w2 - 16), x + 8, y + 66, [58, 42, 38]);
     let ly = y + 76;
     for (const k of B0.cands.slice(0, 4)) {
       const you = !!k.you;
@@ -17901,8 +17901,8 @@ function drawHall(R, chip) {
       ly += 8;
     }
     ly += 2;
-    smallText(ctx, B0.shut ? "THE POLLS HAVE SHUT" : "IN THE BOX  " + B0.cast.length
-      + "        ON THE TABLE  " + B0.papers, x + 8, ly, [58, 42, 38]); ly += 8;
+    smallText(ctx, fitSmall(B0.shut ? "THE POLLS HAVE SHUT" : "IN THE BOX  " + B0.cast.length
+      + "        ON THE TABLE  " + B0.papers, w2 - 16), x + 8, ly, [58, 42, 38]); ly += 8;
     // THE THREE WAYS A CRAB LOSES A VOTE, each of them by name, because every
     // one of them is a thing the player could have prevented.
     const missed = allCrabs().filter(c => !B0.voters[c.p.name]).map(c => c.p.name);
@@ -17916,8 +17916,8 @@ function drawHall(R, chip) {
     const poll = hall.poll;
     if (!poll) smallText(ctx, "NO BALLOT HAS BEEN HELD YET", x + 8, y + 68, [150, 140, 160]);
     else {
-      smallText(ctx, "DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
-        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), x + 8, y + 66, [58, 42, 38]);
+      smallText(ctx, fitSmall("DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
+        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), w2 - 16), x + 8, y + 66, [58, 42, 38]);
       let ly = y + 76;
       for (const k of poll.cands.slice(0, 3)) {
         const won = k.name === poll.winner;
