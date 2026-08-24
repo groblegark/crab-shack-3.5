@@ -15903,9 +15903,18 @@ function drawFollowCard() {
   const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);   // illness halves everything - show it
   if (eff < 0.995)
     smallText(ctx, "PACE " + Math.round(eff * 100) + "%", 74, 36, eff < 0.8 ? [190, 80, 80] : [200, 110, 40]);
-  const bars = [["FED", 1 - (p.hunger || 0), 6], ["SIP", 1 - (p.thirst || 0), 30],
-    ["CLN", 1 - (p.dirt || 0) / Q20, 54], ["FUN", 1 - (p.bored || 0) / Q20, 78], ["ZZZ", 1 - (p.tired || 0) / Q20, 102]];
-  for (const [label, frac, bx] of bars) {
+  // ALL FIVE needs are Q20 integers since the needs slice - FED and SIP read
+  // them raw here for a while, so `1 - hunger` went six digits negative and
+  // Math.round(11 * frac) handed the canvas a NEGATIVE width: fillRect drew it
+  // LEFTWARD from FED's slot, a red smear across the portrait to the card
+  // edge ("weird red bar near the FED indicator that doesn't come from
+  // there"). Divided like its three siblings, and CLAMPED like every bar on
+  // every card - a display fraction never leaves [0,1] no matter what a
+  // future unit migration does to its input.
+  const bars = [["FED", p.hunger, 6], ["SIP", p.thirst, 30],
+    ["CLN", p.dirt, 54], ["FUN", p.bored, 78], ["ZZZ", p.tired, 102]];
+  for (const [label, need, bx] of bars) {
+    const frac = Math.max(0, Math.min(1, 1 - (need || 0) / Q20));
     smallText(ctx, label, bx, 44, [110, 110, 130]);
     rect(ctx, bx + 11, 45, 13, 4, [30, 20, 36]);
     rect(ctx, bx + 12, 46, Math.round(11 * frac), 2,
