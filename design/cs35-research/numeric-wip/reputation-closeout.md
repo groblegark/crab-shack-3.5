@@ -157,3 +157,42 @@ none was waved through:
 found and fixed its edge — `maxFailedIndexes: 5` is invalid on a 1-arm
 manifest (k8s requires ≤ completions), so the chart now takes
 `min(maxFailedIndexes, arms)`. Both belong in mainline.
+
+## THE RULING ITEM: how good must a town be before pigs hear of it?
+
+The bundled gates (pig 80, gull 60) were authored against a scale where 100
+was a town's RESTING state, so "80" encoded *doing well*. Measured on this
+branch (the game's own lab, seed 1337, 12 unsteered days):
+
+    crab word by day:  30 37 37 42 47 49 38 35 40 43 43 43
+    her people's word: 35 by day 12, on the pier spill alone
+
+An UNSTEERED town lives at 35-49 and peaks at 49. A TRADING town reaches
+60-71 (triple-16 receipts). So `pig: 55` is the faithful translation of
+"doing well" — and it means an unsteered town is exactly the town pigs now
+correctly refuse.
+
+That broke the old acceptance scenario at its PREMISE, not its mechanism:
+"pigs get off the boat in a town nobody staged" assumed an unsteered town
+was a town anyone would sail to. Re-staged: the town now buys the growth
+matrix's own two things and must still cross the gate on its own trading.
+
+**Matt rules the bar.** Three coherent settings, all one number:
+- **55 (shipped)** — pigs are a reward for a well-run town; a mediocre town
+  never sees one. Faithful to the original intent.
+- **~40** — pigs come to any town that is not actively failing; the pig
+  economy (pork buns, settlers, the WALLOW) gets much more play.
+- **~30** — pigs are ambient; the gate stops being a goal.
+The mechanism is proved at every setting (the three-ears scenario pins own
+word / hearsay / soured independently of the number).
+
+## WHAT I WOULD WANT RULED ALONGSIDE IT
+
+1. The **growth +4** (13/48 -> 17/48). Reported, not tuned. If the pass
+   should be net-neutral rather than mildly kind to a well-run early town,
+   the honest lever is the sink sizes, not the saturation.
+2. **REP_SPILL = 25%** — how loudly the pier gossips across peoples. It is
+   the whole bootstrap for a new culture's word, and it is a guess.
+3. Whether the ferry's VOLUME should read the crabs' word (it does) or the
+   arriving culture's own. Today a beloved-by-pigs, disliked-by-crabs town
+   still sails small boats.
