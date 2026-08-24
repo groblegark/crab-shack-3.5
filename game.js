@@ -15761,10 +15761,16 @@ function visCondition(k) {
 // the five bars, in the follow card's one-row idiom - the SAME five a crab
 // carries, in the same order, so the player learns one thing and reads two
 const VIS_BAR = [["FED", "hunger"], ["THR", "thirst"], ["CLN", "dirt"], ["FUN", "bored"], ["SPA", "tired"]];
+// the meter's fraction, in the plane's own units: needs are Q20 grains (a
+// full bar = Q20), and this is the ONLY place the card converts. The pre-Q20
+// form (min(1, raw)) pegged every meter the moment a need was nonzero - the
+// bars read as "no real stats" for a whole era while the sim underneath was
+// honest.
+function barFrac(k, key) { return Math.max(0, Math.min(1, (k[key] || 0) / Q20)); }
 function visBars(k, x, y, w) {
   const cw = ((w - 16) / 5) | 0;   // four gaps of 4px: five meters have to read as five
   for (let i = 0; i < VIS_BAR.length; i++) {
-    const [lbl, key] = VIS_BAR[i], v = Math.max(0, Math.min(1, k[key] || 0));
+    const [lbl, key] = VIS_BAR[i], v = barFrac(k, key);
     const bx = x + i * (cw + 4);
     smallText(ctx, lbl, bx, y, [120, 110, 125]);
     rect(ctx, bx, y + 6, cw, 3, [30, 20, 36]);
