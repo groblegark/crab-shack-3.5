@@ -23,6 +23,13 @@ Scope note: this policy protects the OPERATOR'S MAC. A gasboat fleet pod
 its own resource limits, and should, since it has no AWS identity to drive
 tools/kube.mjs. The hook only exists on the operator's machine.
 
+## THE MERGE RITUAL (orchestrator, at every merge before push)
+Run `node tools/mkcultureways.mjs` (bundle regen must be byte-exact) AND
+`node tools/mkversion.mjs` (regenerates version.js — the title-screen build
+stamp; the stamp is the MERGE's identity, so a push whose stamp names the
+previous commit is a ritual miss). Both are sub-second generators, allowed
+locally.
+
 ## The sim contract (load-bearing)
 - `tools/simlib.mjs` executes the REAL game files (font.js, ppu.js, sprites.js,
   crabs.js, game.js) inside a Node vm with stubbed browser APIs and a seeded

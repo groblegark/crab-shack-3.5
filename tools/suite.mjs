@@ -13131,6 +13131,25 @@ scenario("gulls: the roost ships, and the gate holds until word spreads", () => 
   return true;
 });
 
+scenario("the build stamp is well-formed and wired", () => {
+  // version.js is GENERATED (tools/mkversion.mjs) and committed; the title
+  // screen shows it so remote play-testing knows which build it is on. The
+  // stamp names the merge state it was generated FROM — committing the stamp
+  // moves the sha, so sha-equality with HEAD is impossible by construction
+  // and this scenario checks SHAPE and WIRING, not identity. The game guards
+  // on typeof GAME_BUILD, so a missing file is a missing stamp, not a crash.
+  const src = readFileSync(new URL("../version.js", import.meta.url), "utf8");
+  const m = src.match(/const GAME_BUILD = \{ sha: "([0-9a-f]{7})", date: "(\d{4}-\d{2}-\d{2})" \};/);
+  if (!m) return "version.js does not carry a well-formed GAME_BUILD";
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const vAt = html.indexOf('src="version.js"'), gAt = html.indexOf('src="game.js"');
+  if (vAt < 0) return "index.html does not load version.js";
+  if (gAt >= 0 && vAt > gAt) return "version.js loads after game.js - the stamp misses the title";
+  const stamp = "BUILD " + m[1] + " " + m[2];
+  if (stamp.length > 24) return "the stamp outgrew its corner: " + stamp;
+  return true;
+});
+
 scenario("the kernel and the reference agree, byte for byte", () => {
   // THE WASM SPIKE's referee. The movement kernel (tools/kernel/kernel.c) is
   // a second backend for stepTo, visStep, and the collide pair loop; the JS

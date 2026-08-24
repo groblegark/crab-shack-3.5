@@ -16,11 +16,12 @@ spec:
   backoffLimitPerIndex: {{ .Values.backoffLimitPerIndex | default 2 }}
   # ...clamped to the arm count: k8s refuses a Job whose maxFailedIndexes
   # exceeds completions, so the bare default 5 made every manifest with
-  # fewer than five arms uninstallable (the one-arm MCP gate, every focus
-  # manifest). The cap is "how many arms may die", which can never exceed
-  # how many arms there are. (Found independently by FOUR forks in one
-  # night — slop, E6, E0 and the orchestrator — which is how you know it
-  # bit everybody. Both ints: a values file may hand us a string.)
+  # fewer than five arms uninstallable — a 1-arm MCP battery or a 2-arm
+  # focus run cannot carry the wide-job default. The cap is "how many arms
+  # may die", which can never exceed how many arms there are. (Found
+  # independently by FIVE forks in one night — slop, E6, E0, version-stamp
+  # and the orchestrator — which is how you know it bit everybody. Both
+  # ints: a values file may hand us a string.)
   maxFailedIndexes: {{ min (int (.Values.maxFailedIndexes | default 5)) (int .Values.arms) }}
   ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
   activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
