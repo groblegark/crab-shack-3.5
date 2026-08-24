@@ -67,7 +67,8 @@ its gate needs a non-crab guest eating their own cuisine (`game.js:13453`), and
 unreachable for a crab guest at any weight**. Ruled: option A on `kd-d0eIIm5FJF`.
 
 **CORRECTION (bae1786) — the card CAN say something glad; the earlier claim here
-was wrong.** This paragraph previously said "a crab who ate, bathed, played and
+was wrong.** Receipt:
+`design/cs35-research/kube-runs/cs-depart-fullcensus-inpod-bae1786/`. This paragraph previously said "a crab who ate, bathed, played and
 slept indoors has no path to a glad card at any weight." That is false, and the
 engine says so directly. `visQuote` is a pure function of a row, so the guest can
 be built and asked: every need pegged at a full bar Q20 but having *bought the
