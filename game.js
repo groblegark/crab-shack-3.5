@@ -12354,11 +12354,15 @@ function cultureRolls(cul, rand) {
   const ar = cul.def.arrival || {};
   const gateM = 1000 * (ar.repGate != null ? ar.repGate : 80);
   // WHOSE WORD OPENS THE GATE (reputation pass): a pig boards because PIGS
-  // say the town is good - her own people's rep - or on hearsay: the crabs'
+  // say the town is good - her own people's word - or on hearsay: the crabs'
   // word at a discount, which is how the first pig ever hears of the place.
-  // Once her people have opinions of their own, those govern, for better and
-  // for worse: a town the pigs soured on stays shut to pigs even at crab 100.
-  const heard = Math.max(repOf(cul.def.meta && cul.def.meta.id), rep - REP_HEARSAY);
+  // BAD NEWS BEATS HEARSAY: a people whose own word has gone below baseline
+  // is not talked back aboard by crab enthusiasm - a town the pigs soured on
+  // stays shut to pigs even at crab 100, until pig experiences mend it (the
+  // spill is how; it just takes time). Good news merely competes.
+  const own = repC[cul.def.meta && cul.def.meta.id];
+  const heard = (own != null && own < 30000) ? own
+    : Math.max(own != null ? own : 30000, rep - REP_HEARSAY);
   if (heard <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
   const rampM = 1000 * (ar.shareRamp > 0 ? ar.shareRamp : 80);
   const cap = ar.shareMax != null ? ar.shareMax : 0.25;
