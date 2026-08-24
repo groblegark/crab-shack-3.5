@@ -303,7 +303,13 @@ if (WORKER_SEED != null) {
   // exit in send's flush callback: a large payload (the science probes'
   // divergence corpus) is not guaranteed on the wire when send() returns,
   // and exiting first silently drops it ("worker failed (exit 0)").
-  process.send(runOnce(parseInt(WORKER_SEED)), () => process.exit(0));
+  // AWAIT the flush, then exit — top-level await HALTS module evaluation
+  // here. The callback-only form let the worker fall through into the CLI
+  // section below and fork ITS OWN workers: a recursive spawner that local
+  // core speed hid (exit won the race) and slow pod cores exposed — ten
+  // cluster attempts died to it in five different costumes.
+  await new Promise((flushed) => process.send(runOnce(parseInt(WORKER_SEED)), flushed));
+  process.exit(0);
 }
 
 // ---- seed matrix: sequential (--jobs 1) or a pool of forked workers ------
