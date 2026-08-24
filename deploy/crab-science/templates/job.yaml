@@ -14,7 +14,12 @@ spec:
   # concurrent 20-arm batteries died 13/24-style to provisioning flakes under
   # backoffLimit alone. maxFailedIndexes still bounds a genuinely red run.
   backoffLimitPerIndex: {{ .Values.backoffLimitPerIndex | default 2 }}
-  maxFailedIndexes: {{ .Values.maxFailedIndexes | default 5 }}
+  # ...clamped to the arm count: k8s refuses a Job whose maxFailedIndexes
+  # exceeds completions, so the bare default 5 made every manifest with
+  # fewer than five arms uninstallable (the one-arm MCP gate, every focus
+  # manifest). The cap is "how many arms may die", which can never exceed
+  # how many arms there are.
+  maxFailedIndexes: {{ min (.Values.maxFailedIndexes | default 5) (int .Values.arms) }}
   ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
   activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
   template:
