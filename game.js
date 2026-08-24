@@ -17916,8 +17916,8 @@ function drawHall(R, chip) {
     const poll = hall.poll;
     if (!poll) smallText(ctx, "NO BALLOT HAS BEEN HELD YET", x + 8, y + 68, [150, 140, 160]);
     else {
-      smallText(ctx, "DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
-        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), x + 8, y + 66, [58, 42, 38]);   // MUTATION B only
+      smallText(ctx, fitSmall("DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
+        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), w2 - 16), x + 8, y + 66, [58, 42, 38]);
       let ly = y + 76;
       for (const k of poll.cands.slice(0, 3)) {
         const won = k.name === poll.winner;
