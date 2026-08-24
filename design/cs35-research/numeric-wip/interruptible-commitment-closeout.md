@@ -143,5 +143,33 @@ isolates the mechanism exactly.
 - Mutations, one armed commit each, both reverted: margin 4:5 -> 1:1 =>
   "a sub-quarter improvement does not turn her" RED; room release removed
   => "the held room did not release: occupant=MISTY" RED.
-- Full suite + MCP battery at the final SHA: see the report (run
-  cs-suite-318-4fda8ae / cs-phased-gates-4fda8ae).
+- **The soak quartet** (the first full battery's four reds, every one
+  mechanism-walked before it was touched, with the lockstep bisect first
+  proving the backends byte-equal through day 7 on 1337, day 4 on 4242 and
+  day 6 on 31 - so none of the four was divergence):
+  * the integer tripwire caught `cust.target` at a Q8 fraction - personal
+    space has ALWAYS moved a pushable's target in grains ("exact: Q8 is a
+    power of two"); rethink trajectories merely made a grain-fractional
+    target survive to the sweep. The tripwire now admits the position grid
+    (1/256-representable) for `target` and still refuses anything finer.
+  * the closure soak's shower house "never closed" because REEF BOUGHT IT
+    mid-staging - rethink traffic made him solvent. The soak now holds REEF
+    and the rival out of the market through the misses, exactly as the sale
+    scenario always has.
+  * days off: REEF "never showed a DAY OFF status" because his sampled
+    off-day reads "IN LINE AT..." - he was busy LIVING it. The sampler now
+    counts the badge OR the visibly lived day (taps/errand/line/ball/
+    selfcook while offToday).
+  * the tables soak grazed its bound at 121 staffed sim-seconds (was <120):
+    serves are up, the crew buses between more customers. Bound moved to
+    150; a real wedge holds for thousands of seconds, so the teeth remain.
+- **The unbanked-arms lesson**: the first full battery ran 10-way slices and
+  SIX arms died unbanked (heap: this slice's multi-day scenarios fattened
+  slices) - the merged verdict silently undercounted (460/464 where ~666
+  was due), and the four reds' "green JS twins" had in fact never run.
+  Count the receipts against the manifest before believing a merged
+  verdict; experiments/suite-330.json is the 12-way answer.
+- Full suite (12-way, suite-330) + MCP battery at the final SHA: see the
+  report. MCP's verdict transfers from cs-phased-gates-4fda8ae (game.js and
+  mcp/ byte-identical through the final SHA); matrix and crossing receipts
+  transfer from c943b52 the same way.
