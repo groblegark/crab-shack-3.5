@@ -14,7 +14,9 @@ spec:
   # concurrent 20-arm batteries died 13/24-style to provisioning flakes under
   # backoffLimit alone. maxFailedIndexes still bounds a genuinely red run.
   backoffLimitPerIndex: {{ .Values.backoffLimitPerIndex | default 2 }}
-  maxFailedIndexes: {{ .Values.maxFailedIndexes | default 5 }}
+  # clamped to the arm count: k8s refuses maxFailedIndexes > completions,
+  # which broke every 1-arm MCP battery and small focus manifest (slop's find)
+  maxFailedIndexes: {{ min (.Values.maxFailedIndexes | default 5) (int .Values.arms) }}
   ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
   activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
   template:
