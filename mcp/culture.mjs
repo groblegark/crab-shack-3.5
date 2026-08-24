@@ -184,6 +184,24 @@ function localise(d, verdict) {
           say(`depart.weights.${k}`, "must be an integer 0-8 (quarters; 4 = the engine's own weight)");
       }
     }
+    // phase E3: the full rule table as Layer-1 programs. Shape checks here;
+    // the deep checks (op allowlist, static bounds, all-or-nothing coverage,
+    // template-index proof) are the game's departProblem, which the deep
+    // validate path exercises with named errors.
+    if (dp != null && !Array.isArray(dp) && typeof dp === "object" && dp.rules != null) {
+      if (!Array.isArray(dp.rules) || !dp.rules.length) say("depart.rules", "must be a non-empty list re-expressing EVERY engine rule (all-or-nothing)");
+      else dp.rules.forEach((t, i) => {
+        if (!t || typeof t !== "object") return say(`depart.rules[${i}]`, "must be an object");
+        if (!DEPART_IDS.includes(t.id)) say(`depart.rules[${i}].id`, `"${t.id}" is not a departure rule id`);
+        if (t.mood != null && !["sour", "flat", "mixed", "glad", "made"].includes(t.mood))
+          say(`depart.rules[${i}].mood`, "must be one of sour/flat/mixed/glad/made");
+        if (!Array.isArray(t.weight)) say(`depart.rules[${i}].weight`, "must be a Layer-1 program (a list of [op, arg?] rows)");
+        if (!t.line || !Array.isArray(t.line.select) || !Array.isArray(t.line.templates)
+          || !t.line.templates.length || t.line.templates.length > 8
+          || t.line.templates.some(s => typeof s !== "string" || !s.length || s.length > 120))
+          say(`depart.rules[${i}].line`, "needs select (a Layer-1 program) and templates (1-8 strings, 1-120 chars)");
+      });
+    }
   }
 
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");

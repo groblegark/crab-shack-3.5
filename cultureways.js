@@ -9519,4 +9519,1765 @@ var BUNDLED_CRAB_ART = {
   "sudsy": "teal"
  }
 };
-if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; }
+var BUNDLED_CRAB_DEPART = {
+ "rules": [
+  {
+   "id": "rough",
+   "mood": "sour",
+   "weight": [
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "LD",
+     "rough"
+    ],
+    [
+     "LT"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     36000
+    ],
+    [
+     "PUSHI",
+     9000
+    ],
+    [
+     "LD",
+     "rough"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "LD",
+      "rough"
+     ],
+     [
+      "LT"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "{WHY}. {NIGHTS} NIGHTS ON THE SAND.",
+     "{WHY}. I SLEPT ON THE BEACH."
+    ]
+   }
+  },
+  {
+   "id": "quits",
+   "mood": "sour",
+   "weight": [
+    [
+     "PUSHI",
+     2
+    ],
+    [
+     "LD",
+     "quits"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     30000
+    ],
+    [
+     "PUSHI",
+     2400
+    ],
+    [
+     "LD",
+     "quits"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "WALKED OUT OF {QUITS} LINES. NOBODY EVER CAME."
+    ]
+   }
+  },
+  {
+   "id": "quit",
+   "mood": "sour",
+   "weight": [
+    [
+     "LD",
+     "quits"
+    ],
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     24600
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "LD",
+      "quitMin"
+     ],
+     [
+      "LE"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "WAITED {MINS} AT THE {BIZ}, THEN LEFT.",
+     "GAVE UP AT THE {BIZ}. NOBODY WAS COMING."
+    ]
+   }
+  },
+  {
+   "id": "nothing",
+   "mood": "flat",
+   "weight": [
+    [
+     "LD",
+     "buys"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     22200
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "LD",
+      "blocked"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "EQ"
+     ],
+     [
+      "PUSHI",
+      3
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "LD",
+      "blocked"
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "SUB"
+     ],
+     [
+      "MAX"
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "CAME ALL THIS WAY AND FOUND THE PLACE SHUT.",
+     "NEVER GOT NEAR A COUNTER. EVERY LINE WAS FULL.",
+     "NOTHING HERE I COULD AFFORD. NOT ONE THING.",
+     "DIDN'T SPEND A DOLLAR. NOTHING TOOK MY FANCY."
+    ]
+   }
+  },
+  {
+   "id": "foreign",
+   "mood": "mixed",
+   "weight": [
+    [
+     "PUSHI",
+     2
+    ],
+    [
+     "LD",
+     "foreign"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     18000
+    ],
+    [
+     "PUSHI",
+     1200
+    ],
+    [
+     "PUSHI",
+     5
+    ],
+    [
+     "LD",
+     "foreign"
+    ],
+    [
+     "MIN"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO."
+    ]
+   }
+  },
+  {
+   "id": "delight",
+   "mood": "glad",
+   "weight": [
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "LD",
+     "de"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     19800
+    ],
+    [
+     "PUSHI",
+     1200
+    ],
+    [
+     "PUSHI",
+     5
+    ],
+    [
+     "LD",
+     "de"
+    ],
+    [
+     "MIN"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."
+    ]
+   }
+  },
+  {
+   "id": "unspent",
+   "mood": "mixed",
+   "weight": [
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "LD",
+     "buys"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "LD",
+     "blocked"
+    ],
+    [
+     "LT"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     2
+    ],
+    [
+     "LD",
+     "left"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "PUSHI",
+     12000
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     13200
+    ],
+    [
+     "LD",
+     "left"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "LD",
+      "blocked"
+     ],
+     [
+      "PUSHI",
+      2
+     ],
+     [
+      "EQ"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "LD",
+      "blocked"
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "EQ"
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "PUSHI",
+      2
+     ],
+     [
+      "SEL"
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "${LEFT} OF MY ${PURSE} WENT HOME UNSPENT - EVERY LINE WAS FULL.",
+     "${LEFT} OF MY ${PURSE} WENT HOME UNSPENT - THE TOWN WAS SHUT.",
+     "${LEFT} OF MY ${PURSE} WENT HOME UNSPENT - I COULDN'T AFFORD IT."
+    ]
+   }
+  },
+  {
+   "id": "idle",
+   "mood": "flat",
+   "weight": [
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "LD",
+     "buys"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "blocked"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     2
+    ],
+    [
+     "LD",
+     "left"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "PUSHI",
+     6600
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     6000
+    ],
+    [
+     "LD",
+     "left"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "TOOK ${LEFT} OF MY ${PURSE} HOME AGAIN. NOTHING ELSE I FANCIED."
+    ]
+   }
+  },
+  {
+   "id": "hungry",
+   "mood": "sour",
+   "weight": [
+    [
+     "PUSHI",
+     891290
+    ],
+    [
+     "LD",
+     "hunger"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "meals"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     13200
+    ],
+    [
+     "PUSHI",
+     6000
+    ],
+    [
+     "LD",
+     "hunger"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "GETTING ON THIS BOAT HUNGRIER THAN I GOT OFF IT."
+    ]
+   }
+  },
+  {
+   "id": "parched",
+   "mood": "sour",
+   "weight": [
+    [
+     "PUSHI",
+     891290
+    ],
+    [
+     "LD",
+     "thirst"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "drinks"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     12000
+    ],
+    [
+     "PUSHI",
+     4800
+    ],
+    [
+     "LD",
+     "thirst"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "NOT ONE COLD DRINK IN THE WHOLE PLACE. PARCHED."
+    ]
+   }
+  },
+  {
+   "id": "grubby",
+   "mood": "sour",
+   "weight": [
+    [
+     "PUSHI",
+     891290
+    ],
+    [
+     "LD",
+     "dirt"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "washes"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     11400
+    ],
+    [
+     "PUSHI",
+     4800
+    ],
+    [
+     "LD",
+     "dirt"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "LD",
+      "days"
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "EQ"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "{DAYS} DAY OF SALT AND SAND AND NOWHERE TO WASH IT OFF.",
+     "{DAYS} DAYS OF SALT AND SAND AND NOWHERE TO WASH IT OFF."
+    ]
+   }
+  },
+  {
+   "id": "weary",
+   "mood": "flat",
+   "weight": [
+    [
+     "PUSHI",
+     891290
+    ],
+    [
+     "LD",
+     "tired"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "nightsBed"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     10200
+    ],
+    [
+     "PUSHI",
+     3600
+    ],
+    [
+     "LD",
+     "tired"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "WORN RIGHT OUT. NOWHERE IN THIS TOWN TO SIT DOWN."
+    ]
+   }
+  },
+  {
+   "id": "bored",
+   "mood": "flat",
+   "weight": [
+    [
+     "PUSHI",
+     891290
+    ],
+    [
+     "LD",
+     "bored"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "games"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     9600
+    ],
+    [
+     "PUSHI",
+     3000
+    ],
+    [
+     "LD",
+     "bored"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "ONCE YOU'VE WALKED THE PROMENADE, THAT'S THE LOT."
+    ]
+   }
+  },
+  {
+   "id": "wait",
+   "mood": "mixed",
+   "weight": [
+    [
+     "PUSHI",
+     240
+    ],
+    [
+     "LD",
+     "worstMin"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "LD",
+     "serves"
+    ],
+    [
+     "LT"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     7200
+    ],
+    [
+     "PUSHI",
+     4200
+    ],
+    [
+     "PUSHI",
+     25
+    ],
+    [
+     "LD",
+     "worstMin"
+    ],
+    [
+     "PUSHI",
+     240
+    ],
+    [
+     "SUB"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "MIN"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "GOT SERVED - AFTER {MINS} AT THE {BIZ}."
+    ]
+   }
+  },
+  {
+   "id": "dues",
+   "mood": "mixed",
+   "weight": [
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "LD",
+     "dues"
+    ],
+    [
+     "LT"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     6600
+    ],
+    [
+     "PUSHI",
+     300
+    ],
+    [
+     "LD",
+     "dues"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "CHARGED ME ${DUES} JUST TO STEP OFF THE PLANK."
+    ]
+   }
+  },
+  {
+   "id": "missed",
+   "mood": "mixed",
+   "weight": [
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "LD",
+     "missed"
+    ],
+    [
+     "LT"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     7500
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "MISSED THE LAST BOAT. THAT WASN'T THE PLAN AT ALL."
+    ]
+   }
+  },
+  {
+   "id": "mist",
+   "mood": "flat",
+   "weight": [
+    [
+     "PUSHI",
+     500
+    ],
+    [
+     "LD",
+     "mistMin"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     6000
+    ],
+    [
+     "PUSHI",
+     3600
+    ],
+    [
+     "PUSHI",
+     2
+    ],
+    [
+     "LD",
+     "mistMin"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "MIN"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "THE MIST CAME IN AND I NEVER DID SEE THE FAR SHORE."
+    ]
+   }
+  },
+  {
+   "id": "table",
+   "mood": "made",
+   "weight": [
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "LD",
+     "tables"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     9000
+    ],
+    [
+     "PUSHI",
+     2400
+    ],
+    [
+     "LD",
+     "tables"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "LD",
+      "tables"
+     ],
+     [
+      "PUSHI",
+      2
+     ],
+     [
+      "EQ"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "PUSHI",
+      2
+     ],
+     [
+      "LD",
+      "tables"
+     ],
+     [
+      "LT"
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "PUSHI",
+      2
+     ],
+     [
+      "SEL"
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "WAITED ON AT A TABLE TWICE. A PROPER HOLIDAY.",
+     "WAITED ON AT A TABLE {TABLES} TIMES. A PROPER HOLIDAY.",
+     "SAT DOWN AND WAS WAITED ON. THAT'S A PROPER HOLIDAY."
+    ]
+   }
+  },
+  {
+   "id": "bed",
+   "mood": "glad",
+   "weight": [
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "LD",
+     "nightsBed"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     7800
+    ],
+    [
+     "PUSHI",
+     1800
+    ],
+    [
+     "LD",
+     "nightsBed"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "LD",
+      "nightsBed"
+     ],
+     [
+      "LT"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "{N} NIGHTS AT THE DRIFTWOOD. SLEPT LIKE A STONE.",
+     "SLEPT AT THE DRIFTWOOD. BEST BED ON THE COAST."
+    ]
+   }
+  },
+  {
+   "id": "spentup",
+   "mood": "made",
+   "weight": [
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "LD",
+     "buys"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "PUSHI",
+     100
+    ],
+    [
+     "LD",
+     "left"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     12
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "PUSHI",
+     12600
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     5400
+    ],
+    [
+     "LD",
+     "left"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "SUB"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "MAX"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "SPENT EVERY DOLLAR OF MY ${PURSE}. WORTH THE CROSSING."
+    ]
+   }
+  },
+  {
+   "id": "top",
+   "mood": "glad",
+   "weight": [
+    [
+     "LD",
+     "topitem"
+    ],
+    [
+     "PUSHI",
+     1
+    ],
+    [
+     "EQ"
+    ],
+    [
+     "PUSHI",
+     10
+    ],
+    [
+     "LD",
+     "topPaid"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "AND"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     5100
+    ],
+    [
+     "PUSHI",
+     4800
+    ],
+    [
+     "PUSHI",
+     150
+    ],
+    [
+     "LD",
+     "topPaid"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "MIN"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "${PAID} ON A {ITEM} AT THE {TOPBIZ}. NO REGRETS."
+    ]
+   }
+  },
+  {
+   "id": "regular",
+   "mood": "glad",
+   "weight": [
+    [
+     "PUSHI",
+     2
+    ],
+    [
+     "LD",
+     "buys"
+    ],
+    [
+     "LE"
+    ],
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     4500
+    ],
+    [
+     "PUSHI",
+     900
+    ],
+    [
+     "LD",
+     "buys"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "PUSHI",
+     0
+    ],
+    [
+     "SEL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "LD",
+      "days"
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "EQ"
+     ],
+     [
+      "PUSHI",
+      0
+     ],
+     [
+      "PUSHI",
+      1
+     ],
+     [
+      "SEL"
+     ]
+    ],
+    "templates": [
+     "{LIST} - {STOPS} STOPS IN {DAYS} DAY.",
+     "{LIST} - {STOPS} STOPS IN {DAYS} DAYS."
+    ]
+   }
+  },
+  {
+   "id": "quiet",
+   "mood": "flat",
+   "weight": [
+    [
+     "LD",
+     "purse"
+    ],
+    [
+     "PUSHI",
+     300
+    ],
+    [
+     "MUL"
+    ]
+   ],
+   "line": {
+    "select": [
+     [
+      "PUSHI",
+      0
+     ]
+    ],
+    "templates": [
+     "A DAY BY THE SEA. I'VE HAD WORSE."
+    ]
+   }
+  }
+ ]
+};
+if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }

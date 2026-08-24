@@ -116,6 +116,22 @@ A people, written as a document. Not code — data the engine reads:
             engine's departure-card rule weights (4 = as the engine weighs
             it, 0 = this people never leads with that rule, 8 = twice as
             loud). Unknown rule ids are refused at import, loudly.
+            rules — phase E3: the WHOLE rule table re-expressed as Layer-1
+            straight-line programs, all-or-nothing (weights compare in one
+            scaled space: each weight program computes 300 * purse * w).
+            Ops: PUSHI LD ADD SUB MUL DIVI MULDIV MIN MAX CLAMP ABS NEG
+            LT LE EQ AND OR NOT SEL (the only conditional; no jumps, no
+            loops — program length is the fuel). LD reads the depart bundle
+            by name: days nightsBed rough purse left buys serves tables
+            meals drinks washes games rooms topPaid dues worstMin quits
+            quitMin blocked(0none/1shut/2full/3broke) mistMin missed
+            foreign de hunger thirst dirt bored tired(Q20)
+            sandwhy(0none/1broke/2shut/3unmade/4full) topitem(0/1).
+            line.select picks a template index (statically proven inside
+            line.templates); templates speak through the slot engine
+            ({WHY} {NIGHTS} {QUITS} {TABLES} {DUES} {PAID} {TOPBIZ} {LIST}
+            plus the phase C slots). Every refusal is named; the engine's
+            own lambdas remain the fallback for undeclared cultures.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in

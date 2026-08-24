@@ -52,6 +52,8 @@ const crabArt = { colorways: crabArtSrc.colorways, founders: crabArtSrc.founders
     if (!crabArt.colorways.some(c => c.id === crabArt.founders[f]))
       throw new Error("crab-art.founders." + f + ": names a colorway that does not exist: " + crabArt.founders[f]);
 }
+const crabDepartSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-depart.json", import.meta.url), "utf8"));
+const crabDepart = { rules: crabDepartSrc.rules };         // phase E3: the rule table as programs
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
@@ -106,12 +108,13 @@ const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)
   + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`
   + `var BUNDLED_CRAB_TRAITS = ${JSON.stringify(crabTraits, null, 1)};\n`
   + `var BUNDLED_CRAB_PEOPLE = ${JSON.stringify(crabPeople, null, 1)};\n`
-  + `var BUNDLED_CRAB_ART = ${JSON.stringify(crabArt, null, 1)};\n`;
-const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; }\n`;
+  + `var BUNDLED_CRAB_ART = ${JSON.stringify(crabArt, null, 1)};\n`
+  + `var BUNDLED_CRAB_DEPART = ${JSON.stringify(crabDepart, null, 1)};\n`;
+const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }\n`;
 
 writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",
   Object.keys({ pig, gull }).join(","), "; policies: crab ; crab voice:",
   crabVoice.registers.length, "register(s) ; crab people:",
   crabPeople.crew.length + "+" + crabPeople.walkins.length, "names ; colorways:",
-  crabArt.colorways.length);
+  crabArt.colorways.length, "; crab depart:", crabDepart.rules.length, "rules");
