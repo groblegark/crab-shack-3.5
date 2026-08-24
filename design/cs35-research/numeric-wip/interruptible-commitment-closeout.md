@@ -96,16 +96,52 @@ exists to catch.
 
 ## FIRST CROSSING
 
-(to be filled from the seed-1337 trace at the final SHA)
+Seed 1337, day 1, 13:55 (tmin 835): **EBB, walking to the showers for a
+wash, turns for the shack and a meal instead** - mid-stride, not in a line
+(inLine false), the first mind changed in the town's history. The crossing
+is stable across the slice's late fixes (stamped identically at 4c091b8 and
+c943b52; receipts in kube-runs/cs-rethink-probe-*). Thirteen more follow in
+the first four days.
 
 ## THE DITHER NUMBER
 
-(to be filled: switches per actor-day, staged and measured; the pin bounds it)
+Seed 1337, four town-days, live probe: **13 switches, all visitors, zero
+citizens** - roughly three changes of mind per town-day against dozens of
+active actors, i.e. commitment remains overwhelmingly the default. The
+citizens' zero is the margin working, not the door being shut (the DIRE
+scenario proves their path fires): in four ordinary days no citizen's
+challenger ever cleared 25% mid-walk. The suite pins the ceiling (the
+two-day scenario asserts 0 < switches < 300). The attribution control
+(--norethink, same ref) runs the same town with zero rethink stats and a
+diverged day-4 (rep 82 vs 75, $167 vs $166 on this seed) - the hatch
+isolates the mechanism exactly.
 
-## MATRIX
+## MATRIX (batch instrument, triple-16, base 071143d vs branch c943b52+)
 
-(to be filled: triple-16 baseline + growth, branch vs base 071143d, per-block)
+- Baseline: **0/48 -> 0/48** (medians undisturbed; the floor holds).
+- Growth: **13/48 -> 17/48 (+4)**, per block 5->6 / 2->6 / 6->5. A guest
+  who can leave a dead queue spends her stay at counters that serve her;
+  the autopilot is NOT rethink-aware (the bot does not chase the mechanism
+  - the +4 is the town working better under the same unsteered play).
+- Reported, not tuned: nothing was adjusted toward any of these numbers.
+- An intermediate measurement at 8199cc9 (queue re-think JS-only, the
+  asymmetric bug) read 13/48 - the +4 belongs to the SYMMETRIC mechanism,
+  and the pair of measurements is the symmetry lesson's own receipt.
 
-## GATES
+## GATES (receipts under design/cs35-research/kube-runs/)
 
-(to be filled)
+- rethink-focus: **5/5 scenarios green BOTH backends** at c943b52+ (three
+  staging rounds, each caught by the scenarios' own premise checks - equal
+  staged scores; a backend-fast server claim, answered with a decoy at the
+  line's head; the asymmetric placement, answered by the visTick move).
+- Pins re-pointed with ledger entries, then green both backends: rng
+  {day1: 1726 -> 1861, day2: 1616 -> 2833} (re-thinks gather, gathers
+  draw), frozen day-2 fingerprints for 1337 (serves 44->47, rage 5->3,
+  the town where fewer plans die in a queue) and 4242 (serves 44->52,
+  rage 4->5 - more counters tried, most of them served). **wasm and the
+  reference read the same counts**, which is the symmetry fix's receipt.
+- Mutations, one armed commit each, both reverted: margin 4:5 -> 1:1 =>
+  "a sub-quarter improvement does not turn her" RED; room release removed
+  => "the held room did not release: occupant=MISTY" RED.
+- Full suite + MCP battery at the final SHA: see the report (run
+  cs-suite-318-4fda8ae / cs-phased-gates-4fda8ae).
