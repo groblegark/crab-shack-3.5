@@ -7090,6 +7090,14 @@ function l1Assemble(prog, bundle) {
         st.push([v, v]); break;
       case "LD":
         v = row[1];
+        // authors write LD by NAME (["LD","rough"]); the assembler resolves it
+        // against the bundle here, so a typo'd name fails at import with the
+        // slot list, never at run. Integer indices stay legal (the goldens).
+        if (typeof v === "string") {
+          const ix = bundle.findIndex(s => s && s.name === v);
+          if (ix < 0) return no("LD AT OP " + n + " READS \"" + v + "\" - NOT A BUNDLE ROW");
+          v = ix; row = [op, ix];
+        }
         if (!Number.isInteger(v) || v < 0 || v >= bundle.length) return no("LD AT OP " + n + " READS SLOT " + v + " - THE BUNDLE HAS " + bundle.length);
         if (!bundle[v] || !Number.isInteger(bundle[v].min) || !Number.isInteger(bundle[v].max) || bundle[v].min > bundle[v].max)
           return no("BUNDLE SLOT " + v + " HAS NO SANE RANGE");
@@ -7133,7 +7141,9 @@ function l1Assemble(prog, bundle) {
     if (spec[0]) code.push(row[1]);
   }
   if (st.length !== 1) return no("A PROGRAM MUST END WITH ONE VALUE, ENDS WITH " + st.length);
-  return { code, why: null };
+  // the final static interval rides out so a CONSUMER can bound the result -
+  // a depart line-select program must be provably inside its template list.
+  return { code, why: null, bound: st[0] };
 }
 // Run validated code against the bundle's live values (an int array in the
 // bundle's slot order). No checks here - the validator is the contract; a
@@ -7166,6 +7176,92 @@ function l1Run(code, read) {
     }
   }
   return st[0];
+}
+// ---------------------------------------------------------------------------
+// THE DEPART READ BUNDLE (phase E3) - the stay record's numeric truth, as the
+// LD index space for depart weight and line-select programs. Order is the
+// ABI: programs compiled against these rows run against departReads' vector,
+// so rows only ever APPEND. Ranges are the validator's honesty (the static
+// magnitude bound is only as true as these declarations), and departReads
+// clamps to them, counting every clamp: a stay outside its declared range is
+// a loud dev-gate failure, never a silent bend (plan risk #2).
+// Strings cross as small codes: blocked 0none/1shut/2full/3broke,
+// sandwhy 0none/1broke/2shut/3unmade/4full, topitem 0/1 (has one at all).
+const DEPART_BUNDLE = [
+  { name: "days", min: 1, max: 64 },        { name: "nightsBed", min: 0, max: 64 },
+  { name: "rough", min: 0, max: 64 },       { name: "purse", min: 1, max: 20000 },
+  { name: "left", min: 0, max: 20000 },     { name: "buys", min: 0, max: 255 },
+  { name: "serves", min: 0, max: 255 },     { name: "tables", min: 0, max: 255 },
+  { name: "meals", min: 0, max: 255 },      { name: "drinks", min: 0, max: 255 },
+  { name: "washes", min: 0, max: 255 },     { name: "games", min: 0, max: 255 },
+  { name: "rooms", min: 0, max: 255 },      { name: "topPaid", min: 0, max: 20000 },
+  { name: "dues", min: 0, max: 2000 },      { name: "worstMin", min: 0, max: 8000 },
+  { name: "quits", min: 0, max: 64 },       { name: "quitMin", min: 0, max: 8000 },
+  { name: "blocked", min: 0, max: 3 },      { name: "mistMin", min: 0, max: 200000 },
+  { name: "missed", min: 0, max: 16 },      { name: "foreign", min: 0, max: 255 },
+  { name: "de", min: 0, max: 255 },         { name: "hunger", min: 0, max: 1048576 },
+  { name: "thirst", min: 0, max: 1048576 }, { name: "dirt", min: 0, max: 1048576 },
+  { name: "bored", min: 0, max: 1048576 },  { name: "tired", min: 0, max: 1048576 },
+  { name: "sandwhy", min: 0, max: 4 },      { name: "topitem", min: 0, max: 1 },
+];
+let departClamped = 0;   // dev tripwire: scenarios assert this stays 0
+function departReads(r) {
+  const BLK = { shut: 1, full: 2, broke: 3 };
+  const SWY = { broke: 1, shut: 2, unmade: 3, full: 4 };
+  const raw = [
+    r.days, r.nightsBed, r.rough, r.purse, r.left, r.buys, r.serves, r.tables,
+    r.meals, r.drinks, r.washes, r.games, r.rooms, r.topPaid, r.dues,
+    r.worstMin, r.quits, r.quitMin, BLK[r.blocked] || 0, r.mistMin, r.missed,
+    r.foreign || 0, r.de || 0, r.hunger, r.thirst, r.dirt, r.bored, r.tired,
+    SWY[r.sandWhy] || 0, r.topItem ? 1 : 0,
+  ];
+  for (let i = 0; i < raw.length; i++) {
+    let v = Math.round(raw[i] || 0);
+    const b = DEPART_BUNDLE[i];
+    if (v < b.min || v > b.max) { departClamped++; v = v < b.min ? b.min : b.max; }
+    raw[i] = v;
+  }
+  return raw;
+}
+// The depart transcription's clamps (phase E3). A depart table re-expresses
+// the ENGINE's rule table through Layer-1 programs, and it is all-or-nothing:
+// weights are compared across rules in one scaled space (S*purse*w, S=300),
+// so a table missing a rule would be comparing scales - refused by name.
+// The templates speak through the departSlots engine like every voice line.
+function departProblem(dep) {
+  if (!dep || typeof dep !== "object" || Array.isArray(dep)) return "A BAD DEPART TABLE";
+  if (!Array.isArray(dep.rules) || !dep.rules.length) return "A DEPART TABLE WITH NO RULES";
+  const seen = {};
+  const line = (s) => typeof s === "string" && s.length > 0 && s.length <= 120;
+  for (const t of dep.rules) {
+    if (!t || typeof t !== "object") return "A BAD DEPART RULE ROW";
+    if (!DEPART_RULES.some(rule => rule.id === t.id)) return "A DEPART RULE NOBODY LEAVES BY: " + t.id;
+    if (seen[t.id]) return "A DEPART RULE TWICE: " + t.id;
+    seen[t.id] = 1;
+    if (t.mood != null && !DEP_MOODS[t.mood]) return "A MOOD NOBODY WEARS: " + t.mood;
+    const w = l1Assemble(t.weight, DEPART_BUNDLE);
+    if (w.why) return "DEPART " + t.id + " WEIGHT: " + w.why;
+    if (w.bound[0] < 0) return "DEPART " + t.id + " WEIGHT CAN GO NEGATIVE";
+    if (!t.line || !Array.isArray(t.line.templates) || !t.line.templates.length
+      || t.line.templates.length > 8 || t.line.templates.some(s => !line(s)))
+      return "A BAD DEPART TEMPLATE ON " + t.id;
+    const s = l1Assemble(t.line.select, DEPART_BUNDLE);
+    if (s.why) return "DEPART " + t.id + " SELECT: " + s.why;
+    if (s.bound[0] < 0 || s.bound[1] >= t.line.templates.length)
+      return "DEPART " + t.id + " PICKS TEMPLATE " + s.bound[1] + " OF " + t.line.templates.length;
+  }
+  for (const rule of DEPART_RULES) if (!seen[rule.id]) return "A DEPART TABLE MISSING " + rule.id.toUpperCase();
+  return null;
+}
+// Compile a VALIDATED depart table to run form: id -> { w, s, tpls, mood }.
+function departCompile(dep) {
+  const out = {};
+  for (const t of dep.rules) out[t.id] = {
+    w: l1Assemble(t.weight, DEPART_BUNDLE).code,
+    s: l1Assemble(t.line.select, DEPART_BUNDLE).code,
+    tpls: t.line.templates, mood: t.mood || null,
+  };
+  return out;
 }
 // ---------------------------------------------------------------------------
 // Returns null when the culture definition is sound, else a short reason.
@@ -7343,6 +7439,13 @@ function cultureProblem(d, ownId) {
         const w = D.weights[k];
         if (typeof w !== "number" || !Number.isInteger(w) || w < 0 || w > 8) return "A BAD DEPART WEIGHT";
       }
+    }
+    // A full re-expression of the rule table through Layer-1 programs
+    // (phase E3). All-or-nothing, every program statically validated, every
+    // refusal named - departProblem owns the checks.
+    if (D.rules != null) {
+      const why = departProblem(D);
+      if (why) return why;
     }
   }
   // APPEAL is the one culture-owned table for what draws a people: the
@@ -7979,6 +8082,7 @@ function traitOfP(p) {
   return t[p.trait] || CRABT[p.trait] || TRAITS[p.trait];
 }
 function traitOf(c) { return traitOfP(c.p); }
+let CRABD = null;   // the crab default's depart TABLE, compiled - null = lambdas
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -8015,6 +8119,17 @@ function rebuildBrains() {
   if (typeof BUNDLED_CRAB_TRAITS !== "undefined" && BUNDLED_CRAB_TRAITS
     && BUNDLED_CRAB_TRAITS.traits && !traitsProblem(BUNDLED_CRAB_TRAITS.traits))
     CRABT = buildTraits(BUNDLED_CRAB_TRAITS.traits);
+  // THE CRAB'S DEPART TABLE, TRANSCRIBED (phase E3). Same bundle door, same
+  // validator as a stranger's document, same lifecycle. The transcription is
+  // byte-equal to the rule lambdas by the sweep + whole-town scenarios; the
+  // lambdas remain the engine fallback, so a broken bundle costs a console
+  // warning and a suite red, never a town.
+  CRABD = null;
+  if (typeof BUNDLED_CRAB_DEPART !== "undefined" && BUNDLED_CRAB_DEPART) {
+    const why = departProblem(BUNDLED_CRAB_DEPART);
+    if (why) console.error("crab depart table refused: " + why);
+    else CRABD = departCompile(BUNDLED_CRAB_DEPART);
+  }
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -8072,6 +8187,10 @@ function buildCulture(def) {
   // and visQuote's arithmetic is untouched for a null — identity, not *4/4.
   const departW = (def.depart && def.depart.weights)
     ? Object.assign({}, def.depart.weights) : null;
+  // A declared depart TABLE compiles once here (phase E3): validated by
+  // cultureProblem, so departCompile cannot fail. Null when undeclared -
+  // that culture's departures run the engine lambdas exactly as today.
+  const departR = (def.depart && def.depart.rules) ? departCompile(def.depart) : null;
   // DECLARED BUSINESSES, built once into the runtime catalog's own shape
   // (author dollars cross the x100 boundary here, like every other section)
   // but PENDING: no plot, no door, not in BIZ or BIZ_KEYS. When placement
@@ -8129,7 +8248,7 @@ function buildCulture(def) {
     HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
   } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, businesses: biz, settlers, phys, rhythm };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -9985,10 +10104,17 @@ function convertTourist(k) {
   // settlers.apron sends her through the factory below instead.
   if (!settlerApron(k)) {
     // The refusal speaks from a register: the visitor's own culture first,
-    // else the crab table (phase E6 retires the voice close-out's debt - the
-    // TWO literals behind one key split into refuseHire (the pop) and
-    // refuseHireLog (the diary line); a culture declaring only refuseHire
-    // uses it for both, exactly as before). Code literals stay the fallback.
+    // else the crab table. Code literals stay the fallback.
+    // TWO keys, because the pop and the diary line are different sentences
+    // behind one moment and a single key could never table both without
+    // changing the log's bytes: refuseHire (the pop) and refuseHireLog (the
+    // line). A register may declare either or both; declaring only
+    // refuseHire uses it for both, exactly as before; the crab table
+    // declares both, byte-equal.
+    // (E3 and E6 each retired this same debt independently, in the same
+    // shape, without seeing the other's branch - the merge found two
+    // comments over identical code. That agreement is a small piece of
+    // evidence that the split is the natural one and not one author's taste.)
     const reg = visRegister(k) || crabRegister(k.acc);
     popText((reg && reg.refuseHire) || "KIND OFFER. NO.", k.x - 20, custY(k) - 24, [255, 200, 140]);
     visLog(k, "life", (reg && (reg.refuseHireLog || reg.refuseHire)) || "TURNED DOWN A JOB");
@@ -19220,7 +19346,32 @@ function visQuote(r) {
   // the arithmetic — the override multiplies only where an author declared
   // one, so the frozen fingerprints hold by construction, and a 0 silences a
   // rule for that people without unsorting anyone else's table.
-  const ow = (r.cu && CULTURES[r.cu] && CULTURES[r.cu].departW) || null;
+  const cul = r.cu ? CULTURES[r.cu] : null;
+  const ow = (cul && cul.departW) || null;
+  // THE TRANSCRIBED TABLE (phase E3): a culture that re-expressed the rules
+  // as Layer-1 programs runs them here; the crab's own transcription rides
+  // the bundle (CRABD). Weights are compared in ONE scaled space - each
+  // program computes 300 * purse * w exactly (purse clears the l/p rules'
+  // division, 300 clears every constant denominator), and the quarters
+  // override multiplies UN-divided (a constant x4 on every rule when nobody
+  // declared one) - argmax and ties land exactly where the float table's do,
+  // and the per-rule sweep + the whole-town run are the proof. The weight
+  // field is internal tie-break state (nothing draws, logs, or saves it),
+  // so it reads scaled in program mode. The lambdas below remain the engine
+  // fallback: no table, no change.
+  const dR = (typeof window !== "undefined" && window._nol1depart) ? null
+    : (cul ? cul.departR : CRABD);
+  if (dR) {
+    const read = departReads(r);
+    let best = DEPART_RULES[DEPART_RULES.length - 1], bw = 0;
+    for (const rule of DEPART_RULES) {
+      const w = l1Run(dR[rule.id].w, read) * (ow && ow[rule.id] != null ? ow[rule.id] : 4);
+      if (w > bw) { bw = w; best = rule; }
+    }
+    const t = dR[best.id];
+    return { id: best.id, mood: t.mood || best.mood, weight: bw,
+      line: departLine(r, best, t, read) };
+  }
   let best = DEPART_RULES[DEPART_RULES.length - 1], bw = 0;
   for (const rule of DEPART_RULES) {
     let w = rule.w(r) || 0;
@@ -19240,14 +19391,26 @@ function visQuote(r) {
 // winner, different voice. Slots are resolved from the row alone, so this
 // stays the pure function the scenarios hand hand-built stays to.
 function departSlots(r) {
+  // THE CAUSE, AS A SLOT (phase E3): the rough rule's why-clause is engine
+  // truth about the stay - which door failed - so it resolves here like BIZ
+  // does, and a template carries {WHY} where the literal branched.
+  const WHY = r.sandWhy === "broke"
+      ? (r.missed > 0 ? "MISSED THE LAST BOAT AND SPENT UP" : "COULDN'T AFFORD A BED")
+    : r.sandWhy === "shut" ? "THE HOTEL DESK WAS DARK"
+    : r.sandWhy === "unmade" ? "BEDS STANDING THERE UNMADE"
+    : "NOT A ROOM LEFT IN TOWN";
   return {
     LEFT: r.left, PURSE: r.purse, STOPS: r.buys, DAYS: r.days,
     N: r.nightsBed, ITEM: r.topItem || "SOMETHING",
     MINS: depMins(r.quits ? r.quitMin : r.worstMin),
     BIZ: r.quits ? r.quitBiz : (r.worstMin >= 1 ? r.worstBiz : (r.topBiz || "COUNTER")),
+    // phase E3's additions - every one row-derived, like everything above:
+    WHY, NIGHTS: r.rough, QUITS: r.quits, TABLES: r.tables,
+    DUES: r.dues, PAID: r.topPaid, TOPBIZ: r.topBiz || "COUNTER",
+    LIST: depList(r),
   };
 }
-function departLine(r, rule) {
+function departLine(r, rule, trans, read) {
   if (r.cu && CULTURES[r.cu]) {
     const cul = CULTURES[r.cu];
     const reg = cul.regs.find(g => g.acc === r.acc) || cul.regs[0];
@@ -19258,12 +19421,17 @@ function departLine(r, rule) {
     if (tpl) return vfmt(tpl, departSlots(r));
   } else {
     // the crab default speaks from its own table where a template can say
-    // exactly what the literal says (phase C); branching literals stay code.
+    // exactly what the literal says (phase C); branching literals speak
+    // through the TRANSCRIPTION below since E3.
     const g = crabRegister(r.acc);
     const tpl = g && ((g.depart && g.depart[rule.id])
       || (rule.id === "foreign" ? g.foreign : null));
     if (tpl) return vfmt(tpl, departSlots(r));
   }
+  // the transcribed line: a Layer-1 select picks the template the literal's
+  // branch would have picked, statically proven inside the list. The lambda
+  // below stays the fallback for every undeclared culture and rule.
+  if (trans) return vfmt(trans.tpls[l1Run(trans.s, read || departReads(r))], departSlots(r));
   return rule.line(r);
 }
 
