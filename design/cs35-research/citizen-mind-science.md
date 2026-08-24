@@ -35,51 +35,146 @@ a divergent think the two towns' histories differ, so the log maps where the
 minds part, not what would have happened next. The knockouts carry the causal
 weight; the corpus aims them.
 
-## The instrument fight (banked so nobody relearns it)
+## THE INSTRUMENT FIGHT: a worker that doesn't halt is a parent
 
-Six failed launches taught the substrate three lessons, all now in the
-manifests:
+Ten cluster launches failed before one town was ever simulated. They failed
+in five different costumes, and **every costume was mine** — one bug, wearing
+whatever the cluster handed it.
 
-- **A pod's Node sizes V8 off the HOST, not the cgroup** — seven workers'
-  lazy heaps ballooned past the pod limit and the kernel killed the arm at
-  4Gi and again at 8Gi. `--workermem` (fork execArgv old-space cap) exists
-  now.
-- **Heap caps don't cap RSS** — a main-realm worker carries ~1GB beyond its
-  old-space (compiled source, externals); seven residents peak together
-  right when the first towns finish (~190s, every attempt). The fix that
-  finally held was SHAPE, not tuning: 4-town arms, 2 workers, 4Gi pods —
-  small enough that the ceiling stops being negotiated with.
-- **backoffLimit 1 on a busy pool tears down healthy arms**: one flaky pod
-  start + a retry that can't schedule = the whole job FailureTarget while
-  four green arms get killed mid-run. Launch on a quiet pool; receipts are
-  the verdict, Job status is a mood.
-- **Arm wall-time projection** (for the runbook): about
-  `towns x days / (0.65 x workers)` vCPU-seconds-per-lived-day on m5 —
-  and measure, don't assume laptop cores; the observed small-arm wall ran
-  far past the naive figure.
-- **The deadline is part of the projection** — the chart defaults
-  `activeDeadlineSeconds: 3600`, which axed a fully healthy 24-arm run at
-  the hour mark with ZERO receipts (attempt 7). Long arms must carry their
-  own deadline in the manifest (kube.mjs now forwards
-  `activeDeadlineSeconds` to the overlay); size it from the wall-time
-  formula with real margin.
+**The bug.** Attempt 1's honest finding was that a worker's large IPC payload
+can be dropped if the process exits before the message flushes. The fix moved
+the exit into `send`'s flush callback:
+
+```js
+process.send(runOnce(seed), () => process.exit(0));   // WRONG
+```
+
+`process.send` returns immediately. Module evaluation **continues** — straight
+past the worker branch into the CLI section below it, where the file's own
+matrix code forks a pool of workers. Each of those inherits `--_worker`, runs
+a town, and forks its own pool. A fork bomb, in the entrypoint, written by the
+fix for a real bug.
+
+**Why every local test passed.** On a fast laptop core the town finishes and
+the exit callback fires before the fresh children accomplish anything — exit
+wins the race, the bomb is invisible. On a slow pod core the children win.
+The same binary is correct on the box and catastrophic on the cluster: the
+sharpest instance yet of the house rule that **the box is for gates and the
+cluster is for fan-out**, arriving as a bug that only exists at cluster speed.
+
+**The five costumes** (each "diagnosed" and "fixed" in turn, each fix
+addressing an axe rather than the wedge):
+
+| # | What it looked like | What it was |
+|---|---|---|
+| 1-2 | OOMKilled at 4Gi, then at 8Gi | doubling processes, not fat heaps |
+| 3 | contention + `backoffLimit` teardown | the bomb, on a busy pool |
+| 4 | OOM again at 12Gi, 4 workers | the bomb, with more headroom to eat |
+| 5 | `activeDeadlineSeconds: 3600` axe at 60m | the bomb, still spawning at the hour |
+| 6 | 105m and 173m expiries | the bomb, under a 3h deadline |
+
+**How it was finally caught.** Not by reading code — by a `/proc` census
+inside a live pod. The film:
+
+```
+135 (node-MainThread) R 1162     <- twelve RUNNABLE nodes
+148 (node-MainThread) R 1042        (the manifest asked for TWO)
+...
+ 36 (node-MainThread) Z 1313     <- eight ZOMBIES, reaped by nobody
+ 57 (node-MainThread) Z 2207        (the shell is PID 190, not their parent)
+```
+
+Twelve live processes and eight zombies where two workers were requested;
+CPU counters climbing, so **spinning, not blocked**; zombie parents gone.
+That census names the mechanism in one screen after ten launches of
+inference.
+
+**The fix**: `await` the flush, then exit — top-level await halts module
+evaluation, so the worker branch is genuinely terminal.
+
+```js
+await new Promise((flushed) => process.send(runOnce(seed), flushed));
+process.exit(0);
+```
+
+**Lessons worth the runbook** (companions to lesson 8):
+
+- **A worker branch must HALT, not merely schedule an exit.** Any
+  fork-and-IPC entrypoint that is its own worker needs the branch to end
+  evaluation — `await`+`exit`, or a `return`-shaped guard — never a callback
+  that lets the module fall through into its parent path.
+- **Diagnose a wedged pod with a `/proc` census before anything else.**
+  Process count vs. requested workers, R-vs-S states, zombie tally. Silence
+  plus growth is a spin, and `kubectl logs` cannot see it.
+- **Receipts-before-status, and forensics have minutes.** Every attempt's
+  pods were GC'd fast; the diagnosis came from `kubectl exec` on a LIVE pod,
+  not archaeology.
+- **A pod's Node sizes V8 off the HOST, not the cgroup** — real, and
+  `--workermem` stays, but it was never this failure's cause.
+- **`backoffLimit: 1` on a 24-index job means the second pod failure
+  anywhere torches all 24.** Worth a per-index failure policy for wide
+  science jobs.
+- **Arm wall-time**: `towns x days / (0.65 x workers)` lived-sim-day-seconds
+  on m5 — and note that the "measured ~90min arm" that justified a 3h
+  deadline was itself an artifact of the bomb. A healthy 4-town, 30-day arm
+  on 2 workers is minutes, not hours. Re-measure honest baselines after a
+  wedge is cleared; a number taken during a bug is a number about the bug.
+
+## STATE: instruments proven, science not yet run (handoff, 2026-08-23)
+
+Everything below is built, committed, and cluster-ready; no experimental
+number exists yet, and none is guessed here. What exists:
+
+- `tools/headless.mjs` probes (default-off, tools-only, shipped game.js
+  untouched): `--citscript` (the A/B arm), `--citdivlog` (divergence corpus
+  + the `>> citdivsum` receipt line with story seeds), `--citknock <pair>`
+  (class-selective override), `--workermem` (pod heap cap), per-worker
+  completion prints, and the halting-worker fix.
+- `tools/science-cit-mkmanifest.mjs` — emits both manifests in the small-arm
+  shape (4 towns, 2 workers): `corpus` (24 arms: 12 live + 12 script over
+  town offsets 0..47) and `knock <pairs...>`.
+- `tools/science-cit-analyze.mjs` — reads kube receipts, merges buckets,
+  regroups `-t<offset>` arms into sb0/16/32 blocks, prints the variant
+  totals, the bucket table, and the turnout comparison; writes
+  `summary-cit-science.json`.
+- `experiments/cit-science-corpus.json`, `experiments/cit-science-probe1.json`
+  (one witnessed arm), and `tools/kube.mjs` forwarding
+  `activeDeadlineSeconds` from a manifest.
+
+**Resume in this order:**
+
+1. `AWS_PROFILE=gasboat-prod node tools/kube.mjs run experiments/cit-science-probe1.json --ref <tip> --wait`
+   — one arm; confirm a receipt banks with a `>> citdivsum` line, and read
+   the honest arm wall-time off it (the old ~90min figure was the bomb).
+2. Corpus: same command with `experiments/cit-science-corpus.json`. Then
+   `node tools/science-cit-analyze.mjs design/cs35-research/kube-runs/<release>`.
+3. Read the bucket table; pick the top 3-4 directional pairs (plus
+   `vote:vote` for the turnout question); regenerate
+   `node tools/science-cit-mkmanifest.mjs knock "<pair>" ...` and run it.
+   Budget: pairs x 12 arms; cap concurrency with `--parallelism`.
+4. Fill the four sections below from receipts only.
 
 ## The decomposition
 
-(filled from receipts: kube-runs/<release>/summary-cit-science.json)
+(pending phase 1 + 2 receipts; every row must cite
+kube-runs/<release>/summary-cit-science.json)
 
 | pair | thinks | share | causal growth share (knockout) |
 |---|---|---|---|
-| TBD | | | |
+| — | — | — | — |
 
 ## The turnout verdict
 
-(filled from receipts: live vs script papers/roll, and the vote knockout)
+(pending: live vs script papers/roll from the corpus arms, then the
+`vote:vote` knockout to separate cause from side-effect)
 
 ## Stories
 
-(filled from the corpus's story seeds)
+(pending: the corpus's banked story seeds — named crab, day, what the script
+would have done, what the brain did)
 
 ## The honest residual
 
-(what share of the +4 escapes no knockout claims)
+(pending: the share of the escape delta no knockout claims — and note that
+the +4 itself must be re-established in THIS instrument before it can be
+decomposed)
