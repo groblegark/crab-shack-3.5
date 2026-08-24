@@ -17,3 +17,7 @@ design/cs35-research/kube-runs/
 ios/www/
 ios/*.xcodeproj/
 ios/Resources/Info.plist
+
+# the Apple Developer team, so a regeneration does not need the env var.
+# Local because it is account-specific, not because it is secret.
+ios/team.local

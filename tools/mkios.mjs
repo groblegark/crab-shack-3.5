@@ -66,11 +66,23 @@ const stamp = /sha:\s*"([0-9a-f]{7})"/.exec(R("version.js"));
 console.log(`  build ${stamp ? stamp[1] : "UNSTAMPED — run tools/mkversion.mjs"}`);
 
 // ---------------------------------------------------------------- the project
+// The Apple Developer team: CS_TEAM_ID, else ios/team.local (gitignored, one
+// line). It has to come from one of those two because the PROJECT IS GENERATED
+// - a team picked in Xcode's Signing editor is wiped by the next regeneration,
+// silently, and the next device build then fails for a reason that looks like
+// a portal problem.
+const teamFile = join(root, "ios", "team.local");
+const team = process.env.CS_TEAM_ID
+  || (existsSync(teamFile) ? readFileSync(teamFile, "utf8").trim() : "");
+console.log(team ? `  signing team ${team}` : "  note: no CS_TEAM_ID and no ios/team.local — this project will not sign");
+
 // xcodegen is optional here so the payload can be assembled on a machine that
 // only serves it (and so this tool stays useful before Xcode finishes landing)
 try {
   const out = execFileSync("xcodegen", ["generate", "--spec", "project.yml", "--quiet"],
-                           { cwd: join(root, "ios"), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+                           { cwd: join(root, "ios"), encoding: "utf8",
+                             env: { ...process.env, CS_TEAM_ID: team },
+                             stdio: ["ignore", "pipe", "pipe"] });
   if (out.trim()) console.log(out.trim());
   console.log("ios/CrabShack35.xcodeproj — regenerated from project.yml");
 } catch (e) {
