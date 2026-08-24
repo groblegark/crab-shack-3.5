@@ -67,4 +67,16 @@ defaults only in this slice, per scope.
 
 ## CEREMONY
 
-(filled in as the gates run)
+**The first crossing, named** (tools/probe-arrival.mjs at the base+probe ref
+0855863 vs the branch 7f3fec5; receipts in kube-runs/cs-visstats-probe-*):
+seed 1337, day 1, tick 301 — ANEMONE steps off the 08:00 boat and her VHUN
+plane writes 498352 (47.5%) where the base wrote 335787 (32%). Seed 4242,
+same tick: ROE, same story. The alignment proof rides in the same receipts:
+her LOADED need (thirst 903221), her wallet (10576), her name and her nights
+are byte-identical across the trees — the loaded mechanic's constants and
+every draw site are untouched; only the arrival table's authored floors and
+spans moved. Draw-count pins hold by construction.
+
+**The visual receipt**: devlog/img/2026-08-24-visstats-card.png — MISTY off
+the seed-1337 boat, FLUSH, eating a fish taco, five meters reading five
+different truths.
