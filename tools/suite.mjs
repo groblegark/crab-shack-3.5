@@ -5646,6 +5646,37 @@ scenario("a science run is silent and the mind panel banks at the fold", () => {
   if (out.fold >= 176) return "the mind panel still crosses the fold (" + out.fold + " >= panel)";
   return true;
 });
+scenario("the rota pages at seven and the twelfth crab keeps her controls", () => {
+  // A shop with more staff than the schedule card has rows used to show the
+  // first seven and give the rest NOTHING - no shift, no OT, no sick, no
+  // wage. The window walks now; every staff index must appear on some page.
+  const sim = createSim({ seed: 11 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    const c0 = crabs[0];
+    while (crabs.length < 12)
+      crabs.push({ x: c0.x, y: c0.y, duty: false,
+        p: { name: "STAGED " + crabs.length, color: crabs.length % 4, acc: "none", culture: "crab",
+             trait: c0.p.trait, mode: c0.p.mode, sick: false, job: c0.p.job, wage: c0.p.wage, wallet: 0 } });
+    for (const c of crabs) c.p.job = "shack";
+    manage = "shack"; manageTab = "SCHEDULE"; dossier = null; saveView = false;
+    const R = manageRects();
+    schedPage = 0;
+    const seen = new Set();
+    let SW = schedWindow(12, R);
+    const pages = SW.pages, paged = SW.paged, per = SW.per;
+    for (let pg = 0; pg < pages; pg++) {
+      schedPage = pg; SW = schedWindow(12, R);
+      for (let i2 = 0; i2 < Math.min(12 - SW.start, SW.per); i2++) seen.add(SW.start + i2);
+    }
+    schedPage = 0;
+    return JSON.stringify({ paged, per, pages, covered: seen.size, rows: R.rows.length });
+  })()`));
+  if (!out.paged) return "twelve staff on one rota did not page (rows=" + out.rows + ")";
+  if (out.per !== out.rows - 1) return "the pager did not take the last row (per=" + out.per + ")";
+  if (out.covered !== 12) return "the window drops staff: " + out.covered + "/12 reachable across pages";
+  return true;
+});
 scenario("no surface prints off the canvas", () => {
   // THE GENERAL FORM OF THE LEASE BUG. Every full-screen surface is drawn with
   // text/smallText stubbed to MEASURE what it prints, at the size it prints it,
