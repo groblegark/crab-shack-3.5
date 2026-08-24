@@ -113,3 +113,47 @@ draw-visible crossing is the next ferryBatch whose passenger rounding the
 shifted milli-term tips; by the receipts the eviction-day histograms are
 already reshaped at day 8 (baseline sb0: base has 4 evictions at day 9,
 branch's first at day 8), and every block's histogram differs by day 11.
+
+## THE GATES
+
+**rep-focus (the slice's own five), both backends: 10/10 green** at b24e8ae.
+
+**Both mutations BIT, each red by name, each reverted** (arm → cluster red →
+revert, one deliberate defect in the tree at a time):
+- MUTATION A — the one door forgets to saturate: `rep: gains saturate...`
+  and `rep: a guest tells HER people...` both red, both backends (6/10).
+- MUTATION B — the gate hears only the crabs: those two plus
+  `rep: the gate hears a people's OWN word...` red, both backends (4/10).
+Tree verified clean afterward: no armed defect, both reverts landed, the
+saturation (`game.js:219`) and three-ears (`:12364`) mechanisms live.
+
+**The full battery's honest residue.** The first clean full run read
+258/264 with seven distinct reds. Every one was walked to its mechanism —
+none was waved through:
+1. THREE PINS RE-POINTED, each with its story in the pin comment: the
+   cultureways digest (every field byte-identical **except rep**, 50824 →
+   35828 — arithmetic moved, behavior did not: the pass's cleanest
+   receipt); the hours frozen day-2 fingerprint on seed 1337 (lower resting
+   rep → smaller boats → fewer unserved guests → rage 5 → 3 → **more**
+   completed sales, coins 13717 → 18963); and the rng day-2 draw count
+   (1616 → 1603 — the pass adds ZERO draw sites, so the 13 missing draws
+   are exactly the errands of the guests a smaller boat never landed; day 1
+   holds at 1726 because the first sailing pre-dates any earn).
+2. TWO STAGINGS WALKED, not re-pointed: the hotelier's nearest-free-door
+   assertion now judges at MOVE-IN (a closer house can legitimately empty
+   later; inspecting at end-of-run asserted a coincidence), and the
+   mortality scenario keeps SUDSY solvent until the illness takes her (the
+   leaner rep-era economy can bankrupt SUDS SHOWERS first, leaving the
+   death nothing to record — how she stays afloat is staging; what her
+   death leaves is the test).
+3. TWO CULTURE-STAGING REDS → THE GATE TRANSLATION (the ruling item below):
+   `pigs: they actually get off the boat` and `brains: a town full of
+   thinking heads` both failed with no cultured guest ashore. The bundled
+   gates were authored against a rep scale where 100 was the resting state;
+   pig 80 / gull 60 are unreachable now by construction. Translated in the
+   fixtures — **pig 80 → 55, gull 60 → 40** — regenerated, byte-checked.
+
+**Substrate fix carried:** cherry-picked d997511 (per-index backoff), then
+found and fixed its edge — `maxFailedIndexes: 5` is invalid on a 1-arm
+manifest (k8s requires ≤ completions), so the chart now takes
+`min(maxFailedIndexes, arms)`. Both belong in mainline.
