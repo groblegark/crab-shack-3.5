@@ -13836,6 +13836,128 @@ scenario("cards: a declared card reads live values off the registry, and an unkn
   return true;
 });
 
+// ---- INTERRUPTIBLE COMMITMENT (Matt, 2026-08-23: "agreed; plan it and do it")
+// Every staging below VERIFIES ITS OWN PREMISE before asserting behavior: the
+// judge's two scores are read first and the ratio is required to sit where
+// the test needs it, so a drifted constant fails as "staging:" - a named
+// premise - never as a mystery about the mechanism.
+scenario("rethink: a parched guest bound for the hotel turns for the counter, and her held room opens", () => {
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 10 * 60", { maxSteps: 400000 });
+  sim.G(`window._k = (() => { const k = newVisitor(false);
+    k.state = "roam"; k.wy = FLOOR_Y; k.idleT = 9e9; k.thinkT = 9e9;
+    k.wallet = 20000; k.hunger = 0; k.thirst = Q20; k.dirt = 0; k.bored = 0; k.tired = 0;
+    k.x = BIZ.shack.queueX + 30;   // beside the counter, committed to the far desk
+    customers.push(k); return k; })();
+    visGo(window._k, { biz: "hotel", need: "room", recipe: null });
+    window._room = window._k.room;`);
+  if (sim.G("!window._room")) return "staging: the hotel had no room to reserve";
+  const cur = sim.G(`visScoreOne(window._k, { biz: "hotel", need: "room", recipe: null })`);
+  const nw = sim.G(`visScoreOne(window._k, { biz: "shack", need: "drink", recipe: null })`);
+  if (!(4 * nw > 5 * cur)) return `staging: the counter does not beat the desk at 4:5 (${nw} vs ${cur})`;
+  sim.G("window._k.thinkT = 1;");
+  sim.runUntil("false", { maxSteps: 4 });
+  if (sim.G('window._k.biz') !== "shack") return "she never turned: biz=" + sim.G("window._k.biz");
+  if (sim.G('window._k.need') !== "drink") return "she turned for the wrong thing: " + sim.G("window._k.need");
+  // MUTATION TARGET (abandon leaks): the reserved room must open behind her
+  if (!sim.G("window._k.room === null && window._room.occupant === null"))
+    return "the held room did not release: occupant=" + sim.G("window._room.occupant && window._room.occupant.name");
+  if (sim.G("stayOf(window._k).quits") !== 0) return "a change of mind was stamped as a quit";
+  return true;
+});
+scenario("rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5", () => {
+  // Same shop, two needs: the distances cancel, so the ratio is pure need
+  // arithmetic - (food 4*Q20 + hunger) over (drink 3*Q20 + Q20). Hunger at
+  // 0.6*Q20 puts the challenger 15% ahead: better, and not better ENOUGH.
+  // MUTATION TARGET (margin removed): with the judge at 1:1 she switches
+  // and this scenario goes red.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 10 * 60", { maxSteps: 400000 });
+  sim.G(`window._k = (() => { const k = newVisitor(false);
+    k.state = "roam"; k.wy = FLOOR_Y; k.idleT = 9e9; k.thinkT = 9e9;
+    k.wallet = 20000; k.hunger = Math.round(0.6 * Q20); k.thirst = Q20;
+    k.dirt = 0; k.bored = 0; k.tired = 0;
+    k.x = BIZ.shack.queueX + 246;   // 200px out: she holds course the whole test
+    customers.push(k); return k; })();
+    visGo(window._k, { biz: "shack", need: "drink", recipe: bizRecipes("shack")[0] });`);
+  const cur = sim.G(`visScoreOne(window._k, { biz: "shack", need: "drink", recipe: null })`);
+  const nw = sim.G(`visScoreOne(window._k, { biz: "shack", need: "food", recipe: null })`);
+  if (!(nw > cur)) return `staging: food is not the better plan (${nw} vs ${cur})`;
+  if (4 * nw > 5 * cur) return `staging: food beats the margin, the hold cannot be tested (${nw} vs ${cur})`;
+  sim.G("window._k.thinkT = 1; window._stats = window._stats || {};");
+  sim.runUntil("false", { maxSteps: 8 });
+  if (sim.G('window._k.need') !== "drink") return "a 15% improvement turned her: need=" + sim.G("window._k.need");
+  if (sim.G('window._k.biz') !== "shack" || sim.G('window._k.state') !== "toBiz")
+    return "she abandoned the walk entirely: " + sim.G("window._k.state");
+  return true;
+});
+scenario("rethink: she steps out of the line for a better plan, and no quit is stamped", () => {
+  // Staged straight into the shack's line wanting food with an empty stomach
+  // for it (hunger 0) and a full thirst: the drink is 5:3 better, she steps
+  // out, the line closes up, her wait banks WITHOUT a quit - a change of
+  // mind is not a walkout, which the reputation work is about to make
+  // load-bearing.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 10 * 60", { maxSteps: 400000 });
+  sim.G(`window._k = (() => { const k = newVisitor(false);
+    k.state = "waiting"; k.wy = FLOOR_Y; k.idleT = 9e9; k.thinkT = 9e9;
+    k.wallet = 20000; k.hunger = 0; k.thirst = Q20; k.dirt = 0; k.bored = 0; k.tired = 0;
+    k.biz = "shack"; k.need = "food"; k.recipe = bizRecipes("shack")[0];
+    k.claimed = false; k.served = false;
+    k.x = BIZ.shack.queueX; k.patience = 90 * PQ; k.maxPatience = 90 * PQ;
+    queueJoin(k); k.qJoin = gnow() - 5;   // five banked minutes in the books
+    customers.push(k); return k; })();
+    window._qlen = queueLen("shack");`);
+  const cur = sim.G(`visScoreOne(window._k, { biz: "shack", need: "food", recipe: null })`);
+  const nw = sim.G(`visScoreOne(window._k, { biz: "shack", need: "drink", recipe: null })`);
+  if (!(4 * nw > 5 * cur)) return `staging: the drink does not clear the margin (${nw} vs ${cur})`;
+  sim.G("window._k.thinkT = 1;");
+  sim.runUntil("false", { maxSteps: 4 });
+  if (sim.G('window._k.claimed')) return "staging: a server claimed her before the re-think";
+  if (sim.G('window._k.need') !== "drink") return "she never stepped out: need=" + sim.G("window._k.need");
+  if (sim.G('window._k.state') !== "toBiz") return "she left the line into the wrong state: " + sim.G("window._k.state");
+  if (sim.G('queueLen("shack")') >= sim.G('window._qlen')) return "the line never closed up behind her";
+  if (sim.G("stayOf(window._k).quits") !== 0) return "stepping out was stamped as a quit";
+  if (sim.G("stayOf(window._k).waitMin") < 5) return "her banked wait went missing: " + sim.G("stayOf(window._k).waitMin");
+  return true;
+});
+scenario("rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate", () => {
+  // The rung's whole point, demonstrated: mid-errand desperation reroutes
+  // through PLAIN SCORING (errandScore's desperate branch dwarfs any errand)
+  // with the citEngineOwned rails untouched. This is the mechanism that lets
+  // the rails come down later.
+  const sim = createSim({ seed: 31 });
+  sim.runUntil("tmin > 10 * 60", { maxSteps: 400000 });
+  const staged = sim.G(`(() => { const c = allCrabs().find(c => !c.duty && !c.p.sick);
+    if (!c) return "no off-duty crab to stage";
+    c.dsC = DS.home; c.p.hunger = qn(0.7); c.p.thirst = qn(0.2); c.p.dirt = 0; c.p.bored = 0;
+    startErrand(c, { biz: "shack", need: "food", recipe: bizRecipes("shack")[0], ap100: 100 });
+    c.p.thirst = Q20;   // the walk turns desperate
+    c.rethinkT = 1; window._c = c; return "ok"; })()`);
+  if (staged !== "ok") return "staging: " + staged;
+  sim.runUntil("false", { maxSteps: 4 });
+  // the reroute may take the tap OR a bought drink - both are the desperate
+  // branch; gather order picks between two emergencies and either is the door
+  const got = sim.G(`window._c.dayState === "atTap"
+    ? (window._c.tapStop && window._c.tapStop.need) || "tap:?"
+    : window._c.dayState === "toErrand" ? (window._c.errand && window._c.errand.need) || "errand:?"
+    : window._c.dayState`);
+  if (got !== "drink") return "desperation did not reroute her to a drink: " + got;
+  return true;
+});
+scenario("rethink: two town days of switches stay countable - inertia is the default", () => {
+  // The dither pin. The mechanism must LIVE (someone, somewhere, changes her
+  // mind) and must stay RARE (commitment is still the default) - the margin
+  // and the slow clock are what hold the ceiling, and the ceiling is the pin.
+  const sim = createSim({ seed: 1337 });
+  sim.G("window._stats = window._stats || {};");
+  sim.runUntil("day >= 3", { maxSteps: 4000000 });
+  const n = sim.G("window._stats.rethinkSwitch || 0");
+  if (!(n > 0)) return "two full days and nobody ever changed her mind: the mechanism is dead";
+  if (!(n < 300)) return "the town is dithering: " + n + " switches in two days (want < 300)";
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
