@@ -19,6 +19,7 @@
 // ever point at it).
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import { createHash } from "crypto";
 import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 
@@ -56,11 +57,52 @@ function remote() {
 }
 
 // ---------- preflight ----------
+// TWO WAYS TO BE ON THE RIGHT CLUSTER, and the pod's way is the stronger one.
+//
+// The operator's Mac selects a cluster by kubeconfig context, so the context
+// NAME is the only handle there and matching /gasboat/ on it is right.
+//
+// A pod has no kubeconfig at all - it talks to its own API server through the
+// injected in-cluster environment, so `kubectl config current-context` is
+// legitimately EMPTY. The old check read that empty string as "some other
+// cluster" and refused, which was a FALSE NEGATIVE: every RBAC verb the chart
+// needs already answered yes from the pod (jobs/secrets/configmaps/pods-log/
+// events in crab-science, and NO in kafka), and helm listed the namespace's
+// releases fine. The context check was the whole gap.
+//
+// So an in-cluster caller proves the cluster POSITIVELY instead of by name:
+// the CA cert the kubelet mounted must be byte-identical to the CA that the
+// EKS control plane reports for prod-gasboat-eks. That is a stronger claim
+// than any string match - a name is chosen locally and can lie, whereas the
+// mounted CA is the trust root this pod's API connection actually verifies
+// against, and it cannot be pointed at another cluster without the bytes
+// changing. The account rule this guard exists for (nothing may EVER point at
+// fics-prod-v2) is therefore enforced harder here, not relaxed.
+const SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount";
+const CLUSTER = "prod-gasboat-eks";
+// Compared with node's own crypto, NOT openssl: the agent image has no
+// openssl binary, and shq() swallows the "command not found" - so an
+// openssl-based check returns null and reads as "wrong cluster", which is
+// the exact false negative this function exists to remove.
+function inClusterIdentity() {
+  if (!process.env.KUBERNETES_SERVICE_HOST || !existsSync(`${SA_DIR}/ca.crt`)) return null;
+  const reported = shq(`aws eks describe-cluster --name ${CLUSTER} --query cluster.certificateAuthority.data --output text`);
+  if (!reported) return null;
+  const digest = (buf) => createHash("sha256").update(buf).digest("hex");
+  const mine = digest(readFileSync(`${SA_DIR}/ca.crt`));
+  const theirs = digest(Buffer.from(reported, "base64"));
+  if (mine !== theirs) return null;
+  return `in-cluster:${CLUSTER}`;
+}
 function preflight() {
   const who = shq(`aws sts get-caller-identity --query Arn --output text`);
   if (!who) die(`AWS session dead or expired. Run:  aws sso login --profile ${PROFILE || "gasboat-prod"}`);
   const ctx = shq("kubectl config current-context") || "";
-  if (!/gasboat/.test(ctx)) die(`kube context "${ctx}" is not the gasboat cluster - refusing. (kubectl config use-context <prod-gasboat-eks arn>)`);
+  if (!/gasboat/.test(ctx)) {
+    const inCluster = inClusterIdentity();
+    if (!inCluster) die(`kube context "${ctx}" is not the gasboat cluster - refusing. (kubectl config use-context <prod-gasboat-eks arn>)`);
+    return { who, ctx: inCluster };
+  }
   return { who, ctx };
 }
 
