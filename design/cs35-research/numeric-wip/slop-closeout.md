@@ -48,8 +48,13 @@ crossing lives in STAGED towns only: the first divergent draw after
 `learnedDishes.push("slop")` is the first shack plate pick that finds the new
 candidate — the scenario stages it, per the settlers precedent.
 
-- Matrix byte-identity (triple-16, branch ba7ec5f vs base 071143d): RECEIPTS
-  PENDING — see gates section.
+- Matrix byte-identity (triple-16, branch ba7ec5f vs base 071143d): **HOLDS**
+  across all six blocks (baseline + growth × sb 0/16/32), receipts compared
+  key-by-key with only the wall-clock `throughput` field excluded (banked in
+  kube-runs/cs-matrix-triple16-{ba7ec5f-hkna,071143d-hokp}). One honest
+  method note: the first naive whole-JSON diff flagged all six blocks
+  DIVERGED — the divergence was entirely `throughput.wallSec`/`loadavg`,
+  machine noise. Byte-identity claims must name what they exclude.
 
 ## The economics, reported not tuned
 
@@ -57,13 +62,24 @@ The bun's measured effect (its close-out, 8 towns × 20 days, stock vs
 learned): distinct pigs 73→109 (+49%), pig spend $2,132→$4,186, per-pig spend
 share FLAT at ~0.36. Slop's equivalents, same instrument (`measure` arms):
 
-- PENDING — receipts land with the slop-gates run.
+Measured (receipts in kube-runs/cs-slop-gates-ba7ec5f-gc1w/measure-*.json),
+stock vs learned on the CURRENT tree — not comparable to the bun's era
+numbers (the tree gained citizen minds, settlers, personal space and the
+rest since; lesson 8, never quote across instruments/eras):
 
-Expected shape, stated before the numbers: the demand side (taste 2.0, the
-delight machinery) is unchanged, so pigs-ashore and spend should land near
-the bun's numbers; the SUPPLY side differs honestly — slop's fish costs the
-till the pier's live price (~$5–7) vs corn's fixed $3, so the shack's margin
-per plate is thinner and floats with the fish market. Reported as found.
+| | stock | learned | delta |
+|---|---|---|---|
+| distinct pigs | 69 | **149** | +116% |
+| pig spend | 1,601 | **3,612** | ×2.26 |
+| spend share | 0.297 | 0.305 | FLAT |
+| delights | 0 | 96 | the dish working |
+| foreign settles | 15 | 13 | down |
+
+The bun's story, stronger: **slop multiplies who comes, not how much each
+eats** (share flat at ~0.30). The supply-side note stands as designed: slop's
+fish is charged at the pier's LIVE price vs the bun's fixed $3 corn — the
+shack's margin floats with the fish market now, which is more honest, not
+worse. Nothing tuned.
 
 ## Gates
 
