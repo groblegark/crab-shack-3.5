@@ -199,17 +199,34 @@ the arithmetic's fixed point.
 Whether that is the policy working as designed (a limit is *supposed* to be
 arguable, and "nobody but shop owners wants a hiring cap" is a defensible
 politics) or an unintended consequence of `capStake100` only modelling the
-owner's side of a labour policy, is a **design question for Matt, not an
-agent's call**. It is not ruled on in design/cs35-rulings-2026-08-24.md, so it
-is not ruled at all. Filed as a decision rather than guessed at.
+owner's side of a labour policy, was a **design question for Matt, not an
+agent's call**. It was filed as decision kd-Xqri0Ws081 rather than guessed at.
+
+**RULED, 2026-08-24 — working as designed.** Matt took option D: "Only shop
+owners want a hiring cap; a town voting its limit away is the ballot doing its
+job. Record it in the rulings and stop treating the repeal as a smell."
+Recorded as ruling 5 in design/cs35-rulings-2026-08-24.md, which is
+authoritative; this paragraph is the pointer, not the ruling.
+
+So the finding stands as measured and its interpretation is settled: the
+electorate for a hiring cap *is* the owners, `capStake100`'s `if (c.p.owner)`
+body is the intended shape, and the `capAsk` tie-break that hands non-binding
+rungs to NO LIMIT is not a defect. Everything below keeps its force — the
+measurements did not change — but the repeal is no longer an open smell.
 
 ## What must NOT happen next
 
 Do not "fix" this by widening, reweighting, or special-casing `capStake100` to
 make the new rungs win. That is the loosening this project forbids (discipline
-rule 4). The measurement says the ladder is inert; the honest options are to
-leave it inert and say so, or to change the *design* — and the design belongs
-to Matt.
+rule 4). The measurement says the ladder is inert; the honest options were to
+leave it inert and say so, or to change the *design* — and the design belonged
+to Matt, who chose the former (ruling 5).
+
+That closes the question rather than merely postponing it. The prohibition above
+is now doubly binding: reweighting `capStake100` is not just undisciplined, it is
+**ruled against**. In particular, E4 slice 2 (kd-Ah5oIRS3QC) transcribes
+`capStake100`'s six-term arithmetic exactly as it stands — the transcription
+contract is equality with the engine, and the engine is correct here.
 
 One thing is safe to state plainly regardless: the slice's headline claim, that
 it closes the "i cant specify more than 6 staff" bug Matt reported from play, is
