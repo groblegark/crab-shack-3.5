@@ -17281,7 +17281,7 @@ function drawTitle() {
   // So the credit block is now computed from the button's own bottom edge and
   // cannot overlap it at any hasSave state or ladder position.
   const sci = sciTitleRect();
-  const creditTop = Math.max(PANEL_Y + 8, sci.y + sci.h + 4);
+  const creditTop = PANEL_Y + 8;   // MUTATION DEMO (will be reverted)
   // It fits on one line: measured, the longest is CARNIVAL OF THE GLITCH at
   // 175px from x=14, ending at 189 on a 256px screen. (A report of 264px was
   // measured in the 5x7 font; this call site is 3x5.) fitSmall is still on it,
