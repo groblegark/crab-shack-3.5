@@ -13185,7 +13185,13 @@ function vsepPush(k, dq) {
   if (x1 < VIS_ROAM[0] * Q8) x1 = VIS_ROAM[0] * Q8;
   else if (x1 > VIS_ROAM[1] * Q8) x1 = VIS_ROAM[1] * Q8;
   PXQ[i] = x1;
-  if (k.target != null) k.target += (x1 - x0) / Q8;   // exact: Q8 is a power of two
+  // keep the aim with the body, IN PIXELS: the old form added (x1-x0)/Q8 raw
+  // ("exact: Q8 is a power of two") - exact in floating point, but exactness
+  // is not INTEGERNESS: a 307-grain push wrote target=...09765625 and the
+  // integer tripwire caught it the first time a parting hit a target-holding
+  // visitor on a pinned seed. Round keeps the aim within half a pixel of the
+  // push, and the stored field stays an integer like every other pixel aim.
+  if (k.target != null) k.target = Math.round(k.target + (x1 - x0) / Q8);
   return x1 - x0 < 0 ? x0 - x1 : x1 - x0;   // ...and what the wall ate, the caller re-serves
 }
 function visSeparate() {
