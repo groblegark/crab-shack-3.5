@@ -10,9 +10,10 @@
     "NOT TABLED, with reasons in the phase C close-out: depart lines whose",
     "literal branches on the stay (rough/quit/quits/nothing/unspent/grubby/",
     "table/bed/spentup/top/regular - a template cannot express a conditional",
-    "until Layer 1), depart dues (no DUES slot in the depart slot set), and",
-    "refuseHire (the code carries TWO literals behind that one key - the pop",
-    "and the log line - so tabling one key cannot reproduce both)."
+    "until Layer 1) and depart dues (no DUES slot in the depart slot set).",
+    "The old refuseHire debt is RETIRED (phase E6): the two literals behind",
+    "one key split into refuseHire (the pop) and refuseHireLog (the diary",
+    "line), both tabled below, byte-equal to the code fallbacks."
   ],
   "registers": [
     {
@@ -44,7 +45,9 @@
         "mist": "THE MIST CAME IN AND I NEVER DID SEE THE FAR SHORE.",
         "quiet": "A DAY BY THE SEA. I'VE HAD WORSE."
       },
-      "dossier": ["JUST OFF THE BOAT."]
+      "dossier": ["JUST OFF THE BOAT."],
+      "refuseHire": "KIND OFFER. NO.",
+      "refuseHireLog": "TURNED DOWN A JOB"
     }
   ],
   "idle": {
