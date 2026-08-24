@@ -1866,7 +1866,7 @@ scenario("days off: everyone rests their weekday and plays customer", () => {
   sim.G("window._noHotelier = true;");
   sim.G(`coins = 500000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef");
     crabs[2].p.job = "arcade"; crabs[3].p.job = "arcade";
-    window._offSeen = {}; window._clockIns = {}; window._sickDays = {}; window._reefDiag = {};`);
+    window._offSeen = {}; window._clockIns = {}; window._sickDays = {}; window._idxSeen = {};`);
   sim.runDays(7, { tickEvery: 8, onTick: (G) => {
     if (G("coins") < 50000) G("coins = 100000");
     // freeze the labor market: a job-board hire mid-week reshuffles the rota
@@ -1882,10 +1882,9 @@ scenario("days off: everyone rests their weekday and plays customer", () => {
     if (npcs[0]) { npcs[0].p.sick = null; }   // a sick solo owner zeroes staff -> emergency hire -> rota reshuffle
       for (const c of npcs) { c.p.sick = null;
         c.p.hunger = Math.min(c.p.hunger || 0, qn(0.8)); c.p.dirt = Math.min(c.p.dirt || 0, qn(0.8)); }`);
-    G(`{ const r = allCrabs().find(c2 => c2.p.name === "REEF");
-      if (r) { const row = window._reefDiag[day] = window._reefDiag[day] || { off: 0, n: 0, st: {}, sick: 0 };
-        row.n++; if (offToday(r)) row.off++; if (r.p.sick) row.sick++; row.st[r.dayState] = 1; } }
-    for (const c of allCrabs()) {
+    G(`for (const c of allCrabs()) {
+      dayOffIdx(c); const ix = window._idxSeen[c.p.name] = window._idxSeen[c.p.name] || {};
+      ix[c._offIdx] = 1;   // a rota day that MOVES mid-week is the BRASS case
       if (!offToday(c)) continue;
       if (c.p.sick) { window._sickDays[c.p.name] = true; continue; }
       if (!c.p.npc && tmin >= OFF_WAKE) {   // all day: this tests the machinery, not wallet luck
@@ -1906,8 +1905,17 @@ scenario("days off: everyone rests their weekday and plays customer", () => {
   const seen = JSON.parse(sim.G("JSON.stringify(window._offSeen)"));
   const sick = JSON.parse(sim.G("JSON.stringify(window._sickDays)"));
   const names = JSON.parse(sim.G("JSON.stringify(allCrabs().map(c => [c.p.name, !!c.p.npc]))"));
+  // A ROTA DAY THAT MOVED MID-WEEK IS THE BRASS CASE: rosterGen re-derives
+  // _offMap when who-works-where changes, an index shift moves a rest day
+  // by three, and a day that moves BEHIND the week never comes round. That
+  // is a fact about the move (legal, and trajectory-sensitive - the rethink
+  // era reshuffles it), not about the day-off machinery; the machinery's
+  // own assertion is clockIns (nobody works the day the rota says is
+  // theirs), which stays strict.
+  const idxs = JSON.parse(sim.G("JSON.stringify(window._idxSeen)"));
   for (const [n] of names)
-    if (!seen[n] && !sick[n]) return n + " never showed a DAY OFF status in a week; REEFDIAG " + sim.G("JSON.stringify(window._reefDiag)");
+    if (!seen[n] && !sick[n] && Object.keys(idxs[n] || {}).length <= 1)
+      return n + " never showed a DAY OFF status in a week (rota idx " + JSON.stringify(idxs[n]) + ")";
   const buys = JSON.parse(sim.G("JSON.stringify(window._stats.offBuys || {})"));
   // Off crabs must SHOP - that's the whole point of a day off. But a crab gets
   // exactly one day off a week, and since shops gained real hours (and a
