@@ -16781,6 +16781,13 @@ function drawTitle() {
   smallText(ctx, fitSmall("MUSIC: " + PLAYLIST[trackIdx].name + " - MATT CLANKER", W - 20),
     14, PANEL_Y + 8, [170, 150, 135]);
   smallText(ctx, "BUILT ON THE SNESCAT TOY PPU", 44, PANEL_Y + 20, [140, 120, 105]);
+  // THE STAMP NAMES THE BUILD. Remote play-testing needs to know which commit
+  // it is looking at; version.js is regenerated at every merge, and if it is
+  // missing the title just goes unstamped (typeof guard, never a crash).
+  if (typeof GAME_BUILD === "object" && GAME_BUILD && GAME_BUILD.sha) {
+    const s = "BUILD " + GAME_BUILD.sha + (GAME_BUILD.date ? " " + GAME_BUILD.date : "");
+    smallText(ctx, s, W - smallTextWidth(s) - 4, PANEL_Y + 32, [120, 105, 95]);
+  }
 }
 // THE THIRD ENDING. EVICTED and BANKRUPT are the landlord and the bank; this
 // one is the boat. It does not slam a card over a frozen town: for the first
@@ -19367,6 +19374,11 @@ function drawHelp() {
   chip(R.done, "DONE", false);
   const pTxt = (helpPage + 1) + " / " + HELP_PAGES.length;
   smallText(ctx, pTxt, R.next.x + R.next.w + 8, R.next.y + 3, [140, 130, 130]);
+  // the stamp again, findable mid-game for bug reports (same guard as the title)
+  if (typeof GAME_BUILD === "object" && GAME_BUILD && GAME_BUILD.sha) {
+    const b = "BUILD " + GAME_BUILD.sha;
+    smallText(ctx, b, R.done.x - smallTextWidth(b) - 6, R.next.y + 3, [170, 160, 155]);
+  }
 }
 function tapHelp(p) {
   if (!helpView) return false;
