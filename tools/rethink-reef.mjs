@@ -13,7 +13,12 @@ sim.runDays(7, { tickEvery: 8, onTick: (G) => {
     for (const c of npcs) { c.p.sick = null;
       c.p.hunger = Math.min(c.p.hunger || 0, qn(0.8)); c.p.dirt = Math.min(c.p.dirt || 0, qn(0.8)); }`);
   G(`{ const r = allCrabs().find(c => c.p.name === "REEF");
-    if (r && (tmin % 120 < 8)) window._reefLog.push([day, Math.round(tmin/60*10)/10,
-      offToday(r) ? 1 : 0, r.dayState, crabStatus(r).slice(0, 28)]); }`);
+    if (r) { const d = window._reefDays = window._reefDays || {};
+      const row = d[day] = d[day] || { off: 0, st: {}, n: 0 };
+      row.n++; if (offToday(r)) row.off++; row.st[r.dayState] = 1; } }`);
 } });
-console.log(sim.G("JSON.stringify({ log: window._reefLog.slice(0, 120), offDay: (() => { const r = allCrabs().find(c => c.p.name === 'REEF'); return r && r.p.offDay !== undefined ? r.p.offDay : 'field?'; })() })"));
+console.log(sim.G(`JSON.stringify({ days: window._reefDays,
+  fields: (() => { const r = allCrabs().find(c => c.p.name === 'REEF');
+    const out = {}; for (const k in r.p) if (/off|rota|rest|week/i.test(k)) out["p." + k] = r.p[k];
+    for (const k in r) if (/off|rota|rest|week/i.test(k)) out[k] = r[k];
+    out.offTodayNow = offToday(r); return out; })() })`));
