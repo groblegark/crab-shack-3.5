@@ -8065,7 +8065,13 @@ const DEP_BASE = `{
   waitMin: 10, worstMin: 10, worstBiz: "CRAB SHACK",
   quits: 0, quitMin: 0, quitBiz: null,
   shut: 0, full: 0, broke: 0, blocked: null, mistMin: 0, missed: 0,
-  hunger: qn(0.1), thirst: qn(0.1), dirt: qn(0.1), bored: qn(0.1), tired: qn(0.1) }`;
+  hunger: qn(0.6), thirst: qn(0.6), dirt: qn(0.6), bored: qn(0.6), tired: qn(0.6) }`;
+// The base bars sit at 0.6 ON PURPOSE (was 0.1): a MIDDLING stay, so each rule
+// is reachable in isolation. Below 0.45 average the guest is in good overall
+// condition and `delight` (ruling 6) speaks over every low-band rule - which is
+// correct behaviour, not a bug, but it would mask the rule being staged. 0.6 is
+// above delight's want-line gate and below every need rule's 0.85, so a base
+// stay says `quiet` and each override earns its own headline.
 
 scenario("departures: every quote is DERIVED - one changed fact, one changed line", () => {
   const sim = createSim({ seed: 7 });
@@ -8081,7 +8087,9 @@ scenario("departures: every quote is DERIVED - one changed fact, one changed lin
     // twice - reachable species-blind through the closure literal; the
     // register-template rendering is the cultureways card scenario's job
     ["foreign", `{ foreign: 2 }`],
-    ["delight", `{ de: 2 }`],
+    // delight (ruling 6) now reads OVERALL CONDITION: a guest who left with
+    // every bar low is the one and only stay that earns the glad word.
+    ["delight", `{ hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 }`],
     ["unspent", `{ left: 70, spent: 30, blocked: "full", full: 9 }`],
     ["idle", `{ left: 70, spent: 30 }`],
     ["hungry", `{ hunger: Q20, meals: 0, buys: 1, serves: 1, drinks: 1 }`],
@@ -8150,7 +8158,11 @@ scenario("departures: the quote's mutation arms - drop the fact, lose the line",
     ["dues", `{ dues: 4 }`, `{ dues: 0 }`],
     ["wait", `{ worstMin: 380 }`, `{ worstMin: 10 }`],
     ["mist", `{ mistMin: 300 * GMIN }`, `{ mistMin: 0 }`],
-    ["delight", `{ de: 1 }`, `{ de: 0 }`],
+    // delight (ruling 6) reads the whole condition, not one field: arm it with
+    // every bar low, then peg them and the glad word is gone (a pegged bar is a
+    // need that failed, which scores past any low-band rule).
+    ["delight", `{ hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 }`,
+      `{ hunger: Q20, thirst: Q20, dirt: Q20, bored: Q20, tired: Q20 }`],
     // THE NEED ARMS ARE TWO-CONDITION RULES ON PURPOSE. A bar at the gangway on
     // its own is a fact about the clock (VIS_RATE.hunger refills in seven
     // hours); it only becomes a finding when the town also never sold them one.
@@ -11395,7 +11407,8 @@ scenario("crab voice: every tabled line is the literal, byte for byte", () => {
       ["gaveup", "GAVE UP WAITING AT THE SHACK", { BIZ: "SHACK" }],
     ];
     const departs = [
-      ["foreign", { foreign: 2 }], ["delight", { de: 2 }],
+      ["foreign", { foreign: 2 }],
+      ["delight", { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 }],
       ["idle", { left: 70, spent: 30 }],
       ["hungry", { hunger: Q20, meals: 0, buys: 1, serves: 1, drinks: 1 }],
       ["parched", { thirst: Q20, drinks: 0 }],
@@ -11715,7 +11728,14 @@ scenario("depart programs: the transcription and the lambdas agree on every stag
     for (const q of [1, 2, 4]) for (const qm of [0, 1, 300]) stage({ quits: q, quitMin: qm, quitBiz: "SHOWERS" });
     for (const b of [null, "shut", "full", "broke"]) stage({ buys: 0, blocked: b, meals: 0 });
     for (const f of [2, 3, 7]) stage({ cu: null, foreign: f });
-    for (const de of [1, 2, 6]) stage({ de });
+    // delight (ruling 6) gates on the SUM of the five bars vs 5*qn(0.45): walk
+    // both sides of the threshold, per-bar and on the sum, so a transcription
+    // bug in the gate cannot hide. qn(0.45) = 471859, so 5x = 2359295.
+    for (const c of [0, 471858, 471859, 471860, 629146]) stage({ hunger: c, thirst: c, dirt: c, bored: c, tired: c });
+    // an asymmetric distribution ON the sum line and one over it (each bar <= Q20)
+    stage({ hunger: Q20, thirst: Q20, dirt: 262143, bored: 0, tired: 0 });   // sum = 2359295, on the line
+    stage({ hunger: Q20, thirst: Q20, dirt: 262144, bored: 0, tired: 0 });   // sum = 2359296, one over
+    stage({ hunger: Q20, thirst: 0, dirt: 0, bored: 0, tired: 0 });          // one pegged, rest zero
     for (const p of [1, 25, 90, 300, 1700]) for (const frac of [0, 6, 12, 13, 50, 88, 100]) {
       const l = Math.floor(p * frac / 100);
       stage({ purse: p, left: l, spent: p - l, blocked: "full", full: 5 });

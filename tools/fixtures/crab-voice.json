@@ -37,7 +37,7 @@
       },
       "depart": {
         "foreign": "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO.",
-        "delight": "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME.",
+        "delight": "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME.",
         "idle": "TOOK ${LEFT} OF MY ${PURSE} HOME AGAIN. NOTHING ELSE I FANCIED.",
         "hungry": "GETTING ON THIS BOAT HUNGRIER THAN I GOT OFF IT.",
         "parched": "NOT ONE COLD DRINK IN THE WHOLE PLACE. PARCHED.",

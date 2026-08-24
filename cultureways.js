@@ -9191,7 +9191,7 @@ var BUNDLED_CRAB_VOICE = {
    },
    "depart": {
     "foreign": "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO.",
-    "delight": "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME.",
+    "delight": "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME.",
     "idle": "TOOK ${LEFT} OF MY ${PURSE} HOME AGAIN. NOTHING ELSE I FANCIED.",
     "hungry": "GETTING ON THIS BOAT HUNGRIER THAN I GOT OFF IT.",
     "parched": "NOT ONE COLD DRINK IN THE WHOLE PLACE. PARCHED.",
@@ -9878,12 +9878,40 @@ var BUNDLED_CRAB_DEPART = {
    "mood": "glad",
    "weight": [
     [
-     "PUSHI",
-     1
+     "LD",
+     "hunger"
     ],
     [
      "LD",
-     "de"
+     "thirst"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "dirt"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "bored"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "tired"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "PUSHI",
+     2359295
     ],
     [
      "LE"
@@ -9895,27 +9923,6 @@ var BUNDLED_CRAB_DEPART = {
     [
      "PUSHI",
      19800
-    ],
-    [
-     "PUSHI",
-     1200
-    ],
-    [
-     "PUSHI",
-     5
-    ],
-    [
-     "LD",
-     "de"
-    ],
-    [
-     "MIN"
-    ],
-    [
-     "MUL"
-    ],
-    [
-     "ADD"
     ],
     [
      "MUL"
@@ -9936,7 +9943,7 @@ var BUNDLED_CRAB_DEPART = {
      ]
     ],
     "templates": [
-     "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."
+     "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME."
     ]
    }
   },

@@ -19381,7 +19381,24 @@ function depList(r) {
 // different headlines out of the same table, and a rule only ever outranks
 // another rule because the thing it describes was actually bigger.
 //
-// The bands, and why they sit where they do:
+// A NUMBER THAT DEPENDS ON THE ROW, NOT A FIXED LADDER - and the census proved
+// this matters, because the fixed constants below are NOT the whole weight.
+// The five need rules add a per-unit term (44 + 20 * r.hunger, ...) on a RAW
+// Q20 bar, so a need that actually fires scores in the MILLIONS (a full hunger
+// bar reads 44 + 20 * 1048576 ~ 21,000,000), not ~64. The base constants set
+// only the ORDER AMONG THE NEEDS; against every fixed-weight rule a fired need
+// wins outright. Measured over 4,399 cards (design/cs35-research/depart-census-
+// 2026-08-24.md): the five needs took 94.4% of every card, hungry alone 41.7%,
+// and the top three (80% of all cards) are all SOUR. So read the ladder below
+// as "which rule speaks WHEN NO NEED WENT UNMET" - the fixed weights order the
+// tail, and the needs stand above all of them.
+//
+//   MILLIONS  A NEED THEY LEFT WITH AND NEVER BOUGHT THE ANSWER TO. hungry,
+//         parched, grubby, weary, bored: each is a full Q20 bar times its
+//         per-unit term, gated on the matching purchase being zero (a guest
+//         who bought the answer cannot be scolded for that need). This is what
+//         the card actually says in almost every real departure.
+//   The fixed-weight rules, which decide the card only when no need fired:
 //   120+  SOMETHING WENT WRONG AND THE PLAYER CAUSED IT. A night on the sand
 //         is the loudest thing that can happen to a visitor - it is the only
 //         departure that costs the town reputation (-1.2), and the fix (rooms
@@ -19396,7 +19413,11 @@ function depList(r) {
 //         a guest who spent nine tenths never says this and one who spent a
 //         fifth always does. This is the card's economic argument.
 //    20+  THE GOOD DAY, read in order: waited on at a table, slept at the
-//         Driftwood, spent up, one good plate, a few honest stops.
+//         Driftwood, spent up, one good plate, a few honest stops. Rare in
+//         practice (made+glad together were 1.5% of cards) - not because the
+//         register is empty but because a fixed weight in the tens cannot
+//         outrank a need in the millions, so a good day only surfaces when the
+//         guest left with nothing pressing.
 //     1   Nothing happened. Say so, honestly, rather than inventing colour.
 const DEPART_RULES = [
   { id: "rough", mood: "sour",
@@ -19437,13 +19458,35 @@ const DEPART_RULES = [
   { id: "foreign", mood: "mixed",
     w: (r) => (r.foreign || 0) >= 2 ? 60 + 4 * Math.min(5, r.foreign) : 0,
     line: () => "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO." },
-  // THE FOREIGN PALATE, ANSWERED (foodways). A cultured guest who found a
-  // dish they LOVE - taste 1.5+, counted at the pick like its foreign twin -
-  // says so on the way out. It outranks the grumble: a kitchen that learned
-  // the bun deserves to hear about it over one long line at the showers.
+  // A WELL-TENDED STAY, READ OFF THE GUEST'S OWN CONDITION (ruling 6,
+  // design/cs35-rulings-2026-08-24.md#6). delight used to gate on `de`, the
+  // foodways-only counter - which no CRAB could ever trip (de is written only
+  // for a non-crab eating their own culture's dish, game.js:13453, behind a
+  // tasteW that returns exactly 1 for a crab against a >= 1.5 test: two locks).
+  // So the glad register had no path for the species that fills every town.
+  // Matt ruled the gate should be a READOUT of the guest's OVERALL CONDITION AT
+  // EXIT, not a predicate - the same five bars the follow card already shows
+  // (visCondition/VIS_BAR): hunger, thirst, dirt, bored, tired. A guest whose
+  // bars are low left fed, watered, washed, rested and amused - the town looked
+  // after them - and that is what earns the glad word. This reads no `de` at
+  // all, so it clears both locks by not touching either.
+  //
+  // ONE LEGIBLE NUMBER, SHAPED FOR THE MATRIX (ruling 6 horizon 2). The
+  // condition is the SUM of the five bars against a tolerance - a weighted sum
+  // whose coefficients are all 1 today (the identity matrix). Horizon 2's
+  // cultural/class/individual weight matrix replaces those coefficients without
+  // re-litigating the gate: the shape is `sum(w_i * bar_i) <= tol`, and today
+  // every w_i is 1. The tolerance is five times the per-need want line
+  // (qn(0.45)): a guest whose bars average below what they would even start
+  // wanting is, by definition, wanting for nothing. It CANNOT collide with a
+  // real complaint - a need that actually failed (bar >= 0.85 and never bought)
+  // scores in the millions off its raw Q20 term, so a low-band glad rule like
+  // this only ever surfaces when nothing went wrong (measured: 0 sour cards
+  // displaced across 1,870 departures; design bundle kd-ICjpq0dCrb).
   { id: "delight", mood: "glad",
-    w: (r) => (r.de || 0) >= 1 ? 66 + 4 * Math.min(5, r.de) : 0,
-    line: () => "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME." },
+    w: (r) => ((r.hunger || 0) + (r.thirst || 0) + (r.dirt || 0)
+      + (r.bored || 0) + (r.tired || 0)) <= 5 * qn(0.45) ? 66 : 0,
+    line: () => "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
   // home unspent since the visitor pass shipped, and the reason clause is what
   // turns that from a complaint into something the player can act on.
