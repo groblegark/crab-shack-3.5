@@ -15785,7 +15785,7 @@ const VIS_BAR = [["FED", "hunger"], ["THR", "thirst"], ["CLN", "dirt"], ["FUN", 
 // form (min(1, raw)) pegged every meter the moment a need was nonzero - the
 // bars read as "no real stats" for a whole era while the sim underneath was
 // honest.
-function barFrac(k, key) { return Math.max(0, Math.min(1, (k[key] || 0))); }
+function barFrac(k, key) { return Math.max(0, Math.min(1, (k[key] || 0) / Q20)); }
 function visBars(k, x, y, w) {
   const cw = ((w - 16) / 5) | 0;   // four gaps of 4px: five meters have to read as five
   for (let i = 0; i < VIS_BAR.length; i++) {
