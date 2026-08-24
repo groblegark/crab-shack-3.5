@@ -11365,6 +11365,50 @@ scenario("crab voice: every tabled line is the literal, byte for byte", () => {
   if (got.armed.dossier !== "JUST OFF THE BOAT.") return "dossier diverged: " + got.armed.dossier;
   return true;
 });
+scenario("idle quips: the island's table is the literal, key for key", () => {
+  // E1's contract, the voice ceremony verbatim: the bundled idle table may
+  // not drift one byte from the code arrays it shadows; the dispatch speaks
+  // from the table when armed, falls to the literal BY IDENTITY when not,
+  // and a declaring culture speaks its own lines. The draw sites keep their
+  // exact srand() calls - only the string table moved - so equality of the
+  // arrays IS byte-equality of the town.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABIDLE) return { err: "the bundled idle table did not install" };
+    const lit = { ball: BALL_LINES, chat: CHAT_LINES, wander: WANDER_QUIPS, nod: NOD_WAKE };
+    const diffs = [];
+    for (const key of ["ball", "chat", "wander", "nod"]) {
+      const t = CRABIDLE[key];
+      if (!t) { diffs.push(key + " missing from the table"); continue; }
+      if (t.length !== lit[key].length) { diffs.push(key + " length " + t.length + " vs " + lit[key].length); continue; }
+      for (let i = 0; i < t.length; i++)
+        if (t[i] !== lit[key][i]) diffs.push(key + "[" + i + "]: " + t[i] + " vs " + lit[key][i]);
+    }
+    const crab = { p: { culture: null } };
+    const armedIs = idleLines(crab, "ball", BALL_LINES) === CRABIDLE.ball;
+    const s = CRABIDLE; CRABIDLE = null;
+    const bareIs = idleLines(crab, "ball", BALL_LINES) === BALL_LINES;
+    CRABIDLE = s;
+    CULTURES.__quiptest = { idle: { ball: ["MINE, ACTUALLY"] } };
+    const culLine = idleLines({ p: { culture: "__quiptest" } }, "ball", BALL_LINES)[0];
+    delete CULTURES.__quiptest;
+    const refusals = [
+      voiceProblem({ registers: [{ id: "x", acc: "" }], idle: { lunch: ["EH"] } }),
+      voiceProblem({ registers: [{ id: "x", acc: "" }], idle: { ball: [] } }),
+      voiceProblem({ registers: [{ id: "x", acc: "" }], idle: { ball: ["${"Y".repeat(200)}"] } }),
+    ];
+    return { diffs, armedIs, bareIs, culLine, refusals };
+  })())`));
+  if (got.err) return got.err;
+  if (got.diffs.length) return "the table drifted from the literal: " + got.diffs[0];
+  if (!got.armedIs) return "an armed island did not speak from its table";
+  if (!got.bareIs) return "a disarmed island did not fall to the literal by identity";
+  if (got.culLine !== "MINE, ACTUALLY") return "a declaring culture did not speak its own lines";
+  if (got.refusals[0] !== "A QUIP FOR NOWHERE") return "an unknown idle key was not refused by name: " + got.refusals[0];
+  if (got.refusals[1] !== "A BAD IDLE TABLE") return "an empty idle array was not refused by name: " + got.refusals[1];
+  if (got.refusals[2] !== "A BAD VOICE LINE") return "an overlong idle line was not refused by name: " + got.refusals[2];
+  return true;
+});
 scenario("crab voice: two whole days with the table off are the same town", () => {
   // The mirror-drift catcher: run the same seed with the crab voice armed and
   // disarmed and require every visitor's log - real traffic through the real

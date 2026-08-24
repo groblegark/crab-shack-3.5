@@ -14,6 +14,7 @@ const gull = JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json
 const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v3.json", import.meta.url), "utf8"));
 const crabVoiceSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-voice.json", import.meta.url), "utf8"));
 const crabVoice = { registers: crabVoiceSrc.registers };   // the _comment stays in the fixture
+if (crabVoiceSrc.idle) crabVoice.idle = crabVoiceSrc.idle; // E1: the idle quips (ball/chat/wander/nod)
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled

@@ -9206,6 +9206,34 @@ var BUNDLED_CRAB_VOICE = {
     "JUST OFF THE BOAT."
    ]
   }
- ]
+ ],
+ "idle": {
+  "ball": [
+   "OVER HERE!",
+   "MY CLAW!",
+   "NICE ONE",
+   "TOO HIGH!",
+   "AGAIN!"
+  ],
+  "chat": [
+   "YOU'LL NEVER GUESS",
+   "SHE DIDN'T!",
+   "...ANYWAY",
+   "NO, GO ON",
+   "THAT'S THE THIRD TIME",
+   "BETTER GET BACK"
+  ],
+  "wander": [
+   "NOTHING DOING",
+   "JUST STRETCHING MY LEGS",
+   "WONDER IF THEY'RE BITING",
+   "BACK IN A TICK"
+  ],
+  "nod": [
+   "WHAT? I'M UP",
+   "JUST RESTING MY EYES",
+   "WHERE WAS I"
+  ]
+ }
 };
 if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; }

@@ -96,6 +96,11 @@ A people, written as a document. Not code — data the engine reads:
             how fat their purse is (purseMul, 0.1-5). The crab default's own
             voice is tabled the same way (bundled beside its brain), so every
             diary/depart/dossier key you can declare, the island also speaks.
+            voice.idle holds the four idle moments — ball, chat, wander, nod —
+            each a non-empty array of lines (1-120 chars) your people quip at
+            play, gossip, a stroll, or waking from a nap; undeclared moments
+            fall to the island's lines. Unknown moments are refused at import
+            (A QUIP FOR NOWHERE).
   depart    weights — ruleId -> integer 0-8, a QUARTERS multiplier on the
             engine's departure-card rule weights (4 = as the engine weighs
             it, 0 = this people never leads with that rule, 8 = twice as

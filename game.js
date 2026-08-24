@@ -5753,13 +5753,16 @@ function updateBall(c, dt) {
   if (c.ballT <= 0) {                       // still walking out to it
     if (routedStep(c, crabMoveQ8(c), dt)) {
       c.ballT = BALL_SECS + ((srand() * 4 * SEC) | 0);
-      c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.4 * SEC };
+      const BL = idleLines(c, "ball", BALL_LINES);
+      c.quip = { text: BL[(srand() * BL.length) | 0], t: 2.4 * SEC };
     }
     return;
   }
   c.ballT -= dtT;
-  if (((c.ballT * 2) | 0) % 7 === 0 && srand() < 0.02)
-    c.quip = { text: BALL_LINES[(srand() * BALL_LINES.length) | 0], t: 2.0 * SEC };
+  if (((c.ballT * 2) | 0) % 7 === 0 && srand() < 0.02) {
+    const BL = idleLines(c, "ball", BALL_LINES);
+    c.quip = { text: BL[(srand() * BL.length) | 0], t: 2.0 * SEC };
+  }
   if (c.ballT > 0) return;
   // WHO ELSE IS OUT HERE decides what it was worth
   const mate = ballPlayers().find(k => k !== c && k.ballT > 0 && Math.abs(k.x - c.x) <= BALL_PX);
@@ -5810,7 +5813,8 @@ function startChat(a, b) {
     c.stuckT = 0; c.stuckRef = null; c.stuckN = 0;
     setT(c, c.x, c.y);
   }
-  a.quip = { text: CHAT_LINES[(srand() * CHAT_LINES.length) | 0], t: 2.6 * SEC };
+  const CL = idleLines(a, "chat", CHAT_LINES);
+  a.quip = { text: CL[(srand() * CL.length) | 0], t: 2.6 * SEC };
   if (window._stats) window._stats.chats = (window._stats.chats || 0) + 1;
 }
 function endChat(c, paid) {
@@ -5835,7 +5839,8 @@ function updateChat(c, dt) {
   const beat = Math.floor((CHAT_SECS + 6 - c.chatT) / 3.5);
   if (beat > c.chatLine && !c.quip && !o.quip) {
     c.chatLine = beat;
-    c.quip = { text: CHAT_LINES[(beat + (c.p.name.length % 3)) % CHAT_LINES.length], t: 2.4 * SEC };
+    const CL = idleLines(c, "chat", CHAT_LINES);
+    c.quip = { text: CL[(beat + (c.p.name.length % 3)) % CL.length], t: 2.4 * SEC };
   }
   if (c.chatT <= 0) endChat(c, true);
 }
@@ -7132,6 +7137,17 @@ function voiceProblem(v) {
     if (g.dossier != null && (!Array.isArray(g.dossier) || g.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
     for (const k of ["refuseHire", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
   }
+  // E1: the idle quips - voice-level (not per-register: today one table quips
+  // for every accessory, and byte-equality demands that stays true), four
+  // known moments, each a non-empty array of clamped lines.
+  if (v.idle != null) {
+    if (typeof v.idle !== "object" || Array.isArray(v.idle)) return "A BAD IDLE TABLE";
+    for (const k in v.idle) {
+      if (!["ball", "chat", "wander", "nod"].includes(k)) return "A QUIP FOR NOWHERE";
+      if (!Array.isArray(v.idle[k]) || !v.idle[k].length) return "A BAD IDLE TABLE";
+      if (v.idle[k].some(s => !line(s))) return "A BAD VOICE LINE";
+    }
+  }
   return null;
 }
 function cultureProblem(d, ownId) {
@@ -7841,6 +7857,15 @@ function buildBrain(sid, p) {
 // brains — the loader-reset contract, honored by construction.
 let BRAINS = {};
 let CRABV = null;   // the crab default's voice registers, or null = literals only
+let CRABIDLE = null; // E1: the crab default's idle quips, or null = literals only
+// E1 dispatch: whose lines does an idle moment speak? The person's culture if
+// its voice declares them, else the island's table, else the code literal BY
+// IDENTITY - so a crab town with no bundle is byte-for-byte the old town, and
+// a settled pig quips crab lines exactly as before until a pigway speaks up.
+function idleLines(c, key, fallback) {
+  const cul = c && c.p && c.p.culture && CULTURES[c.p.culture];
+  return (cul && cul.idle && cul.idle[key]) || (CRABIDLE && CRABIDLE[key]) || fallback;
+}
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -7865,9 +7890,12 @@ function rebuildBrains() {
   // island (installCultures skips the crab id for the same reason). Every
   // tabled line is byte-equal to the code literal it shadows; the code
   // literals remain the fallbacks and the suite proves the equality.
-  CRABV = null;
+  CRABV = null; CRABIDLE = null;
   if (typeof BUNDLED_CRAB_VOICE !== "undefined" && BUNDLED_CRAB_VOICE
-    && !voiceProblem(BUNDLED_CRAB_VOICE)) CRABV = BUNDLED_CRAB_VOICE.registers;
+    && !voiceProblem(BUNDLED_CRAB_VOICE)) {
+    CRABV = BUNDLED_CRAB_VOICE.registers;
+    CRABIDLE = BUNDLED_CRAB_VOICE.idle || null;   // E1: same bundle, same door
+  }
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -7888,6 +7916,9 @@ function buildCulture(def) {
   const items = {};
   for (const k in a.items || {}) items[k] = parseArt(a.items[k].rows, a.palette);
   const regs = (def.voice && Array.isArray(def.voice.registers)) ? def.voice.registers : [];
+  // E1: a culture's idle quips (validated by voiceProblem at import) - null
+  // when undeclared, and idleLines falls through to the island's table.
+  const idle = (def.voice && def.voice.idle) ? def.voice.idle : null;
   // the culture's nudge terms, converted from author units ONCE, here, into
   // the exact internal forms the crab constants use (px, ticks, Q20 via the
   // same qn, hundredths) - the hot path never sees a float or a conversion.
@@ -7976,7 +8007,7 @@ function buildCulture(def) {
     HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
   } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -11470,7 +11501,8 @@ function updateKitchen(c, dt) {
     c.napT -= dtT;
     if (c.napT <= 0) {
       c.kstate = c.napFrom || "idle"; c.napFrom = null;
-      c.quip = { text: NOD_WAKE[(srand() * NOD_WAKE.length) | 0], t: 2.2 * SEC };
+      const NL = idleLines(c, "nod", NOD_WAKE);
+      c.quip = { text: NL[(srand() * NL.length) | 0], t: 2.2 * SEC };
     }
     return;
   }
@@ -11584,7 +11616,8 @@ function updateKitchen(c, dt) {
       setT(c, c.wander.x, c.wander.y);      // "idle": the claim scan above runs
       if (routedStep(c, spd, dt)) {         // every frame, wander or no wander)
         c.wanderT = WANDER_DWELL + ((srand() * 10 * SEC) | 0);
-        c.quip = { text: WANDER_QUIPS[(srand() * WANDER_QUIPS.length) | 0], t: 2.6 * SEC };
+        const WL = idleLines(c, "wander", WANDER_QUIPS);
+        c.quip = { text: WL[(srand() * WL.length) | 0], t: 2.6 * SEC };
       }
       return;
     }
