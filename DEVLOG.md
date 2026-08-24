@@ -8,7 +8,113 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-24, latest — THE VERDICT BELONGS TO ONE TREE
+## 2026-08-24, latest — WHAT THE TOWN WON'T SAY, AND WHAT IT WON'T VOTE FOR
+
+Four merges landed today and the town plays exactly as it did this morning.
+That is the intended result — they were transcriptions, moving rules out of
+the code and into the island's own document without changing a single thing a
+player sees. The interesting part is what the transcribing *found*.
+
+### The crab is a document now
+
+The island's quips, its personalities, its names and its shells have all
+moved into `cultureways.js`, and the six traits are written in twentieths
+where twenty means exactly the crab. Each slice landed byte-equal to the
+literals it shadowed — the proof of a transcription is that nothing happens.
+The departure rules went furthest: the twenty-odd weight lambdas that decide
+what a leaving guest says are **programs** now, straight-line integer
+bytecode with no jumps and no loops, run by the little machine that landed
+earlier with no consumers at all. It has one now. The lambdas stay underneath
+as the net.
+
+Then we counted what those rules actually say, across **4,399 departure
+cards** — twelve towns, thirty days each.
+
+    hungry   41.7%      bored    8.8%
+    parched  21.5%      weary    5.2%
+    grubby   17.2%      nothing  2.2%
+
+**Ninety-four percent of every card the game shows you is an unmet need, and
+the top three — eighty percent — are all sour.** Seven rules have never won a
+card. One of them is `delight`, the only *glad* line in the table: *"FOUND MY
+DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."*
+
+The obvious diagnosis was that the weights were wrong — the numbers were
+written for a world where needs ran 0 to 1, and they now read fixed-point
+integers, so they're inflated some fifty thousand times over. Plausible, and
+wrong. Deflating `hungry` by a factor of a million moved its share from 40.3%
+to 24.1% and handed **every** point it lost to the *other need rules*. Not one
+new rule won a single card. The same ten stayed at zero.
+
+Because the cause isn't the weights, it's the **gates**. A need rule only
+fires on a guest the town genuinely failed — thirst past the line, and not a
+single drink bought — and a guest like that has no competing story to tell.
+Rescaling the needs just redistributes misery among the needs. And `delight`
+was never in the running at any weight: its gate wants a non-crab guest
+eating their own cuisine, so a crab who ate well, bathed, played and slept
+indoors has no path to a glad card, ever.
+
+So the game's main feedback surface can only scold you. That's not a bug in a
+number; it's a decision about what the town is allowed to say, and it's with
+the owner.
+
+### The ladder nobody climbs
+
+The house limit — how many staff a business may hold — grew two new rungs, so
+a campaign can now promise eight or twelve. The suite came back green with not
+one frozen fingerprint moved, despite the platform grid growing forty percent
+to 4,900 possibilities. A change that enlarges the search space and alters
+nothing observable is either unreachable or unwired, and this project treats
+that as a finding rather than a relief.
+
+It was unreachable. Asked 109 crabs across eight towns:
+
+    no limit at all ...... 94
+    four staff ........... 15
+    six, eight, twelve ....  0
+
+Not one voter wanted the new rungs — and not one wanted **six**, either,
+which shipped long ago and is the town's own founding policy. Every one of
+the eight towns had voted the house limit down to nothing within thirty days.
+
+Read the code and it's honest: a limit costs the shop that's up against it,
+pays every shop that isn't, and a crab with no wage job reads it as a job
+posting that will never go up. Most voters are in one of those two groups, so
+a majority is structurally against any limit at all. The dial works
+perfectly. The electorate just doesn't want it.
+
+The ruling was to **leave the dead rungs in**. An unused rung is room for a
+town that argues differently — a degree of freedom, not dead weight. Which is
+a different judgement from the one above, and worth saying why: an unused
+*rung* is a road not taken, while an unused emotional *register* is a thing
+the game cannot say no matter how well you play.
+
+### The hook that stopped firing
+
+One bug, and it's the good kind. The departure sweep compares the old path
+and the new one across ~4,100 rows — same verdict, same mood, same line — and
+it passed. Then a single unrelated scenario went red: *no settlement
+aggregate in two lived days*.
+
+The new bytecode path returned its answer and skipped a dispatch the old path
+made on its way out. A whole hook point had silently stopped firing, and the
+sweep was **structurally incapable** of noticing, because a hook is a side
+effect of taking a path, not a value in the answer. **Equality of the return
+value is not equality of behaviour.** We'd written that exact blind spot into
+a fixture header earlier the same day, as a caveat. It bit within the hour, in
+a place nobody was watching.
+
+Also today: a mutation test that proved a point by *not* failing. Nudging a
+weight by one came back green across every row, which sounds like a broken
+test until you cut the same constant a hundredfold and watch it go red on row
+456. The sweep works fine; ±1 simply never flips which rule wins. Comparing a
+scaled integer to the float it replaced was a category error all along, and
+the fixture now claims the guarantee it actually has instead of the one we
+wished for.
+
+---
+
+## 2026-08-24 — THE VERDICT BELONGS TO ONE TREE
 
 A short entry about a long night, and about the most ordinary way for a
 careful process to fail: not by skipping the check, but by remembering it.
