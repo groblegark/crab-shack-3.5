@@ -80,3 +80,28 @@ spans moved. Draw-count pins hold by construction.
 **The visual receipt**: devlog/img/2026-08-24-visstats-card.png — MISTY off
 the seed-1337 boat, FLUSH, eating a fish taco, five meters reading five
 different truths.
+
+**The matrix, reported not tuned** (batch instrument, triple-16 both trees,
+receipts in kube-runs/cs-matrix-triple16-{071143d,7f3fec5}-*):
+
+| block | base 071143d | branch | note |
+|---|---|---|---|
+| baseline sb0/16/32 | 0/16 each (0/48) | 0/16 each (0/48) | intact |
+| growth sb0 | 5/16 | 8/16 | |
+| growth sb16 | 2/16 | 11/16 | mean lifetime 5238 -> 12117 |
+| growth sb32 | 6/16 | 13/16 | |
+| **growth total** | **13/48** | **32/48** | |
+
+This is a LARGE economy event and it is the direct, honest consequence of
+the directive: a boat of bodies that arrive hungry, thirsty and bored spends
+like it. Nothing was tuned toward or away from it — the arrival constants
+were authored to the citizen hire band and the matrix says what that costs
+buys. The bot's floor more than doubled; whether that stands is the
+operator's ruling at the gate. (If ruled too rich, the honest lever is the
+arrival table's authored constants — a smaller anchor, not a mechanism
+change.)
+
+**Mutations, both biting on both backends** (focus receipts): demo 1 dropped
+the meter's /Q20 — "half a stomach read 1, want 0.5"; demo 2 dropped the
+gangway floors — "fresh hunger under its floor". Both reverted; tree
+restored green.
