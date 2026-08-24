@@ -14421,6 +14421,7 @@ function shopHoverAt(p) {
   shopTip = null;   // off the grid: put the card away rather than leaving it armed
 }
 addEventListener("mousemove", (ev) => {
+  if (screen === "music") { if (musDrag) musTop = musBarIndex(evPos(ev), musFiltered().length); return; }
   shopHoverAt(evPos(ev));
   if (tipDrag) { tipSliderTo(manage, evPos(ev).x); return; }
   if (navDrag) {
@@ -14436,6 +14437,7 @@ addEventListener("mousemove", (ev) => {
   if (dragMoved) camX = clampCam(dragCamX - (p.x - dragStartX));
 });
 addEventListener("mouseup", () => {
+  if (musDrag) { musDrag = false; return; }
   if (tipDrag) { tipDrag = false; sfx.buy(); save(); }
   navDrag = false;
   dragging = false; setTimeout(() => { dragMoved = false; }, 50);
@@ -14456,6 +14458,10 @@ cv.addEventListener("touchstart", (ev) => {
   if (p.y < PANEL_Y) { dragging = true; dragStartX = p.x; dragCamX = camX; dragMoved = false; }
 }, { passive: true });
 cv.addEventListener("touchmove", (ev) => {
+  if (screen === "music") {
+    if (musDrag) { ev.preventDefault(); musTop = musBarIndex(evPos(ev.touches[0]), musFiltered().length); }
+    return;
+  }
   if (screen === "sci") {
     if (SCI.drag >= 0) { ev.preventDefault(); SCI.drag = sciBarIndex(evPos(ev.touches[0])); }
     return;
@@ -14480,6 +14486,7 @@ cv.addEventListener("touchcancel", () => {
   if (window.MergeMode && MergeMode.touchCancel) MergeMode.touchCancel();
 }, { passive: true });
 cv.addEventListener("touchend", (ev) => {
+  if (screen === "music" && musDrag) { musDrag = false; return; }
   // COMMIT ON RELEASE: one town materialized per gesture, not one per pixel
   if (screen === "sci") {
     if (SCI.drag >= 0) { const i = SCI.drag; SCI.drag = -1; sciGoto(i); sfx.ding(); }
@@ -14585,6 +14592,7 @@ cv.addEventListener("click", (ev) => {
   if (helpView) { tapHelp(evPos(ev)); return; }
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
   if (screen === "sci") { sciTap(evPos(ev)); return; }
+  if (screen === "music") { musTap(evPos(ev)); return; }
   if (screen === "title") {
     const p = evPos(ev);
     const bx = W / 2 - 50;
@@ -14601,6 +14609,14 @@ cv.addEventListener("click", (ev) => {
         return;
       }
       if (p.y >= ny + 20 && p.y < ny + 36) { openSaveView(); sfx.ding(); return; }
+    }
+    {
+      const r = musTitleRect();
+      if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) {
+        musTop = 0; screen = "music";
+        if (music) { music.pause(); music = null; }   // the bench owns the speakers
+        sfx.ding(); return;
+      }
     }
     {
       const r = sciTitleRect();
@@ -17258,6 +17274,12 @@ function drawTitle() {
     rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 36]);
     rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [70, 120, 150]);
     text(ctx, "CRAB SCIENCE", r.x + 9, r.y + 5, [200, 235, 255]);
+  }
+  {
+    const r = musTitleRect();
+    rect(ctx, r.x, r.y, r.w, r.h, [40, 30, 52]);
+    rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [96, 78, 128]);
+    smallText(ctx, "MUSIC", r.x + 9, r.y + 4, [235, 228, 248]);
   }
   // THE CREDIT NAMES THE TRACK THAT IS ACTUALLY QUEUED. It was hardcoded to
   // PIXEL WAVE WALTZ while PLAYLIST rotates TWELVE tracks, so the title screen
@@ -20898,6 +20920,182 @@ function vpSwapOut() {
   vpSwapped = false;
 }
 
+// ============================================================== THE RECORD BOX
+// A MUSIC MENU THAT IS ALSO A VETTING BENCH. Matt, 2026-08-24: "we have
+// ~/suno-archive; tons of songs in there; would love to get all of them in to
+// crab shack 3.5, but need to kind of vet them, so need like a music editing
+// menu thing so you can assign songs to stuff and remove them from
+// consideration; all in-game interface, available to users too."
+//
+// THE SHAPE OF THE PROBLEM, measured before designing for it: the archive is
+// 1,301 tracks and 4.3 GB; the game ships 22 tracks in 55 MB. It is ~78x what
+// a browser game served off Pages can carry, so this screen is a CURATION
+// bench first and a player toy second. Nothing here ships audio - it judges
+// candidates, and the judgements are what a build reads.
+//
+// ONE SCREEN, TWO POOLS, and that is what makes it "available to users too":
+//   - catalog present (tools/mkmusic.mjs has run, music/catalog.json exists):
+//     the pool is the ARCHIVE, and this is the vetting bench.
+//   - catalog absent (what a player downloads): the pool is PLAYLIST, and the
+//     same controls let a player drop a track they are sick of or re-tag its
+//     energy. Identical code, identical persistence, no player-only branch to
+//     rot.
+// The same point-in-rect test `sciHit` has always done, under a name that is
+// not about one screen. sciHit is left alone rather than renamed: it is called
+// from a dozen places in the lab and a rename is churn a music menu has no
+// business causing.
+function hitRect(p, r) { return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h; }
+const MUS_ROWS = 9;                       // rows on screen at once
+const MUS_FILTERS = ["ALL", "UNJUDGED", "KEPT", "DROPPED", "STUBS"];
+let MUSCAT = null;                        // the candidate catalog, or null
+let musTop = 0, musFilter = 0, musDrag = false, musPreview = null, musPreviewId = "";
+// id -> { k: 1 kept / 0 dropped / undefined unjudged, e: energy 0-2 }
+// ITS OWN STORE, not the save. A player's taste in music is not a property of
+// one town, and Matt's vetting pass must not evaporate with a save slot - so
+// judgements live beside the game rather than inside a run.
+let musJudge = {};
+const MUSIC_KEY = "cs35.music.v1";
+function musLoad() {
+  try { musJudge = JSON.parse(localStorage.getItem(MUSIC_KEY) || "{}") || {}; } catch (e) { musJudge = {}; }
+}
+function musSave() {
+  try { localStorage.setItem(MUSIC_KEY, JSON.stringify(musJudge)); } catch (e) {}
+}
+// The candidate catalog is OPTIONAL and its absence is the normal case: a
+// player downloads a game with no archive behind it. A failed fetch is not an
+// error, it just means the pool is the shipped playlist.
+function musLoadCatalog() {
+  if (typeof fetch !== "function") return;
+  fetch("music/catalog.json").then(r => (r.ok ? r.json() : null))
+    .then(j => { if (j && j.tracks) MUSCAT = j; }).catch(() => {});
+}
+function musRowRect(i) { return { x: 6, y: 34 + i * 20, w: W - 26, h: 18 }; }
+function musBarRect() { return { x: W - 16, y: 34, w: 10, h: MUS_ROWS * 20 - 2 }; }
+function musBackRect() { return { x: 6, y: 6, w: 40, h: 12 }; }
+function musFilterRect() { return { x: 52, y: 6, w: 74, h: 12 }; }
+function musCountRect() { return { x: 132, y: 6, w: W - 138, h: 12 }; }
+// A row is three tap zones, because a 256px screen has no room for buttons:
+// the left chip cycles energy, the right chip keeps/drops, the middle plays.
+function musEnergyRect(i) { const r = musRowRect(i); return { x: r.x, y: r.y, w: 16, h: r.h }; }
+function musKeepRect(i) { const r = musRowRect(i); return { x: r.x + r.w - 20, y: r.y, w: 20, h: r.h }; }
+
+// THE POOL. Catalog rows and PLAYLIST rows are normalised to one shape here so
+// every reader below is pool-agnostic.
+function musPool() {
+  if (MUSCAT && MUSCAT.tracks) return MUSCAT.tracks;
+  return PLAYLIST.map((t, i) => ({
+    id: "p" + i, name: t.name, file: t.src, secs: 0, tags: "", shipped: 1,
+  }));
+}
+function musSrc(t) {
+  // Shipped tracks carry their own path. Archive candidates play from a local
+  // mirror of the suno archive (music/archive), which is gitignored and never
+  // shipped - vetting is a thing you do on the machine that has the archive.
+  return t.shipped ? t.file : "music/archive/" + t.file;
+}
+function musState(t) { const j = musJudge[t.id]; return j && j.k != null ? j.k : null; }
+function musEnergy(t) {
+  const j = musJudge[t.id];
+  if (j && j.e != null) return j.e;
+  if (t.shipped) { const p = PLAYLIST.find(x => x.name === t.name); if (p) return p.e; }
+  return null;
+}
+function musFiltered() {
+  const all = musPool();
+  const f = MUS_FILTERS[musFilter];
+  if (f === "ALL") return all;
+  if (f === "STUBS") return all.filter(t => t.stub);
+  if (f === "KEPT") return all.filter(t => musState(t) === 1);
+  if (f === "DROPPED") return all.filter(t => musState(t) === 0);
+  return all.filter(t => musState(t) === null);   // UNJUDGED
+}
+function musPlay(t) {
+  if (musPreview) { musPreview.pause(); musPreview = null; }
+  if (musPreviewId === t.id) { musPreviewId = ""; return; }   // tapping the playing row stops it
+  // The rotation yields to the bench: two tracks at once is nobody's idea of
+  // vetting. It resumes when the screen closes.
+  if (music) { music.pause(); music = null; }
+  musPreview = new Audio(musSrc(t));
+  musPreview.volume = 0.55;
+  musPreviewId = t.id;
+  musPreview.addEventListener("ended", () => { musPreview = null; musPreviewId = ""; });
+  musPreview.play().catch(() => { musPreview = null; musPreviewId = ""; toast = { text: "NO AUDIO FOR " + t.name, t: 3 }; });
+}
+function musClose() {
+  if (musPreview) { musPreview.pause(); musPreview = null; musPreviewId = ""; }
+  screen = "title";
+  if (musicOn && !muted) startMusic();
+}
+function musBarIndex(p, n) {
+  const bar = musBarRect();
+  const span = Math.max(1, n - MUS_ROWS);
+  const t = (p.y - bar.y) / Math.max(1, bar.h);
+  return Math.max(0, Math.min(span, Math.round(t * span)));
+}
+function musTap(p) {
+  const list = musFiltered(), n = list.length;
+  if (hitRect(p, musBackRect())) { musClose(); sfx.ding(); return; }
+  if (hitRect(p, musFilterRect())) {
+    musFilter = (musFilter + 1) % MUS_FILTERS.length; musTop = 0; sfx.ding(); return;
+  }
+  if (hitRect(p, musBarRect())) { musDrag = true; musTop = musBarIndex(p, n); return; }
+  for (let i = 0; i < MUS_ROWS; i++) {
+    const t = list[musTop + i];
+    if (!t || !hitRect(p, musRowRect(i))) continue;
+    if (hitRect(p, musEnergyRect(i))) {
+      const e = musEnergy(t);
+      const next = e == null ? 0 : e >= 2 ? null : e + 1;   // cycles 0,1,2,unset
+      musJudge[t.id] = Object.assign({}, musJudge[t.id], { e: next });
+      musSave(); sfx.ding(); return;
+    }
+    if (hitRect(p, musKeepRect(i))) {
+      const k = musState(t);
+      musJudge[t.id] = Object.assign({}, musJudge[t.id], { k: k === 1 ? 0 : 1 });
+      musSave(); sfx.ding(); return;
+    }
+    musPlay(t); return;
+  }
+}
+function drawMusic(ctx) {
+  const list = musFiltered(), n = list.length;
+  rect(ctx, 0, 0, W, H, [18, 14, 24]);
+  rect(ctx, musBackRect().x, musBackRect().y, musBackRect().w, musBackRect().h, [70, 60, 90]);
+  smallText(ctx, "BACK", musBackRect().x + 9, musBackRect().y + 4, [235, 230, 245]);
+  const fr = musFilterRect();
+  rect(ctx, fr.x, fr.y, fr.w, fr.h, [60, 80, 110]);
+  smallText(ctx, MUS_FILTERS[musFilter] + " " + n, fr.x + 5, fr.y + 4, [225, 240, 255]);
+  // The count that actually matters while vetting is how many are KEPT, since
+  // that is the number that has to stay small enough to ship.
+  const kept = musPool().filter(t => musState(t) === 1).length;
+  smallText(ctx, kept + " KEPT", musCountRect().x, musCountRect().y + 4, [180, 235, 190]);
+  for (let i = 0; i < MUS_ROWS; i++) {
+    const t = list[musTop + i];
+    if (!t) break;
+    const r = musRowRect(i), k = musState(t), e = musEnergy(t);
+    rect(ctx, r.x, r.y, r.w, r.h, k === 1 ? [34, 52, 38] : k === 0 ? [46, 30, 32] : [30, 26, 40]);
+    const er = musEnergyRect(i);
+    rect(ctx, er.x + 1, er.y + 3, 12, 12, e == null ? [50, 46, 60] : [70, 90, 130]);
+    smallText(ctx, e == null ? "-" : String(e), er.x + 5, er.y + 6, [230, 235, 245]);
+    const playing = musPreviewId === t.id;
+    smallText(ctx, fitSmall(t.name, r.w - 66), r.x + 20, r.y + 3,
+      playing ? [255, 240, 170] : [225, 220, 235]);
+    const secs = t.secs ? Math.floor(t.secs / 60) + ":" + String(t.secs % 60).padStart(2, "0") : "";
+    smallText(ctx, secs + (t.stub ? " STUB" : ""), r.x + 20, r.y + 10, [140, 132, 155]);
+    const kr = musKeepRect(i);
+    rect(ctx, kr.x, kr.y + 3, 16, 12, k === 1 ? [60, 120, 70] : k === 0 ? [120, 55, 55] : [55, 50, 66]);
+    smallText(ctx, k === 1 ? "K" : k === 0 ? "X" : "?", kr.x + 6, kr.y + 6, [240, 240, 245]);
+  }
+  // THE SCROLLBAR IS DRAGGABLE, because 1,301 rows is 145 pages and a pager
+  // would be a cruelty. Its thumb is proportional so the hand knows how much
+  // list is left.
+  const bar = musBarRect(), span = Math.max(1, n - MUS_ROWS);
+  rect(ctx, bar.x, bar.y, bar.w, bar.h, [34, 30, 44]);
+  const th = Math.max(10, Math.round(bar.h * MUS_ROWS / Math.max(MUS_ROWS, n)));
+  const ty = bar.y + Math.round((bar.h - th) * (musTop / span));
+  rect(ctx, bar.x + 1, ty, bar.w - 2, th, musDrag ? [150, 190, 230] : [90, 110, 145]);
+  if (!n) smallText(ctx, "NOTHING IN THIS FILTER", 60, 110, [150, 140, 165]);
+}
+
 // ========================================================== CRAB SCIENCE
 // A LAB BENCH FOR A DETERMINISTIC TOWN. You give it a recipe - a seed, an
 // opening plan, a stopping rule - and it lives the whole town out at speed,
@@ -21105,6 +21303,11 @@ function sciPlay() {
 // these screens too.
 // the title's own entry, under the towns shelf and its count line
 function sciTitleRect() { return { x: W / 2 - 50, y: (hasSave ? 138 : 122) + 46, w: 100, h: 16 }; }
+// THE RECORD BOX LIVES IN A CORNER, not in the title stack. The stack runs
+// help/continue/new/towns/science and the credit block is now DERIVED from
+// the science button's bottom edge, so another full-width row would push the
+// credits off a 240px screen - which is the exact bug that was just fixed.
+function musTitleRect() { return { x: W - 46, y: 6, w: 40, h: 12 }; }
 const SCI_ROWS = [64, 80, 96, 112];      // seed / plan / span / rule
 function sciRowRect(i) { return { x: 16, y: SCI_ROWS[i], w: W - 32, h: 14 }; }
 function sciBarRect() { return { x: 16, y: H - 58, w: W - 32, h: 12 }; }
@@ -21258,6 +21461,7 @@ function frame(now) {
   // keyframe loaded and advances nothing - a run advances the sim inside
   // sciStart, synchronously, and is over before a frame is drawn
   if (screen === "sci") { sciFrame(dt); requestAnimationFrame(frame); return; }
+  if (screen === "music") { drawMusic(ctx); requestAnimationFrame(frame); return; }
   simTown(dt);
   if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: the seam
   vpSwapIn();
@@ -21332,6 +21536,11 @@ if (LAB) {
     sciStart();
   }
 }
+// The record box wakes with the game: judgements from the local store, and a
+// candidate catalog IF one is present (absent in a downloaded game, which is
+// the normal case and not an error).
+musLoad();
+musLoadCatalog();
 requestAnimationFrame(frame);
 
 // console cheat for tinkering: cheat(500)
