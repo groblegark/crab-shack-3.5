@@ -9542,7 +9542,7 @@ var BUNDLED_CRAB_DEPART = {
     ],
     [
      "PUSHI",
-     36000
+     36001
     ],
     [
      "PUSHI",
