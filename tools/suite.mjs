@@ -11435,7 +11435,13 @@ scenario("cultureways: broken art is refused with a message and the town still l
   const env = JSON.parse(store.get(SLOT1));
   const bad = JSON.parse(JSON.stringify(PIG_FIXTURE));
   bad.art.body.poses.a[3] = "..KK";   // ragged row
-  env.cultures = { pig: bad };
+  // a corn-OWNER for the theft case below: the slop era removed corn from the
+  // bundled pig, so the theft mechanism gets a STAGED owner (test the
+  // mechanism, not the coincidence of what the bundle currently declares)
+  const boar = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  boar.meta.id = "boar"; boar.meta.name = "BOARDERLANDS";
+  boar.foodways.ingredients = { corn: 3 };
+  env.cultures = { pig: bad, boar };
   store.set(SLOT1, JSON.stringify(env));
   const b = createSim({ seed: 66, storage: store, fresh: false });
   // The ragged document is refused - and the BUNDLED pig stands in its place,
@@ -11445,6 +11451,7 @@ scenario("cultureways: broken art is refused with a message and the town still l
   if (b.G("CULTURES.pig && CULTURES.pig.def.art.body.poses.a[3]") === "..KK")
     return "a ragged pig was accepted into the registry";
   if (!b.G("!!CULTURES.pig")) return "the ragged document took the bundled pig down with it";
+  if (!b.G("!!CULTURES.boar")) return "the staged corn-owner did not install - the theft case below is vacuous";
   if (!/CULTUREWAY/.test(b.G("toast ? toast.text : ''"))) return "no toast named the dropped culture";
   if (!(b.G("crabs.length") >= 1)) return "the town failed to load around the bad culture";
   // the raw key still round-trips: a load never destroys data it could not use
@@ -11470,7 +11477,7 @@ scenario("cultureways: broken art is refused with a message and the town still l
     // hide behind a different crime in the same document (the vacuous-
     // mutation lesson): each doc below is valid EXCEPT for its one sin
     ["a re-priced native ingredient", mut(d => d.foodways.ingredients.fish_raw = 1), "PIER'S OWN PRICE LIST"],
-    ["a stolen ingredient", mut(d => d.meta.id = "boar"), "ANOTHER PEOPLE"],   // the fixture's corn is PIG's price
+    ["a stolen ingredient", mut(d => { d.meta.id = "hog"; d.foodways.ingredients = { corn: 3 }; }), "ANOTHER PEOPLE"],   // the staged BOAR owns corn; a hog declaring it is a thief
     ["a business shadowing the catalog", mut(d => d.businesses = { shack: 1 }), "SHADOWS THE TOWN'S OWN CATALOG"],
     ["a bad business rent", mut(d => d.businesses = { mudspa: { name: "X", short: "X", sign: "X",
       kind: "shopfront", rent: 99999, stations: { pot: 1 }, source: "pot", out: "pot",
@@ -11871,13 +11878,16 @@ scenario("the biz catalog: a declared shop and a priced import build pending, an
   if (got.list !== 1) return "cultureBusinesses lists " + got.list + ", want 1";
   if (got.inBIZ || got.keys !== 5) return "a PENDING business leaked into the town's own catalog";
   if (got.mud !== 2 || got.mudBy !== "boar") return "the boar's own import did not join the pier's list";
-  if (got.corn !== 300 || got.cornBy !== "pig" || got.cornNative)
-    return "corn is priced " + got.corn + " owned by " + got.cornBy + " - the pigway's declaration did not land";
-  // an uninstall clears the guest's catalog and prices; the bundled pig's corn stands
+  // the slop era: corn's only bundled consumer left with the pork bun, so
+  // corn is UNOWNED - no price, no owner, still not native (a future culture
+  // may claim it; THE WALLOW's corn lives in the design exemplar, not the bundle)
+  if (got.corn !== null || got.cornBy !== undefined || got.cornNative)
+    return "corn should be unowned in the slop era, got price " + got.corn + " owner " + got.cornBy;
+  // an uninstall clears the guest's catalog and prices
   const cleared = JSON.parse(sim.G(`JSON.stringify((loadCultures(null),
     { list: cultureBusinesses().length, mud: INGREDIENT_COST.mud, corn: ingredientCost("corn") }))`));
   if (cleared.list !== 0 || cleared.mud !== undefined) return "an uninstalled culture's catalog lingered across a load";
-  if (cleared.corn !== 300) return "the reload lost the pigway's corn";
+  if (cleared.corn !== null) return "corn regained a price from nowhere across a reload";
   // and the byte pin: the whole declaration is inert until placement exists
   const declared = fp(boar({ businesses: SHOP, foodways: { ingredients: { mud: 2 } } }));
   if (declared.fail) return declared.fail;
