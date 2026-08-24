@@ -1037,10 +1037,26 @@ let townFund = { bal: 0, bowls: 0, strikes: 0, shut: 0, arrears: 0,
 // has been keeping the shelter open on it since before the player took the
 // lease, and it covers the roof and almost nothing else.
 let hall = {
-  mayor: null, policy: { mech: "rents", rate: 4, bowls: 2, wage: 0, cap: 0 },
+  // ...AND THE TOWN STARTS CAPPED AT SIX (Matt, 2026-08-24: "the starting
+  // condition should be 6 staff"). cap: 4 is the INDEX of the 6 rung in
+  // HEAD_CAP.steps [0, 2, 3, 4, 6, 8, 12] - the ladder is indices, not head
+  // counts, and writing cap: 6 here would mean the TWELVE rung.
+  // Old saves are untouched: a save written before the house limit has no
+  // cap field, loads as cap 0, and cap 0 still means NO LIMIT. Only a new
+  // town founds itself with a limit, which is the point - the limit is now
+  // something the town already has and may vote to loosen, rather than
+  // something that only ever gets tightened onto it.
+  mayor: null, policy: { mech: "rents", rate: 4, bowls: 2, wage: 0, cap: 4 },
   termDay: 0, poll: null,
   stand: false, nominee: null,                    // is the player on the ballot, and who for
-  plat: { mech: "levy", rate: 2, bowls: 3, wage: 0, cap: 0 },   // ...and the platform they run on
+  // ...and the platform they run on, which now ENDORSES the founding cap
+  // rather than silently running against it. This one is an inference, not a
+  // ruling: with the town founding at six, a pre-filled platform of cap 0
+  // would have made the player's default campaign "abolish the house limit"
+  // on turn one, which is a policy position nobody chose. Matching the
+  // status quo means the default platform argues about the pot and the rate,
+  // and the player has to actually MOVE the cap dial to campaign on it.
+  plat: { mech: "levy", rate: 2, bowls: 3, wage: 0, cap: 4 },
 };
 // THE BOX ITSELF. Null when there is no election in the diary. printBallots()
 // sets it at the settlement the NIGHT BEFORE polling day, which is also when
