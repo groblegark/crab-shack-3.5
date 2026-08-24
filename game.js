@@ -14421,7 +14421,7 @@ function shopHoverAt(p) {
   shopTip = null;   // off the grid: put the card away rather than leaving it armed
 }
 addEventListener("mousemove", (ev) => {
-  if (screen === "music") { if (musDrag) musTop = musBarIndex(evPos(ev), musFiltered().length); return; }
+  if (musicView) { if (musDrag) musTop = musBarIndex(evPos(ev), musFiltered().length); return; }
   shopHoverAt(evPos(ev));
   if (tipDrag) { tipSliderTo(manage, evPos(ev).x); return; }
   if (navDrag) {
@@ -14458,7 +14458,7 @@ cv.addEventListener("touchstart", (ev) => {
   if (p.y < PANEL_Y) { dragging = true; dragStartX = p.x; dragCamX = camX; dragMoved = false; }
 }, { passive: true });
 cv.addEventListener("touchmove", (ev) => {
-  if (screen === "music") {
+  if (musicView) {
     if (musDrag) { ev.preventDefault(); musTop = musBarIndex(evPos(ev.touches[0]), musFiltered().length); }
     return;
   }
@@ -14486,7 +14486,7 @@ cv.addEventListener("touchcancel", () => {
   if (window.MergeMode && MergeMode.touchCancel) MergeMode.touchCancel();
 }, { passive: true });
 cv.addEventListener("touchend", (ev) => {
-  if (screen === "music" && musDrag) { musDrag = false; return; }
+  if (musicView && musDrag) { musDrag = false; return; }
   // COMMIT ON RELEASE: one town materialized per gesture, not one per pixel
   if (screen === "sci") {
     if (SCI.drag >= 0) { const i = SCI.drag; SCI.drag = -1; sciGoto(i); sfx.ding(); }
@@ -14532,7 +14532,7 @@ function panelTap(p) {
       if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
       if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
       if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
-      if (p.x >= 168) { toggleMusic(); return; }                               // MUS
+      if (p.x >= 168) { musOpen(); sfx.ding(); return; }                       // MUS -> the record box
       if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
     }
     // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
@@ -14589,10 +14589,10 @@ cv.addEventListener("click", (ev) => {
   // THE HELP CARD SWALLOWS EVERYTHING, and it is tested first because it draws
   // last: it is reachable from the title screen, from play, and from game over,
   // so there is no screen it can be under.
+  if (musicView) { musTap(evPos(ev)); return; }   // the box swallows every click
   if (helpView) { tapHelp(evPos(ev)); return; }
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
   if (screen === "sci") { sciTap(evPos(ev)); return; }
-  if (screen === "music") { musTap(evPos(ev)); return; }
   if (screen === "title") {
     const p = evPos(ev);
     const bx = W / 2 - 50;
@@ -14613,9 +14613,7 @@ cv.addEventListener("click", (ev) => {
     {
       const r = musTitleRect();
       if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) {
-        musTop = 0; screen = "music";
-        if (music) { music.pause(); music = null; }   // the bench owns the speakers
-        sfx.ding(); return;
+        musOpen(); sfx.ding(); return;
       }
     }
     {
@@ -15109,7 +15107,7 @@ addEventListener("keydown", (e) => {
   if (e.key === "]" && cyclerLive()) { cycleSel(1); sfx.ding(); return; }
   if (e.key === "ArrowLeft") { camX = clampCam(camX - 24); followIdx = -1; followNpc = null; followCust = null; }
   if (e.key === "ArrowRight") { camX = clampCam(camX + 24); followIdx = -1; followNpc = null; followCust = null; }
-  if (e.key === "Escape") { if (helpView) { closeHelp(); return; } if (saveView) { closeSaveView(); return; } if (dossier) { dossier = null; return; } if (manage) { manage = null; return; } sel = null; followIdx = -1; followNpc = null; followCust = null; }
+  if (e.key === "Escape") { if (musicView) { musClose(); return; } if (helpView) { closeHelp(); return; } if (saveView) { closeSaveView(); return; } if (dossier) { dossier = null; return; } if (manage) { manage = null; return; } sel = null; followIdx = -1; followNpc = null; followCust = null; }
 });
 
 // ---------------------------------------------------------------- drawing
@@ -20653,6 +20651,7 @@ function titleFrame(dt) {
     drawTitle();
     drawSaveScreen();
     drawHelp();   // HOW TO PLAY is readable before the first day, which is the point
+    if (musicView) drawMusic(ctx);   // the box opens from the title too
 }
 
 // the follow lerp, named so the suite can drive the view camera contract
@@ -20893,6 +20892,9 @@ function viewFrame(dt) {
   if (gameOver) drawGameOver();
   drawSaveScreen();
   drawHelp();          // the last word: HOW TO PLAY sits over everything, including game over
+  // ...and the record box over even that, because it is the only surface you
+  // can open WHILE the town keeps trading, so it must not be paintable-over.
+  if (musicView) drawMusic(ctx);
   if (window.MergeMode) MergeMode.frame(dt);
 }
 
@@ -20946,8 +20948,17 @@ function vpSwapOut() {
 // business causing.
 function hitRect(p, r) { return p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h; }
 const MUS_ROWS = 9;                       // rows on screen at once
-const MUS_FILTERS = ["ALL", "UNJUDGED", "KEPT", "DROPPED", "STUBS"];
+// No STUBS filter: stubs and stems are excluded by tools/mkmusic.mjs before
+// the catalog is written, so the filter could only ever show an empty list -
+// a control that cannot do anything is worse than no control.
+const MUS_FILTERS = ["ALL", "UNJUDGED", "KEPT", "DROPPED"];
 let MUSCAT = null;                        // the candidate catalog, or null
+// AN OVERLAY, NOT A SCREEN. Matt: "need it to be avail during gameplay and
+// make it not pause the game." A screen would have returned before simTown
+// and frozen the town; this draws over a living one, the way helpView and
+// saveView already do. The town keeps trading while you audition tracks -
+// which is also the only honest way to judge whether a track fits a town.
+let musicView = false;
 let musTop = 0, musFilter = 0, musDrag = false, musPreview = null, musPreviewId = "";
 // id -> { k: 1 kept / 0 dropped / undefined unjudged, e: energy 0-2 }
 // ITS OWN STORE, not the save. A player's taste in music is not a property of
@@ -20973,7 +20984,10 @@ function musRowRect(i) { return { x: 6, y: 34 + i * 20, w: W - 26, h: 18 }; }
 function musBarRect() { return { x: W - 16, y: 34, w: 10, h: MUS_ROWS * 20 - 2 }; }
 function musBackRect() { return { x: 6, y: 6, w: 40, h: 12 }; }
 function musFilterRect() { return { x: 52, y: 6, w: 74, h: 12 }; }
-function musCountRect() { return { x: 132, y: 6, w: W - 138, h: 12 }; }
+function musCountRect() { return { x: 176, y: 6, w: W - 182, h: 12 }; }
+// MUSIC ON/OFF lives in the box now that a box exists. The panel's MUS chip
+// opens this instead of toggling, and the speaker keeps quick-mute.
+function musOnRect() { return { x: 132, y: 6, w: 40, h: 12 }; }
 // A row is three tap zones, because a 256px screen has no room for buttons:
 // the left chip cycles energy, the right chip keeps/drops, the middle plays.
 function musEnergyRect(i) { const r = musRowRect(i); return { x: r.x, y: r.y, w: 16, h: r.h }; }
@@ -21004,7 +21018,6 @@ function musFiltered() {
   const all = musPool();
   const f = MUS_FILTERS[musFilter];
   if (f === "ALL") return all;
-  if (f === "STUBS") return all.filter(t => t.stub);
   if (f === "KEPT") return all.filter(t => musState(t) === 1);
   if (f === "DROPPED") return all.filter(t => musState(t) === 0);
   return all.filter(t => musState(t) === null);   // UNJUDGED
@@ -21023,8 +21036,12 @@ function musPlay(t) {
 }
 function musClose() {
   if (musPreview) { musPreview.pause(); musPreview = null; musPreviewId = ""; }
-  screen = "title";
-  if (musicOn && !muted) startMusic();
+  musicView = false;
+  if (musicOn && !muted) startMusic();   // hand the speakers back to the rotation
+}
+function musOpen() {
+  musicView = true; musTop = 0;
+  if (music) { music.pause(); music = null; }   // the bench owns the speakers while it is up
 }
 function musBarIndex(p, n) {
   const bar = musBarRect();
@@ -21035,6 +21052,7 @@ function musBarIndex(p, n) {
 function musTap(p) {
   const list = musFiltered(), n = list.length;
   if (hitRect(p, musBackRect())) { musClose(); sfx.ding(); return; }
+  if (hitRect(p, musOnRect())) { toggleMusic(); sfx.ding(); return; }
   if (hitRect(p, musFilterRect())) {
     musFilter = (musFilter + 1) % MUS_FILTERS.length; musTop = 0; sfx.ding(); return;
   }
@@ -21066,6 +21084,10 @@ function drawMusic(ctx) {
   smallText(ctx, MUS_FILTERS[musFilter] + " " + n, fr.x + 5, fr.y + 4, [225, 240, 255]);
   // The count that actually matters while vetting is how many are KEPT, since
   // that is the number that has to stay small enough to ship.
+  const orr = musOnRect();
+  rect(ctx, orr.x, orr.y, orr.w, orr.h, musicOn ? [40, 80, 50] : [60, 45, 45]);
+  smallText(ctx, musicOn ? "MUSIC ON" : "MUSIC OFF", orr.x + 3, orr.y + 4,
+    musicOn ? [190, 240, 195] : [200, 170, 170]);
   const kept = musPool().filter(t => musState(t) === 1).length;
   smallText(ctx, kept + " KEPT", musCountRect().x, musCountRect().y + 4, [180, 235, 190]);
   for (let i = 0; i < MUS_ROWS; i++) {
@@ -21080,7 +21102,7 @@ function drawMusic(ctx) {
     smallText(ctx, fitSmall(t.name, r.w - 66), r.x + 20, r.y + 3,
       playing ? [255, 240, 170] : [225, 220, 235]);
     const secs = t.secs ? Math.floor(t.secs / 60) + ":" + String(t.secs % 60).padStart(2, "0") : "";
-    smallText(ctx, secs + (t.stub ? " STUB" : ""), r.x + 20, r.y + 10, [140, 132, 155]);
+    smallText(ctx, secs + (t.tags ? "  " + t.tags : ""), r.x + 20, r.y + 10, [140, 132, 155]);
     const kr = musKeepRect(i);
     rect(ctx, kr.x, kr.y + 3, 16, 12, k === 1 ? [60, 120, 70] : k === 0 ? [120, 55, 55] : [55, 50, 66]);
     smallText(ctx, k === 1 ? "K" : k === 0 ? "X" : "?", kr.x + 6, kr.y + 6, [240, 240, 245]);
@@ -21461,7 +21483,6 @@ function frame(now) {
   // keyframe loaded and advances nothing - a run advances the sim inside
   // sciStart, synchronously, and is over before a frame is drawn
   if (screen === "sci") { sciFrame(dt); requestAnimationFrame(frame); return; }
-  if (screen === "music") { drawMusic(ctx); requestAnimationFrame(frame); return; }
   simTown(dt);
   if (window._headless) { requestAnimationFrame(frame); return; }   // sim-only mode: the seam
   vpSwapIn();
