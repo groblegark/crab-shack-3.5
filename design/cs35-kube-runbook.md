@@ -15,6 +15,22 @@ export AWS_PROFILE=gasboat-prod        # every shell; the env does not persist
 node tools/kube.mjs run experiments/<manifest>.json --wait
 ```
 
+**This verb is OPERATOR-SIDE ONLY today — a gasboat `cs` fleet pod cannot
+drive the cluster.** Measured from two independent pods, 2026-08-24: there is
+no kubeconfig context (so `kubectl auth can-i` returns NotFound, not a clean
+RBAC no) and the pod's IRSA principal has no `eks:*`, so it cannot even
+`aws eks update-kubeconfig` to build one. `kube.mjs` gets as far as preflight
+and stops at `kube context "" is not the gasboat cluster - refusing`, which is
+the honest answer, not a bug to work around. Tracked as kd-wbdYahwATd.
+
+What a pod CAN do — and should, per CLAUDE.md's scope note, since the local ban
+protects the operator's Mac and a fleet pod IS cluster compute — is run sim
+workloads in-pod within its own limits: `node tools/suite.mjs --jobs N`,
+matrices, probes. That is enough to GATE. Cluster access buys back the wide
+fan-outs, not the ability to get a verdict at all. Leave headroom when peers
+are running (`--jobs 6` on 8 cores), and per the perf note below, never read a
+timing from a box running two sims.
+
 `run --wait` = validate -> install -> watch -> collect (receipts land in
 `design/cs35-research/kube-runs/<release>/`) -> clean (uninstall + delete
 cluster receipts + VERIFY karpenter scale-down). `--keep` skips the clean;
@@ -91,7 +107,9 @@ Receipts: design/cs35-research/kube-baseline/. Rough cost per suite run:
 ## How a fork prepares a run
 
 1. Commit everything the pod needs (entry tools, manifest) on your branch;
-   `git push cs35repo <branch>:<branch>` (pod-clone refs are allowed).
+   `git push <remote> <branch>:<branch>` (pod-clone refs are allowed). The
+   remote is `cs35repo` on the operator's Mac and `origin` in a fleet-pod
+   clone; `kube.mjs` resolves it either way (override with `--remote NAME`).
 2. `node tools/kube.mjs run experiments/<yours>.json --wait` if the
    operator session is live; otherwise hand the orchestrator that exact
    command in your report.

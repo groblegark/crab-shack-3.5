@@ -4,7 +4,7 @@
 // infrastructure; the laptop is out of the fan-out business.
 //
 //   node tools/kube.mjs run <manifest.json> [--ref SHA] [--wait] [--keep]
-//                           [--parallelism N] [--out DIR]
+//                           [--parallelism N] [--out DIR] [--remote NAME]
 //   node tools/kube.mjs status  <release>
 //   node tools/kube.mjs collect <release> [--out DIR]
 //   node tools/kube.mjs clean   <release>
@@ -22,9 +22,16 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { execSync, spawnSync } from "child_process";
 import { join } from "path";
 
-const PROFILE = process.env.AWS_PROFILE || "gasboat-prod";
+// AWS_PROFILE is FORWARDED, never invented. The operator's Mac authenticates
+// by SSO profile; a fleet pod authenticates by IRSA (AWS_ROLE_ARN +
+// AWS_WEB_IDENTITY_TOKEN_FILE) and has no profile at all. Defaulting the var
+// to a profile name that does not exist in the pod's config broke a WORKING
+// identity - `aws sts get-caller-identity` succeeded ambiently and failed
+// under the injected profile with "The config profile (gasboat-prod) could
+// not be found", which preflight then reported as "AWS session dead".
+const PROFILE = process.env.AWS_PROFILE || null;
 const NS = "crab-science";   // all runs, receipts, and SAs live here
-const env = { ...process.env, AWS_PROFILE: PROFILE };
+const env = PROFILE ? { ...process.env, AWS_PROFILE: PROFILE } : { ...process.env };
 const sh = (cmd, opts = {}) => (execSync(cmd, { encoding: "utf8", env, ...opts }) || "").trim();
 const shq = (cmd) => { try { return sh(cmd, { stdio: ["ignore", "pipe", "ignore"] }); } catch { return null; } };
 const die = (msg) => { console.error(`kube: ${msg}`); process.exit(1); };
@@ -36,10 +43,22 @@ const flag = (name, dflt = null) => {
 };
 const has = (name) => rest.includes(name);
 
+// The remote is RESOLVED, never named: the operator's Mac calls it cs35repo,
+// a pod's fresh clone calls it origin. Naming one killed every pod caller at
+// doRun's git fetch - which runs BEFORE preflight, so the git error masked
+// the real finding (no kube context, no eks:* on the pod principal).
+function remote() {
+  const override = flag("--remote");
+  if (override) return override;
+  const names = (shq("git remote") || "").split("\n").map((s) => s.trim()).filter(Boolean);
+  if (!names.length) die("this checkout has no git remote - the pod clones the remote, so there is nothing to clone from");
+  return names.includes("origin") ? "origin" : names[0];
+}
+
 // ---------- preflight ----------
 function preflight() {
   const who = shq(`aws sts get-caller-identity --query Arn --output text`);
-  if (!who) die(`AWS session dead or expired. Run:  aws sso login --profile ${PROFILE}`);
+  if (!who) die(`AWS session dead or expired. Run:  aws sso login --profile ${PROFILE || "gasboat-prod"}`);
   const ctx = shq("kubectl config current-context") || "";
   if (!/gasboat/.test(ctx)) die(`kube context "${ctx}" is not the gasboat cluster - refusing. (kubectl config use-context <prod-gasboat-eks arn>)`);
   return { who, ctx };
@@ -56,7 +75,7 @@ function doRun() {
   if (committed == null) die(`${target} is not committed at ${ref.slice(0, 10)} - commit it first`);
   const disk = readFileSync(target, "utf8");
   if (committed.trim() !== disk.trim()) die(`${target} on disk differs from the committed copy at ${ref.slice(0, 10)} - commit your edits`);
-  sh("git fetch cs35repo --quiet");
+  sh(`git fetch ${remote()} --quiet`);
   if (!shq(`git branch -r --contains ${ref}`)) die(`${ref.slice(0, 10)} is not on any remote branch - push first (the pod clones the remote)`);
 
   const manifest = JSON.parse(committed);
