@@ -13050,6 +13050,7 @@ function visGo(k, e) {
 // from who is standing in it; a later rejoin takes a fresh ticket).
 function visAbandon(k) {
   stayWait(k);   // no-op unless a line stamped qJoin
+  if (!k.served && k.biz === "hotel" && k.room) { k.room.occupant = null; k.room = null; }
   k.biz = null; k.recipe = null; k.need = null;
   k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
   k.target = null; k.y = FLOOR_Y; k.wy = FLOOR_Y;
