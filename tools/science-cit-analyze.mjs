@@ -16,17 +16,25 @@ for (const dir of dirs)
   for (const f of readdirSync(dir).filter(f => f.endsWith(".json") && !f.startsWith("summary")))
     arms.push({ dir, file: f, ...JSON.parse(readFileSync(join(dir, f), "utf8")) });
 
+// The receipt's own `verdict` field carries the survived line whole; the
+// 4KB stdoutTail can (and did) cut it. Read verdict first, tail as fallback.
 const parsed = arms.map(a => {
   const tail = a.stdoutTail || "";
-  const surv = /survived (\d+)\/(\d+); eviction days: ([\d,]+)/.exec(tail);
+  const surv = /survived (\d+)\/(\d+); eviction days: ([\d,]+)/.exec(a.verdict || "")
+    || /survived (\d+)\/(\d+); eviction days: ([\d,]+)/.exec(tail);
   const polls = /polls turnout\/roll: (.*)/.exec(tail);
-  const div = />> citdivsum (\{.*\})/.exec(tail);
+  const grab = (tag) => { const m = new RegExp(">> " + tag + " (.*)").exec(tail);
+    if (!m) return null; try { return JSON.parse(m[1]); } catch { return null; } };
+  const legacy = grab("citdivsum");
+  const buckets = grab("citbuckets") || (legacy && legacy.buckets) || null;
+  const divsum = buckets ? { buckets, firsts: grab("citstories") || (legacy && legacy.firsts) || {},
+    seeds: grab("citseeds") || (legacy && legacy.seeds) || [] } : null;
   return {
     armId: a.armId, exit: a.exitCode, wallMs: a.wallMs,
     survived: surv ? +surv[1] : null, of: surv ? +surv[2] : null,
     evictions: surv ? surv[3].split(",").map(Number) : null,
     polls: polls ? polls[1].trim() : null,
-    divsum: div ? JSON.parse(div[1]) : null,
+    divsum,
   };
 });
 

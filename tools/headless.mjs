@@ -416,15 +416,19 @@ if (CITDIVLOG || CITSCRIPT || CITKNOCK.length) {
     for (const r of rows) for (const d of r.div || []) {
       const k = d.brain + ">" + d.script;
       buckets[k] = (buckets[k] || 0) + 1;
-      // two story seeds per pair: the earliest sighting and the latest-day
-      // one, each compact (the receipt keeps only the stdout tail)
+      // ONE compact story seed per pair. Needs are percents, not Q20 — the
+      // receipt keeps 4KB of tail and a full needs object per seed blew the
+      // cap, truncating the buckets themselves off the FRONT of the line.
       const f = firsts[k] = firsts[k] || [];
-      if (f.length < 2) f.push({ s: r.seed, d: d.day, name: d.name, job: d.job,
-        w: d.wallet, needs: d.needs });
+      if (!f.length) f.push({ s: r.seed, d: d.day, name: d.name, job: d.job,
+        w: d.wallet, n: Object.fromEntries(Object.entries(d.needs)
+          .map(([k2, v]) => [k2[0], Math.round(v * 100 / 1048576)])) });
     }
-    console.log(">> citdivsum " + JSON.stringify({
-      buckets, firsts,
-      seeds: rows.map(r => ({ s: r.seed, evict: r.evict, n: (r.div || []).length })),
-    }));
+    // THREE lines, cheapest FIRST: the tail keeps the END, so the buckets —
+    // the whole point — must be last and can never be the thing that is cut.
+    console.log(">> citstories " + JSON.stringify(firsts));
+    console.log(">> citseeds " + JSON.stringify(
+      rows.map(r => ({ s: r.seed, evict: r.evict, n: (r.div || []).length }))));
+    console.log(">> citbuckets " + JSON.stringify(buckets));
   }
 }

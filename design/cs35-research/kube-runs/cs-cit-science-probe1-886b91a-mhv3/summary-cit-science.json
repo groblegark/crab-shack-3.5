@@ -1,0 +1,31 @@
+{
+ "parsed": [
+  {
+   "armId": "live-t0",
+   "exit": 0,
+   "wallMs": 24223,
+   "survived": 0,
+   "of": 4,
+   "evictions": [
+    8,
+    11,
+    12,
+    13
+   ],
+   "polls": null,
+   "divsum": null
+  }
+ ],
+ "byVariant": {
+  "live": {
+   "survived": 0,
+   "of": 4,
+   "blocks": {
+    "0": 0
+   }
+  }
+ },
+ "buckets": {},
+ "firsts": {},
+ "seeds": []
+}

@@ -1,0 +1,32 @@
+{
+  "release": "cs-cit-science-probe1-886b91a-mhv3",
+  "armId": "live-t0",
+  "index": 0,
+  "sha": "886b91a1a26caf00ab7783229490e517fd7e9f93",
+  "entry": "tools/headless.mjs",
+  "args": [
+    "--days",
+    "30",
+    "--seeds",
+    "4",
+    "--seedbase",
+    "0",
+    "--jobs",
+    "2",
+    "--workermem",
+    "900",
+    "--buy",
+    "chef,table",
+    "--citdivlog",
+    "--quiet"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 24223,
+  "verdict": ">> survived 0/4; eviction days: 8,11,12,13 (median 12)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "drink\":4,\"none>tap:clean\":42,\"shack:food>tap:drink\":2,\"selfcook:drink>tap:drink\":1},\"firsts\":{\"none>shack:drink\":[{\"s\":1337,\"d\":2,\"name\":\"DRIFT\",\"job\":\"fishing\",\"w\":1500,\"needs\":{\"food\":1,\"drink\":602931,\"fun\":209715,\"clean\":471859}},{\"s\":1337,\"d\":2,\"name\":\"DRIFT\",\"job\":\"fishing\",\"w\":1500,\"needs\":{\"food\":1,\"drink\":602931,\"fun\":209715,\"clean\":471859}}],\"showers:clean>tap:drink\":[{\"s\":1337,\"d\":3,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":1000,\"needs\":{\"food\":367003,\"drink\":786432,\"fun\":419430,\"clean\":734003}},{\"s\":5348,\"d\":3,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":1000,\"needs\":{\"food\":367003,\"drink\":786432,\"fun\":419430,\"clean\":734003}}],\"showers:clean>shack:food\":[{\"s\":1337,\"d\":3,\"name\":\"SALTY\",\"job\":\"fishing\",\"w\":4100,\"needs\":{\"food\":471860,\"drink\":262144,\"fun\":419430,\"clean\":734003}},{\"s\":5348,\"d\":9,\"name\":\"SALTY\",\"job\":\"hotel\",\"w\":5500,\"needs\":{\"food\":734004,\"drink\":524288,\"fun\":985661,\"clean\":891289}}],\"none>tap:drink\":[{\"s\":1337,\"d\":3,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":300,\"needs\":{\"food\":367003,\"drink\":786432,\"fun\":419430,\"clean\":209715}},{\"s\":1337,\"d\":3,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":300,\"needs\":{\"food\":367003,\"drink\":786432,\"fun\":419430,\"clean\":209715}}],\"none>shack:food\":[{\"s\":1337,\"d\":3,\"name\":\"SALTY\",\"job\":\"fishing\",\"w\":2800,\"needs\":{\"food\":471860,\"drink\":262144,\"fun\":419430,\"clean\":0}},{\"s\":1337,\"d\":3,\"name\":\"SALTY\",\"job\":\"fishing\",\"w\":2800,\"needs\":{\"food\":471860,\"drink\":262144,\"fun\":419430,\"clean\":0}}],\"none>showers:clean\":[{\"s\":1337,\"d\":3,\"name\":\"DRIFT\",\"job\":\"fishing\",\"w\":900,\"needs\":{\"food\":367003,\"drink\":524288,\"fun\":419430,\"clean\":734003}},{\"s\":1337,\"d\":3,\"name\":\"DRIFT\",\"job\":\"fishing\",\"w\":900,\"needs\":{\"food\":367003,\"drink\":524288,\"fun\":419430,\"clean\":734003}}],\"showers:clean>shack:drink\":[{\"s\":1337,\"d\":3,\"name\":\"DRIFT\",\"job\":\"fishing\",\"w\":1500,\"needs\":{\"food\":367003,\"drink\":524288,\"fun\":419430,\"clean\":734003}},{\"s\":1337,\"d\":11,\"name\":\"SALTY\",\"job\":\"fishing\",\"w\":2800,\"needs\":{\"food\":262148,\"drink\":498073,\"fun\":1048576,\"clean\":838860}}],\"none>ball:fun\":[{\"s\":1337,\"d\":6,\"name\":\"PINCHY\",\"job\":\"shack\",\"w\":2500,\"needs\":{\"food\":262144,\"drink\":0,\"fun\":817888,\"clean\":576716}},{\"s\":1337,\"d\":6,\"name\":\"PINCHY\",\"job\":\"shack\",\"w\":2500,\"needs\":{\"food\":262144,\"drink\":0,\"fun\":817888,\"clean\":576716}}],\"shack:drink>shack:food\":[{\"s\":1337,\"d\":6,\"name\":\"DRIFT\",\"job\":\"fishing\",\"w\":3100,\"needs\":{\"food\":629146,\"drink\":838860,\"fun\":838860,\"clean\":891289}},{\"s\":4011,\"d\":9,\"name\":\"SALTY\",\"job\":\"fishing\",\"w\":3600,\"needs\":{\"food\":524290,\"drink\":760217,\"fun\":1048576,\"clean\":734003}}],\"none>selfcook:food\":[{\"s\":1337,\"d\":7,\"name\":\"CLAWDIA\",\"job\":\"shack\",\"w\":1300,\"needs\":{\"food\":786432,\"drink\":0,\"fun\":985660,\"clean\":786432}},{\"s\":1337,\"d\":7,\"name\":\"CLAWDIA\",\"job\":\"shack\",\"w\":1300,\"needs\":{\"food\":786432,\"drink\":0,\"fun\":985660,\"clean\":786432}}],\"vote:vote>shack:food\":[{\"s\":1337,\"d\":7,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":1500,\"needs\":{\"food\":471863,\"drink\":0,\"fun\":1048576,\"clean\":891289}}],\"shack:drink>tap:drink\":[{\"s\":1337,\"d\":8,\"name\":\"SUDSY\",\"job\":\"showers\",\"w\":10362,\"needs\":{\"food\":629147,\"drink\":922745,\"fun\":838860,\"clean\":262144}},{\"s\":1337,\"d\":9,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":1600,\"needs\":{\"food\":367002,\"drink\":838860,\"fun\":922746,\"clean\":629145}}],\"none>tap:clean\":[{\"s\":2674,\"d\":3,\"name\":\"REEF\",\"job\":\"hotel\",\"w\":23005,\"needs\":{\"food\":367002,\"drink\":524288,\"fun\":629145,\"clean\":891290}},{\"s\":2674,\"d\":4,\"name\":\"REEF\",\"job\":\"hotel\",\"w\":23005,\"needs\":{\"food\":367002,\"drink\":524288,\"fun\":629145,\"clean\":891290}}],\"shack:food>tap:drink\":[{\"s\":2674,\"d\":7,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":2100,\"needs\":{\"food\":734004,\"drink\":786432,\"fun\":838860,\"clean\":734003}},{\"s\":2674,\"d\":7,\"name\":\"KELP\",\"job\":\"fishing\",\"w\":2100,\"needs\":{\"food\":734004,\"drink\":786432,\"fun\":838860,\"clean\":734003}}],\"selfcook:drink>tap:drink\":[{\"s\":5348,\"d\":9,\"name\":\"CLAWDIA\",\"job\":\"shack\",\"w\":3000,\"needs\":{\"food\":524288,\"drink\":865075,\"fun\":1048576,\"clean\":681574}}]},\"seeds\":[{\"s\":1337,\"evict\":13,\"n\":268},{\"s\":2674,\"evict\":8,\"n\":164},{\"s\":4011,\"evict\":12,\"n\":146},{\"s\":5348,\"evict\":11,\"n\":212}]}\n"
+}
