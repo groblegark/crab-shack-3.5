@@ -76,20 +76,56 @@ data, substrate §5.2).
 4. Hostile rows: each named refusal above, a good document accepted, an
    overlong refuseHireLog refused as "A BAD VOICE LINE".
 
-## Gates — QUEUED (AWS session expired at build time)
+## Gates — DONE (2026-08-24, the session renewed and the queue drained)
 
-The batched sequence, in order, once the operator renews the session:
-1. `helm list`-first cleanup of any stale releases (double-spend lesson).
-2. Green check: kube run of experiments/e6-focus.json (2 arms, both
-   backends; manifest carries the ephemeral-pool schedulability block).
-3. Mutation demo 1: drift one palette byte in crab-art.json + regen →
-   scenario 1 red naming the shell; revert + regen.
-4. Mutation demo 2: freeCrewName misreads (walkins-only concat) → scenario
-   2 red naming the order; revert.
-5. Rebase check against cs35repo/cs35 (E1+E2 and the economy trio may land),
-   regen-exact check, then the full suite + phased-gates (MCP) on the final
-   SHA. Bundle regen is part of the gate: mkcultureways output committed and
-   byte-exact.
+1. **Stale-release cleanup** — done; `cs-e6-focus-8d4bd72-j87y` was the only
+   remnant, and see the warning below about what its Job status meant.
+2. **Green check** — `e6-focus` **4/4 both backends** (8/8 arms).
+3. **Mutation demo 1 — BIT.** One palette byte drifted in crab-art.json;
+   scenario 1 red naming the shell. Receipts
+   `kube-runs/cs-e6-focus-4c51972-4bot`. Reverted.
+4. **Mutation demo 2 — BIT.** `freeCrewName` walks the wrong pool; scenario 2
+   red naming the order exactly: `the next hire is GARY, pool order says
+   SHELLDON`. Receipts `kube-runs/cs-e6-focus-8d4bd72-j87y`. Reverted.
+
+   **A WARNING FOR WHOEVER READS THE JOB LIST NEXT.** That demo's Job shows
+   `Failed 0/2` and sat in the namespace for three hours looking like a broken
+   gate. It was not: a mutation demo EXPECTS red arms, so its Job status is
+   *supposed* to be Failed. The orchestrator misread it as an unexplained
+   failure and flagged E6 as blocked on a diagnosis it did not need. The
+   manifest note says it plainly and it is worth repeating here: **read the
+   receipts, not the Job status.**
+5. **Rebase onto the E1+E2 tip (`697f3d8`) — clean, three conflicts, all
+   ADDITIVE UNIONS**, which is the migration behaving as designed: two
+   independent slices of hardcoded content moving into the document without
+   contending for the same ground.
+   * `tools/mkcultureways.mjs` — E1/E2 loads quips+traits, E6 loads
+     people+art. Both kept; the generator now emits four `BUNDLED_CRAB_*`
+     tables where mainline emitted two, and the window tail exports all four.
+   * `cultureways.js` — generated, so resolved BY REGENERATION, never by
+     hand. 99734 bytes carrying quips, traits, 12+26 names and 7 colorways.
+   * `mcp/docs.mjs` — two paragraphs of authoring docs, each describing a
+     different half of the same section. Both kept.
+6. **Full battery on the combined tree** (`9b95c08`):
+   * `e6-focus`: **8/8**, both backends — E1/E2 and E6 coexist.
+   * `suite-318`: **674/674 across 20 arms**, zero red. Receipts
+     `kube-runs/cs-suite-318-9b95c08-cmg8`. (Eight more than E1+E2's 666:
+     E6's four scenarios on each engine.)
+   * Bundle regen byte-exact on the rebased tree.
+
+### An operational note earned the hard way
+
+Three concurrent `kube.mjs` runs wedged the cluster path: a job that never
+installed, `helm list --all` erroring blank, and a run sitting thirteen
+minutes with nothing to show. Not credentials (`sts get-caller-identity`
+clean) and not the cluster (three nodes Ready) — contention. Killing the
+competing processes cleared it immediately.
+
+The likely root cause is upstream of that: a cluster run was started with a
+long foreground timeout and the tool's hard **ten-minute ceiling killed it
+mid-install**, leaving the mess the next runs tripped over. **Cluster runs go
+in the background, always** — a long timeout is not a substitute, because the
+ceiling wins.
 
 ## Seams left named
 
