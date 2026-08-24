@@ -14258,8 +14258,15 @@ cv.addEventListener("click", (ev) => {
         sfx.buy(); save(); return;
       }
       const staff = allCrabs().filter(c => c.p.job === manage);
-      for (let i = 0; i < Math.min(staff.length, R.rows.length); i++) {
-        const c = staff[i], cell = R.cells[i];
+      const SW = schedWindow(staff.length, R);
+      if (SW.paged) {
+        const pr = SW.pagerRow;
+        if (pt.x >= pr.x && pt.x < pr.x + pr.w && pt.y >= pr.y && pt.y < pr.y + pr.h) {
+          schedPage = (schedPage + 1) % SW.pages; sfx.ding(); return;
+        }
+      }
+      for (let i = 0; i < Math.min(staff.length - SW.start, SW.per); i++) {
+        const c = staff[SW.start + i], cell = R.cells[i];
         if (hit(cell.wdn) || hit(cell.wup)) {   // a private deal, above or below the shop rate
           setCrabWage(c, Math.round(wageRate(c)) + (hit(cell.wup) ? 1 : -1));
           sfx.buy(); save(); return;   // DIARY HOOK: the player moved this crab's rate
@@ -17419,6 +17426,20 @@ function drawDossier() {
 // apart on purpose.
 function ownedBizList() { return Object.keys(BIZ).filter(b => bizUnlocked(b) && bizOwner(b) === "player"); }
 const MANAGE_TABS = ["HOURS", "SCHEDULE", "TOWN", "HALL"];
+// THE ROTA PAGES AT SEVEN. The schedule card has seven row rects; a shop
+// with more staff used to show the first seven and give the rest NO
+// controls at all - no shift, no OT, no sick, no wage (found chasing "cant
+// specify more than 6 staff"). When staff outgrow the rows, the last row
+// band becomes a pager line and the window walks; draw and hit test share
+// this one function so an unpainted row can never answer.
+let schedPage = 0;
+function schedWindow(staffN, R) {
+  const paged = staffN > R.rows.length;
+  const per = paged ? R.rows.length - 1 : R.rows.length;
+  const pages = Math.max(1, Math.ceil(staffN / per));
+  if (schedPage >= pages) schedPage = 0;
+  return { start: schedPage * per, per, pages, paged, pagerRow: R.rows[R.rows.length - 1] };
+}
 // NEXT> steps to the next SHOP you own, which means nothing at all on a page
 // about the TOWN - and the census is now reached straight from the nav strip,
 // by players who never picked a business in the first place. One predicate for
@@ -17722,8 +17743,14 @@ function drawManage() {
     smallText(ctx, fitSmall(rosterHint(key, deals), rosterHintBudget(R)),
       x + 6, y + h2 - 13, [110, 100, 110]);
     if (!staff.length) smallText(ctx, "NOBODY ASSIGNED - REASSIGN FROM A DOSSIER", x + 8, y + 70, [190, 80, 80]);
-    for (let i = 0; i < Math.min(staff.length, R.rows.length); i++) {
-      const c = staff[i], cell = R.cells[i], ry = R.rows[i].y;
+    const SW = schedWindow(staff.length, R);
+    if (SW.paged) {   // the pager line, in the row band it costs
+      const pr = SW.pagerRow;
+      smallText(ctx, "..MORE (" + (staff.length - SW.per) + ") TAP HERE  " + (schedPage + 1) + "/" + SW.pages,
+        pr.x + 2, pr.y + 2, [190, 170, 230]);
+    }
+    for (let i = 0; i < Math.min(staff.length - SW.start, SW.per); i++) {
+      const c = staff[SW.start + i], cell = R.cells[i], ry = R.rows[i].y;
       if (i % 2 === 0) rect(ctx, R.rows[i].x, ry - 1, R.rows[i].w, 11, [244, 238, 224]);
       const gripe = wageGripe(c);
       smallText(ctx, c.p.name.slice(0, 7), cell.name.x + 1, ry + 2,
