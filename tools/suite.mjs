@@ -2453,7 +2453,11 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // sales (serves 44 -> 46, coins 13717 -> 18963). The head is the first
     // served guest of day 1 (+800 flat became eff 560 at rep 30).
     1337: '{"day":3,"tmin":0,"coins":18963,"rep":40412,"catch":4,"serves":46,"crabServes":5,"rage":3,"till":23027,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23027],["REEF",20920],["SALTY",3800],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[843.4,167]]}',
-    4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
+    // Re-pointed for REPUTATION WITH TEETH: seed 4242 is the pure case -
+    // EVERY field byte-identical except rep (50824 -> 35828). Same coins,
+    // same serves, same rage, same wallets, same positions. The arithmetic
+    // moved; the town did not.
+    4242: '{"day":3,"tmin":0,"coins":17546,"rep":35828,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -12009,17 +12013,31 @@ scenario("pigs: word reaches the mainland, and only then does a pig sail", () =>
   return true;
 });
 
-scenario("pigs: they actually get off the boat in a town nobody staged", () => {
-  // The end-to-end claim, and the one that was false before this landed:
-  // play a town from nothing and a pig walks down the gangway.
+scenario("pigs: they actually get off the boat in a town that earned it", () => {
+  // The end-to-end claim: play a town and a pig walks down the gangway.
+  //
+  // RE-STAGED FOR REPUTATION WITH TEETH, and the reason is the feature. The
+  // gate was authored (pig 80) against a scale where 100 was a town's RESTING
+  // state, so "80" meant "doing well"; it is now 55 against a scale where an
+  // UNSTEERED town measurably lives at 35-49 and peaks at 49 (lab, seed 1337,
+  // 12 days: 30,37,37,42,47,49,38,35,40,43,43,43 - and her own people's word
+  // reaches 35 on the spill alone), while a trading town reaches 60-71 (the
+  // triple-16 receipts). So an unsteered town is exactly the town pigs now
+  // correctly REFUSE, and the old premise - "a town nobody staged" - no
+  // longer implies a town anyone would sail to. The claim worth keeping is
+  // that a town which EARNS its name gets pigs; so the town buys the same two
+  // things the growth matrix buys, and must then still cross the gate on its
+  // own trading. (Whether 55 is the right bar is Matt's ruling; the mechanism
+  // is proved either way, and the gate scenario above pins the three ears.)
   const sim = createSim({ seed: 1337 });
+  sim.G(`coins = 500000; tryBuy("chef"); tryBuy("table"); coins = 15000;`);
   let firstDay = 0, name = "";
-  for (let d = 1; d <= 12 && !firstDay && !sim.G("gameOver"); d++) {
+  for (let d = 1; d <= 16 && !firstDay && !sim.G("gameOver"); d++) {
     sim.runDays(d);
     const n = sim.G(`(customers.filter(k => k.visitor && k.culture === "pig")[0] || {}).name || ""`);
     if (n) { firstDay = sim.G("day"); name = n; }
   }
-  if (!firstDay) return "no pig ever came ashore in a played town";
+  if (!firstDay) return "no pig ever came ashore in a town that traded well for a fortnight";
   if (firstDay < 4) return `a pig landed on day ${firstDay} - that is wallpaper, not an arrival`;
   // ...and she is a pig all the way down, not a crab wearing a name
   const her = JSON.parse(sim.G(`JSON.stringify((() => {
