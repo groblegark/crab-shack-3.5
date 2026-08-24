@@ -1,0 +1,26 @@
+{
+  "name": "rethink-focus",
+  "note": "Interruptible commitment's own scenarios, both backends - the cheap targeted gate for green checks and mutation demos. The dither pin runs two sim-days, so this arm gets the suite-slice memory. Full suite + phased-gates still run on the final SHA.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "arms": [
+    {
+      "id": "js-rethink",
+      "entry": "tools/suite.mjs",
+      "args": ["rethink:"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "wasm-rethink",
+      "entry": "tools/suite.mjs",
+      "args": ["rethink:"],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ],
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ]
+}
