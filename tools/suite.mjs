@@ -2448,7 +2448,11 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // trajectory, not a leak. 4242 crosses NOWHERE in two days and its pin
     // stands untouched - one seed moving and one holding is itself the
     // receipt that the brain only moves what it decides.
-    1337: '{"day":3,"tmin":0,"coins":13717,"rep":53426,"catch":4,"serves":44,"crabServes":5,"rage":5,"till":22627,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22627],["REEF",20920],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[520.3,167.3],[2136,154],[450,155],[2072,154],[318,167]]}',
+    // Re-pointed for REPUTATION WITH TEETH: lower resting rep -> smaller boats
+    // -> fewer unserved guests -> fewer rage-quits (5 -> 3) -> MORE completed
+    // sales (serves 44 -> 46, coins 13717 -> 18963). The head is the first
+    // served guest of day 1 (+800 flat became eff 560 at rep 30).
+    1337: '{"day":3,"tmin":0,"coins":18963,"rep":40412,"catch":4,"serves":46,"crabServes":5,"rage":3,"till":23027,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",23027],["REEF",20920],["SALTY",3800],["DRIFT",400],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[843.4,167]]}',
     4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
@@ -11360,7 +11364,11 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // is MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8 - plane
   // digest identical either side of it (the frozen day-2 fingerprint carries
   // the full receipt). Same two-day town as that fixture, same drift.
-  const want = '{"day":3,"coins":17546,"rep":50824,"fund":1000,"crabs":[["PINCHY",520,1600],'
+  // Re-pointed for REPUTATION WITH TEETH: every field but rep is byte-identical
+  // (coins, positions, visitors, catch) - in this cultures-less 3-day town the
+  // saturating earns and new sinks moved the NUMBER (50824 -> 35828) without
+  // moving a single behavior. The mechanism's cleanest receipt.
+  const want = '{"day":3,"coins":17546,"rep":35828,"fund":1000,"crabs":[["PINCHY",520,1600],'
     + '["CLAWDIA",108,1600],["SUDSY",388,22428],["REEF",2136,20921],["SALTY",2072,0],'
     + '["DRIFT",318,0],["KELP",450,2800]],"vis":7,"catch":3}';
   if (fp !== want) return "the fingerprint moved: " + fp;
@@ -12604,7 +12612,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1726, 2: 1616 };   // day 2 re-pointed for THE CITIZEN MIND live: DRIFT's held-off drink (think 397, T=7606, day 1) spends no draw of its own - day 1 holds at 1726 - but the trajectory it opens reshapes day 2's custom to 1616. Same shape as every holder before it: the count is THE SPEC, only its holder changed. Previously re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
+  const PIN = { 1: 1726, 2: 1603 };   // day 2 re-pointed for REPUTATION WITH TEETH: the pass adds ZERO draw sites (pure arithmetic at existing events), but the lower day-1 rep shrinks day 2's boat - 13 fewer sim-stream draws are the missing guests' errands (1616 -> 1603, day 1 holds at 1726: the first sailing pre-dates any earn). Previously re-pointed for THE CITIZEN MIND live: DRIFT's held-off drink (think 397, T=7606, day 1) spends no draw of its own - day 1 holds at 1726 - but the trajectory it opens reshapes day 2's custom to 1616. Same shape as every holder before it: the count is THE SPEC, only its holder changed. Previously re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
