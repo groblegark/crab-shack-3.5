@@ -105,3 +105,45 @@ change.)
 the meter's /Q20 — "half a stomach read 1, want 0.5"; demo 2 dropped the
 gangway floors — "fresh hunger under its floor". Both reverted; tree
 restored green.
+
+## THE FULL BATTERY: 636/658, and every red walked to its class
+
+The slice's own scenarios are green both backends and both mutations bit.
+The full battery (kube-runs/cs-suite-318-888377d-c1oj) reds 11 scenarios ×2
+backends — every one walked, none shipped past:
+
+**A real bug, FIXED on this branch (and LATENT ON MAINLINE — upstream
+regardless of this landing's fate):** the integer tripwire caught
+`cust.target=1834.09765625` — vsepPush (personal-space) adjusted a stander's
+pixel aim by `(x1-x0)/Q8` under an "exact: power of two" comment; exact is
+not integer. Fixed here (Math.round, aim within half a pixel); the base tree
+carries the same latent float and will trip the wire the first time a
+parting hits a target-holding visitor on a pinned seed.
+
+**Three pure pins, honestly moved, re-measure AFTER the anchor ruling:**
+the rng day-1 draw count (1726 → 2207: hungrier arrivals think and buy
+more), the frozen day-2 fingerprint, and the cultureways A/B day-3
+fingerprint (its MECHANISM — with==without — is untouched; the pinned
+literal moved). Their new values depend on the final arrival constants, so
+harvesting them before the operator rules on the 13→32 anchor would buy a
+second full ceremony if the anchor changes.
+
+**Three economy-coupled stagings** (wage quit "nobody left", cpu-wage
+"never moved her wage", closure soak "the shop never closed"): each is
+force-staged already, and each rides going-rate/till context the doubled
+economy shifted under it. They need their stagings re-derived against the
+ruled economy, not looser assertions.
+
+**Three mechanism walks owed** (also post-ruling, since their trajectories
+re-shuffle with the constants): the election 3-3 tie (staged-coincidence,
+re-stage per its own protocol), the sickness M-vs-E ×5.23 (roster
+composition confound vs a real conditioned roll — decide by comparing the
+roll sites, not the sample), and the two with real-bug potential: the
+hotelier walking past a closer empty house (nearest-free-door mechanism vs
+mid-walk vacancy timing) and the departures broke-door double-count (the
+turn-away accounting may increment two counters when both are true — read
+the counter sites before re-staging anything).
+
+**The recommended sequence at the gate:** rule the anchor (as-authored, or
+smaller) → one pin-harvest battery on the ruled constants → the six
+re-stagings/walks above → one final green battery. One ceremony, not two.
