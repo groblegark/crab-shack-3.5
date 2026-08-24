@@ -15,6 +15,10 @@ const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v
 const crabVoiceSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-voice.json", import.meta.url), "utf8"));
 const crabVoice = { registers: crabVoiceSrc.registers };   // the _comment stays in the fixture
 if (crabVoiceSrc.idle) crabVoice.idle = crabVoiceSrc.idle; // E1: the idle quips (ball/chat/wander/nod)
+// E2: the crab's traits, tabled (census C3) - twentieths in the fixture,
+// converted to the engine's exact floats by buildTraits at load.
+const crabTraitsSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-traits.json", import.meta.url), "utf8"));
+const crabTraits = { traits: crabTraitsSrc.traits };
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
@@ -66,8 +70,9 @@ const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the isl
 
 const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)};\n`
   + `var BUNDLED_POLICIES = ${JSON.stringify({ crab: crabPolicies }, null, 1)};\n`
-  + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`;
-const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; }\n`;
+  + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`
+  + `var BUNDLED_CRAB_TRAITS = ${JSON.stringify(crabTraits, null, 1)};\n`;
+const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; }\n`;
 
 writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",

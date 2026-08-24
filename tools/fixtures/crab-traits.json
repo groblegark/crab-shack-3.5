@@ -1,0 +1,63 @@
+{
+  "_comment": [
+    "THE CRAB DEFAULT'S TRAITS, TABLED (phase E2, census C3). The six island",
+    "personalities transcribed from crabs.js's TRAITS literal: multipliers in",
+    "integer TWENTIETHS (20 = 1.0; every shipped value is twentieths-exact,",
+    "and n/20 in doubles reproduces the literal float bit-for-bit, so the",
+    "built table equals the code table value for value - the suite scenario",
+    "is the proof). Key ORDER is the hire gacha's draw order - do not reorder.",
+    "The code literal stays as the fallback for a bundle that fails to load;",
+    "a culture may declare its own people.traits and its settlers will carry",
+    "them - machinery shipped in E2, content is a later ruling."
+  ],
+  "traits": {
+    "speedy": {
+      "label": "SPEEDY", "move20": 28, "work20": 20, "tip20": 20,
+      "quips": {
+        "commute": ["GOTTA GO FAST", "ZOOM ZOOM", "NO TIME!"],
+        "work": ["ORDER UP!", "FASTER! FASTER!", "DONE ALREADY"],
+        "home": ["LAPS ON THE BEACH", "CAN'T SIT STILL"]
+      }
+    },
+    "lazy": {
+      "label": "LAZY", "move20": 17, "work20": 17, "tip20": 20, "lateMin": 45,
+      "quips": {
+        "commute": ["5 MORE MINS...", "WHY SO EARLY", "YAWN"],
+        "work": ["BREAK TIME YET?", "SO MANY ORDERS", "UGH, TOURISTS"],
+        "home": ["NAP O'CLOCK", "ZZZ...", "COMFY SAND"]
+      }
+    },
+    "cheery": {
+      "label": "CHEERY", "move20": 20, "work20": 20, "tip20": 25,
+      "quips": {
+        "commute": ["WHAT A MORNING!", "HI SEAGULLS!", "LOVE THIS TOWN"],
+        "work": ["SERVICE W. A SMILE", "ENJOY!", "MY PLEASURE!"],
+        "home": ["BEST DAY EVER", "SUNSETS RULE"]
+      }
+    },
+    "grumpy": {
+      "label": "GRUMPY", "move20": 20, "work20": 23, "tip20": 18,
+      "quips": {
+        "commute": ["TRAFFIC. GREAT.", "SAND IN MY SHOES", "HMPH"],
+        "work": ["YES YES, TACO", "I'M CHOPPING OK", "TOURISTS..."],
+        "home": ["FINALLY. QUIET.", "DON'T KNOCK"]
+      }
+    },
+    "tidy": {
+      "label": "TIDY", "move20": 20, "work20": 22, "tip20": 21,
+      "quips": {
+        "commute": ["CLAWS WASHED", "EARLY IS ON TIME"],
+        "work": ["MISE EN PLACE", "CLEAN AS YOU GO", "SPOTLESS"],
+        "home": ["SWEEPING MY DUNE", "ALL SHIPSHAPE"]
+      }
+    },
+    "dreamy": {
+      "label": "DREAMY", "move20": 19, "work20": 18, "tip20": 23, "pauses": true,
+      "quips": {
+        "commute": ["LOOK, A CLOUD...", "THE WAVES SING", "OOH SHINY SHELL"],
+        "work": ["WAIT, WHAT ORDER?", "THE GRILL DANCES", "PRETTY FLAMES"],
+        "home": ["COUNTING STARS", "THE SEA CALLS"]
+      }
+    }
+  }
+}

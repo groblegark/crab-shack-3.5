@@ -88,7 +88,12 @@ A people, written as a document. Not code — data the engine reads:
 
   meta      id and name. THE ID MUST MATCH /^[a-z][a-z0-9_]{0,15}$/ or the
             game skips your document SILENTLY, with no error anywhere.
-  people    the name pool (each name <= 12 characters)
+  people    the name pool (each name <= 12 characters). people.traits is this
+            people's personality table (E2): per-trait label, move20/work20/
+            tip20 multipliers in integer TWENTIETHS (20 = 1.0, clamped 4-60),
+            optional lateMin (0-240) and pauses, and quips for all three
+            moments (commute/work/home). Key order is the hire draw order.
+            Undeclared = your settlers carry the island's six traits.
   art       palette, body (w/h 4-32, four poses a/b/w/s as pixel rows),
             colorways (per-slot recolours), anchors, accessories, items
   voice     registers — a register is bound to an accessory, because THE HAT
