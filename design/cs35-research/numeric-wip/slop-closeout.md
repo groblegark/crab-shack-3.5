@@ -96,12 +96,38 @@ worse. Nothing tuned.
 - Screenshot: **banked** — devlog/img/2026-08-23-first-slop.png, shot
   POD-SIDE and carried home as base64 in the receipt's jsonTail (SNOUT, day
   9, delight 1; REP 93 on the HUD). The kube policy's first picture.
-- Full suite at the final rebased SHA 826ebd4: **RUNNING at handoff** —
-  cs-suite-318-826ebd4-1qxj was installed and running when the operator's
-  AWS session expired mid-ceremony; its receipts bank as ConfigMaps and
-  survive. The MCP battery was NOT yet launched (the session died between
-  the two installs). After `aws sso login --profile gasboat-prod`:
-    node tools/kube.mjs collect cs-suite-318-826ebd4-1qxj   # expect 654+6/654+6 style verdict
-    node tools/kube.mjs clean   cs-suite-318-826ebd4-1qxj
-    node tools/kube.mjs run experiments/phased-gates.json --ref 826ebd4 --wait
-  The merge holds until both are green.
+- Full suite at d9580c1: **654/654, 20/20 arms, both backends**, every
+  receipt exitCode 0 (kube-runs/cs-suite-318-d9580c1-48p7). MCP battery at
+  a6a2423 (chart+docs delta only): **exit 0, zero failures**
+  (kube-runs/cs-phased-gates-a6a2423-71q0). Scale-down verified after each.
+
+### The 4 red arms the first full run found — and why they were RIGHT to be red
+
+The suite's first pass at 826ebd4 came back 16/20 with two scenarios failing
+identically on BOTH backends. Neither was a flake; both were tests anchored
+on a COINCIDENCE (that the bundled pig happens to price corn) rather than a
+MECHANISM — the project's oldest lesson, biting the tests themselves the
+moment corn left the bundle:
+
+1. **"a stolen ingredient" (the culture-refusal family)** asserted that a doc
+   claiming `meta.id = "boar"` is refused for declaring PIG's corn. With the
+   bundle no longer owning corn, the theft had no victim and the refusal
+   never fired. Fixed at the mechanism: the scenario now STAGES a corn-owning
+   `boar` document into the save, and a `hog` clone declaring the same corn is
+   the thief — plus a guard asserting the staged owner installed, so the case
+   can never go vacuous again.
+2. **"the biz catalog: ... change no town byte"** asserted `corn` priced 300
+   owned by "pig". The slop era's truth is that corn is UNOWNED — no price, no
+   owner, still not native (a future culture may claim it). Re-pointed; the
+   priced-import MECHANISM stays fully proven by the scenario's own staged
+   `mud` import, which was always the real subject.
+
+### A chart bug found on the way (worth upstreaming)
+
+Mainline's new per-index backoff sets `maxFailedIndexes: 5` unconditionally;
+Kubernetes refuses any Job where that exceeds `completions`, so EVERY
+manifest with fewer than 5 arms (the MCP battery has 1, most focus manifests
+have 3–4) failed to install with `spec.maxFailedIndexes: Invalid value: 5`.
+Clamped in the chart template to `min(maxFailedIndexes, arms)`, verified by
+`helm template` at arms=1 → 1 and arms=20 → 5. (The coordinator notes
+mainline landed an equivalent at 2479cb2 — expect a trivial dedupe at merge.)
