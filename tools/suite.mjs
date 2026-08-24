@@ -11485,6 +11485,107 @@ scenario("crab voice: two whole days with the table off are the same town", () =
   }
   return true;
 });
+scenario("crab-as-document: the names and shells are the document's, byte for byte", () => {
+  // Phase E6's tabled==literal proof, the voice ceremony applied to identity:
+  // the bundled crab document must be INSTALLED (a fallback pass proves
+  // nothing), and every adopted value must equal the literal it tables. The
+  // pins below are copies of the sprites.js/crabs.js literals - drift the
+  // fixture one byte and this names the entry.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    armed: !!(CRAB_ART_DOC && CRAB_PEOPLE_DOC),
+    colors: CRAB_COLORS, crew: CRAB_NAMES, walkins: CUSTOMER_NAMES,
+    fb: crabNameFallback(), arts: CRAB_ARTS.length, houses: HOUSES.length,
+    boats: BOATS.length, buggies: BUGGIES.length,
+    reg: (crabRegister("") || {}), sudsy: crabFounderColor("sudsy")
+  })`));
+  if (!got.armed) return "the bundled crab document did not install";
+  const COLORS = [
+    [[230, 72, 88], [170, 42, 62]], [[96, 150, 255], [60, 95, 190]],
+    [[90, 200, 110], [50, 140, 80]], [[200, 120, 255], [140, 70, 190]],
+    [[255, 150, 60], [190, 100, 30]], [[255, 130, 190], [190, 80, 140]],
+    [[88, 205, 188], [44, 145, 130]],
+  ];
+  const CREW = ["PINCHY", "CLAWDIA", "SHELLDON", "SANDY", "BUBBLES", "SCUTTLE",
+    "CORAL", "SNIPPY", "HERMIE", "SALTY", "MITTENS", "KELP"];
+  const WALKINS = ["GARY", "SHELLY", "EBB", "FLO", "BARNABY", "PEARL", "SANDRO", "MISTY",
+    "CLACKERS", "NIPPY", "BRINY", "KRILL BILL", "ANEMONE", "WAVY DAVE",
+    "MOLT", "SCAMPI", "ROE", "MAUDE", "SNAPPY", "BUOY", "SALTINE", "DIP",
+    "TIDEPOOL TIM", "SURF MOM", "PLANKTON PETE", "BIG PALP"];
+  if (JSON.stringify(got.colors) !== JSON.stringify(COLORS))
+    return "a shell drifted from the literal: " + JSON.stringify(got.colors);
+  if (JSON.stringify(got.crew) !== JSON.stringify(CREW))
+    return "the crew pool drifted: " + JSON.stringify(got.crew);
+  if (JSON.stringify(got.walkins) !== JSON.stringify(WALKINS))
+    return "the walk-in pool drifted: " + JSON.stringify(got.walkins);
+  if (got.fb !== "CRAB") return "the terminal name drifted: " + got.fb;
+  if (got.arts !== 7 || got.houses !== 7 || got.boats !== 7 || got.buggies !== 7)
+    return "a derivation lost a colorway: arts=" + got.arts + " houses=" + got.houses;
+  if (got.sudsy !== 6) return "SUDSY's named shell resolved to " + got.sudsy + ", want 6 (teal)";
+  if (got.reg.refuseHire !== "KIND OFFER. NO.")
+    return "refuseHire drifted: " + got.reg.refuseHire;
+  if (got.reg.refuseHireLog !== "TURNED DOWN A JOB")
+    return "refuseHireLog drifted: " + got.reg.refuseHireLog;
+  return true;
+});
+scenario("crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name", () => {
+  // The two identity mechanisms in the LIVE town: the founder's shell is a
+  // NAME resolved at boot (not "whatever is last"), and freeCrewName walks
+  // the document pools in document order - computed here from the same used
+  // set the function reads, so this tests the MECHANISM, not a coincidence.
+  const sim = createSim({ seed: 11 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const sudsy = allCrabs().find(k => k.p.name === "SUDSY");
+    const used = new Set(allCrabs().map(k => k.p.name));
+    return { color: sudsy && sudsy.p.color, pal: CRAB_COLORS[sudsy.p.color][0],
+      next: freeCrewName(null),
+      expect: CRAB_NAMES.concat(CUSTOMER_NAMES).find(n => !used.has(n)) || "CRAB",
+      clampHi: Math.max(0, Math.min(CRAB_COLORS.length - 1, 99)),
+      clampOld: Math.max(0, Math.min(CRAB_COLORS.length - 1, 6)) };
+  })())`));
+  if (got.color !== 6) return "SUDSY wears shell " + got.color + ", want 6";
+  if (JSON.stringify(got.pal) !== JSON.stringify([88, 205, 188]))
+    return "SUDSY's shell is not teal: " + JSON.stringify(got.pal);
+  if (got.next !== got.expect) return "the next hire is " + got.next + ", pool order says " + got.expect;
+  if (got.clampOld !== 6) return "an old save's teal (c=6) no longer loads as 6";
+  if (got.clampHi !== 6) return "a wild color index no longer clamps to the last shell";
+  return true;
+});
+scenario("crab-as-document: the crab diary never reaches the code literal", () => {
+  // The dogfood tripwire: two days of real traffic with the table armed may
+  // not touch a diary fallback once - and the counter must BITE when the
+  // table is taken away, or this scenario is dead data.
+  const sim = createSim({ seed: 41 });
+  sim.runDays(2);
+  const armed = +sim.G(`window._crabDiaryFb | 0`);
+  if (armed !== 0) return "the crab diary fell to a code literal " + armed + " time(s)";
+  const bite = +sim.G(`(() => { const s = CRABV; CRABV = null;
+    vline({ name: "X", acc: "", culture: null }, "ashore", "LIT", null);
+    CRABV = s; return window._crabDiaryFb | 0; })()`);
+  if (bite < 1) return "the tripwire does not bite: counter stayed " + bite;
+  return true;
+});
+scenario("crab-as-document: a hostile document is refused by name", () => {
+  // The belt behind the build-time validation: each malformed shape gets its
+  // named refusal, and a good shape passes.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    badCw: crabArtProblem({ colorways: [{ id: "x", hi: [1, 2], lo: [0, 0, 0] }] }),
+    noShell: crabArtProblem({ colorways: [{ id: "x", hi: [1, 2, 3], lo: [0, 0, 0] }], founders: { sudsy: "gone" } }),
+    empty: crabPeopleProblem({ crew: [], walkins: ["A"] }),
+    longName: crabPeopleProblem({ crew: ["A NAME FAR TOO LONG FOR ANY CARD"], walkins: ["A"] }),
+    goodArt: crabArtProblem({ colorways: [{ id: "x", hi: [1, 2, 3], lo: [0, 0, 0] }] }),
+    goodPpl: crabPeopleProblem({ crew: ["A"], walkins: ["B"], fallback: "C" }),
+    badLog: voiceProblem({ registers: [{ id: "x", acc: "", refuseHireLog: "${"X".repeat(20)}${"Y".repeat(120)}" }] })
+  })`));
+  if (got.badCw !== "A BAD CRAB COLORWAY") return "bad colorway: " + got.badCw;
+  if (got.noShell !== "A FOUNDER WITH NO SHELL") return "dangling founder: " + got.noShell;
+  if (got.empty !== "NO CRAB NAMES") return "empty pool: " + got.empty;
+  if (got.longName !== "A NAME NO CARD CAN HOLD") return "long name: " + got.longName;
+  if (got.goodArt !== null || got.goodPpl !== null) return "a good document was refused";
+  if (got.badLog !== "A BAD VOICE LINE") return "overlong refuseHireLog: " + got.badLog;
+  return true;
+});
 scenario("depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one", () => {
   // Registry row 4 must BITE (substrate 5.2): a declared weight measurably
   // changes which rule speaks, in both directions, while identity (4) and
