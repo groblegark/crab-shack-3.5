@@ -13860,7 +13860,7 @@ scenario("rep: gains saturate at the top and losses never do - the ladder is hel
 scenario("rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks", () => {
   // Per-culture word + spillover + the new sink, all to the exact integer.
   // A pig's night on the sand costs the PIG word 1150 in full and the crab
-  // word the 25% overheard share (-287, trunc toward zero); a pig earn
+  // word the 25% overheard share (-288: idiv floors - the compass); a pig earn
   // saturates against the PIG ladder and spills 25% pre-saturation.
   const sim = createSim({ seed: 11 });
   const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
@@ -13877,12 +13877,12 @@ scenario("rep: a guest tells HER people, the pier overhears a quarter, and the s
     return out;
   })())`));
   if (got.pigAfterSink !== 38850) return `the pig word after -1150: ${got.pigAfterSink}, want 38850 (full)`;
-  if (got.crabAfterSink !== 49713) return `the crab word after the pig's -1150: ${got.crabAfterSink}, want 49713 (spill -287)`;
+  if (got.crabAfterSink !== 49712) return `the crab word after the pig's -1150: ${got.crabAfterSink}, want 49712 (spill -288, floored)`;
   if (got.pigAfterEarn !== 39339) return `the pig word after +800: ${got.pigAfterEarn}, want 39339 (eff 489)`;
-  if (got.crabAfterEarn !== 49813) return `the crab word after the pig's +800: ${got.crabAfterEarn}, want 49813 (spill 200 -> eff 100)`;
+  if (got.crabAfterEarn !== 49812) return `the crab word after the pig's +800: ${got.crabAfterEarn}, want 49812 (spill 200 -> eff 100)`;
   if (!got.flagged) return "sleepOnSand did not flag the night";
   if (got.sandPig !== 38850) return `a pig's sand night cost the pig word ${40000 - got.sandPig}, want 1150 (rough 900 + unhoused 250)`;
-  if (got.sandCrab !== 49713) return `a pig's sand night cost the crab word ${50000 - got.sandCrab}, want 287 (the pier overheard)`;
+  if (got.sandCrab !== 49712) return `a pig's sand night cost the crab word ${50000 - got.sandCrab}, want 288 (the pier overheard)`;
   return true;
 });
 
@@ -13938,7 +13938,7 @@ scenario("rep: two idle nights off the top - the equilibrium pulls, the ratchet 
   const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
   sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
   sim.G("rep = 100000; repC = { pig: 100000 }");
-  const d0 = sim.G("day");
+  const d0 = parseInt(sim.G("day"), 10);   // G returns strings - the "12"-day concat trap
   sim.runDays(d0 + 2);
   const got = JSON.parse(sim.G("JSON.stringify({ crab: rep, pig: repC.pig })"));
   if (!(got.crab < 97000)) return `the crab word held ${got.crab} after two nights at the top - the ratchet lives`;
