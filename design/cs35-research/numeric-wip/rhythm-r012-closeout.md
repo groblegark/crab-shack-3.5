@@ -83,3 +83,16 @@ culture's** — darkness() untouched.
 - A machine sleep interrupted the session mid-battery; the cluster finished
   without us and the receipts told the story on resume — the substrate
   working exactly as designed.
+
+## Rebase ledger (the wave landed around this slice)
+
+Rebased twice after the gates section above was written: over the BODY
+MACHINERY (b511c10 — one union in buildCulture's return, phys + rhythm; one
+factored-suffix union in the suite where body's last scenario and rhythm's
+first met) and over the UX PATCH (79b5563 — clean, zero conflicts). The
+final battery ran on the rebased tree 1a71126: rhythm-focus 6/6, full suite
+**654/654** (20/20 arms, 327 per backend = 318 + body 3 + UX 3 + rhythm 3;
+receipts cs-suite-318-1a71126-7g7e verified per-arm: exitCode 0, failures
+empty), MCP battery green (cs-phased-gates-1a71126-jpmv). The tip has not
+moved since. This commit is docs-only above the gate-bearing SHA; the
+verdicts transfer.
