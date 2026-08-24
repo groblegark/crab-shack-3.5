@@ -9212,7 +9212,7 @@ var BUNDLED_CRAB_VOICE = {
    "OVER HERE!",
    "MY CLAW!",
    "NICE ONE",
-   "TOO HIGH",
+   "TOO HIGH!",
    "AGAIN!"
   ],
   "chat": [
