@@ -5399,30 +5399,45 @@ scenario("the title's credit block never lands on the science button", () => {
   // fix with a fuse on it, and this one had already burned once.
   //
   // Checked at BOTH hasSave states, because the bug only showed at one.
+  //
+  // AND IT OBSERVES THE REAL DRAW CALLS. The first version of this scenario
+  // RECOMPUTED the fixed formula inside the test and compared it to itself,
+  // so it passed with the bug fully restored - a vacuous pin, caught only
+  // because the mutation demo refused to bite. It now does what the
+  // text-overlap sweep does: patch smallText, draw the actual title screen,
+  // and measure what LANDED.
   const sim = createSim({ seed: 11 });
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
     const out = {};
+    const S = smallText;
     for (const save of [false, true]) {
       hasSave = save;
-      const r = sciTitleRect();
-      out[save ? "withSave" : "noSave"] = {
-        btnTop: r.y, btnBottom: r.y + r.h,
-        creditTop: Math.max(PANEL_Y + 8, r.y + r.h + 4),
-        screenH: H,
+      const boxes = [];
+      smallText = (c, s2, x, y, col) => {
+        boxes.push({ s: String(s2), x, y, w: smallTextWidth(String(s2)), h: 5 });
+        return S(c, s2, x, y, col);
       };
+      try { drawTitle(); } finally { smallText = S; }
+      const r = sciTitleRect();
+      const over = boxes.filter(b => {
+        const ox = Math.min(b.x + b.w, r.x + r.w) - Math.max(b.x, r.x);
+        const oy = Math.min(b.y + b.h, r.y + r.h) - Math.max(b.y, r.y);
+        return ox > 1 && oy > 1;
+      }).map(b => [b.s, b.x, b.y]);
+      out[save ? "withSave" : "noSave"] = { btn: [r.x, r.y, r.w, r.h], over,
+        lowest: boxes.reduce((m, b) => Math.max(m, b.y + b.h), 0), screenH: H };
     }
     return out;
   })())`));
   for (const k of ["noSave", "withSave"]) {
     const g = got[k];
-    if (g.creditTop < g.btnBottom)
-      return `${k}: the credit block starts at y ${g.creditTop}, inside the science button (${g.btnTop}-${g.btnBottom})`;
-    // ...and the credits must still fit on the screen, or "below the button"
-    // would be satisfied by shoving them off the bottom edge - which is the
-    // lazy way to pass this and would be a different occlusion bug.
-    const lastLine = g.creditTop + 24 + 6;
-    if (lastLine > g.screenH)
-      return `${k}: the build stamp ends at y ${lastLine}, past the ${g.screenH}px screen`;
+    if (g.over.length)
+      return `${k}: text landed on the science button ${JSON.stringify(g.btn)}: ${JSON.stringify(g.over)}`;
+    // ...and it must still FIT, or "below the button" would be satisfied by
+    // shoving the credits off the bottom edge, which is just a different
+    // occlusion bug wearing a disguise.
+    if (g.lowest > g.screenH)
+      return `${k}: title text reaches y ${g.lowest}, past the ${g.screenH}px screen`;
   }
   return true;
 });
