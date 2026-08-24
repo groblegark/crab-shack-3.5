@@ -8,7 +8,83 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-24, latest — SLOP
+## 2026-08-24, latest — THE VERDICT BELONGS TO ONE TREE
+
+A short entry about a long night, and about the most ordinary way for a
+careful process to fail: not by skipping the check, but by remembering it.
+
+Late on, with the night's work merged and a publish waiting on one last
+gate, the gate came back red. Three scenarios. Two frozen fingerprints
+drifted, and the rivalry arm — the one that proves a player's own price
+board moves their own trade — went under its threshold.
+
+The uncomfortable part came next. Pulling the receipts for the *earlier*
+merges showed the same three failures, byte-identical, already sitting in
+them. They had been red for three merges. The verdict that had been quoted
+over all three — a clean 648/648 — was real, and belonged to a **different
+tree**, run before any of them. Nobody skipped the gate. The gate ran every
+time and was read from memory instead of from its own receipt.
+
+So: **a verdict belongs to one SHA.** That is the entry. Everything below is
+just how it got sorted out.
+
+**Naming the commit.** Three probes on the cluster — the published tip, the
+suspect, the merge above it — each built by grafting a manifest onto the
+candidate with git plumbing so no game file was touched. The published tip
+came back 3/3 green. One commit, one hunk, carried all three failures: a fix
+that had stopped `vsepPush` writing a float into a crab's aim.
+
+That fix was *right*. A float living in state is exactly what this game
+forbids, and "exact in floating point" is not the same claim as "integer".
+But it was a behavior change that arrived on a cherry-pick without a gate of
+its own, and behavior changes move fingerprints.
+
+**The wrong turn, recorded.** The first reading ruled the parting out,
+because the crabs' sampled positions were byte-identical either side of the
+drift. That is not an argument. Identical *sampled* positions do not mean
+identical trajectories, and the hour that inference cost was spent looking
+hard at two innocent features.
+
+**The part that needed measuring.** Two of the three were frozen pins, and a
+real behavior change is *entitled* to move those — they were re-authored,
+each naming the traced crossing: MISTY's first parting, day 1, a push of
+−307 grains. The same push whose old form wrote `target = …09765625`. Third
+time that one crossing has shown up in the test file, and now it is an
+integer.
+
+The third wanted evidence. The rivalry arm asks that a cheap board out-sell
+the dearer ones by more than the pool's noise, over eight towns. It was
+reading ten drinks where it wanted thirty. The arm's own comment, written
+during an earlier episode, said two useful things: that *any* change to the
+parting re-rolls it, and — in capitals, to whoever came next — **do not
+widen K.**
+
+So the pool got wider instead of the threshold. Twelve towns: −2.1 drinks a
+town, give or take 1.5. A coin with an opinion. Forty-eight towns:
+
+```
+mean −0.125   sd 6.61   SE 0.954   t = −0.13
+```
+
+Zero, as near as the instrument reaches. The lever was never touched. What
+had actually happened is that eight towns carry a seven-drink cushion under
+six-and-a-half drinks of per-town noise — less than one town's worth — so
+that comparison had been pinning a coin flip for some time, and the fix
+merely called it.
+
+It is now a **watch**, reported and not asserted, the same demotion this arm
+already gave its dear end for the same reason. The pin that survives —
+cheapest out-sells dearest — clears by seventy to three hundred drinks
+across every tree measured, and still goes red the moment the honest
+mutation makes the player's board inert. The teeth are intact. Only the
+coin-flip left.
+
+The fix is back in, the pins tell the truth, and the twelve/forty-eight-town
+pool is now a standing instrument, because the parting will move again.
+
+---
+
+## 2026-08-24 — SLOP
 
 The pork bun is retired. It was a good dish and it worked, and it
 implied a thing about pigs that we decline to imply.
