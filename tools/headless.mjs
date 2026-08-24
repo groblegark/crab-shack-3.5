@@ -300,6 +300,12 @@ if (SEEDS > 1) {
   const evictDays = results.map(r => r.over ? r.day : DAYS + 1).sort((a, b) => a - b);
   const surv = results.filter(r => !r.over).length;
   console.log(`>> survived ${surv}/${SEEDS}; eviction days: ${evictDays.join(",")} (median ${evictDays[SEEDS >> 1]})`);
+  // The reputation pass's acceptance instrument: the END-REP DISTRIBUTION.
+  // Report-only - the bot never reads rep to decide anything (the floor
+  // doctrine); this line exists so "tons of homeless tourists and a 100 rep"
+  // is a number a receipt can falsify.
+  const reps = results.map(r => r.rep).slice().sort((a, b) => a - b);
+  console.log(`>> rep at end: ${reps.join(",")} (median ${reps[SEEDS >> 1]})`);
   const L = results.map(r => JSON.parse(r.labour));
   const sum = (f) => L.reduce((s, l) => s + f(l), 0);
   console.log(`>> lifetime $${results.reduce((s, r) => s + r.lifetime, 0)}`
