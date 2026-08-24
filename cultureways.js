@@ -412,14 +412,14 @@ var BUNDLED_CULTUREWAYS = {
       "top": "PAID PROPER FOR A {ITEM}. WORTH EVERY CENT.",
       "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
       "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE.",
-      "delight": "A PROPER BUN AT LAST. I'D SAIL BACK FOR ANOTHER."
+      "delight": "PROPER SLOP AT LAST. I'D SAIL BACK FOR ANOTHER."
      },
      "dossier": [
       "CAME FOR THE FOOD, STAYING FOR THE FOOD",
       "BACK HOME, THE PIGTATOR. HERE, GULLS.",
       "THE SEA'S BIGGER THAN THEY SAID"
      ],
-     "foreign": "NOT A PORK BUN IN TOWN. I ATE FISH, I SUPPOSE.",
+     "foreign": "NOT A DROP OF SLOP IN TOWN. I ATE PLAIN FISH, I SUPPOSE.",
      "refuseHire": "KIND OFFER. BUT MY FIELDS WON'T PLOW THEMSELVES."
     },
     {
@@ -461,7 +461,7 @@ var BUNDLED_CULTUREWAYS = {
       "top": "THE {ITEM} WAS ACCEPTABLE. PAID IN FULL.",
       "regular": "{STOPS} STOPS IN {DAYS} DAYS. THE PIGPUBLIC APPROVES.",
       "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED.",
-      "delight": "THE BUN WAS CORRECT. THE REPORT WILL SAY SO."
+      "delight": "THE SLOP WAS CORRECT. THE REPORT WILL SAY SO."
      },
      "dossier": [
       "MY PAPERS ARE ENTIRELY IN ORDER",
@@ -489,7 +489,7 @@ var BUNDLED_CULTUREWAYS = {
     "room": 1.7,
     "rinse": 1.3,
     "soak": 2,
-    "porkbun": 2
+    "slop": 2
    }
   },
   "arrival": {
@@ -498,54 +498,53 @@ var BUNDLED_CULTUREWAYS = {
    "shareRamp": 80
   },
   "foodways": {
-   "ingredients": {
-    "corn": 3
-   },
+   "ingredients": {},
    "dishes": [
     {
-     "id": "porkbun",
+     "id": "slop",
      "biz": "shack",
-     "icon": "porkbun",
+     "icon": "slop",
      "pay": 16,
      "learn": 25,
-     "raw": "corn",
+     "raw": "fish_raw",
+     "raw2": "fruit",
      "steps": [
       [
        "board",
        3,
-       "bun_dough"
+       "slop_mix"
       ],
       [
        "grill",
        3.5,
-       "porkbun"
+       "slop"
       ]
      ]
     }
    ],
    "items": {
-    "bun_dough": {
-     "name": "BUN DOUGH",
+    "slop_mix": {
+     "name": "SLOP MIX",
      "art": [
       ".........",
       ".........",
+      "..K.K.K..",
+      ".KPKQKPK.",
+      ".KQPQPQK.",
       "..KKKKK..",
-      ".KYYYYYK.",
-      ".KYLYLYK.",
-      ".KYYYYYK.",
-      "..KKKKK.."
+      "........."
      ]
     },
-    "porkbun": {
-     "name": "PORK BUN",
+    "slop": {
+     "name": "SLOP",
      "art": [
-      "....K....",
-      "..KKLKK..",
-      ".KLLLLLK.",
-      ".KLPLPLK.",
-      "KLLLLLLLK",
-      "KYYYYYYYK",
-      ".KKKKKKK."
+      "..L.L.L..",
+      ".........",
+      "..KKKKK..",
+      ".KQPQPQK.",
+      ".KPQPQPK.",
+      "..KKKKK..",
+      "...KKK..."
      ]
     }
    }

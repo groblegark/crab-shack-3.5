@@ -18,9 +18,10 @@ spec:
   # exceeds completions, so the bare default 5 made every manifest with
   # fewer than five arms uninstallable (the one-arm MCP gate, every focus
   # manifest). The cap is "how many arms may die", which can never exceed
-  # how many arms there are. (Found independently by three forks in one
-  # night — slop, E6 and E0 — which is how you know it bit everybody.)
-  maxFailedIndexes: {{ min (.Values.maxFailedIndexes | default 5) (int .Values.arms) }}
+  # how many arms there are. (Found independently by FOUR forks in one
+  # night — slop, E6, E0 and the orchestrator — which is how you know it
+  # bit everybody. Both ints: a values file may hand us a string.)
+  maxFailedIndexes: {{ min (int (.Values.maxFailedIndexes | default 5)) (int .Values.arms) }}
   ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
   activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
   template:
