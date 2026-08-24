@@ -1,0 +1,12 @@
+{
+ "name": "slop-shot",
+ "note": "One arm: the staged screenshot of a pig buying slop, shot through the game's own renderer pod-side; the PNG comes home as base64 in the receipt's jsonTail (scale 2, well under the ConfigMap cap).",
+ "resources": { "requests": { "cpu": "2", "memory": "6Gi" }, "limits": { "cpu": "2", "memory": "8Gi" } },
+ "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+ "tolerations": [
+  { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+ ],
+ "arms": [
+  { "id": "shot", "entry": "tools/shoot-slop-arm.mjs", "args": [], "env": { "SIMLIB_REALM": "main" } }
+ ]
+}
