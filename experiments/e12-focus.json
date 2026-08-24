@@ -1,0 +1,34 @@
+{
+  "name": "e12-focus",
+  "note": "Phase E1+E2's targeted gate: the idle-quips and traits table-equals-literal scenarios on both backends - the cheap manifest for the green check and the mutation demos (a mutation demo EXPECTS a red arm; read the receipts, not the Job status).",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "arms": [
+    {
+      "id": "idle-js",
+      "entry": "tools/suite.mjs",
+      "args": ["idle quips:"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "idle-wasm",
+      "entry": "tools/suite.mjs",
+      "args": ["idle quips:"],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    },
+    {
+      "id": "traits-js",
+      "entry": "tools/suite.mjs",
+      "args": ["traits:"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "traits-wasm",
+      "entry": "tools/suite.mjs",
+      "args": ["traits:"],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ]
+}
