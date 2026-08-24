@@ -347,6 +347,32 @@
     "walkins": { "type": "integer", "minimum": 0, "maximum": 8 }
    }
   },
+  "rhythm": {
+   "description": "Census C1 (R0-R2 live): when this people sleep and work, relative to the world's one sun - darkness() never moves; a nocturnal culture moves its bodies, not the sky. Integer game-minutes on the 30-minute grain (17:00 = 1020). wake/bed: the sleeping arc's ends; bed may be earlier than wake (the awake arc wraps midnight). What is clamped is the DERIVED awake arc: 8h-20h on the 24h circle, checked AFTER field-by-field inheritance from the crab day (wake 450, bed 1260, lieIn 570, shiftStarts D 510 / M 480 / E 840, hours 480-1200) - a partial declaration that composes into an insane day is refused by name at install ('A DAY WITH NO NIGHT', 'A PEOPLE WHO NEVER WAKE', 'A SHIFT IN THEIR SLEEP', 'A LIE-IN IN THEIR SLEEP'). lieIn: a resident's day-off rise. shiftStarts: where D/M/E clock-ins anchor for shops this culture's settlers OWN (ends derive as start + management.shifts span; institutions follow their owner, bodies follow their culture, the town square follows the host). hours: the default sign a declared business opens with (owner lever thereafter); must satisfy the engine's sign rail (open < close, >= 4h, not before 6:00) - a sign across midnight is refused by name until the hours model learns to wrap (R3). Visitor bed/wake and the ferry trap are R3; nothing here reads them yet.",
+   "type": "object",
+   "properties": {
+    "wake": { "type": "integer", "minimum": 0, "maximum": 1410, "multipleOf": 30 },
+    "bed": { "type": "integer", "minimum": 0, "maximum": 1410, "multipleOf": 30 },
+    "lieIn": { "type": "integer", "minimum": 0, "maximum": 1410, "multipleOf": 30 },
+    "shiftStarts": {
+     "type": "object",
+     "properties": {
+      "D": { "type": "integer", "minimum": 0, "maximum": 1410, "multipleOf": 30 },
+      "M": { "type": "integer", "minimum": 0, "maximum": 1410, "multipleOf": 30 },
+      "E": { "type": "integer", "minimum": 0, "maximum": 1410, "multipleOf": 30 }
+     },
+     "additionalProperties": false
+    },
+    "hours": {
+     "type": "object",
+     "required": ["open", "close"],
+     "properties": {
+      "open": { "type": "integer", "minimum": 360, "maximum": 1410, "multipleOf": 30 },
+      "close": { "type": "integer", "minimum": 30, "maximum": 1440, "multipleOf": 30 }
+     }
+    }
+   }
+  },
   "cards": {
    "description": "Phase D (declarative cards): dossier cards a culture declares, up to 4. Each binds row labels to REGISTERED observables - the same versioned registry brains declare inputs from (need.thirst.q20, wallet.cents, ...). The first card renders on the visitor dossier with live values; an unknown observable is refused by name at import. Data reading data: no code, no draws, view-only.",
    "type": "array",

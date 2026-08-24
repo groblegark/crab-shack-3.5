@@ -126,6 +126,18 @@ A people, written as a document. Not code — data the engine reads:
             walk-ins and migrated-save seeding — 0 draws nothing and is
             byte-identical to today. Business ownership binds to a settler
             in a later slice.
+  rhythm    when this people sleep and work, relative to the world's one sun
+            (the sun never moves — a nocturnal culture moves its bodies).
+            Integer game-minutes on the 30-minute grain: wake/bed (the
+            awake arc may wrap midnight; the DERIVED arc must be 8-20h,
+            checked after inheritance from the crab day — wake 450, bed
+            1260), lieIn (a resident's day-off rise, crab 570), shiftStarts
+            D/M/E (where clock-ins anchor for shops this culture's settlers
+            OWN — ends derive as start + management.shifts span; bodies
+            follow their culture, institutions follow their owner), hours
+            (the default sign a declared business opens with; open < close,
+            >= 4h, not before 6:00 — a sign across midnight waits on R3).
+            Visitor bed/wake and the ferry-vs-nocturnal-guest rule are R3.
   arrival   repGate (how well-regarded the town must be before word reaches
             them), shareMax, shareRamp
   body      THE CULTURAL BODY: multipliers in twentieths of the crab

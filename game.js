@@ -4323,17 +4323,26 @@ const _swinBy = {};
 function bizShiftWindow(b, kind, spans) {
   spans = spans || SHIFT_SPAN;
   const h = BIZ[b].hours;
+  // AN INSTITUTION KEEPS ITS OWNER'S DAY (rhythm R2): a shop whose owner's
+  // culture declared shiftStarts anchors its clock-ins there, and the end
+  // derives as start + span - the other half of the frame the mgmt slice
+  // moved. The identity test is on the SS TABLE (a culture that declared only
+  // a lie-in inherits RHYTHM.SS itself and derives like everyone). The
+  // covering double stays the full trading window either way.
+  const ss = bizRhythm(b).SS;
+  const anchored = ss !== RHYTHM.SS && kind !== "cover";
   // the memo serves ONLY the native table (identity, not equality): a cultured
   // worker's window derives from THEIR spans and is computed fresh - rare by
   // construction until settlers, and never allowed to poison the shared cache
-  const native = spans === SHIFT_SPAN;
+  const native = spans === SHIFT_SPAN && !anchored;
   const bb = _swinBy[b] || (_swinBy[b] = {});
   if (native) {
     const hit = bb[kind];
     if (hit && hit.o === h.open && hit.c === h.close) return hit.w;
   }
   const mid = h.open + Math.round((h.close - h.open) / 2 / 30) * 30;
-  const raw = kind === "M" ? { start: h.open, end: mid }
+  const raw = anchored ? { start: ss[kind], end: ss[kind] + (spans[kind] || spans.cover) }
+    : kind === "M" ? { start: h.open, end: mid }
     : kind === "E" ? { start: mid, end: h.close }
     : kind === "D" ? { start: h.open + 30, end: h.close - 90 }
     : { start: h.open, end: h.close };   // covering double: the full window
@@ -5952,7 +5961,7 @@ function updateHome(c, dt) {
   // a day off is for the beach: after the lie-in, amble the sand near home
   // between errands instead of pacing the porch. A WALK-OUT spends the day
   // exactly the same way - that is the whole point of taking one.
-  if (awayToday(c) && !c.p.sick && tmin >= OFF_WAKE && darkness() < 0.5) {
+  if (awayToday(c) && !c.p.sick && tmin >= rhythmOf(c).LIEIN && darkness() < 0.5) {
     if (c._offPause > 0) { c._offPause -= dtT; return; }
     if (c._offWt == null) {
       c._offWt = Math.max(24, Math.min(WORLD_W - 40, homeX(c) + Math.floor(srand() * 240 * Q8) / Q8 - 120));   // same draw, on the grain
@@ -7187,6 +7196,52 @@ function cultureProblem(d, ownId) {
     if (S.walkins != null && !(typeof S.walkins === "number" && Number.isInteger(S.walkins)
       && S.walkins >= 0 && S.walkins <= 8)) return "A BAD WALK-IN SHARE";
   }
+  // THE RHYTHM (cultureway census C1): when this people sleep and work,
+  // relative to the world's one sun. Absolute positions are NOT clamped to a
+  // daylight band - escaping it is the point. What IS clamped is the DERIVED
+  // awake arc, and the clamp runs on the values AS INHERITED, so a partial
+  // declaration that composes into an insane day is refused by name at
+  // install, never discovered in play. hours must fit the engine's sign rail
+  // (open < close): a sign across midnight is real design (the nocturnal
+  // shop) but the hours model cannot represent it yet - refused loudly, and
+  // R3 lifts the refusal when bizOpenNow learns to wrap.
+  if (d.rhythm != null) {
+    const R = d.rhythm;
+    if (typeof R !== "object" || Array.isArray(R)) return "A BAD RHYTHM";
+    const gm = (v) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v < 1440 && v % 30 === 0;
+    if (R.wake != null && !gm(R.wake)) return "A BAD WAKE TIME";
+    if (R.bed != null && !gm(R.bed)) return "A BAD BED TIME";
+    if (R.lieIn != null && !gm(R.lieIn)) return "A BAD LIE-IN TIME";
+    if (R.shiftStarts != null) {
+      const ss = R.shiftStarts;
+      if (typeof ss !== "object" || Array.isArray(ss)) return "A BAD SHIFT START";
+      for (const k in ss) {
+        if (!(k in RHYTHM.SS)) return "A BAD SHIFT START";
+        if (!gm(ss[k])) return "A BAD SHIFT START";
+      }
+    }
+    if (R.hours != null) {
+      const h = R.hours;
+      if (typeof h !== "object" || Array.isArray(h)
+        || !gm(h.open) || !(typeof h.close === "number" && Number.isInteger(h.close)
+          && h.close > 0 && h.close <= 1440 && h.close % 30 === 0)) return "A BAD HOURS SIGN";
+      if (h.close <= h.open) return "A SIGN ACROSS MIDNIGHT";
+      if (h.open < HOURS_MIN || h.close - h.open < HOURS_SPAN_MIN) return "A BAD HOURS SIGN";
+    }
+    const wake = R.wake != null ? R.wake : RHYTHM.WAKE;
+    const bed = R.bed != null ? R.bed : RHYTHM.BED;
+    const arc = (bed - wake + 1440) % 1440;
+    if (arc > 20 * 60) return "A DAY WITH NO NIGHT";
+    if (arc < 8 * 60) return "A PEOPLE WHO NEVER WAKE";
+    const inArc = (t) => ((t - wake + 1440) % 1440) < arc;
+    const lie = R.lieIn != null ? R.lieIn : RHYTHM.LIEIN;
+    if (!inArc(lie)) return "A LIE-IN IN THEIR SLEEP";
+    const ss = R.shiftStarts || {};
+    for (const k of ["D", "M", "E"]) {
+      const v = ss[k] != null ? ss[k] : RHYTHM.SS[k];
+      if (!inArc(v)) return "A SHIFT IN THEIR SLEEP";
+    }
+  }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
   // DECLARATIVE CARDS (phase D): a culture may declare dossier cards whose
@@ -7759,8 +7814,24 @@ function buildCulture(def) {
   const settlers = def.settlers
     ? { apron: !!def.settlers.apron, walkins: def.settlers.walkins != null ? def.settlers.walkins : 0 }
     : null;
+  // THE RHYTHM, converted once (census C1): author game-minutes at the
+  // 30-minute grain ARE the engine's own unit, so this is inheritance, not
+  // arithmetic - a partial document keeps crab values field by field, and the
+  // arc clamp already ran in cultureProblem on exactly these composed values.
+  const rh = def.rhythm || null;
+  const rhythm = rh ? {
+    WAKE: rh.wake != null ? rh.wake : RHYTHM.WAKE,
+    BED: rh.bed != null ? rh.bed : RHYTHM.BED,
+    LIEIN: rh.lieIn != null ? rh.lieIn : RHYTHM.LIEIN,
+    SS: rh.shiftStarts ? {
+      D: rh.shiftStarts.D != null ? rh.shiftStarts.D : RHYTHM.SS.D,
+      M: rh.shiftStarts.M != null ? rh.shiftStarts.M : RHYTHM.SS.M,
+      E: rh.shiftStarts.E != null ? rh.shiftStarts.E : RHYTHM.SS.E,
+    } : RHYTHM.SS,
+    HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
+  } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -7858,10 +7929,15 @@ function placeBusiness(cultureId, bizId, plotId, ownerC, replay) {
   if (!OWNERS[oKey]) OWNERS[oKey] = defineTill({ id: oKey, name: String(ownerC.p.name), till: 0, soft: false });
   // the entry enters the town's own table, in the literal's exact shape,
   // stamped with the same operating defaults the loader stamps (game.js:427)
+  // the shop opens on its owner-culture's default sign (rhythm R2): the
+  // engine values for an undeclared culture, so the stamp is byte-identical
+  // to the old literal; hours remain the owner's lever thereafter. cu is the
+  // institution's culture - bizRhythm reads it for the shift anchors.
+  const rh0 = (cul && cul.rhythm) || RHYTHM;
   const b = Object.assign({}, z, { stations, stalls, tables,
     x0: plot.x0, x1: plot.x1, door: plot.door, queueX: plot.queueX,
-    park: plot.park, rack: plot.rack, owner: oKey, pending: false,
-    hours: { open: 8 * 60, close: 20 * 60 }, mealPol: "retail",
+    park: plot.park, rack: plot.rack, owner: oKey, pending: false, cu: cultureId,
+    hours: { open: rh0.HOURS.open, close: rh0.HOURS.close }, mealPol: "retail",
     wage: b0wage(z), sickPol: "grant", autoLabor: true, tipShare: 0 });
   delete b.recipes; b.recipes = z.recipes.map(r => Object.assign({}, r));
   BIZ[bizId] = b;
@@ -9121,9 +9197,9 @@ function maybeQuip(c, dt) {
     let lines = isNight ? ["ZZZ..."] : TRAITS[c.p.trait].quips[quipContext(c)];
     if (c.p.homeless && quipContext(c) === "home" && !isNight)
       lines = ["SAVING FOR A PLACE", "SHELTER SOUP AGAIN", "I'LL BOUNCE BACK"];
-    if (offToday(c) && !c.p.sick && quipContext(c) === "home" && !isNight && tmin >= OFF_WAKE)
+    if (offToday(c) && !c.p.sick && quipContext(c) === "home" && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["DAY OFF!", "BEACH DAY", "THE SAND'S ALL MINE", "NOT COOKING TODAY"];
-    if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= OFF_WAKE)
+    if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["THEY'LL COPE", "I NEEDED THIS", "NOT TODAY", "SOMEONE ELSE'S TURN"];
     if ((c.p.bored || 0) >= WANDER_AT && !isNight && !walkoutToday(c))
       lines = ["SAME OLD SAME OLD", "IS IT HOME TIME", "NOTHING EVER HAPPENS", "I'D KILL FOR AN ARCADE"];
@@ -9730,7 +9806,7 @@ function updateSchedule(c, dt) {
     crabLog(c, "life", "TOOK A SICK DAY AND WENT HOME", 1200);   // DIARY
     startCommute(c, false);
   }
-  if (off && tmin >= OFF_WAKE && c.logOff !== day) { c.logOff = day; crabLog(c, "life", "TOOK THEIR DAY OFF", 0); }   // DIARY
+  if (off && tmin >= rhythmOf(c).LIEIN && c.logOff !== day) { c.logOff = day; crabLog(c, "life", "TOOK THEIR DAY OFF", 0); }   // DIARY
   if (c.dsC === DS.home && !off && tmin >= leaveGmin(c) && tmin < sh.end - 30 && !onSickDay(c)
       && !(c.restDay === day && c.restUntil > tmin)) {   // ordered home: a real break before the schedule re-dispatches
     startCommute(c, true);
@@ -9875,7 +9951,7 @@ function updateSchedule(c, dt) {
   // crab was at home, 83 in 137 were refused by this window and NOT ONE ever
   // passed it. Their time is their own; the thresholds stay strict.
   const ownTime = off || !!c.p.sick;
-  const errandWindow = ownTime ? tmin >= OFF_WAKE   // day off (or a sick day): the whole town is yours
+  const errandWindow = ownTime ? tmin >= rhythmOf(c).LIEIN   // day off (or a sick day): the whole town is yours
     : (tmin < leaveGmin(c) - 30 || tmin >= sh.end);   // workday: before leaving, or after shift
   const townAwake = townOpen() || (tmin >= 20 * 60 && tmin < 23 * 60) || (tmin >= 5.5 * 60 && tmin < 8 * 60);
   if (c.dsC === DS.home && townAwake && c.errandCd <= 0 && errandWindow) {
@@ -12051,6 +12127,34 @@ const ROOM_RANK = 1.5;
 const ROOM_URGE = 5;             // ...climbing all afternoon until it outranks lunch
 const BED_HOUR = 21 * 60;        // ...and turns in
 const WAKE_HOUR = 7.5 * 60;      // checkout: the room goes dirty and housekeeping gets it
+// ---------------------------------------------------------------- the rhythm
+// THE SUN IS THE WORLD'S; THE DAY IS THE CULTURE'S (cultureway rhythm, census
+// C1). darkness() never moves - a nocturnal people does not move the sun, it
+// moves when its bodies sleep relative to it. This table is the crab day as
+// the engine has always kept it: the visitor bed/wake pair, the crew lie-in,
+// the pier-shaped shift anchors, the default sign. rhythmOf hands a culture
+// its own declared day and everyone else this object BY IDENTITY - the
+// byte-neutral guarantee is ===, not field equality. Mixed towns follow the
+// doctrine: bodies follow their culture; institutions follow their owner
+// (bizRhythm below); the town square (townOpen, the polls) follows the host.
+const RHYTHM = {
+  WAKE: WAKE_HOUR, BED: BED_HOUR, LIEIN: OFF_WAKE,
+  SS: { D: SHIFTS.D.start, M: SHIFTS.M.start, E: SHIFTS.E.start },
+  HOURS: { open: 8 * 60, close: 20 * 60 },
+};
+function rhythmOf(k) {
+  const id = k && (k.culture || (k.p && k.p.culture));
+  const cul = id && id !== "crab" ? CULTURES[id] : null;
+  return (cul && cul.rhythm) || RHYTHM;
+}
+// an INSTITUTION keeps its owner's day: a placed shop carries its culture at
+// cu (placeBusiness stamps it), and its shift anchors + default sign read
+// that culture's rhythm. Native shops have no cu and read the crab table.
+function bizRhythm(b) {
+  const z = BIZ[b];
+  const cul = z && z.cu ? CULTURES[z.cu] : null;
+  return (cul && cul.rhythm) || RHYTHM;
+}
 const VIS_DAYTRIP = 0.60;        // share of every boat BUT THE LAST who go home the same day
                                  // (the last boat is overnighters by construction). Between
                                  // this and FERRY_LOAD it is what sizes the hotel's demand.
@@ -13476,7 +13580,7 @@ function crabStatus(c) {
     if (c.dsC === DS.toErrand) return "WALKED OUT - OFF TO " + BIZ[c.errandBiz].short;
     if (c.dsC === DS.errand) return "WALKED OUT - AT " + BIZ[c.errandBiz].name;
     if (c.dsC === DS.home && darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
-    if (c.dsC === DS.home) return tmin < OFF_WAKE ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
+    if (c.dsC === DS.home) return tmin < rhythmOf(c).LIEIN ? "WALKED OUT - LYING IN" : "WALKED OUT" + why + " - ON THE BEACH";
   }
 
   if (offToday(c)) {   // sick beats off; off beats everything but the commute home
@@ -13488,7 +13592,7 @@ function crabStatus(c) {
     if (c.dsC === DS.toHome) return "DAY OFF - STROLLING HOME";
     if (c.dsC === DS.home) {
       if (darkness() > 0.7) return c.p.homeless ? "SLEEPING AT THE SHELTER" : "SLEEPING";
-      if (tmin < OFF_WAKE) return "DAY OFF - SLEEPING IN";
+      if (tmin < rhythmOf(c).LIEIN) return "DAY OFF - SLEEPING IN";
       return "DAY OFF - BEACHCOMBING";
     }
   }

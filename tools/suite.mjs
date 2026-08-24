@@ -11695,6 +11695,134 @@ scenario("the body: a declared physiology runs the same town on both backends, a
   return true;
 });
 
+scenario("rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had", () => {
+  // Census C1, R0: the sun is the world's; the day is the culture's. The
+  // build is inheritance, not arithmetic (author minutes ARE engine minutes),
+  // the arc clamp already ran at install on the COMPOSED values, and the
+  // byte-neutral guarantee is identity: rhythmOf hands crabs (and every
+  // silent culture) the RHYTHM object itself, and a document that declares
+  // only a lie-in inherits the crab SS TABLE ITSELF, which is what keeps
+  // bizShiftWindow's anchored test (ss !== RHYTHM.SS) inert for it.
+  const sim = createSim({ seed: 9 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.rhythm = { wake: 1020, bed: 540, lieIn: 1140, shiftStarts: { M: 1080, E: 0 }, hours: { open: 660, close: 1140 } };
+  const part = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  part.meta.id = "partpig";
+  delete part.foodways;   // the fixture's corn is PIG's priced import; a clone under another id may not claim it
+  part.rhythm = { lieIn: 660 };   // everything else inherits the crab day
+  sim.G("installCultures(" + JSON.stringify({ pig: fx, partpig: part }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const r = CULTURES.pig.rhythm, p = CULTURES.partpig.rhythm;
+    return {
+      full: { W: r.WAKE, B: r.BED, L: r.LIEIN, M: r.SS.M, E: r.SS.E, D: r.SS.D, o: r.HOURS.open, c: r.HOURS.close },
+      want: { W: 1020, B: 540, L: 1140, M: 1080, E: 0, D: RHYTHM.SS.D, o: 660, c: 1140 },
+      part: { L: p.LIEIN, ssIsCrab: p.SS === RHYTHM.SS, hoursIsCrab: p.HOURS === RHYTHM.HOURS },
+      picksPig: rhythmOf({ p: { culture: "pig" } }) === r && rhythmOf({ culture: "pig" }) === r,
+      crabIsCrab: rhythmOf({ p: {} }) === RHYTHM && rhythmOf(null) === RHYTHM,
+      silentIsCrab: (() => { const g = CULTURES.gull; return !g || g.rhythm === null; })(),
+      crabValues: RHYTHM.WAKE === WAKE_HOUR && RHYTHM.BED === BED_HOUR && RHYTHM.LIEIN === OFF_WAKE
+        && RHYTHM.SS.M === SHIFTS.M.start && RHYTHM.HOURS.open === 480 && RHYTHM.HOURS.close === 1200,
+    };
+  })())`));
+  for (const k of ["W", "B", "L", "M", "E", "D", "o", "c"])
+    if (got.full[k] !== got.want[k]) return `rhythm.${k} built as ${got.full[k]}, want ${got.want[k]}`;
+  if (got.part.L !== 660) return "partial rhythm lieIn built as " + got.part.L + ", want 660";
+  if (!got.part.ssIsCrab) return "a document silent on shiftStarts grew its own table instead of the crab object";
+  if (!got.part.hoursIsCrab) return "a document silent on hours grew its own sign instead of the crab object";
+  if (!got.picksPig) return "rhythmOf did not hand a pig her own culture's day (both culture homes)";
+  if (!got.crabIsCrab) return "a crab (or a nobody) stopped getting the engine's own day";
+  if (!got.silentIsCrab) return "a culture that declared no rhythm grew one anyway";
+  if (!got.crabValues) return "the RHYTHM table drifted off the engine constants";
+  return true;
+});
+
+scenario("rhythm: an insane day is refused by name, at install, on the values as inherited", () => {
+  // The hostile-file posture: absolute times are free (escaping daylight is
+  // the point), the DERIVED awake arc is clamped 8-20h AFTER inheritance, and
+  // a shift or lie-in composed into the sleeping arc is refused - including
+  // the partial document whose declared night collides with an INHERITED crab
+  // anchor. The sign rail: a rhythm.hours across midnight is real design the
+  // hours model cannot hold yet (bizOpenNow never wraps) - refused by name
+  // until R3 teaches it.
+  const sim = createSim({ seed: 9 });
+  const rows = [
+    [{ wake: 1021 }, "A BAD WAKE TIME"],                                  // off the 30-minute grain
+    [{ bed: 1500 }, "A BAD BED TIME"],                                    // off the clock entirely
+    [{ lieIn: "noon" }, "A BAD LIE-IN TIME"],
+    [{ shiftStarts: { N: 0 } }, "A BAD SHIFT START"],                     // only D/M/E exist
+    [{ wake: 240, bed: 180 }, "A DAY WITH NO NIGHT"],                     // arc 23.5h
+    [{ wake: 480, bed: 600 }, "A PEOPLE WHO NEVER WAKE"],                 // arc 2h
+    [{ wake: 1020, bed: 540, lieIn: 1140, shiftStarts: { D: 1050 } }, "A SHIFT IN THEIR SLEEP"],  // M/E inherit crab starts, asleep at 8:00
+    [{ wake: 1020, bed: 540, shiftStarts: { D: 1050, M: 1080, E: 0 } }, "A LIE-IN IN THEIR SLEEP"], // crab lie-in 9:30 is inside HER night
+    [{ hours: { open: 1080, close: 360 } }, "A SIGN ACROSS MIDNIGHT"],
+    [{ hours: { open: 480, close: 600 } }, "A BAD HOURS SIGN"],           // a 2-hour trading day breaks the sign rail
+  ];
+  for (const [bad, name] of rows) {
+    const msg = sim.G(`cultureProblem(Object.assign(JSON.parse(${JSON.stringify(JSON.stringify(PIG_FIXTURE))}), { rhythm: ${JSON.stringify(bad)} }))`);
+    if (!msg || !msg.includes(name))
+      return "a bad rhythm was not refused by name: " + JSON.stringify(bad) + " -> " + msg;
+  }
+  // and the two composed-sanity cases PASS when the document declares its way out
+  const ok = sim.G(`cultureProblem(Object.assign(JSON.parse(${JSON.stringify(JSON.stringify(PIG_FIXTURE))}), { rhythm: { wake: 1020, bed: 540, lieIn: 1140, shiftStarts: { D: 1050, M: 1080, E: 0 } } }))`);
+  if (ok !== null) return "the nocturnal day that declares all its anchors was refused: " + ok;
+  return true;
+});
+
+scenario("rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched", () => {
+  // R2, the mixed-town doctrine's middle clause. Staged on the placement
+  // path (phase D): a settled owner opens her declared shop, her culture
+  // having declared shiftStarts and hours - the shop's sign comes up on HER
+  // culture's default, and the M window anchors at HER start with the end
+  // derived from the span, while the native shack derives exactly as before
+  // (same object out of the memo, the byte-neutral half of the doctrine).
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1);
+  a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.meta.id = "boar"; delete fx.foodways; delete fx.policies;
+  fx.settlers = { apron: true };
+  fx.rhythm = { wake: 600, bed: 0, lieIn: 720, shiftStarts: { D: 660, M: 660, E: 1050 }, hours: { open: 660, close: 1380 } };
+  fx.businesses = { boarjuice: { name: "BOAR JUICE", short: "BOARJ", sign: "BOAR JUICE",
+    kind: "shopfront", rent: 20, wage: 22, stations: { fruitbin: 1, bar: 1 },
+    source: "fruitbin", out: "bar",
+    recipes: [{ id: "bjuice", icon: "juice", pay: 6, raw: "fruit", steps: [["bar", 1.8, "juice"]] }] } };
+  env.cultures = { boar: fx };
+  env.visitors = [
+    { n: "RASHER", cu: "boar", c: 3, a: "strawhat", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  const got = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = crabs.find(c => c.p.name === "RASHER");
+    if (!pig) return { fail: "RASHER never settled" };
+    pig.p.wallet = 20000;
+    const why = placeBusiness("boar", "boarjuice", "eastlot", pig);
+    if (why) return { fail: "placement refused: " + why };
+    const B = BIZ.boarjuice;
+    const wM = bizShiftWindow("boarjuice", "M");
+    const wD = bizShiftWindow("boarjuice", "D");
+    const wCover = bizShiftWindow("boarjuice", "cover");
+    const n1 = bizShiftWindow("shack", "M"), n2 = bizShiftWindow("shack", "M");
+    return { cu: B.cu, open: B.hours.open, close: B.hours.close,
+      mS: wM.start, mE: wM.end, dS: wD.start, dE: wD.end,
+      covS: wCover.start, covE: wCover.end,
+      nativeMemo: n1 === n2, nS: n1.start, nE: n1.end };
+  })())`));
+  if (got.fail) return got.fail;
+  if (got.cu !== "boar") return "the placed shop does not know its culture: cu " + got.cu;
+  if (got.open !== 660 || got.close !== 1380) return "the sign did not come up on the owner-culture default: " + got.open + "-" + got.close;
+  if (got.mS !== 660 || got.mE !== 1020) return "the M window did not anchor at the owner's start: " + got.mS + "-" + got.mE;   // 660 + STD_SHIFT 360
+  if (got.dS !== 660 || got.dE !== 1260) return "the D window did not anchor: " + got.dS + "-" + got.dE;   // 660 + SHIFT_SPAN.D 600
+  if (got.covS !== 660 || got.covE !== 1380) return "the covering double left the trading window: " + got.covS + "-" + got.covE;
+  if (!got.nativeMemo) return "the native shack window stopped memoizing";
+  if (got.nS !== 480 || got.nE !== 840) return "the native shack window moved: " + got.nS + "-" + got.nE;   // 8:00 + the standard 6h
+  return true;
+});
+
 scenario("the biz catalog: a declared shop and a priced import build pending, and change no town byte", () => {
   // Phase B, "the BIZ catalog to data". A culture may declare WHOLE SHOPS -
   // catalog SUBSTANCE only (recipes, stations as TYPE+capacity, economics in
