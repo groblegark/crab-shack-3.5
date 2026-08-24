@@ -7076,7 +7076,14 @@ function l1Assemble(prog, bundle) {
   const pop = () => st.pop();
   const tdiv = (x, cc) => (x - x % cc) / cc;     // the grid idiom: trunc toward zero
   for (let n = 0; n < prog.length; n++) {
-    const row = Array.isArray(prog[n]) ? prog[n] : [prog[n]];
+    // `let`, not `const`, and the reason is a MERGE: E0 wrote this loop with a
+    // const row (its goldens address slots by integer, so nothing rewrites the
+    // row), and E3 added LD-by-name, which resolves the name to an index and
+    // REWRITES the row so the `code.push(row[1])` below emits the resolved
+    // slot. Each branch was correct alone; together the const threw
+    // "Assignment to constant variable" out of departProblem, which took every
+    // E3 scenario red at once with an exception rather than a failure.
+    let row = Array.isArray(prog[n]) ? prog[n] : [prog[n]];
     const op = row[0], spec = L1_OPS[op];
     if (!spec) return no("OP " + n + " IS \"" + op + "\" - NOT AN L1 OP");
     if (spec[0] !== row.length - 1) return no("OP " + n + " (" + op + ") TAKES " + spec[0] + " IMMEDIATE" + (spec[0] === 1 ? "" : "S") + ", GOT " + (row.length - 1));
