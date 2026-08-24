@@ -9708,7 +9708,7 @@ function spawnDrifter() {
 function freeCrewName(preferred) {
   const used = new Set(allCrabs().map(k => k.p.name));
   if (preferred && !used.has(preferred)) return preferred;
-  return CRAB_NAMES.concat(CUSTOMER_NAMES).find(n => !used.has(n)) || preferred || crabNameFallback();
+  return CUSTOMER_NAMES.concat(CUSTOMER_NAMES).find(n => !used.has(n)) || preferred || crabNameFallback();
 }
 // alternate M/E like makeCrabPersona always did - but a hire starts TODAY,
 // so if the parity shift is already over while the other still has hours,
