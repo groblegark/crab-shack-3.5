@@ -88,7 +88,12 @@ A people, written as a document. Not code — data the engine reads:
 
   meta      id and name. THE ID MUST MATCH /^[a-z][a-z0-9_]{0,15}$/ or the
             game skips your document SILENTLY, with no error anywhere.
-  people    the name pool (each name <= 12 characters)
+  people    the name pool (each name <= 12 characters). people.traits is this
+            people's personality table (E2): per-trait label, move20/work20/
+            tip20 multipliers in integer TWENTIETHS (20 = 1.0, clamped 4-60),
+            optional lateMin (0-240) and pauses, and quips for all three
+            moments (commute/work/home). Key order is the hire draw order.
+            Undeclared = your settlers carry the island's six traits.
   art       palette, body (w/h 4-32, four poses a/b/w/s as pixel rows),
             colorways (per-slot recolours), anchors, accessories, items
   voice     registers — a register is bound to an accessory, because THE HAT
@@ -96,6 +101,11 @@ A people, written as a document. Not code — data the engine reads:
             how fat their purse is (purseMul, 0.1-5). The crab default's own
             voice is tabled the same way (bundled beside its brain), so every
             diary/depart/dossier key you can declare, the island also speaks.
+            voice.idle holds the four idle moments — ball, chat, wander, nod —
+            each a non-empty array of lines (1-120 chars) your people quip at
+            play, gossip, a stroll, or waking from a nap; undeclared moments
+            fall to the island's lines. Unknown moments are refused at import
+            (A QUIP FOR NOWHERE).
   depart    weights — ruleId -> integer 0-8, a QUARTERS multiplier on the
             engine's departure-card rule weights (4 = as the engine weighs
             it, 0 = this people never leads with that rule, 8 = twice as

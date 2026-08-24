@@ -11365,6 +11365,105 @@ scenario("crab voice: every tabled line is the literal, byte for byte", () => {
   if (got.armed.dossier !== "JUST OFF THE BOAT.") return "dossier diverged: " + got.armed.dossier;
   return true;
 });
+scenario("idle quips: the island's table is the literal, key for key", () => {
+  // E1's contract, the voice ceremony verbatim: the bundled idle table may
+  // not drift one byte from the code arrays it shadows; the dispatch speaks
+  // from the table when armed, falls to the literal BY IDENTITY when not,
+  // and a declaring culture speaks its own lines. The draw sites keep their
+  // exact srand() calls - only the string table moved - so equality of the
+  // arrays IS byte-equality of the town.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABIDLE) return { err: "the bundled idle table did not install" };
+    const lit = { ball: BALL_LINES, chat: CHAT_LINES, wander: WANDER_QUIPS, nod: NOD_WAKE };
+    const diffs = [];
+    for (const key of ["ball", "chat", "wander", "nod"]) {
+      const t = CRABIDLE[key];
+      if (!t) { diffs.push(key + " missing from the table"); continue; }
+      if (t.length !== lit[key].length) { diffs.push(key + " length " + t.length + " vs " + lit[key].length); continue; }
+      for (let i = 0; i < t.length; i++)
+        if (t[i] !== lit[key][i]) diffs.push(key + "[" + i + "]: " + t[i] + " vs " + lit[key][i]);
+    }
+    const crab = { p: { culture: null } };
+    const armedIs = idleLines(crab, "ball", BALL_LINES) === CRABIDLE.ball;
+    const s = CRABIDLE; CRABIDLE = null;
+    const bareIs = idleLines(crab, "ball", BALL_LINES) === BALL_LINES;
+    CRABIDLE = s;
+    CULTURES.__quiptest = { idle: { ball: ["MINE, ACTUALLY"] } };
+    const culLine = idleLines({ p: { culture: "__quiptest" } }, "ball", BALL_LINES)[0];
+    delete CULTURES.__quiptest;
+    const refusals = [
+      voiceProblem({ registers: [{ id: "x", acc: "" }], idle: { lunch: ["EH"] } }),
+      voiceProblem({ registers: [{ id: "x", acc: "" }], idle: { ball: [] } }),
+      voiceProblem({ registers: [{ id: "x", acc: "" }], idle: { ball: ["${"Y".repeat(200)}"] } }),
+    ];
+    return { diffs, armedIs, bareIs, culLine, refusals };
+  })())`));
+  if (got.err) return got.err;
+  if (got.diffs.length) return "the table drifted from the literal: " + got.diffs[0];
+  if (!got.armedIs) return "an armed island did not speak from its table";
+  if (!got.bareIs) return "a disarmed island did not fall to the literal by identity";
+  if (got.culLine !== "MINE, ACTUALLY") return "a declaring culture did not speak its own lines";
+  if (got.refusals[0] !== "A QUIP FOR NOWHERE") return "an unknown idle key was not refused by name: " + got.refusals[0];
+  if (got.refusals[1] !== "A BAD IDLE TABLE") return "an empty idle array was not refused by name: " + got.refusals[1];
+  if (got.refusals[2] !== "A BAD VOICE LINE") return "an overlong idle line was not refused by name: " + got.refusals[2];
+  return true;
+});
+scenario("traits: the island's table is the literal, value for value", () => {
+  // E2's contract: the bundled transcription (twentieths, /20 at load) must
+  // equal the code TRAITS literal bit-for-bit - every multiplier, every
+  // moveQ8, every quip, and the KEY ORDER (the hire gacha draws by it). The
+  // dispatch answers from a culture's own table when declared, the island's
+  // when not, and the literal BY IDENTITY when the bundle is disarmed.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (CRABT === TRAITS) return { err: "the bundled trait table did not install" };
+    const diffs = [];
+    const lk = Object.keys(TRAITS), bk = Object.keys(CRABT);
+    if (lk.join(",") !== bk.join(",")) diffs.push("key order: " + bk.join(",") + " vs " + lk.join(","));
+    for (const id of lk) {
+      const a = TRAITS[id], b = CRABT[id];
+      if (!b) { diffs.push(id + " missing"); continue; }
+      for (const f of ["label", "move", "work", "tip", "moveQ8"])
+        if (a[f] !== b[f]) diffs.push(id + "." + f + ": " + b[f] + " vs " + a[f]);
+      if ((a.lateMin || 0) !== (b.lateMin || 0)) diffs.push(id + ".lateMin: " + b.lateMin + " vs " + a.lateMin);
+      if (!!a.pauses !== !!b.pauses) diffs.push(id + ".pauses: " + b.pauses + " vs " + a.pauses);
+      for (const q of ["commute", "work", "home"]) {
+        const qa = a.quips[q], qb = (b.quips || {})[q] || [];
+        if (qa.join("|") !== qb.join("|")) diffs.push(id + ".quips." + q + " drifted");
+      }
+    }
+    const crab = traitOfP({ trait: "lazy", culture: null });
+    const crabFromTable = crab === CRABT.lazy;
+    CULTURES.__traittest = { traits: buildTraits({ stoic: { label: "STOIC", move20: 20,
+      work20: 24, tip20: 20, quips: { commute: ["HM"], work: ["HM."], home: ["HM"] } } }) };
+    const cul = traitOfP({ trait: "stoic", culture: "__traittest" });
+    const culWork = cul && cul.work;
+    const culFallback = traitOfP({ trait: "lazy", culture: "__traittest" }) === CRABT.lazy;
+    delete CULTURES.__traittest;
+    const s = CRABT; CRABT = TRAITS;
+    const bareIs = traitOfP({ trait: "lazy", culture: null }) === TRAITS.lazy;
+    CRABT = s;
+    const refusals = [
+      traitsProblem({ x: { label: "X", move20: 99, work20: 20, tip20: 20, quips: { commute: ["A"], work: ["A"], home: ["A"] } } }),
+      traitsProblem({ x: { label: "X", move20: 20, work20: 20, tip20: 20, quips: { commute: ["A"], work: ["A"] } } }),
+      traitsProblem({ x: { label: "A LABEL FAR TOO LONG TO WEAR", move20: 20, work20: 20, tip20: 20, quips: { commute: ["A"], work: ["A"], home: ["A"] } } }),
+      traitsProblem({ x: { label: "X", move20: 20, work20: 20, tip20: 20, quips: { commute: ["A"], work: ["A"], home: ["A"], lunch: ["A"] } } }),
+    ];
+    return { diffs, crabFromTable, culWork, culFallback, bareIs, refusals };
+  })())`));
+  if (got.err) return got.err;
+  if (got.diffs.length) return "the table drifted from the literal: " + got.diffs[0];
+  if (!got.crabFromTable) return "a crab did not answer from the island's table";
+  if (got.culWork !== 1.2) return "a declaring culture's trait did not convert (want work 1.2, got " + got.culWork + ")";
+  if (!got.culFallback) return "a culture without the trait did not fall to the island's";
+  if (!got.bareIs) return "a disarmed island did not fall to the literal by identity";
+  if (got.refusals[0] !== "A BAD TRAIT MULTIPLIER") return "a 99-twentieth multiplier was not refused by name: " + got.refusals[0];
+  if (got.refusals[1] !== "A TRAIT WITH NOTHING TO SAY") return "a quipless moment was not refused by name: " + got.refusals[1];
+  if (got.refusals[2] !== "A BAD TRAIT LABEL") return "an overlong label was not refused by name: " + got.refusals[2];
+  if (got.refusals[3] !== "A QUIP FOR NOWHERE") return "an unknown quip moment was not refused by name: " + got.refusals[3];
+  return true;
+});
 scenario("crab voice: two whole days with the table off are the same town", () => {
   // The mirror-drift catcher: run the same seed with the crab voice armed and
   // disarmed and require every visitor's log - real traffic through the real

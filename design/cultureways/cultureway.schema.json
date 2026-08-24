@@ -52,6 +52,34 @@
       "minLength": 1,
       "maxLength": 12
      }
+    },
+    "traits": {
+     "description": "E2 (census C3): this people's personality table. Multipliers are integer TWENTIETHS (20 = 1.0, clamped 4-60 = 0.2x-3.0x). Key order is the hire draw order. Undeclared = the island's six traits. Each trait must quip all three moments (commute/work/home).",
+     "type": "object",
+     "minProperties": 1,
+     "maxProperties": 12,
+     "additionalProperties": {
+      "type": "object",
+      "required": ["label", "move20", "work20", "tip20", "quips"],
+      "properties": {
+       "label": { "type": "string", "minLength": 1, "maxLength": 20 },
+       "move20": { "type": "integer", "minimum": 4, "maximum": 60 },
+       "work20": { "type": "integer", "minimum": 4, "maximum": 60 },
+       "tip20": { "type": "integer", "minimum": 4, "maximum": 60 },
+       "lateMin": { "type": "integer", "minimum": 0, "maximum": 240 },
+       "pauses": { "type": "boolean" },
+       "quips": {
+        "type": "object",
+        "required": ["commute", "work", "home"],
+        "additionalProperties": false,
+        "properties": {
+         "commute": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+         "work": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+         "home": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }
+        }
+       }
+      }
+     }
     }
    }
   },
@@ -233,6 +261,17 @@
     "registers"
    ],
    "properties": {
+    "idle": {
+     "description": "E1: the four idle moments this people quips at - play, gossip, a stroll, waking from a nap. Undeclared moments fall to the island's lines; unknown keys are refused at import (A QUIP FOR NOWHERE).",
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "ball": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "chat": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "wander": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "nod": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }
+     }
+    },
     "registers": {
      "type": "array",
      "minItems": 1,
