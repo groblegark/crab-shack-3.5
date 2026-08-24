@@ -216,7 +216,7 @@ function repAdd(cid, delta) {
     const share = (h === home) ? delta : idiv(delta * REP_SPILL, 100);
     if (!share) continue;
     const r = repOf(h);
-    repSet(h, r + share);   // MUTATION A - armed, will be reverted
+    repSet(h, r + (share > 0 ? idiv(share * (100000 - r), 100000) : share));
   }
 }
 const HOME_BOTTOM = 160;   // house/shelter interiors reach the floor
