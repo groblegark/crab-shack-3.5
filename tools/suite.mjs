@@ -14566,35 +14566,30 @@ scenario("the card's meters speak Q20: a half-hungry visitor reads half", () => 
   return true;
 });
 scenario("the boat lands a citizen's body: arrival needs sit in the hire band", () => {
-  // Every unloaded need lands inside its VIS_ARRIVE window (floors are the
-  // point - nobody disembarks at 8% everything anymore), the 1-2 LOADED
-  // needs may exceed it up to qn(0.95), and nothing exceeds that. Mechanism,
-  // not coincidence: assert against the table itself, across a whole boat.
+  // The arrival contract is only true AT THE GANGWAY - needs decay upward in
+  // play, so a lived visitor legitimately pegs a bar (the first draft of this
+  // scenario asserted the band on the whole promenade and SHELLY's honest
+  // full dirt bar failed it). So: mint a whole boat of FRESH visitors and
+  // check the mechanism where it lives - every unloaded need inside its
+  // VIS_ARRIVE window (floors are the point: nobody disembarks at 8%
+  // everything anymore), at most two LOADED needs, nothing past the loaded
+  // cap. Mechanism, not coincidence: asserted against the table itself.
   const sim = createSim({ seed: 5 });
-  sim.runUntil("customers.filter(k => k.visitor && !k.gone).length >= 6", { maxSteps: 600000 });
+  sim.runUntil("tmin >= 8 * 60", { maxSteps: 300000 });   // town warm, streams live
   const bad = sim.G(`(() => { const out = [];
-    const lomax = Math.max(...Object.values(VIS_ARRIVE).map(a => a[0] + a[1]));
-    for (const k of customers.filter(k => k.visitor && !k.gone)) {
+    for (let i = 0; i < 12; i++) {
+      const v = newVisitor(i % 2 === 0);   // both mint paths: overnight and mixed
       let over = 0;
       for (const key in VIS_ARRIVE) {
-        const v = k[key], [lo, span] = VIS_ARRIVE[key];
-        if (v > qn(0.95)) out.push(k.name + " " + key + " over the loaded cap: " + v);
-        if (v > lo + span) over++;   // a LOADED need - allowed for at most two
-        // needs decay upward in play, so no floor assertion on lived visitors;
-        // the fresh-boat pin below owns the floor
+        const [lo, span] = VIS_ARRIVE[key];
+        if (v[key] < lo) out.push("fresh " + key + " under its floor: " + v[key] + " < " + lo);
+        if (v[key] > qn(0.95)) out.push("fresh " + key + " over the loaded cap: " + v[key]);
+        if (v[key] > lo + span) over++;   // a LOADED need
       }
-      if (over > 2) out.push(k.name + " has " + over + " loaded needs, max 2");
+      if (over > 2) out.push("a fresh body with " + over + " loaded needs, max 2");
+      if (over < 1) out.push("a fresh body with nothing pressing - the pier went illegible");
     }
-    // THE FRESH-BOAT PIN: mint one visitor at the door and check the floors
-    // exactly (no play has moved her yet). Counted-stream discipline: this
-    // consumes draws, so it runs LAST in the scenario's own sim.
-    const v = newVisitor(false);
-    for (const key in VIS_ARRIVE) {
-      const [lo, span] = VIS_ARRIVE[key];
-      if (v[key] < lo) out.push("fresh " + key + " under its floor: " + v[key] + " < " + lo);
-      if (v[key] > qn(0.95)) out.push("fresh " + key + " over the loaded cap: " + v[key]);
-    }
-    // the probe visitor joins no list, so the next poolReap reclaims her slot
+    // the probe visitors join no list, so the next poolReap reclaims the slots
     return out; })()`);
   if (bad.length) return bad.join("; ");
   return true;
