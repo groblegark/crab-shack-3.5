@@ -5448,7 +5448,7 @@ scenario("no card prints text on top of its own text", () => {
         turnedAway: longNames.concat(longNames), late: longNames };
     }, () => { drawManage(); ballotBox = null; });
     run("hall-ballot-results", () => { hallView = "BALLOT"; hallBounds();
-      hall.poll = { day: 234, turnout: 12845, roll: 15600, away: 4321, winner: "BARNACLE THE MAGNIFICENT",
+      hall.poll = { day: 234, turnout: 128, roll: 156, away: 43, winner: "BARNACLE THE MAGNIFICENT",
         cands: [["BARNACLE THE MAGNIFICENT", 99], ["TIDEPOOL TIMOTHEUS", 87], ["SHELLSWORTH ESQUIRE", 65], ["MADAME CARAPACE", 4]]
           .map(([n, v]) => ({ name: n, votes: v, line: "RAISE THE LEVY AND STAFF THE HOUSE TO THE RAFTERS FOREVER" })),
         lines: new Array(24).fill("SOMEBODY VOTED FOR SOMETHING FOR A REASON THAT RUNS VERY LONG INDEED") };

@@ -15921,7 +15921,7 @@ function drawFollowCard() {
   const bars = [["FED", p.hunger, 6], ["SIP", p.thirst, 30],
     ["CLN", p.dirt, 54], ["FUN", p.bored, 78], ["ZZZ", p.tired, 102]];
   for (const [label, need, bx] of bars) {
-    const frac = 1 - (need || 0);   // MUTATION A: FED raw again
+    const frac = Math.max(0, Math.min(1, 1 - (need || 0) / Q20));
     smallText(ctx, label, bx, 44, [110, 110, 130]);
     rect(ctx, bx + 11, 45, 13, 4, [30, 20, 36]);
     rect(ctx, bx + 12, 46, Math.round(11 * frac), 2,
@@ -17435,7 +17435,7 @@ const MANAGE_TABS = ["HOURS", "SCHEDULE", "TOWN", "HALL"];
 let schedPage = 0;
 function schedWindow(staffN, R) {
   const paged = staffN > R.rows.length;
-  const per = R.rows.length;   // MUTATION C: the pager forgot to take a row
+  const per = paged ? R.rows.length - 1 : R.rows.length;
   const pages = Math.max(1, Math.ceil(staffN / per));
   if (schedPage >= pages) schedPage = 0;
   return { start: schedPage * per, per, pages, paged, pagerRow: R.rows[R.rows.length - 1] };
@@ -17916,8 +17916,8 @@ function drawHall(R, chip) {
     const poll = hall.poll;
     if (!poll) smallText(ctx, "NO BALLOT HAS BEEN HELD YET", x + 8, y + 68, [150, 140, 160]);
     else {
-      smallText(ctx, "DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
-        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), x + 8, y + 66, [58, 42, 38]);   // MUTATION B: unfitted
+      smallText(ctx, fitSmall("DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
+        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), w2 - 16), x + 8, y + 66, [58, 42, 38]);
       let ly = y + 76;
       for (const k of poll.cands.slice(0, 3)) {
         const won = k.name === poll.winner;
