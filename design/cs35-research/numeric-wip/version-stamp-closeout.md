@@ -42,9 +42,24 @@ index.html, and the stamp string fitting its corner (≤24 chars).
 ## Gates
 
 - `node --check` on game.js, version.js, mkversion.mjs, the suite — clean.
-- Full suite + MCP battery on the cluster at 3ff9285 — verdicts recorded by
-  the orchestrator at merge (run launched at close-out time; the new scenario
-  rides the full suite).
+- **Full suite on the cluster at 3ff9285: 656/656, 20/20 arms banked**
+  (`cs-suite-318-3ff9285-mb3c`), scale-down verified.
+- **MCP battery at d285b78: exit 0, zero failures**
+  (`cs-phased-gates-d285b78-408t`).
+- The three commits between those SHAs touch only `deploy/` (the chart clamp
+  below), this close-out, and a PNG — nothing the suite reads, so the
+  656/656 transfers.
+
+## A substrate bug found and fixed en route (upstream this)
+
+The mainline chart's new per-index backoff shipped `maxFailedIndexes: 5` as a
+flat default, but k8s refuses `maxFailedIndexes > completions` — so **every
+manifest with fewer than 5 arms failed to install at all**: the 1-arm MCP
+battery (my gate, INSTALLATION FAILED) and, near-certainly, the sibling
+`cs-e6-focus` 2-arm run observed Failed 0/2 in the same window. Fixed here by
+clamping to the arm count (`min(maxFailedIndexes, arms)`), template-verified
+at 1→1, 2→2, 20→5. **This is a mainline bug affecting every fork's focus
+runs — merge or cherry-pick promptly.**
 - Byte-neutral to the sim: zero draws added (title/help are view; neither
   draws headless), no sim reads, no schema. The suite's frozen pins are the
   proof.
