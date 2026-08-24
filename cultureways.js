@@ -9205,8 +9205,153 @@ var BUNDLED_CRAB_VOICE = {
    },
    "dossier": [
     "JUST OFF THE BOAT."
-   ]
+   ],
+   "refuseHire": "KIND OFFER. NO.",
+   "refuseHireLog": "TURNED DOWN A JOB"
   }
  ]
 };
-if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; }
+var BUNDLED_CRAB_PEOPLE = {
+ "crew": [
+  "PINCHY",
+  "CLAWDIA",
+  "SHELLDON",
+  "SANDY",
+  "BUBBLES",
+  "SCUTTLE",
+  "CORAL",
+  "SNIPPY",
+  "HERMIE",
+  "SALTY",
+  "MITTENS",
+  "KELP"
+ ],
+ "walkins": [
+  "GARY",
+  "SHELLY",
+  "EBB",
+  "FLO",
+  "BARNABY",
+  "PEARL",
+  "SANDRO",
+  "MISTY",
+  "CLACKERS",
+  "NIPPY",
+  "BRINY",
+  "KRILL BILL",
+  "ANEMONE",
+  "WAVY DAVE",
+  "MOLT",
+  "SCAMPI",
+  "ROE",
+  "MAUDE",
+  "SNAPPY",
+  "BUOY",
+  "SALTINE",
+  "DIP",
+  "TIDEPOOL TIM",
+  "SURF MOM",
+  "PLANKTON PETE",
+  "BIG PALP"
+ ],
+ "fallback": "CRAB"
+};
+var BUNDLED_CRAB_ART = {
+ "colorways": [
+  {
+   "id": "red",
+   "hi": [
+    230,
+    72,
+    88
+   ],
+   "lo": [
+    170,
+    42,
+    62
+   ]
+  },
+  {
+   "id": "blue",
+   "hi": [
+    96,
+    150,
+    255
+   ],
+   "lo": [
+    60,
+    95,
+    190
+   ]
+  },
+  {
+   "id": "green",
+   "hi": [
+    90,
+    200,
+    110
+   ],
+   "lo": [
+    50,
+    140,
+    80
+   ]
+  },
+  {
+   "id": "purple",
+   "hi": [
+    200,
+    120,
+    255
+   ],
+   "lo": [
+    140,
+    70,
+    190
+   ]
+  },
+  {
+   "id": "orange",
+   "hi": [
+    255,
+    150,
+    60
+   ],
+   "lo": [
+    190,
+    100,
+    30
+   ]
+  },
+  {
+   "id": "pink",
+   "hi": [
+    255,
+    130,
+    190
+   ],
+   "lo": [
+    190,
+    80,
+    140
+   ]
+  },
+  {
+   "id": "teal",
+   "hi": [
+    88,
+    205,
+    188
+   ],
+   "lo": [
+    44,
+    145,
+    130
+   ]
+  }
+ ],
+ "founders": {
+  "sudsy": "teal"
+ }
+};
+if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; }

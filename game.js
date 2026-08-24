@@ -5349,6 +5349,57 @@ const busy = {
 const bus = { x: 360, dir: 1, state: "drive", dwellT: 0, riders: [] };
 let earnHist = [];
 
+// THE CRAB AS A DOCUMENT (phase E6): the crab's look and people ride the
+// bundle beside its voice and brain. Adoption is IN PLACE - the sprites.js/
+// crabs.js literals stay as the engine fallback, and every existing read
+// site keeps drawing from the same arrays in the same order, so a bundle
+// that matches the literals is byte-equal by construction. Runs BEFORE the
+// art derivations below so houses/boats/buggies beget from the document.
+// Build-time validation lives in mkcultureways.mjs (a bad fixture fails the
+// BUILD); this guard is the belt for a hand-tampered cultureways.js.
+function crabArtProblem(a) {
+  const rgb = (c) => Array.isArray(c) && c.length === 3
+    && c.every(v => Number.isInteger(v) && v >= 0 && v <= 255);
+  if (!a || !Array.isArray(a.colorways) || !a.colorways.length) return "NO CRAB COLORWAYS";
+  for (const cw of a.colorways)
+    if (!cw || typeof cw.id !== "string" || !cw.id.length || !rgb(cw.hi) || !rgb(cw.lo))
+      return "A BAD CRAB COLORWAY";
+  for (const f in (a.founders || {}))
+    if (!a.colorways.some(c => c.id === a.founders[f])) return "A FOUNDER WITH NO SHELL";
+  return null;
+}
+function crabPeopleProblem(p) {
+  const bad = (n) => typeof n !== "string" || !n.length || n.length > 16;
+  if (!p || !Array.isArray(p.crew) || !p.crew.length
+    || !Array.isArray(p.walkins) || !p.walkins.length) return "NO CRAB NAMES";
+  if (p.crew.some(bad) || p.walkins.some(bad) || bad(p.fallback || "CRAB"))
+    return "A NAME NO CARD CAN HOLD";
+  return null;
+}
+const CRAB_ART_DOC = (typeof BUNDLED_CRAB_ART !== "undefined" && BUNDLED_CRAB_ART
+  && !crabArtProblem(BUNDLED_CRAB_ART)) ? BUNDLED_CRAB_ART : null;
+if (CRAB_ART_DOC) {
+  CRAB_COLORS.length = 0;
+  for (const cw of CRAB_ART_DOC.colorways) CRAB_COLORS.push([cw.hi.slice(), cw.lo.slice()]);
+}
+// A founder's shell is a NAME in the document, not "whatever is last".
+// Fallback (no bundle): the sprites.js convention - the pushed teal is last.
+function crabFounderColor(who) {
+  if (CRAB_ART_DOC) {
+    const id = (CRAB_ART_DOC.founders || {})[who];
+    const i = CRAB_ART_DOC.colorways.findIndex(c => c.id === id);
+    if (i >= 0) return i;
+  }
+  return CRAB_COLORS.length - 1;
+}
+const CRAB_PEOPLE_DOC = (typeof BUNDLED_CRAB_PEOPLE !== "undefined" && BUNDLED_CRAB_PEOPLE
+  && !crabPeopleProblem(BUNDLED_CRAB_PEOPLE)) ? BUNDLED_CRAB_PEOPLE : null;
+if (CRAB_PEOPLE_DOC) {
+  CRAB_NAMES.length = 0; CRAB_NAMES.push(...CRAB_PEOPLE_DOC.crew);
+  CUSTOMER_NAMES.length = 0; CUSTOMER_NAMES.push(...CRAB_PEOPLE_DOC.walkins);
+}
+function crabNameFallback() { return (CRAB_PEOPLE_DOC && CRAB_PEOPLE_DOC.fallback) || "CRAB"; }
+
 const CRAB_ARTS = CRAB_COLORS.map(c => crabArt(c[0], c[1]));
 const TOURIST_ARTS = TOURIST_STYLES.map(touristArt);
 const LANDLORD_ART = crabArt([255, 200, 80], [190, 140, 30]);
@@ -5386,7 +5437,7 @@ function allCrabs() {
 }
 function initNpcs() {
   const p = { name: "SUDSY", npc: true, owner: "sudsy", trait: "cheery", mode: "walk",
-    acc: "showercap", color: CRAB_COLORS.length - 1, shift: "D", house: 0, homeless: true,
+    acc: "showercap", color: crabFounderColor("sudsy"), shift: "D", house: 0, homeless: true,
     wallet: 2500, job: "showers", hunger: 0, dirt: 0, bored: 0, tired: 0 };
   const c = newCrab(p);
   c.workBiz = "showers"; c.x = 1148; c.y = 158;
@@ -6990,7 +7041,7 @@ function voiceProblem(v) {
       for (const k in g[part]) if (!line(g[part][k])) return "A BAD VOICE LINE";
     }
     if (g.dossier != null && (!Array.isArray(g.dossier) || g.dossier.some(s => !line(s)))) return "A BAD VOICE LINE";
-    for (const k of ["refuseHire", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
+    for (const k of ["refuseHire", "refuseHireLog", "foreign"]) if (g[k] != null && !line(g[k])) return "A BAD VOICE LINE";
   }
   return null;
 }
@@ -8102,6 +8153,10 @@ function vline(k, id, fallback, slots) {
   if (!reg) {
     const g = crabRegister(k && k.acc);
     const tpl = g && g.diary && g.diary[id];
+    // The dogfood tripwire (phase E6): with the bundled crab document
+    // installed, a crab diary line reaching the code literal means the
+    // table has a hole - a scenario reads this counter and goes red.
+    if (!tpl) window._crabDiaryFb = (window._crabDiaryFb || 0) + 1;
     return tpl ? vfmt(tpl, slots) : fallback;
   }
   const cul = visCulture(k);
@@ -9653,7 +9708,7 @@ function spawnDrifter() {
 function freeCrewName(preferred) {
   const used = new Set(allCrabs().map(k => k.p.name));
   if (preferred && !used.has(preferred)) return preferred;
-  return CRAB_NAMES.concat(CUSTOMER_NAMES).find(n => !used.has(n)) || preferred || "CRAB";
+  return CRAB_NAMES.concat(CUSTOMER_NAMES).find(n => !used.has(n)) || preferred || crabNameFallback();
 }
 // alternate M/E like makeCrabPersona always did - but a hire starts TODAY,
 // so if the parity shift is already over while the other still has hours,
@@ -9682,9 +9737,14 @@ function convertTourist(k) {
   // makeCrabPersona never runs on her. A document that declares
   // settlers.apron sends her through the factory below instead.
   if (!settlerApron(k)) {
-    const reg = visRegister(k);
+    // The refusal speaks from a register: the visitor's own culture first,
+    // else the crab table (phase E6 retires the voice close-out's debt - the
+    // TWO literals behind one key split into refuseHire (the pop) and
+    // refuseHireLog (the diary line); a culture declaring only refuseHire
+    // uses it for both, exactly as before). Code literals stay the fallback.
+    const reg = visRegister(k) || crabRegister(k.acc);
     popText((reg && reg.refuseHire) || "KIND OFFER. NO.", k.x - 20, custY(k) - 24, [255, 200, 140]);
-    visLog(k, "life", (reg && reg.refuseHire) || "TURNED DOWN A JOB");
+    visLog(k, "life", (reg && (reg.refuseHireLog || reg.refuseHire)) || "TURNED DOWN A JOB");
     return null;
   }
   if (k.room) { k.room.occupant = null; k.room.dirty = true; k.room = null; }   // they've checked out for good

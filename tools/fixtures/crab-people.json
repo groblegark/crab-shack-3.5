@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "THE CRAB'S OWN PEOPLE, TABLED (phase E6 - the crab as a document).",
+    "The crew pool, the walk-in pool, and the terminal fallback name move",
+    "out of crabs.js/game.js literals into the bundled crab document, the",
+    "way its voice (crab-voice.json) and brain already ride. The literals",
+    "stay in code as the engine fallback; adoption is IN PLACE at boot so",
+    "every existing read site (freeCrewName, walk-in naming, persona",
+    "seeding) draws from the same arrays in the same order - byte-equal by",
+    "construction, proven by the tabled==literal suite scenario, guarded",
+    "by build-time validation in mkcultureways.mjs (a bad pool fails the",
+    "BUILD, not the town)."
+  ],
+  "crew": [
+    "PINCHY", "CLAWDIA", "SHELLDON", "SANDY", "BUBBLES", "SCUTTLE",
+    "CORAL", "SNIPPY", "HERMIE", "SALTY", "MITTENS", "KELP"
+  ],
+  "walkins": [
+    "GARY", "SHELLY", "EBB", "FLO", "BARNABY", "PEARL", "SANDRO", "MISTY",
+    "CLACKERS", "NIPPY", "BRINY", "KRILL BILL", "ANEMONE", "WAVY DAVE",
+    "MOLT", "SCAMPI", "ROE", "MAUDE", "SNAPPY", "BUOY", "SALTINE", "DIP",
+    "TIDEPOOL TIM", "SURF MOM", "PLANKTON PETE", "BIG PALP"
+  ],
+  "fallback": "CRAB"
+}

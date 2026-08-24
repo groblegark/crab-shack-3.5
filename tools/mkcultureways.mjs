@@ -14,6 +14,39 @@ const gull = JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json
 const crabBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-v3.json", import.meta.url), "utf8"));
 const crabVoiceSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-voice.json", import.meta.url), "utf8"));
 const crabVoice = { registers: crabVoiceSrc.registers };   // the _comment stays in the fixture
+
+// THE CRAB AS A DOCUMENT (phase E6): its people and its look ride the bundle
+// like its voice and brain. Validated HERE, at build time - a bad pool or a
+// dangling founder reference fails the BUILD, never the town (the plan's
+// authoring rule: "a typo'd name fails the build").
+const crabPeopleSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-people.json", import.meta.url), "utf8"));
+const crabPeople = { crew: crabPeopleSrc.crew, walkins: crabPeopleSrc.walkins, fallback: crabPeopleSrc.fallback };
+const crabArtSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-art.json", import.meta.url), "utf8"));
+const crabArt = { colorways: crabArtSrc.colorways, founders: crabArtSrc.founders };
+{
+  const badName = (n) => typeof n !== "string" || !n.length || n.length > 16;
+  for (const pool of ["crew", "walkins"]) {
+    if (!Array.isArray(crabPeople[pool]) || !crabPeople[pool].length)
+      throw new Error("crab-people." + pool + ": empty or not a list");
+    for (const n of crabPeople[pool]) if (badName(n))
+      throw new Error("crab-people." + pool + ": a name no card can hold: " + JSON.stringify(n));
+    if (new Set(crabPeople[pool]).size !== crabPeople[pool].length)
+      throw new Error("crab-people." + pool + ": a name appears twice");
+  }
+  if (badName(crabPeople.fallback)) throw new Error("crab-people.fallback: a name no card can hold");
+  const rgbOk = (c) => Array.isArray(c) && c.length === 3
+    && c.every(v => Number.isInteger(v) && v >= 0 && v <= 255);
+  if (!Array.isArray(crabArt.colorways) || !crabArt.colorways.length)
+    throw new Error("crab-art.colorways: empty or not a list");
+  for (const cw of crabArt.colorways)
+    if (!cw || typeof cw.id !== "string" || !cw.id.length || !rgbOk(cw.hi) || !rgbOk(cw.lo))
+      throw new Error("crab-art.colorways: a colorway is not {id, hi[3], lo[3]}: " + JSON.stringify(cw));
+  if (new Set(crabArt.colorways.map(c => c.id)).size !== crabArt.colorways.length)
+    throw new Error("crab-art.colorways: a colorway id appears twice");
+  for (const f in crabArt.founders)
+    if (!crabArt.colorways.some(c => c.id === crabArt.founders[f]))
+      throw new Error("crab-art.founders." + f + ": names a colorway that does not exist: " + crabArt.founders[f]);
+}
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
@@ -65,10 +98,14 @@ const header = `// THE BUNDLED CULTUREWAYS — the peoples who ship with the isl
 
 const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)};\n`
   + `var BUNDLED_POLICIES = ${JSON.stringify({ crab: crabPolicies }, null, 1)};\n`
-  + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`;
-const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; }\n`;
+  + `var BUNDLED_CRAB_VOICE = ${JSON.stringify(crabVoice, null, 1)};\n`
+  + `var BUNDLED_CRAB_PEOPLE = ${JSON.stringify(crabPeople, null, 1)};\n`
+  + `var BUNDLED_CRAB_ART = ${JSON.stringify(crabArt, null, 1)};\n`;
+const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; }\n`;
 
 writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",
   Object.keys({ pig, gull }).join(","), "; policies: crab ; crab voice:",
-  crabVoice.registers.length, "register(s)");
+  crabVoice.registers.length, "register(s) ; crab people:",
+  crabPeople.crew.length + "+" + crabPeople.walkins.length, "names ; colorways:",
+  crabArt.colorways.length);
