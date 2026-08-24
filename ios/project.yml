@@ -1,0 +1,70 @@
+# XcodeGen spec for the CRAB SHACK 3.5 iOS shell.
+#
+# The .xcodeproj is GENERATED and gitignored - this file is the source of
+# truth, the same way version.js and cultureways.js are generated from their
+# makers. Regenerate with `node tools/mkios.mjs` (which syncs ios/www first,
+# then runs xcodegen), never by editing project.pbxproj.
+#
+# Signing: set CS_TEAM_ID in the environment before generating, e.g.
+#   CS_TEAM_ID=ABCDE12345 node tools/mkios.mjs
+# Left empty, the project generates fine and Xcode asks for a team on first
+# build - but the choice does not survive the next regeneration, so the env
+# var is the durable answer.
+name: CrabShack35
+options:
+  bundleIdPrefix: com.groblegark
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    MARKETING_VERSION: "3.5.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ${CS_TEAM_ID}
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "5.0"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+targets:
+  CrabShack35:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Sources
+      - path: Resources/Assets.xcassets
+      # the generated web payload, copied in whole as a folder reference so a
+      # new game file never needs a project edit (see tools/mkios.mjs)
+      - path: www
+        type: folder
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: CRAB SHACK
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIStatusBarHidden: true
+        UIViewControllerBasedStatusBarAppearance: false
+        UIRequiresFullScreen: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # no encryption beyond what the OS provides: answering this here means
+        # App Store Connect stops asking at every single upload
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.groblegark.crabshack
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
