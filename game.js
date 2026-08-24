@@ -7189,7 +7189,7 @@ function buildTraits(src) {
   for (const id of Object.keys(src)) {
     const r = src[id];
     out[id] = {
-      label: r.label, move: r.move20 / 20, work: r.work20 / 20, tip: r.tip20 / 20,
+      label: r.label, move: r.move20 / 20, work: r.move20 / 20, tip: r.tip20 / 20,
       quips: r.quips,
     };
     if (r.lateMin != null) out[id].lateMin = r.lateMin;
