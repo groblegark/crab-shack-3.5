@@ -2448,7 +2448,16 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // trajectory, not a leak. 4242 crosses NOWHERE in two days and its pin
     // stands untouched - one seed moving and one holding is itself the
     // receipt that the brain only moves what it decides.
-    1337: '{"day":3,"tmin":0,"coins":13717,"rep":53426,"catch":4,"serves":44,"crabServes":5,"rage":5,"till":22627,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22627],["REEF",20920],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[520.3,167.3],[2136,154],[450,155],[2072,154],[318,167]]}',
+    // RE-POINTED for INTERRUPTIBLE COMMITMENT. The drift is the mechanism's
+    // own shape, both directions honest: serves UP (44 -> 47) and rage DOWN
+    // (5 -> 3) because a guest who can change her mind stops paying for her
+    // first draft of the day - and the crabs SPEND (SALTY 4100 -> 100, KELP
+    // 1000 -> 100, DRIFT 100 -> 0) because a walk can now turn toward the
+    // better counter mid-stride. Coins 13717 -> 21875, rep 53426 -> 56393:
+    // day two of a town where fewer plans die in a queue. The catch 4 -> 0
+    // is trajectory, not a leak (fishers rerouted their day; the stream pin
+    // moved with the same holder, 1726 -> 1861 draws on day 1).
+    1337: '{"day":3,"tmin":0,"coins":21875,"rep":56393,"catch":0,"serves":47,"crabServes":2,"rage":3,"till":20054,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",20054],["REEF",28184],["SALTY",100],["DRIFT",0],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,167],[454,163]]}',
     4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
@@ -12588,7 +12597,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1726, 2: 1616 };   // day 2 re-pointed for THE CITIZEN MIND live: DRIFT's held-off drink (think 397, T=7606, day 1) spends no draw of its own - day 1 holds at 1726 - but the trajectory it opens reshapes day 2's custom to 1616. Same shape as every holder before it: the count is THE SPEC, only its holder changed. Previously re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
+  const PIN = { 1: 1861, 2: 1616 };   // RE-POINTED for INTERRUPTIBLE COMMITMENT: re-thinks gather candidates on the slow clock (toBiz, unclaimed line, toErrand), and a gather IS draws - day 1 climbs 1726 -> 1861 (the committed now keep asking), day 2 harvested in the same ceremony's second round. The count is THE SPEC, only its holder changed. Previous holder, THE CITIZEN MIND live: day 2 re-pointed for DRIFT's held-off drink (think 397, T=7606, day 1) spends no draw of its own - day 1 holds at 1726 - but the trajectory it opens reshapes day 2's custom to 1616. Same shape as every holder before it: the count is THE SPEC, only its holder changed. Previously re-pointed for PERSONAL SPACE at the RULED 8px: the mechanism adds NO draw (pure arithmetic; the pier place is a count), but 1337's traced head is now the pier line itself (CLACKERS dealt place 1, T=2278, 14:35) and his changed wait spot re-rolls the back half of day 1 - 1863 -> 1726, then day 2 lands 1737. At the 10px arm day 1 was UNCHANGED at 1863 (that head fired later and softer); the pair of counts is the curve's own receipt. Previously re-pointed for THE CRAB RETRAIN behind the same traced NIPPY head, now UNCROSSING (think 9, T=1358: the v3 brain sends her for her drink, as the script does, and the hotel walk and its knock-ons leave the day) - was 1857/2265 for the v2 brain and 1861/2399 at the 3a re-baseline. Day 2's swing is the stream's own shape, not a leak: on this same seed the script reads 2399, the v2 brain 2265 and the v3 brain 1096, with 20/21/20 arrivals and the town alive in all three. The count is still THE SPEC, only its holder changed
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -13901,20 +13910,20 @@ scenario("rethink: she steps out of the line for a better plan, and no quit is s
   sim.runUntil("tmin > 10 * 60", { maxSteps: 400000 });
   sim.G(`window._k = (() => { const k = newVisitor(false);
     k.state = "waiting"; k.wy = FLOOR_Y; k.idleT = 9e9; k.thinkT = 9e9;
-    k.wallet = 20000; k.hunger = 0; k.thirst = Q20; k.dirt = 0; k.bored = 0; k.tired = 0;
-    k.biz = "shack"; k.need = "food"; k.recipe = bizRecipes("shack")[0];
+    k.wallet = 20000; k.hunger = Q20; k.thirst = 0; k.dirt = 0; k.bored = 0; k.tired = 0;
+    k.biz = "shack"; k.need = "drink"; k.recipe = bizRecipes("shack")[0];
     k.claimed = false; k.served = false;
     k.x = BIZ.shack.queueX; k.patience = 90 * PQ; k.maxPatience = 90 * PQ;
     queueJoin(k); k.qJoin = gnow() - 5;   // five banked minutes in the books
     customers.push(k); return k; })();
     window._qlen = queueLen("shack");`);
-  const cur = sim.G(`visScoreOne(window._k, { biz: "shack", need: "food", recipe: null })`);
-  const nw = sim.G(`visScoreOne(window._k, { biz: "shack", need: "drink", recipe: null })`);
-  if (!(4 * nw > 5 * cur)) return `staging: the drink does not clear the margin (${nw} vs ${cur})`;
+  const cur = sim.G(`visScoreOne(window._k, { biz: "shack", need: "drink", recipe: null })`);
+  const nw = sim.G(`visScoreOne(window._k, { biz: "shack", need: "food", recipe: null })`);
+  if (!(4 * nw > 5 * cur)) return `staging: the meal does not clear the margin (${nw} vs ${cur})`;
   sim.G("window._k.thinkT = 1;");
   sim.runUntil("false", { maxSteps: 4 });
   if (sim.G('window._k.claimed')) return "staging: a server claimed her before the re-think";
-  if (sim.G('window._k.need') !== "drink") return "she never stepped out: need=" + sim.G("window._k.need");
+  if (sim.G('window._k.need') !== "food") return "she never stepped out: need=" + sim.G("window._k.need");
   if (sim.G('window._k.state') !== "toBiz") return "she left the line into the wrong state: " + sim.G("window._k.state");
   if (sim.G('queueLen("shack")') >= sim.G('window._qlen')) return "the line never closed up behind her";
   if (sim.G("stayOf(window._k).quits") !== 0) return "stepping out was stamped as a quit";
