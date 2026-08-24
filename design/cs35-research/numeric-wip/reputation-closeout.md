@@ -81,3 +81,35 @@ never in it). No new draw sites: every charge is deterministic arithmetic
 at an existing event; the one draw-adjacent change is the GATE's threshold
 (own word vs global), which moves WHEN the existing culture roll draws —
 a named fingerprint event, not a new stream.
+
+## THE MATRIX (triple-16, batch instrument, branch dddf63d vs base 071143d)
+
+| block | base escapes | branch escapes | base evict median | branch |
+|---|---|---|---|---|
+| baseline sb0/16/32 | 0 / 0 / 0 | 0 / 0 / 0 | 11 / 13 / 13 | 13 / 12 / 12 |
+| growth sb0/16/32 | 5 / 2 / 6 = **13/48** | 6 / 5 / 6 = **17/48** | 11 / 11 / 12 | 13 / 11 / 12 |
+
+Growth **+4 escapes**, baseline intact at 0/48, medians within a day or two
+either way. NOTHING WAS TUNED toward any number — the shift is the system's
+own: a lower resting rep means smaller boats, which in a fresh growth town
+means fewer guests arriving faster than two crew can serve them, which
+means fewer rage-quits and sand nights in the fragile first week. The
+reputation pass, built to punish neglect, mildly REWARDS the well-run
+early town — reported, not claimed as intent. Deltas are Matt's to rule on.
+
+**The rep distributions, the falsifiable claim** (branch; per-town end rep):
+baseline blocks end at median 45–49 (worst towns 0–31, best 60); growth
+blocks span 0–71 with medians 43–52. NOT ONE TOWN of 96 ends at 100 —
+against the base's banked receipts where 100 was the MODE (63 towns) and a
+block once held all sixteen towns at 89–100 over 102 rough nights. A rep in
+the 90s is now something a player will have to EARN and HOLD.
+
+## THE FIRST CROSSING
+
+State diverges at the FIRST SERVED GUEST of any town: the flat +800 becomes
+idiv(800 × 70,000 / 100,000) = 560 at the starting rep of 30 — day 1, the
+first serve, by construction (the mechanism IS the divergence). The first
+draw-visible crossing is the next ferryBatch whose passenger rounding the
+shifted milli-term tips; by the receipts the eviction-day histograms are
+already reshaped at day 8 (baseline sb0: base has 4 evictions at day 9,
+branch's first at day 8), and every block's histogram differs by day 11.
