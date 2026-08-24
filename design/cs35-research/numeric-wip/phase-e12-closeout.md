@@ -82,18 +82,37 @@ idle quips and the tabled traits are proven equal to the literals they shadow
 — every key, every value, every quip, and the trait key order — on both the
 reference and the wasm kernel.
 
-**Remaining when work resumes** (wind-down called; nothing is mid-flight and
-no armed defect is in the tree — verified by `git status` clean and the
-fixture/`buildTraits` spot-check):
-1. Mutation demo 1 — drift one byte of the fixture's idle table; the idle
-   scenario must go red naming the drifted line; revert.
-2. Mutation demo 2 — `buildTraits` misreads `work20` as `move20`; the traits
-   scenario must go red naming `speedy.work 1.4 vs 1.0`; revert.
-3. Rebase check against cs35repo/cs35 (manner-machinery may land above this
-   branch; expect suite/schema/mcp union conflicts, mind the brace trap).
-4. Full battery on the rebased tree: `experiments/suite-318.json` (both
-   backends) + `experiments/phased-gates.json` (MCP), then this section gets
-   its final verdicts.
+**The remaining ceremony, DONE** (2026-08-24, all four items, on the cluster):
+
+1. **Mutation demo 1 — BIT.** One byte off the fixture's idle table
+   (`TOO HIGH!` loses its bang). Both engines red, naming the drifted line
+   exactly: `ball[3]: TOO HIGH vs TOO HIGH!`. Receipts
+   `kube-runs/cs-e12-focus-0839d65-kuxv`. Reverted; bundle back to 98170 bytes.
+2. **Mutation demo 2 — BIT.** `buildTraits` misreads `work20` as `move20`.
+   Both engines red, naming the predicted field to the digit:
+   `speedy.work: 1.4 vs 1`. Receipts `kube-runs/cs-e12-focus-aea3e58-ei6t`.
+   Reverted.
+
+   **The cross-check that matters**: demo 1 left *traits* green and demo 2 left
+   *idle* green. Each scenario bites its own surface and neither is shadowing
+   the other — a single mutation reddening both would have meant one assertion
+   was doing all the work.
+3. **Rebase onto `cs35` (096f418) — clean.** One conflict, and it was this
+   branch's own `88ece78` cherry-pick of the `maxFailedIndexes` clamp, which
+   mainline now carries; the commit dropped out as redundant (`--skip`). The
+   feared suite/schema/mcp union conflicts did not materialise: manner-machinery
+   has not landed above this branch. Bundle regenerates BYTE-EXACT on the
+   rebased tree (98170 bytes).
+4. **Full battery on the rebased tree — GREEN.**
+   * `suite-318`: **666/666 across 20 arms**, both backends, zero red.
+     Receipts `kube-runs/cs-suite-318-2372f21-qi7j`. (Four scenarios more than
+     mainline's 662: E1's and E2's, on each engine.)
+   * `phased-gates`: **MCP 50/50**. Receipts
+     `kube-runs/cs-phased-gates-2372f21-5wwb`.
+
+The chart note below is discharged: this run rendered the clamped chart on a
+4-arm manifest and it installed, so the clamp's own render is now revalidated
+by receipt and not by argument.
 
 **Chart note carried in this branch**: 88ece78 cherry-picks mainline's
 `maxFailedIndexes` clamp (k8s refuses `maxFailedIndexes > completions`, which
