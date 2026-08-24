@@ -1,0 +1,47 @@
+{
+  "name": "e3-focus",
+  "note": "The E3 scenarios alone (the transcription sweep, the hostile depart battery, real-traffic + paid debts) plus the phase C voice instruments they extend - the mutation-demo instrument: against a deliberately broken tree these go RED for the right named reason; against the fixed tree, green. Full-suite verdicts still come from the tip's suite manifest.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "arms": [
+    {
+      "id": "js-e3",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "depart programs: the transcription and the lambdas agree on every staged stay",
+        "depart programs: a hostile table is refused by name",
+        "depart programs: real traffic tells the same story, and the debts are paid",
+        "crab voice: every tabled line is the literal, byte for byte",
+        "crab voice: two whole days with the table off are the same town",
+        "depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one"
+      ],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "wasm-e3",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "depart programs: the transcription and the lambdas agree on every staged stay",
+        "depart programs: a hostile table is refused by name",
+        "depart programs: real traffic tells the same story, and the debts are paid",
+        "crab voice: every tabled line is the literal, byte for byte",
+        "crab voice: two whole days with the table off are the same town",
+        "depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one"
+      ],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}
