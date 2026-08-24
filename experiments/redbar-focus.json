@@ -1,0 +1,12 @@
+{
+  "name": "redbar-focus",
+  "note": "The red-bar/hall/rota batch: the canonical sweep (now rect-aware and hall-staged) plus the rota-window scenario, by name filter. Mutation demos run these two arms; the full suite still gates the landing.",
+  "resources": {
+    "requests": { "cpu": "1", "memory": "3Gi" },
+    "limits": { "cpu": "1", "memory": "4Gi" }
+  },
+  "arms": [
+    { "id": "sweep", "entry": "tools/suite.mjs", "args": ["no surface prints off the canvas"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "rota",  "entry": "tools/suite.mjs", "args": ["rota pages at seven"], "env": { "SIMLIB_REALM": "main" } }
+  ]
+}
