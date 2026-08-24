@@ -13113,6 +13113,16 @@ function visStep(k, tx, ty, dt) {
 // whatever state they are in, so a visitor stood in a queue still gets hungry
 let _ktMist = 0, _ktDrain = 0;   // vis_tick's per-frame args, set by updateCustomers when armed
 function visTick(k, dt) {
+  // INTERRUPTIBLE COMMITMENT, the line's half: an UNCLAIMED tourist in line
+  // reconsiders on the slow clock. It lives HERE - not in the queue shuffle -
+  // because visTick is the one per-visitor call BOTH backends make every
+  // frame; under the kernel the queue states belong to cust_step, and a
+  // JS-only exit forks the stream (measured before this moved: day 1 drew
+  // 3063 under wasm against 1861 in the reference).
+  if (k.visitor && k.stC === VS.waiting && !k.claimed && !k.gone) {
+    k.thinkT -= dtT;
+    if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; visRethink(k); }
+  }
   if (KERN) {   // the compiled body; the JS below stays the reference
     const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain, bodyOf(k).ROW);
     // the object side drains IN PLACE, exactly where the reference did it:
@@ -13540,16 +13550,6 @@ function updateCustomers(dt) {
           popText((k.isCrab ? k.crab.p.name : k.name.split(" ")[0]) + ": " + ITEM_NAMES[k.recipe.icon] + "?", k.x - 26, FLOOR_Y - 42, [255, 255, 255]);
         }
       } else {
-        // INTERRUPTIBLE COMMITMENT: an UNCLAIMED tourist in line reconsiders
-        // on the slow clock (a claimed order is being made; a local will wait
-        // - the citizen proxy's mid-line exit is a named seam, not this
-        // slice). A switch steps her out of line: membership is state, the
-        // shuffle re-slots the survivors next frame, her wait is banked
-        // without a quit.
-        if (k.visitor && !k.claimed) {
-          k.thinkT -= dtT;
-          if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; if (visRethink(k)) continue; }
-        }
         k.patience -= idiv(dtT * (bizStaffed(k.biz) ? 1 : 6) * serverFilthQ12(k) + 10, 20);   // nobody home? give up quick. ROUND-half-up at the drain boundary: floor ran every drain slow, same direction (slice 3's accrual lesson - the seated form was 0.95% slow)
         if (k.patience <= 0) {
           k.stC = VS.leaving; k.happy = false; k.claimed = false;
