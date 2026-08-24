@@ -68,13 +68,26 @@ const SKY_H = 58, SHORE_Y = 86, FLOOR_Y = 166, PANEL_Y = 176;
 // Portrait phones get a taller canvas (index.html sets SCREEN_H before ppu.js
 // derives H). The world always keeps rows 0..PANEL_Y - every extra row goes to
 // the panel below, so tabs and crew cards get real tap targets on a phone.
-const TALL = H > 240;                                       // portrait-phone panel
-const TAB_Y = PANEL_Y + 11, TAB_H = TALL ? 16 : 10;         // crew/shop/new/bill row
+// The panel is handed a CONTINUOUS number of rows now, not one of two sizes.
+// PT walks 0 -> 1 across the two layouts this game already shipped - a 64-row
+// panel at H=240 and a 112-row one at H=288 - and keeps walking for the taller
+// canvases a phone offers, which is where the bigger tap targets come from.
+//
+// CLAMPED AT 1.5 on purpose, and index.html's PANEL_CAP is the same number seen
+// from the other end: the crew card is sized to the 2x portrait and art2 is the
+// only scaler in the game, so past a 136-row panel a bigger card is bigger
+// PADDING. A cap that admits what the art can do beats a layout that stretches
+// until it looks broken.
+const PANEL_H = H - PANEL_Y;
+const PT = Math.max(0, Math.min(1.5, (PANEL_H - 64) / 48));
+const pstep = (lo, hi) => Math.round(lo + (hi - lo) * PT);
+const TALL = PANEL_H > 64;                                  // the 2x-portrait threshold
+const TAB_Y = PANEL_Y + 11, TAB_H = pstep(10, 16);          // crew/shop/new/bill row
 const ROW_Y = TAB_Y + TAB_H + 2;                            // panel content top
 const TAB_TX = TAB_Y + ((TAB_H - 5) >> 1);                  // small-text baseline in that row
-const CARD = TALL ? 34 : 24, CARD_STEP = TALL ? 37 : 27;    // crew card size + pitch
-const BTN_H = TALL ? 26 : 18, BTN_STEP = TALL ? 30 : 20;    // shop button size + pitch
-const MROW = TALL ? 8 : 6;                                  // menu-tab line pitch
+const CARD = pstep(24, 34), CARD_STEP = pstep(27, 37);      // crew card size + pitch
+const BTN_H = pstep(18, 26), BTN_STEP = pstep(20, 30);      // shop button size + pitch
+const MROW = pstep(6, 8);                                   // menu-tab line pitch
 const ROAD_Y0 = 90, ROAD_Y1 = 112, LOT_BOTTOM = 152;
 const HOUSE_XS = [30, 100, 170, 240, 310, 380, 512, 2064, 2128];   // promenade row, one by the shelter, two beach cottages past the pier
 const BUS_STOPS = [163, 660, 1180];
@@ -17116,8 +17129,8 @@ function drawPanel() {
       rect(ctx, b.x + 1, b.y + 1, b.w - 2, b.h - 2, afford ? [190, 140, 80] : [96, 78, 68]);
       const nameCol = afford ? [40, 24, 16] : [160, 145, 135];
       const lvl = key === "chef" ? String(u.lvl) : (u.lvl > 0 ? String(u.lvl) : "");
-      smallText(ctx, u.name + (lvl ? " " + lvl : ""), b.x + 3, b.y + (TALL ? 5 : 2), nameCol);
-      text(ctx, maxed ? "MAX" : "$" + fmt(cost), b.x + 3, b.y + (TALL ? 14 : 10), maxed ? [160, 145, 135] : afford ? [80, 45, 20] : [140, 125, 115], 5);
+      smallText(ctx, u.name + (lvl ? " " + lvl : ""), b.x + 3, b.y + pstep(2, 5), nameCol);
+      text(ctx, maxed ? "MAX" : "$" + fmt(cost), b.x + 3, b.y + pstep(10, 14), maxed ? [160, 145, 135] : afford ? [80, 45, 20] : [140, 125, 115], 5);
     }
   } else {
     const G = crewStripGeom();
@@ -17129,7 +17142,7 @@ function drawPanel() {
       smallText(ctx, t1, r.x + ((r.w - smallTextWidth(t1)) >> 1), ROW_Y + 5, [255, 216, 96]);
       const t2 = (G.page + 1) + "/" + G.pages;
       smallText(ctx, t2, r.x + ((r.w - smallTextWidth(t2)) >> 1), ROW_Y + 13, [220, 210, 190]);
-      smallText(ctx, "[ ]", r.x + ((r.w - smallTextWidth("[ ]")) >> 1), ROW_Y + (TALL ? 25 : 20), [150, 140, 160]);
+      smallText(ctx, "[ ]", r.x + ((r.w - smallTextWidth("[ ]")) >> 1), ROW_Y + pstep(20, 25), [150, 140, 160]);
     }
     for (const t of G.tiles) {
       const c = crabs[t.i], bx = t.x;
@@ -17149,7 +17162,7 @@ function drawPanel() {
         }
       }
       rect(ctx, bx + CARD - 6, ROW_Y + 2, 4, 4, c.p.sick ? [130, 220, 110] : c.duty ? [96, 232, 120] : [150, 140, 140]);
-      smallText(ctx, c.p.name.slice(0, TALL ? 8 : 5), bx + 1, ROW_Y + CARD + 1, [220, 210, 190]);
+      smallText(ctx, c.p.name.slice(0, pstep(5, 8)), bx + 1, ROW_Y + CARD + 1, [220, 210, 190]);
     }
     if (!crabs.length) text(ctx, "NO CREW YET", 8, ROW_Y + 7, [190, 170, 150]);
   }
@@ -18521,9 +18534,9 @@ function drawHall(R, chip) {
 // every offset derives from H via TALL.
 function saveRects() {
   const w2 = 240, x = 8, y = 4;
-  const h2 = Math.min(H - 8, TALL ? 272 : 232);
-  const rowH = TALL ? 18 : 14, rowY = y + 17;
-  const bh = TALL ? 16 : 14, bw = 55, bx = x + 4;
+  const h2 = Math.min(H - 8, pstep(232, 272));
+  const rowH = pstep(14, 18), rowY = y + 17;
+  const bh = pstep(14, 16), bw = 55, bx = x + 4;
   const b1 = y + h2 - (bh * 2 + 8), b2 = y + h2 - (bh + 4);
   const rows = [];
   for (let i = 0; i < SLOTS; i++) rows.push({ x: x + 4, y: rowY + i * rowH, w: w2 - 8, h: rowH - 1 });

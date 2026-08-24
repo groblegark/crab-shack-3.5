@@ -57,14 +57,31 @@
     // on beforeunload (and every 5s), so nothing is lost.
     (function () {
       const cv = document.getElementById("screen");
-      const modeH = () => (innerHeight > innerWidth ? 288 : 240);
+      // THE TOWN IS ALREADY AS BIG AS IT CAN GET on a portrait phone, and it is
+      // worth writing down why, because the screen looks half empty and the
+      // obvious fix does not work. The world band is a FIXED 256x176 (game.js:
+      // PANEL_Y) and the canvas already sits at ~96% of the viewport width, so
+      // the scale is width-limited. A taller canvas therefore cannot enlarge
+      // the town by one pixel - every row it adds goes to the UI panel below.
+      //
+      // So take rows only as far as the panel can spend them. PANEL_CAP is that
+      // point: the crew card is sized to the 2x portrait (art2 is the only
+      // scaler there is), so past a 136-row panel the card grows padding and
+      // nothing else. What is left over belongs to the page background.
+      const PANEL_CAP = 312;                       // 176 world + 136 panel
+      const pad = () => (Math.min(innerWidth, innerHeight) < 620 ? 14 : 60);
+      const wScale = () => (innerWidth - pad()) / 256;
+      function modeH() {
+        if (innerHeight <= innerWidth) return 240;             // landscape/desktop: unchanged
+        const rows = Math.floor((innerHeight - pad()) / Math.min(wScale(), 4));
+        // quantised to 8 rows: a URL bar sliding in must not read as a rotate
+        return Math.max(288, Math.min(PANEL_CAP, rows - (rows % 8)));
+      }
       const H = modeH();
       cv.height = H;
       window.SCREEN_H = H;                         // ppu.js picks this up
       function fit() {
-        const small = Math.min(innerWidth, innerHeight) < 620;
-        const pad = small ? 14 : 60;               // bezel padding + breathing room
-        let s = Math.min((innerWidth - pad) / 256, (innerHeight - pad) / H);
+        let s = Math.min(wScale(), (innerHeight - pad()) / H);
         if (s >= 2) s = Math.floor(s * 2) / 2;     // crisp steps once there's room
         s = Math.max(s, 0.5);
         cv.style.width = Math.round(256 * s) + "px";
