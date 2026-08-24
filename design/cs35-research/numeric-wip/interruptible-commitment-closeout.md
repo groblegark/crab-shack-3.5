@@ -169,7 +169,13 @@ isolates the mechanism exactly.
   was due), and the four reds' "green JS twins" had in fact never run.
   Count the receipts against the manifest before believing a merged
   verdict; experiments/suite-330.json is the 12-way answer.
-- Full suite (12-way, suite-330) + MCP battery at the final SHA: see the
-  report. MCP's verdict transfers from cs-phased-gates-4fda8ae (game.js and
-  mcp/ byte-identical through the final SHA); matrix and crossing receipts
-  transfer from c943b52 the same way.
+- **Full suite at the final SHA: 664/664, all 24 arms banked** (12-way
+  slices, both backends) and the **MCP battery green** (run fresh at the
+  final SHA, exit 0, zero failures). Matrix and crossing receipts transfer
+  from c943b52 (game.js byte-identical through the final SHA).
+- The days-off scenario's last red was the BRASS case wearing a new hat:
+  REEF's rota day MOVED mid-week (rosterGen re-derivation under rethink
+  trajectories) and never came round. The exemption now covers a mid-week
+  rota move explicitly, the failure message carries the idx history, and
+  the clockIns assertion (nobody works the day the rota says is theirs)
+  stays strict. Scale-down verified to zero nodes after the final clean.
