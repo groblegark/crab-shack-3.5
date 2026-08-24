@@ -12956,22 +12956,145 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   // Gulls ashore, both brains live, and the save must still be a complete
   // description of the town - the stream-cursor guarantee holding with
   // neural deciders in the loop. One save, loaded twice, identical futures.
-  const sim = createSim({ seed: 909 });
+  // E0a: this scenario read the legacy SAVE_KEY, which save() stopped
+  // writing in the slots era (writeSlotEnv -> slotKey), so it compared two
+  // FRESH towns and passed emptily. It now reads the active slot, refuses a
+  // null envelope, refuses a load that did not take, and carries its own
+  // bite: a corrupted temperament (dm) on the reloaded copy must change the
+  // future, or the delta never reached the brain and the save is not the
+  // complete description it claims to be.
+  // fresh: false everywhere here - the harness's default ?fresh boot makes
+  // save() a deliberate no-op (and load() refuse), which is HOW the old
+  // version could read null and never notice: FRESH hid the write, the
+  // legacy key hid the read. A first-run boot on empty storage owns slot 1.
+  const sim = createSim({ seed: 909, fresh: false });
   sim.G("rep = 75000");   // past both gates: gulls and pigs may sail
   sim.runDays(6);
   if (!sim.G(`customers.some(k => k.visitor && k.culture && k.culture !== "crab")`))
     return "no cultured guest was even ashore - the staging says nothing";
   sim.G("save()");
-  const env = sim.G("localStorage.getItem(SAVE_KEY)");
-  const future = () => {
-    const s2 = createSim({ seed: 31 });
-    s2.G(`localStorage.setItem(SAVE_KEY, ${JSON.stringify(env)}); load();`);
+  const env = sim.G("localStorage.getItem(slotKey(activeSlot))");
+  if (!env) return "save() left the active slot empty - the envelope is null";
+  const arch = JSON.parse(sim.G(`(() => { const c = allCrabs()[0]; const bp = citBrainOf(c);
+    return JSON.stringify(bp ? { out: bp.arch.out, hidden: bp.arch.hidden } : null); })()`));
+  if (!arch) return "the first crab has no citizen brain - the temperament bite cannot be staged";
+  const future = (envStr, wantDm) => {
+    const s2 = createSim({ seed: 31, fresh: false });
+    s2.G(`localStorage.setItem(slotKey(1), ${JSON.stringify(envStr)}); load();`);
+    if (s2.G("day") < 6) return null;   // the vacuous trap: a load that didn't take is a fresh town
+    if (wantDm && !s2.G("allCrabs().some(c => c.p && c.p.dm)"))
+      return "STRIPPED";                // the temperament door refused the shape - name it, don't shrug
     s2.runDays(8);
     return s2.G(`JSON.stringify({ coins, rep, pos: allCrabs().map(c => [c.x | 0, c.wy | 0]),
       vis: customers.filter(k => k.visitor).map(k => [k.name, k.culture || "crab", k.wallet]) })`);
   };
-  const a = future(), b = future();
+  const a = future(env), b = future(env);
+  if (a === null || b === null) return "the load did not take - day never reached the saved town's";
   if (a !== b) return "two loads of one save diverged: " + a.slice(0, 100) + " vs " + b.slice(0, 100);
+  // The bite: EVERY crew temperament, maximally biased toward EVERY acting
+  // class at once (class 0 - "none", the ~94%-prior sitting champion - alone
+  // unboosted). Two earlier drafts of this check were whispers: a bias
+  // toward none barely moves a none-heavy prior, and a bias toward one
+  // blind-picked class is a bias toward none whenever the day doesn't offer
+  // it (brainCitPick falls through on a class with no candidate). Boosting
+  // every acting class means ANY offerable candidate at any brain-ruled
+  // think now beats none - the corrupted crew act compulsively, and the
+  // reloaded town must live a visibly different life, or dm is dead freight.
+  const evil = JSON.parse(env);
+  if (!Array.isArray(evil.personas) || !evil.personas.length) return "the envelope has no crew to corrupt";
+  for (const p of evil.personas) {
+    p.dm = { w: new Array(arch.out * arch.hidden).fill(0),
+      b: [0].concat(new Array(arch.out - 1).fill(2000000000)) };
+    p.dr = 1;
+  }
+  const c = future(JSON.stringify(evil), true);
+  if (c === null) return "the corrupted load did not take";
+  if (c === "STRIPPED") return "the temperament door stripped the corrupted delta - the bite's shape is wrong, not the save";
+  if (c === a) return "a corrupted temperament left the future untouched - the delta never reached the brain";
+  return true;
+});
+
+scenario("layer 1: the golden programs answer to the pin, and the pin is the law", () => {
+  // E0b. The expression machine's whole contract in one table: every op
+  // exercised, outputs pinned by hand, run IN-SIM so both backends (and any
+  // future engine) must reproduce them bit-for-bit. Two pins are the point:
+  // DIVI(-7, 4) = -1 and MULDIV(-3, 5, 4) = -3 - the grid idiom truncates
+  // toward zero on a negative numerator, exactly like every signed component
+  // in game.js. A helpful soul who "fixes" it to floor turns both red.
+  const sim = createSim({ seed: 1337 });
+  const table = [
+    { p: [["PUSHI", 5]], want: 5 },
+    { p: [["LD", 1]], want: 42 },
+    { p: [["LD", 0], ["LD", 1], ["ADD"]], want: 49 },
+    { p: [["LD", 0], ["LD", 1], ["SUB"]], want: -35 },
+    { p: [["LD", 0], ["LD", 2], ["MUL"]], want: -49 },
+    { p: [["LD", 2], ["DIVI", 4]], want: -1 },              // trunc, not floor
+    { p: [["PUSHI", -3], ["PUSHI", 5], ["MULDIV", 4]], want: -3 },   // trunc, not floor
+    { p: [["LD", 0], ["LD", 1], ["MIN"]], want: 7 },
+    { p: [["LD", 0], ["LD", 1], ["MAX"]], want: 42 },
+    { p: [["LD", 1], ["PUSHI", 0], ["PUSHI", 10], ["CLAMP"]], want: 10 },
+    { p: [["LD", 2], ["ABS"]], want: 7 },
+    { p: [["LD", 0], ["NEG"]], want: -7 },
+    { p: [["LD", 0], ["LD", 1], ["LT"]], want: 1 },
+    { p: [["PUSHI", 5], ["PUSHI", 5], ["LE"]], want: 1 },
+    { p: [["LD", 0], ["PUSHI", 8], ["EQ"]], want: 0 },
+    { p: [["PUSHI", 3], ["PUSHI", 0], ["AND"]], want: 0 },
+    { p: [["PUSHI", 0], ["PUSHI", -2], ["OR"]], want: 1 },
+    { p: [["PUSHI", 0], ["NOT"]], want: 1 },
+    { p: [["LD", 0], ["PUSHI", 100], ["PUSHI", 200], ["SEL"]], want: 100 },
+    { p: [["PUSHI", 0], ["PUSHI", 100], ["PUSHI", 200], ["SEL"]], want: 200 },
+    { p: [["LD", 1], ["TERM"]], want: 42 },
+    // a plausible family-3 shape: (y - 20) clamped to [0,30], scaled 345
+    { p: [["LD", 1], ["PUSHI", 20], ["SUB"], ["PUSHI", 0], ["PUSHI", 30], ["CLAMP"], ["PUSHI", 345], ["MUL"]], want: 7590 },
+  ];
+  const got = JSON.parse(sim.G(`(() => {
+    const bundle = [{ name: "x", min: -1000, max: 1000 }, { name: "y", min: 0, max: 100 }, { name: "z", min: -50, max: 50 }];
+    const read = [7, 42, -7];
+    return JSON.stringify(${JSON.stringify(table.map(t => t.p))}.map(p => {
+      const asm = l1Assemble(p, bundle);
+      return asm.why ? "REFUSED: " + asm.why : l1Run(asm.code, read);
+    }));
+  })()`));
+  for (let i = 0; i < table.length; i++)
+    if (got[i] !== table[i].want) return "golden " + i + " (" + JSON.stringify(table[i].p) + ") reads " + got[i] + ", the pin says " + table[i].want;
+  return true;
+});
+
+scenario("layer 1: hostile programs are refused by name, before anything runs", () => {
+  // E0b's other half: the static validator IS the determinism story, so
+  // every refusal path gets a program that trips it and a message match.
+  // Each case names its crime - a validator that starts refusing for the
+  // WRONG reason is as red as one that stops refusing.
+  const sim = createSim({ seed: 1337 });
+  const longProg = new Array(257).fill(["PUSHI", 1]);
+  const deepProg = new Array(17).fill(["PUSHI", 1]);
+  const magProg = [["LD", 0], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"]];
+  const cases = [
+    { p: [["FOO"]], re: /NOT AN L1 OP/ },
+    { p: longProg, re: /257 OPS, MAX 256/ },
+    { p: [["ADD"]], re: /POPS 2 WITH 0 ON THE STACK/ },
+    { p: deepProg, re: /REACHES DEPTH 17, MAX 16/ },
+    { p: [["LD", 9]], re: /READS SLOT 9 - THE BUNDLE HAS 3/ },
+    { p: [["PUSHI", 4], ["DIVI", 0]], re: /DIVIDES BY 0 - POSITIVE CONSTANTS ONLY/ },
+    { p: [["PUSHI", 4], ["DIVI", -2]], re: /DIVIDES BY -2 - POSITIVE CONSTANTS ONLY/ },
+    { p: [["PUSHI", 1], ["PUSHI", 4], ["MULDIV", 0]], re: /MULDIV AT OP 2 DIVIDES BY 0/ },
+    { p: [["PUSHI", 1.5]], re: /READS 1\.5 - int32 ONLY/ },
+    { p: magProg, re: /PAST 2\^52/ },
+    { p: [["PUSHI", 1], ["PUSHI", 2]], re: /MUST END WITH ONE VALUE, ENDS WITH 2/ },
+    { p: [["PUSHI", 1], ["TERM"], ["PUSHI", 2], ["ADD"]], re: /TERM AT OP 1 - TERM CLOSES A PROGRAM/ },
+    { p: [], re: /A PROGRAM WITH NO OPS/ },
+    { p: [["ADD", 3]], re: /TAKES 0 IMMEDIATES, GOT 1/ },
+    { p: [["PUSHI"]], re: /TAKES 1 IMMEDIATE, GOT 0/ },
+  ];
+  const whys = JSON.parse(sim.G(`(() => {
+    const bundle = [{ name: "x", min: -1000, max: 1000 }, { name: "y", min: 0, max: 100 }, { name: "z", min: -50, max: 50 }];
+    return JSON.stringify(${JSON.stringify(cases.map(c => c.p))}.map(p => l1Assemble(p, bundle).why || "ACCEPTED"));
+  })()`));
+  for (let i = 0; i < cases.length; i++)
+    if (!cases[i].re.test(whys[i])) return "hostile case " + i + " got: " + whys[i];
+  // and the ranged-bundle refusal, which needs its own bundle
+  const badRange = sim.G(`l1Assemble([["LD", 0]], [{ name: "w" }]).why`);
+  if (!/BUNDLE SLOT 0 HAS NO SANE RANGE/.test(badRange)) return "a rangeless bundle slot got: " + badRange;
   return true;
 });
 

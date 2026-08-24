@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-both-ac10e2c-uo5q",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "ac10e2cce0f69d9e887ac4e42f0358fcf612fac9",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/8"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 243750,
+  "verdict": "39/39 passed in slice 6/8 (243.7s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3521ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2208ms)\n  PASS  housing: npcs sleep at the shelter, then move up (749ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1173ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1166ms)\n  PASS  credit: the town is warned before it goes under (41102ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (136ms)\n  PASS  tired: the morning and evening shifts end the week level (28375ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (2600ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (156ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (14904ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (16ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (27628ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (2324ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (976ms)\n  PASS  ferry: the arming tap times out, and an old save never won (18ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (936ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (13584ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1093ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2045ms)\n  PASS  the fund is struck to the bill and does not hoard (1011ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1895ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (8ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1415ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (3881ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1597ms)\n  PASS  the HALL tab's text is measured, in every state it has (4685ms)\n  PASS  a hire is something you can see happen (360ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (59879ms)\n  PASS  the cabana row leaves both travel lanes a real margin (10ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (8933ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (512ms)\n  PASS  pigs: they actually get off the boat in a town nobody staged (5026ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (696ms)\n  PASS  seam: the view is a reader - two renders move nothing (84ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (968ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1501ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1455ms)\n  PASS  science: a scrub lands on the day the run recorded (5044ms)\n39/39 passed in slice 6/8 (243.7s)\n"
+}
