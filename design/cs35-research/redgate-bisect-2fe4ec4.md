@@ -83,14 +83,98 @@ is monotone; noise is not. The likely reading is that this is a
 strict-equality invariant that is fragile to *any* trajectory perturbation,
 in which case the **test** is what needs re-authoring, not the game.
 
-Deciding which at 23:50 is how a wrong pin gets frozen into the record, so
-it is not decided here.
+**Correction, recorded because the first reading was wrong.** I initially
+called this a strict-equality invariant and cited the *shares*
+(0.3809/0.3909/0.3872) as evidence of noise. Both wrong. The assertion is
 
-## Open question for the fix's return
+```js
+const K = 30;
+cheap.bar > mid.bar + K && cheap.bar > dear.bar + K
+```
 
-The fix needs to land eventually. When it does it needs, in this order:
+and the scenario's own note says the share metric "is gone". At
+dear 454 / mid 498 / cheap 508 the arm fails because cheap clears dear by 54
+but clears **mid by only 10** against K=30. The symptom is the *cheap end
+thinning*, not a spurious price lever - a stronger candidate for a real
+defect than the first reading suggested.
 
-- its own gate, on its own tree, read from its own receipt;
-- a ruling on failure 3 — invariant or fragile test;
-- the two frozen pins re-authored *after* that ruling, not before, since
-  the ruling may change what the right numbers are.
+### The twelve-town pool, and its control
+
+`tools/rivalpool.mjs` - the scenario's fixture verbatim in shape, twelve
+towns, three prices, each with and without `window._novsep`.
+
+| tree | dear | mid | cheap | cheap-mid | cheap-dear |
+| --- | --- | --- | --- | --- | --- |
+| green `6832160` | 685 | 727 | 781 | **+54** (pass) | +96 |
+| fix `ebd4f0d` | 689 | 730 | 759 | **+29** (fail by 1) | +70 |
+| green `_novsep` | 647 | 661 | 767 | +106 | +120 |
+| fix `_novsep` | 647 | 661 | 767 | +106 | +120 |
+
+**The control validates the instrument**: both trees return byte-identical
+`_novsep` columns, because with the parting off the changed line never
+executes. So the fix reaches this arm through the parting and nowhere else -
+exactly the re-roll channel the personal-space episode documented.
+
+Two further facts the totals hide:
+
+- The parting itself *eats* the cheap end. Without it the margin is 106;
+  with it, 54 on green. This arm's headroom against K=30 is thin by
+  construction, and the parting is what thins it.
+- The paired per-town difference between trees is **-2.1 drinks, sd 5.1,
+  SE 1.5, t ~ -1.4** - not significant. Ten of twelve towns still favour
+  cheap on the fix tree, and the largest single mover (seed 66, +10 -> +18)
+  moves the *other* way.
+
+So twelve towns cannot resolve K=30 either way: a ~2-4 drink-per-town step
+under ~5 drinks of per-town noise. This is the same failure mode the note
+already recorded when it demoted the dear end - "a pin on a ~1-drink-per-town
+step under ~7-drinks-per-town re-roll noise pins the noise."
+
+Rather than rule on a coin, the pool was widened to **forty-eight towns**
+(`experiments/rivalpool48.json`), which puts SE under 0.75. Verdict below.
+
+### The forty-eight-town verdict
+
+| 48 towns | dear | mid | cheap | cheap-mid |
+| --- | --- | --- | --- | --- |
+| green `adf7216` | 2747 | 2841 | 3066 | **+225** (4.69/town) |
+| fix `8d432f7` | 2760 | 2813 | 3032 | **+219** (4.56/town) |
+
+Paired per-town change in (cheap-mid), fix minus green, n=48:
+
+```
+mean = -0.125   sd = 6.61   SE = 0.954   t = -0.13
+```
+
+**The fix does not thin the cheap end.** That is as close to exactly zero as
+this instrument measures. The eight-town arm failed on a re-roll, and the
+twelve-town read that looked like "one drink short" was noise measured
+precisely.
+
+## What landed
+
+1. `2fe4ec4` **restored** - the fix was right, and is now measured to be
+   harmless to the price lever.
+2. Both frozen pins **re-authored** to the new trajectory, per Matt's ruling,
+   each carrying the traced crossing (MISTY's first parting, day 1 T=2141,
+   push -307 Q8 - the very push whose float residue the fix removed).
+3. The rivalry arm's **cheap->mid comparison demoted to a WATCH**, keeping
+   `cheap > dear + K` as the pin. This follows the precedent the arm's own
+   note set for the dear end, and obeys its instruction not to widen K. The
+   honest mutation (an inert player board, flat ~199/199/199) still fails the
+   surviving pin, so the arm keeps its teeth.
+4. `tools/rivalpool.mjs` + `experiments/rivalpool{,48}.json` kept as the
+   standing adjudicator for the next time the parting moves. It will move
+   again.
+
+## The lesson worth keeping
+
+Not "run the gate" - the gate ran three times and was red three times. The
+failure was reading a `648/648` verdict from tree A and believing it about
+trees B, C and D. **A verdict belongs to one SHA. Read the receipt for the
+tree in hand, every time.**
+
+Second: "positions are byte-identical, so it is not the parting" is not an
+argument. Identical *sampled* positions do not mean identical trajectories.
+That inference cost this investigation its first hour and sent it looking at
+slop and E0, which were innocent.

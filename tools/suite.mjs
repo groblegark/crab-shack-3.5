@@ -2449,7 +2449,18 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // stands untouched - one seed moving and one holding is itself the
     // receipt that the brain only moves what it decides.
     1337: '{"day":3,"tmin":0,"coins":13717,"rep":53426,"catch":4,"serves":44,"crabServes":5,"rage":5,"till":22627,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22627],["REEF",20920],["SALTY",4100],["DRIFT",100],["KELP",1000]],"pos":[[520,154],[108,154],[520.3,167.3],[2136,154],[450,155],[2072,154],[318,167]]}',
-    4242: '{"day":3,"tmin":0,"coins":17546,"rep":50824,"catch":3,"serves":44,"crabServes":4,"rage":4,"till":22428,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22428],["REEF",20921],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
+    // RE-AUTHORED for THE FLOAT-AIM FIX (Matt: "we'll re author the frozen
+    // pins", 2026-08-23). vsepPush stopped writing a float into k.target, so
+    // the parting's aim lands on whole pixels and 4242's trajectory moves.
+    // The traced crossing is the one this pin's sibling already names -
+    // MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8: the very
+    // push whose old form wrote target=...09765625. Same event, third
+    // appearance in this file, now integer.
+    // The drift: coins 17546 -> 17628, serves 44 -> 43, till 22428 -> 21443,
+    // REEF +2. CRAB POSITIONS ARE BYTE-IDENTICAL either side, which is the
+    // trap - it is what made the first diagnosis rule vsepPush out. Identical
+    // sampled positions do not mean identical trajectories; do not repeat it.
+    4242: '{"day":3,"tmin":0,"coins":17628,"rep":50918,"catch":3,"serves":43,"crabServes":4,"rage":4,"till":21443,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",21443],["REEF",20923],["SALTY",0],["DRIFT",0],["KELP",2800]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -6440,11 +6451,48 @@ scenario("rivalry: after a refusal she competes with the PLAYER'S OWN levers, an
   // inert while the rival's still moves, so every earlier assertion here still
   // holds and only the counter-lever is dead. That reads dear 199, level 199,
   // cut 199 - flat, and caught.
+  // ...AND NOW THE CHEAP->MID END IS DEMOTED TOO, for exactly the reason the
+  // dear end was, measured the same way (THE FLOAT-AIM FIX, 2026-08-24 - see
+  // design/cs35-research/redgate-bisect-2fe4ec4.md for the full receipt).
+  //
+  // vsepPush is THE PARTING, so rounding its aim re-rolls this arm - and the
+  // eight-town pool read cheap-mid at 10 drinks against K=30 and went red. It
+  // was noise, and the pool says so at a strength eight towns cannot reach:
+  //
+  //   TWELVE towns   green +54   fix +29    paired -2.1 +/- 1.5   t = -1.4
+  //   FORTY-EIGHT    green +225  fix +219   paired -0.125 +/- 0.954  t = -0.13
+  //
+  // At forty-eight towns the per-town step is 4.69 (green) against 4.56 (fix)
+  // - the same lever, unmoved. The `_novsep` control returned BYTE-IDENTICAL
+  // columns on both trees (767/647/661), proving the fix touches this arm
+  // through the parting and nowhere else.
+  //
+  // So why eight towns cannot hold this comparison: a 4.6-drink-per-town step
+  // is ~37 drinks over eight towns against a K of 30 - a seven-drink cushion
+  // under a per-town noise of sd ~6.6. That is less than ONE town's worth of
+  // noise. Pinning it pins the coin, and the note above already forbids the
+  // lazy way out: DO NOT WIDEN K.
+  //
+  // What survives as the pin is what the lever provably does at any re-roll:
+  // a CHEAP board out-sells a DEAR one by more than the pool's noise. Measured
+  // cheap-dear: 96 (green 12-town), 70 (fix 12-town), 319/48 and 272/48 towns
+  // - never close to K. And the honest mutation still bites: an inert player
+  // board reads flat ~199/199/199, so cheap-dear collapses to 0 and this arm
+  // goes red, which is the whole point of the pin.
   const K = 30;   // the pool's noise floor: see the note above
-  if (!(cheap.bar > mid.bar + K && cheap.bar > dear.bar + K))
+  if (!(cheap.bar > dear.bar + K))
     return `the player's own board does not move their own trade: `
       + `dear ${dear.bar}, level ${mid.bar}, cut ${cheap.bar} drinks `
       + `(${JSON.stringify({ dear, mid, cheap })})`;
+  // WATCH, not a pin: the cheap->mid step. Expect ~+37 on eight towns; it is
+  // reported and not asserted because eight towns cannot resolve it. If a
+  // TWELVE- or FORTY-EIGHT-town rivalpool run ever shows the paired per-town
+  // step going significantly negative, that is the cheap end of priceAppeal
+  // genuinely gone - investigate the appeal curve, do not widen K, and do not
+  // re-pin here without the pool behind it.
+  if (!(cheap.bar > mid.bar + K))
+    console.log(`      WATCH  rivalry cheap->mid under K (noise band): `
+      + `dear ${dear.bar}, level ${mid.bar}, cut ${cheap.bar}`);
   return true;
 });
 
@@ -11414,9 +11462,16 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // is MISTY's first parting, day 1 T=2141, x=1567.30, push -307 Q8 - plane
   // digest identical either side of it (the frozen day-2 fingerprint carries
   // the full receipt). Same two-day town as that fixture, same drift.
-  const want = '{"day":3,"coins":17546,"rep":50824,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,22428],["REEF",2136,20921],["SALTY",2072,0],'
-    + '["DRIFT",318,0],["KELP",450,2800]],"vis":7,"catch":3}';
+  // RE-AUTHORED for THE FLOAT-AIM FIX (Matt: "we'll re author the frozen
+  // pins", 2026-08-23) - the same drift as the frozen day-2 fingerprint, from
+  // the same crossing this note already names above: MISTY's first parting,
+  // day 1 T=2141, push -307 Q8, the push whose residue the fix removed. The
+  // scenario's own claim is UNCHANGED and still proven: a save without a
+  // cultures key loads onto exactly the trajectory a fresh boot walks.
+  // Note `vis` 7 -> 6 alongside the till and coin move.
+  const want = '{"day":3,"coins":17628,"rep":50918,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,21443],["REEF",2136,20923],["SALTY",2072,0],'
+    + '["DRIFT",318,0],["KELP",450,2800]],"vis":6,"catch":3}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
   // the game now, so the registry is no longer crab-only on a plain town - but
