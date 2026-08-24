@@ -12361,8 +12361,7 @@ function cultureRolls(cul, rand) {
   // stays shut to pigs even at crab 100, until pig experiences mend it (the
   // spill is how; it just takes time). Good news merely competes.
   const own = repC[cul.def.meta && cul.def.meta.id];
-  const heard = (own != null && own < 30000) ? own
-    : Math.max(own != null ? own : 30000, rep - REP_HEARSAY);
+  const heard = rep;   // MUTATION B - armed, will be reverted
   if (heard <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
   const rampM = 1000 * (ar.shareRamp > 0 ? ar.shareRamp : 80);
   const cap = ar.shareMax != null ? ar.shareMax : 0.25;
