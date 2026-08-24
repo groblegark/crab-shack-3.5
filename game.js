@@ -5030,6 +5030,7 @@ function consumeIngredient(raw, recipe) {
     tradeImport("water", 1); // the COOLER's gallon of fresh water
     if (window._stats) window._stats.coolersMade = (window._stats.coolersMade || 0) + 1;
   }
+  if (recipe && recipe.raw2 === "fruit") tradeImport("fruit", 1); // SLOP's fruit half - counted like the cooler's water
   if (raw !== "fish_raw") return;
   trade.useDay++;   // every fish eaten is the market's demand signal
   if (townCatch > 0) townCatch--;
@@ -7341,6 +7342,11 @@ function recipeRowProblem(r, stations, f, label) {
     return label + " WANTS AN INGREDIENT NO BOAT CARRIES";
   if (!ITEMS[r.raw] && !(f && f.items && f.items[r.raw] && f.items[r.raw].art))
     return label + "'S INGREDIENT HAS NO PICTURE";   // the cook CARRIES the raw
+  if (r.raw2 != null) {   // a second ingredient obeys the same pantry law (SLOP; the COOLER's water)
+    if (typeof r.raw2 !== "string" || (INGREDIENT_COST[r.raw2] == null && r.raw2 !== "water"
+      && !(f && f.ingredients && f.ingredients[r.raw2] != null)))
+      return label + " WANTS A SECOND INGREDIENT NO BOAT CARRIES";
+  }
   if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return label + " HAS A BAD ICON";
   if (!ITEMS[r.icon] && !(f && f.items && f.items[r.icon] && f.items[r.icon].art))
     return label + " HAS NO PICTURE";

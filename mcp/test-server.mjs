@@ -79,7 +79,7 @@ const withShop = JSON.parse(JSON.stringify(pig));
 withShop.businesses = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
   kind: "shopfront", rent: 30, wage: 22, stalls: 3, stations: { trough: 2, ladle: 1 },
   source: "trough", out: "ladle",
-  recipes: [{ id: "wallow", icon: "porkbun", pay: 12, raw: "corn", steps: [["ladle", 2.0, "porkbun"]] }] } };
+  recipes: [{ id: "wallow", icon: "slop", pay: 12, raw: "fish_raw", raw2: "fruit", steps: [["ladle", 2.0, "slop"]] }] } };
 const shopV = JSON.parse(textOf(await call("cultureway_validate", { document: withShop })));
 check("a declared business validates and builds", shopV.ok === true && shopV.build === "built", JSON.stringify(shopV).slice(0, 200));
 
@@ -98,7 +98,7 @@ bad.cards = [{ title: "THE LEDGER", rows: [{ label: "MOOD", obs: "vibes.q20" }] 
 bad.businesses = { mudspa: { name: "THE WALLOW", short: "MUD", sign: "THE WALLOW",
   kind: "shopfront", rent: 99999, owner: "player", stations: { trough: 2 },
   source: "trough", out: "trough",
-  recipes: [{ id: "wallow", icon: "porkbun", pay: 12, raw: "corn", steps: [["grill", 2.0, "porkbun"]] }] } };
+  recipes: [{ id: "wallow", icon: "slop", pay: 12, raw: "fish_raw", steps: [["grill", 2.0, "slop"]] }] } };
 const v = JSON.parse(textOf(await call("cultureway_validate", { document: bad })));
 const paths = (v.problems || []).map((p) => p.path).join(" ");
 check("invalid document is rejected", v.ok === false);
