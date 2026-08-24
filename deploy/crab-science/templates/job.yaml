@@ -9,7 +9,14 @@ spec:
   completions: {{ .Values.arms }}
   parallelism: {{ .Values.parallelism | default .Values.arms }}
   completionMode: Indexed
-  backoffLimit: {{ .Values.backoffLimit }}
+  # Per-index retry (k8s 1.29+; cluster is 1.31): a flaky arm retries ITSELF
+  # instead of one scheduling hiccup torching every other arm's work — three
+  # concurrent 20-arm batteries died 13/24-style to provisioning flakes under
+  # backoffLimit alone. maxFailedIndexes still bounds a genuinely red run.
+  backoffLimitPerIndex: {{ .Values.backoffLimitPerIndex | default 2 }}
+  # clamped to the arm count: k8s refuses maxFailedIndexes > completions,
+  # which broke every 1-arm MCP battery and small focus manifest (slop's find)
+  maxFailedIndexes: {{ min (.Values.maxFailedIndexes | default 5) (int .Values.arms) }}
   ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
   activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
   template:
