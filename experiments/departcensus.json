@@ -1,0 +1,15 @@
+{
+  "name": "departcensus",
+  "note": "Matt's 'measure first, then rule' on the ~52,000x depart-weight inflation. Counts which rule actually wins each departure card across twelve towns, via the phase-D settlementAggregate hook - the same hook E3's Layer-1 path was silently skipping until it was repaired, so a zero-card result is a hook regression rather than a quiet town.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ],
+  "arms": [
+    { "id": "census", "entry": "tools/departcensus.mjs", "args": ["--days", "30", "--towns", "12"], "env": { "SIMLIB_REALM": "main" } }
+  ]
+}
