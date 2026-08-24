@@ -106,6 +106,12 @@ A people, written as a document. Not code — data the engine reads:
             play, gossip, a stroll, or waking from a nap; undeclared moments
             fall to the island's lines. Unknown moments are refused at import
             (A QUIP FOR NOWHERE).
+            A register may also carry refuseHire (the spoken refusal of a job
+            offer) and refuseHireLog (the diary line for the same moment).
+            THE CRAB ITSELF IS A DOCUMENT (phase E6): its name pools and its
+            seven shell colorways ride the bundle (crab-people/crab-art
+            fixtures), literals in code only as the engine fallback — so the
+            island's own identity is authored the same way yours is.
   depart    weights — ruleId -> integer 0-8, a QUARTERS multiplier on the
             engine's departure-card rule weights (4 = as the engine weighs
             it, 0 = this people never leads with that rule, 8 = twice as
