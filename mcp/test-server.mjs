@@ -92,6 +92,8 @@ bad.appeal.nudge = { mul100: 9000 };
 bad.management = { tableTip: 900 };   // the cents habit - author units are whole dollars
 bad.depart = { weights: { wait: 9, nosuchrule: 4 } };
 bad.settlers = { apron: "yes", walkins: 20 };   // a string answer, and a flood share
+bad.manner = { speed: 10000, rides: true };   // a rocket stroll, and a pig at the wheel
+bad.arrival = { daytrip20: 21 };   // one twentieth too many
 bad.people.names.push("A NAME MUCH TOO LONG");
 bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
 bad.cards = [{ title: "THE LEDGER", rows: [{ label: "MOOD", obs: "vibes.q20" }] }];   // an unregistered observable
@@ -114,6 +116,9 @@ check("error names the cents-habit table tip", /management\.tableTip/.test(paths
 check("error names the hot depart weight", /depart\.weights\.wait/.test(paths), paths);
 check("error names the string apron answer", /settlers\.apron/.test(paths), paths);
 check("error names the flood walk-in share", /settlers\.walkins/.test(paths), paths);
+check("error names the rocket stroll", /manner\.speed/.test(paths), paths);
+check("error refuses the wheel for want of art", /manner\.rides/.test(paths), paths);
+check("error names the flooded daytrip share", /arrival\.daytrip20/.test(paths), paths);
 check("error names the unknown depart rule", /depart\.weights\.nosuchrule/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
 check("error names the unregistered card observable", /cards\[0\]\.rows\[0\]\.obs/.test(paths), paths);

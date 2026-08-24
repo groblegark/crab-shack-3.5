@@ -287,6 +287,33 @@ function localise(d, verdict) {
       });
     });
   }
+  const mn = d.manner;
+  if (mn) {
+    const int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (typeof mn !== "object" || Array.isArray(mn)) say("manner", "must be an object - how this people carries itself");
+    else {
+      if (mn.speed != null && !(int(mn.speed) && mn.speed >= 8 && mn.speed <= 120))
+        say("manner.speed", `${mn.speed} is outside 8-120 px/s (the crab stroll is 42)`);
+      if (mn.stroll != null && !(int(mn.stroll) && mn.stroll >= 60 && mn.stroll <= 800))
+        say("manner.stroll", `${mn.stroll} is outside 60-800 px (the crab value is 340; the promenade band stays the town's)`);
+      if (mn.space != null && !(int(mn.space) && mn.space >= 4 && mn.space <= 16))
+        say("manner.space", `${mn.space} is outside 4-16 px (crab: 8, on a measured growth curve - wider costs the town)`);
+      if (mn.walkMul20 != null && !(int(mn.walkMul20) && mn.walkMul20 >= 10 && mn.walkMul20 <= 40))
+        say("manner.walkMul20", `${mn.walkMul20} is outside 10-40 twentieths (20 = the crab pace)`);
+      if (mn.rides === true)
+        say("manner.rides", "no ride art for this people - the buggy art indexes crab colorways; declare false or leave it out");
+    }
+  }
+  const ar2 = d.arrival;
+  if (ar2 && typeof ar2 === "object" && !Array.isArray(ar2)) {
+    const int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (ar2.daytrip20 != null && !(int(ar2.daytrip20) && ar2.daytrip20 >= 0 && ar2.daytrip20 <= 20))
+      say("arrival.daytrip20", `${ar2.daytrip20} is outside 0-20 twentieths (crab: 12 = the old 0.60; 0 = a culture of overnighters)`);
+    if (ar2.patienceSecs != null && !(int(ar2.patienceSecs) && ar2.patienceSecs >= 20 && ar2.patienceSecs <= 400))
+      say("arrival.patienceSecs", `${ar2.patienceSecs} is outside 20-400 seconds (the crab value is 100)`);
+    if (ar2.thinkDs != null && !(int(ar2.thinkDs) && ar2.thinkDs >= 4 && ar2.thinkDs <= 80))
+      say("arrival.thinkDs", `${ar2.thinkDs} is outside 4-80 tenths of a second (crab: 16 = 1.6s)`);
+  }
   const fw = d.foodways;
   if (fw && fw.ingredients) for (const k in fw.ingredients) {
     const w = fw.ingredients[k];

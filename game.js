@@ -6560,6 +6560,12 @@ const MOVE_Q8 = {};
 for (const k of Object.keys(TRAITS)) MOVE_Q8[k] = Math.round(40 * TRAITS[k].move * Q8);
 function crabMoveQ8(c) {
   let v = MOVE_Q8[c.p.trait];
+  // a settled people's own gait (manner.walkMul20, twentieths): composes with
+  // the trait multiplier exactly here, where the trait already does. The crab
+  // path is UNTOUCHED (the branch is false), and a declared 20 is skipped -
+  // idiv(v*20,20) === v, but why pay the multiply to prove it.
+  const _mc = c.p.culture && c.p.culture !== "crab" ? CULTURES[c.p.culture] : null;
+  if (_mc && _mc.manner && _mc.manner.WMUL20 !== 20) v = idiv(v * _mc.manner.WMUL20, 20);
   const over = Math.max(0, (c.p.bored || 0) - qn(0.5));
   v -= idiv(v * over, 5 * Q20);                    // 1 - 0.2*(over/Q20), 0.2 = 1/5
   if (c.p.sick) v = idiv(v, 2);
@@ -7242,8 +7248,31 @@ function cultureProblem(d, ownId) {
       if (!inArc(v)) return "A SHIFT IN THEIR SLEEP";
     }
   }
+  // MANNER (census C4): how this people carries itself. Author px and px/s;
+  // rides is refused-TRUE by name until a culture-ride art seam exists - the
+  // settlers walk pin made visible instead of silent.
+  if (d.manner != null) {
+    const M = d.manner;
+    if (typeof M !== "object" || Array.isArray(M)) return "A BAD MANNER";
+    const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+    if (M.speed != null && !int(M.speed, 8, 120)) return "A BAD STROLL SPEED";
+    if (M.stroll != null && !int(M.stroll, 60, 800)) return "A BAD STROLL RANGE";
+    if (M.space != null && !int(M.space, 4, 16)) return "A BAD PERSONAL SPACE";
+    if (M.walkMul20 != null && !int(M.walkMul20, 10, 40)) return "A BAD WALKING PACE";
+    if (M.rides != null && typeof M.rides !== "boolean") return "A BAD RIDE ANSWER";
+    if (M.rides === true) return "NO RIDE ART FOR THIS PEOPLE";
+  }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
+  // STAY SHAPE (census C5) rides the arrival section - the same subject, how
+  // this people arrives and how long it stays. Twentieths / seconds / tenths.
+  if (d.arrival != null) {
+    const S = d.arrival;
+    const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+    if (S.daytrip20 != null && !int(S.daytrip20, 0, 20)) return "A BAD DAYTRIP SHARE";
+    if (S.patienceSecs != null && !int(S.patienceSecs, 20, 400)) return "A BAD PATIENCE";
+    if (S.thinkDs != null && !int(S.thinkDs, 4, 80)) return "A BAD THINK CADENCE";
+  }
   // DECLARATIVE CARDS (phase D): a culture may declare dossier cards whose
   // rows bind labels to REGISTERED observables - data reading data, no code.
   // The registry is the versioned neuro observable table, which is the point:
@@ -7814,6 +7843,27 @@ function buildCulture(def) {
   const settlers = def.settlers
     ? { apron: !!def.settlers.apron, walkins: def.settlers.walkins != null ? def.settlers.walkins : 0 }
     : null;
+  // MANNER + STAY SHAPE (census C4+C5), built once into the crab constants'
+  // own units: px cross the Q8 boundary here, seconds become PQ patience,
+  // deciseconds become ticks (thinkDs*SEC exactly divides by 10: SEC is 20).
+  // Partial documents inherit crab values field by field; RIDES builds false
+  // regardless - the gate refused `true`, and a false in the table is the
+  // walk pin as data. Null when undeclared: mannerOf/arrivalOf hand back the
+  // engine object BY IDENTITY.
+  const mn = def.manner || null;
+  const manner = mn ? {
+    SPEED: mn.speed != null ? mn.speed : MANNER.SPEED,
+    STROLL: mn.stroll != null ? mn.stroll : MANNER.STROLL,
+    SPACEQ: mn.space != null ? mn.space * Q8 : MANNER.SPACEQ,
+    WMUL20: mn.walkMul20 != null ? mn.walkMul20 : 20,
+    RIDES: false,
+  } : null;
+  const arv = def.arrival || null;
+  const stay = arv && (arv.daytrip20 != null || arv.patienceSecs != null || arv.thinkDs != null) ? {
+    DT: arv.daytrip20 != null ? arv.daytrip20 / 20 : ARRIVE.DT,
+    PATQ: arv.patienceSecs != null ? arv.patienceSecs * PQ : ARRIVE.PATQ,
+    THINK: arv.thinkDs != null ? idiv(arv.thinkDs * SEC, 10) : ARRIVE.THINK,
+  } : null;
   // THE RHYTHM, converted once (census C1): author game-minutes at the
   // 30-minute grain ARE the engine's own unit, so this is inheritance, not
   // arithmetic - a partial document keeps crab values field by field, and the
@@ -7831,7 +7881,8 @@ function buildCulture(def) {
     HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
   } : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, nudge, mgmt, departW, businesses: biz, settlers, phys, rhythm,
+    manner, stay };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -9699,9 +9750,11 @@ function convertTourist(k) {
   // A SETTLER KEEPS HERSELF (phase B): the culture, the face, the hat, the
   // name she came ashore with - PETUNIA who settles is still PETUNIA the
   // farmhand pig, and drawCrab reads her document's tables through p.culture.
-  // Mode pins to walk: the buggy art indexes crab colorways, and a pig at the
-  // wheel of a crab buggy is a crash, not a joke.
-  if (k.culture && k.culture !== "crab") { p2.culture = k.culture; p2.mode = "walk"; }
+  // The walk pin is DATA now (manner.rides, census C4): culRides answers
+  // false for every cultured people - the gate refuses `rides: true` until a
+  // culture-ride art seam exists, because the buggy art indexes crab
+  // colorways and a pig at the wheel of a crab buggy is a crash, not a joke.
+  if (k.culture && k.culture !== "crab") { p2.culture = k.culture; if (!culRides(k.culture)) p2.mode = "walk"; }
   p2.shift = hireShift(); p2.homeless = true; p2.house = null;
   const c = newCrab(p2);
   c.x = k.x; c.y = 166;
@@ -12160,6 +12213,39 @@ const VIS_DAYTRIP = 0.60;        // share of every boat BUT THE LAST who go home
                                  // this and FERRY_LOAD it is what sizes the hotel's demand.
                                  // (the afternoon boat is overnighters by construction -
                                  //  there is no later sailing for them to catch)
+// MANNER + STAY SHAPE (cultureway census C4+C5, design/cs35-manner.md): how a
+// people carries itself through a visit, and how long it stays. The crab
+// tables below ARE the engine constants above, held by identity - the
+// behavior-neutral guarantee is `===`, not field equality, exactly as NUDGE
+// and MGMT before them. VIS_ROAM is deliberately NOT here: the promenade is
+// the town's geography, not a culture's manner.
+const MANNER = { SPEED: VIS_SPEED, STROLL: VIS_STROLL, SPACEQ: VSEP_RXQ, WMUL20: 20, RIDES: true };
+// which manner governs this actor: their culture's, if it declared one, else
+// the crab table. Serves both homes (a strolling GUEST at k.culture, a
+// settled WORKER at c.p.culture) - the mgmtOf lesson.
+function mannerOf(k) {
+  const id = k && (k.culture || (k.p && k.p.culture));
+  const cul = id && id !== "crab" ? CULTURES[id] : null;
+  return (cul && cul.manner) || MANNER;
+}
+// may this people take the wheel? Crab: yes (their art owns the buggy rack).
+// A cultured people: only if their document says so - and the gate refuses
+// `rides: true` until a culture-ride art seam exists, so today this is
+// always false for them: the settlers walk pin, as data instead of code.
+function culRides(id) {
+  if (!id || id === "crab") return true;
+  const cul = CULTURES[id];
+  return !!(cul && cul.manner && cul.manner.RIDES);
+}
+// stay shape: the daytrip share, the patience, the think cadence. DT stays
+// the double the roll compares against (a declared 12/20 computes to the
+// same double as the crab's 0.60 literal); PATQ and THINK are prebuilt in
+// the countdown's own units so the hot path never converts.
+const ARRIVE = { DT: VIS_DAYTRIP, PATQ: VIS_PATIENCE * PQ, THINK: VIS_THINK };
+function arrivalOf(k) {
+  const cul = k && k.culture && k.culture !== "crab" ? CULTURES[k.culture] : null;
+  return (cul && cul.stay) || ARRIVE;
+}
 const SAND_SPOTS = [600, 1160, 1590, 1836, 2110];   // where a visitor with no room beds down
 const VIS_LOG_MAX = 24;          // a visit is short; the diary is shorter than a crab's
 function visLog(k, cat, line) {
@@ -12202,8 +12288,12 @@ function newVisitor(overnightOnly, cu) {
   // crab path below is byte-for-byte the pre-cultures code, and either branch
   // consumes the SAME number of srand() draws in the same order.
   const cul = cu && cu !== "crab" && CULTURES[cu] ? CULTURES[cu] : null;
+  // stay shape reads the culture's table (crab: ARRIVE, the same constants by
+  // identity - A.DT IS VIS_DAYTRIP, so the roll below is the pre-manner
+  // compare to the bit). Same draws either way.
+  const A = (cul && cul.stay) || ARRIVE;
   const nights = overnightOnly ? (srand() < 0.80 ? 1 : 2)
-    : srand() < VIS_DAYTRIP ? 0 : srand() < 0.78 ? 1 : 2;
+    : srand() < A.DT ? 0 : srand() < 0.78 ? 1 : 2;
   const n = visNeeds();
   // THE PURSE. A day-tripper brings lunch money; somebody staying two nights
   // brings two nights' worth plus the room. A third of the boat is FLUSH and a
@@ -12230,12 +12320,12 @@ function newVisitor(overnightOnly, cu) {
     // the shop pipeline's own fields, dormant until they join a line
     // (patience/table/stall are PLANE fields now - set through the accessors
     // below the attach, never in the literal: an own property shadows)
-    biz: null, recipe: null, maxPatience: VIS_PATIENCE * PQ,
+    biz: null, recipe: null, maxPatience: A.PATQ,
     claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
     nights, nightsHad: 0, rough: false, roughNights: 0, unhoused: 0,
-    arrived: day, leaveT, room: null, buys: 0, thinkT: srand() * VIS_THINK,
+    arrived: day, leaveT, room: null, buys: 0, thinkT: srand() * A.THINK,
     idleT: 0, target: null, log: [],
     // the visit's own ledger, minted with the purse - see THE DEPARTURE CARD
     stay: newStay(), qJoin: null,
@@ -12245,7 +12335,7 @@ function newVisitor(overnightOnly, cu) {
   // property in the literal above would shadow the doors (lesson #1)
   v.stC = VS.ashore;
   v.hunger = n.hunger; v.thirst = n.thirst; v.dirt = n.dirt; v.bored = n.bored; v.tired = n.tired;
-  v.patience = VIS_PATIENCE * PQ; v.table = null; v.stall = null;
+  v.patience = A.PATQ; v.table = null; v.stall = null;
   v.x = FERRY.gangway; v.y = FERRY.deckY; v.wy = FERRY.deckY;
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
@@ -12400,7 +12490,9 @@ function nearestSail(want) {
 // how long this visitor needs to reach the boat from where they are standing,
 // in game minutes, with a little slack for the queue at the plank
 function visWalkMins(k) {
-  return Math.abs(k.x - FERRY.gangway) / VIS_SPEED * TS + 25;
+  // the ETA divides by the SAME dispatched speed the stepper walks at, or a
+  // slow culture misses boats the sign promised (the design doc's named trap)
+  return Math.abs(k.x - FERRY.gangway) / mannerOf(k).SPEED * TS + 25;
 }
 // WHO IS GOING HOME ON THIS ONE - and, just as importantly, WHEN THEY SET OFF.
 // `minsLeft` is how long until she sails; a guest leaves when the walk needs
@@ -13005,12 +13097,12 @@ function visStep(k, tx, ty, dt) {
     // only consumer - a mover this frame is exempt from personal space.
     const x0 = PXQ[i], y0 = PWYQ[i];
     const kr = KERN.exports.vis_step(i, Math.round(tx * Q8),
-      ty == null ? PWYQ[i] : Math.round(ty * Q8), dtT);
+      ty == null ? PWYQ[i] : Math.round(ty * Q8), mannerOf(k).SPEED, dtT);
     if (kr & 2) k.face = (kr & 4) ? -1 : 1;
     if (PXQ[i] !== x0 || PWYQ[i] !== y0) k._vmoved = true;
     return !!(kr & 1);
   }
-  const spq = idiv(VIS_SPEED * Q8 * dtT, TICK_HZ);
+  const spq = idiv(mannerOf(k).SPEED * Q8 * dtT, TICK_HZ);
   const txq = Math.round(tx * Q8), tyq = ty == null ? PWYQ[i] : Math.round(ty * Q8);
   const dxq = txq - PXQ[i], dyq = tyq - PWYQ[i];
   if (dxq > Q8 || dxq < -Q8) { PXQ[i] += Math.sign(dxq) * Math.min(spq, Math.abs(dxq)); k.face = Math.sign(dxq); k._vmoved = true; }
@@ -13106,7 +13198,7 @@ function updateVisitor(k, dt) {
     if (!visOpen(k.biz)) { k.stC = VS.roam; k.biz = null; k.target = null; return; }
     if (!visStep(k, k.target, FLOOR_Y, dt)) return;
     if (!visRoomFor(k, k.biz)) {   // the line filled while they walked: come back later
-      k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
+      k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = arrivalOf(k).THINK * 4;
       return;
     }
     k.stC = VS.arriving; k.spawnXQ = Math.round(k.x * Q8); k.y = FLOOR_Y;
@@ -13114,7 +13206,8 @@ function updateVisitor(k, dt) {
     // five different y values reads as a huddle however even the spacing is.
     // Everybody in a line stands ON the boardwalk line.
     k.wy = FLOOR_Y;
-    k.patience = VIS_PATIENCE * PQ; k.maxPatience = VIS_PATIENCE * PQ;
+    const patq = arrivalOf(k).PATQ;
+    k.patience = patq; k.maxPatience = patq;
     queueJoin(k);   // the ticket is stamped HERE, not when their ferry docked
     stayQueued(k);  // ...and so is the clock the departure card quotes
     noteArrival(k.biz);
@@ -13135,7 +13228,7 @@ function updateVisitor(k, dt) {
     return;
   }
   if (k.thinkT <= 0) {
-    k.thinkT = VIS_THINK;
+    k.thinkT = arrivalOf(k).THINK;
     // WHO DECIDES: a live brain outranks both backends (and bypasses the
     // kernel identically in both modes, so kernel-vs-JS agreement holds by
     // construction); otherwise the compiled scorer with visPick as the
@@ -13155,7 +13248,7 @@ function updateVisitor(k, dt) {
   if (k.target == null || Math.abs(k.x - k.target) < 4) {
     if (k.idleT > 0) { k.idleT -= dtT; return; }
     k.target = Math.round(Math.max(VIS_ROAM[0], Math.min(VIS_ROAM[1],
-      k.x + (srand() - 0.5) * 2 * VIS_STROLL)));
+      k.x + (srand() - 0.5) * 2 * mannerOf(k).STROLL)));
     k.idleT = 0;
   }
   if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 * SEC + ((srand() * 5 * SEC) | 0);
@@ -13195,6 +13288,10 @@ function visSeparate() {
     if (!k.visitor || k.gone || k.hidden || k._vmoved) continue;
     if (k.stC === VS.inRoom || k.stC === VS.showering) continue;
     if (PWYQ[k.si] < FLOOR_MIN * Q8) continue;   // on the deck: that line is visLeave's
+    // personal space is the CULTURE's (manner.space); a mixed pair parts to
+    // the LARGER of the two - give_berth's own max64(ra, rb) rule. Cached
+    // per pass like _vmoved: transient, never saved.
+    k._vsq = mannerOf(k).SPACEQ;
     still.push(k);
   }
   if (still.length < 2) return;
@@ -13206,11 +13303,12 @@ function visSeparate() {
       if (dyq > VSEP_RYQ || dyq < -VSEP_RYQ) continue;
       const dxq = PXQ[b.si] - PXQ[a.si];
       const adx = dxq < 0 ? -dxq : dxq;
-      if (adx >= VSEP_RXQ) continue;
+      const rxq = a._vsq > b._vsq ? a._vsq : b._vsq;   // the wider custom governs the pair
+      if (adx >= rxq) continue;
       const pa = a.stC === VS.roam || a.stC === VS.onSand;
       const pb = b.stC === VS.roam || b.stC === VS.onSand;
       if (!pa && !pb) continue;
-      const need = VSEP_RXQ - adx;
+      const need = rxq - adx;
       // dxq === 0 is the exact pile (three guests on one point): the earlier
       // body holds the west, and array order is the tiebreak. No dice.
       const dir = dxq < 0 ? -1 : 1;
@@ -13240,7 +13338,7 @@ function visAfterCounter(k) {
   }
   k.stC = VS.roam; k.biz = null; k.recipe = null; k.need = null;
   k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
-  k.target = null; k.thinkT = VIS_THINK;
+  k.target = null; k.thinkT = arrivalOf(k).THINK;
   k.y = FLOOR_Y; k.wy = FLOOR_Y;
 }
 
