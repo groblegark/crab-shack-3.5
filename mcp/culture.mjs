@@ -127,6 +127,17 @@ function localise(d, verdict) {
         }
     });
   else if (v != null) say("voice.registers", "required when voice is present: a non-empty list");
+  // E1: idle quips - voice-level, four known moments, non-empty clamped lines.
+  if (v != null && v.idle != null) {
+    if (typeof v.idle !== "object" || Array.isArray(v.idle)) say("voice.idle", "must be an object of {ball,chat,wander,nod} line arrays");
+    else for (const k in v.idle) {
+      if (!["ball", "chat", "wander", "nod"].includes(k)) say(`voice.idle.${k}`, "unknown idle moment (A QUIP FOR NOWHERE) - the engine speaks ball, chat, wander, nod");
+      else if (!Array.isArray(v.idle[k]) || !v.idle[k].length) say(`voice.idle.${k}`, "must be a non-empty array of lines");
+      else v.idle[k].forEach((s, i) => {
+        if (typeof s !== "string" || !s.length || s.length > 120) say(`voice.idle.${k}[${i}]`, "must be a string of 1-120 chars");
+      });
+    }
+  }
 
   // depart-rule weight overrides (registry row 4): ruleId -> int 0..8,
   // quarters with 4 the identity. The rule ids are the engine's own table.

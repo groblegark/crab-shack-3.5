@@ -233,6 +233,17 @@
     "registers"
    ],
    "properties": {
+    "idle": {
+     "description": "E1: the four idle moments this people quips at - play, gossip, a stroll, waking from a nap. Undeclared moments fall to the island's lines; unknown keys are refused at import (A QUIP FOR NOWHERE).",
+     "type": "object",
+     "additionalProperties": false,
+     "properties": {
+      "ball": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "chat": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "wander": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+      "nod": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 120 } }
+     }
+    },
     "registers": {
      "type": "array",
      "minItems": 1,
