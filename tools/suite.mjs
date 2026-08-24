@@ -9068,7 +9068,19 @@ scenario("a crab who is not mayor cannot move the town's policy one step", () =>
   if (got.billed > 0.005)
     return `a non-mayor's platform billed the player $${got.billed} at settlement`;
   if (!got.mineNow) return "putting a crew crab in the hat did not make the player mayor";
-  if (got.asMayor !== "DUES $3 / 1 BOWL")
+  // RE-AUTHORED for the six-head founding platform (2026-08-24). The dial
+  // writes mech/rate/bowls and `apply` copies the WHOLE platform, so the
+  // policy line now carries the cap clause too - not because this fixture
+  // touched the cap, but because hall.plat's default moved from cap 0 to
+  // cap 4 (the 6 rung) so the player's pre-filled campaign stopped being an
+  // implicit "abolish the house limit".
+  //
+  // The third clause IS the finding, and the pin earned its keep by
+  // surfacing it: applying a platform now applies a staffing policy as well
+  // as a purse. Assert the whole line rather than trimming the clause away,
+  // because a pin that hides the cap would let a future ladder change move
+  // the town's staffing in silence.
+  if (got.asMayor !== "DUES $3 / 1 BOWL / 6 STAFF")
     return `in office the same dial did NOT take effect: policy reads "${got.asMayor}"`;
   return true;
 });
