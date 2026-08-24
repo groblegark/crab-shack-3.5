@@ -4126,6 +4126,11 @@ scenario("mortality: a dead townsfolk crab leaves the town in a sane state", () 
     // her payroll to lay off. Zeroing his grievance keeps him hers; this
     // scenario is about MORTALITY, not about the wage market (which has its own).
     if (OWNERS.reef) OWNERS.reef.till = Math.min(OWNERS.reef.till, 200);
+    // ...and SUDSY stays SOLVENT until the illness takes her (reputation
+    // pass): the leaner rep-era economy can bankrupt SUDS SHOWERS first,
+    // which strips her ownership and gives the death nothing to record.
+    // How she stays afloat is staging; what her death leaves is the test.
+    if (OWNERS.sudsy && !OWNERS.sudsy.gone && OWNERS.sudsy.till < 4000) OWNERS.sudsy.till = 8000;
     // ...and NOBODY in town can afford the shop she leaves behind. Under the
     // neuro visitor flow the town gets rich enough that a flush crab buys the
     // dead woman's shop off the market and REOPENS it before the morning
@@ -6972,7 +6977,7 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // seller, she is heard of for two settlements, and then she is standing
   // behind his desk. The dangerous part of that is the handover, so this
   // scenario watches every tick of it.
-  let bad = null, seenHeard = 0;
+  let bad = null, seenHeard = 0, moveInFree = null;
   const sim = createSim({ seed: 909 });
   if (sim.G(`bizOwner("hotel")`) !== "reef") return "the town does not open with REEF behind the desk";
   if (!sim.G(`canOffer("hotel")`)) return "REEF is not a willing seller any more";
@@ -7003,6 +7008,17 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
     if (!bad && st.o == null) bad = "the Driftwood stood unowned";
     if (!bad && st.keepers > 1) bad = "two owner-operators behind one desk";
     if (st.heard && !seenHeard) seenHeard = st.heard;
+    // THE MOVE-IN SNAPSHOT (reputation pass): assert the nearest-free-door
+    // rule at the moment she takes a door - a closer house can legitimately
+    // EMPTY after she settles (rep-era trajectories move who leaves when),
+    // so inspecting at end-of-run asserts a coincidence, not the rule.
+    if (moveInFree == null) { const snap = G(`(() => {
+      const her = allCrabs().find(k => k.p.owner === hotelier.id);
+      if (!her || her.p.house == null) return "null";
+      const mine = Math.abs(HOUSE_XS[her.p.house] - BIZ.hotel.door);
+      return JSON.stringify(HOUSE_XS.map((x, i) => [i, x])
+        .filter(([i, x]) => !houseOccupant(i) && Math.abs(x - BIZ.hotel.door) < mine)); })()`);
+      if (snap !== "null") moveInFree = JSON.parse(snap); }
   } });
   const closures = JSON.parse(sim.G(`JSON.stringify(window._stats.closures || [])`));
   if (bad && !closures.some(c => c.biz === "hotel" && c.why === "bankrupt")) return bad;
@@ -7026,7 +7042,7 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // fisher usually has the other, so the strict version was asserting a
   // coincidence and broke the moment the hotel fix changed who could afford a
   // roof. Testing the rule holds either way.
-  const closerFree = JSON.parse(sim.G(`(() => {
+  const closerFree = moveInFree != null ? moveInFree : JSON.parse(sim.G(`(() => {
     const mine = Math.abs(HOUSE_XS[${her.house}] - BIZ.hotel.door);
     return JSON.stringify(HOUSE_XS.map((x, i) => [i, x])
       .filter(([i, x]) => !houseOccupant(i) && Math.abs(x - BIZ.hotel.door) < mine)); })()`));
