@@ -64,11 +64,14 @@
       // the scale is width-limited. A taller canvas therefore cannot enlarge
       // the town by one pixel - every row it adds goes to the UI panel below.
       //
-      // So take rows only as far as the panel can spend them. PANEL_CAP is that
-      // point: the crew card is sized to the 2x portrait (art2 is the only
-      // scaler there is), so past a 136-row panel the card grows padding and
-      // nothing else. What is left over belongs to the page background.
-      const PANEL_CAP = 312;                       // 176 world + 136 panel
+      // So take rows only as far as the panel can SPEND them, and spending is
+      // what game.js was taught to do: the portrait scale falls out of the card
+      // width (scaleN is nearest-neighbour, so 3x costs nothing but a cache
+      // entry) and the crew strip wraps into as many rows as fit. PANEL_CAP is
+      // where that stops paying - a 200-row panel holds 3x cards two rows deep,
+      // and past it the card is growing padding again. What is left over
+      // belongs to the page background, and always will: the town cannot use it.
+      const PANEL_CAP = 376;                       // 176 world + 200 panel
       const pad = () => (Math.min(innerWidth, innerHeight) < 620 ? 14 : 60);
       const wScale = () => (innerWidth - pad()) / 256;
       function modeH() {

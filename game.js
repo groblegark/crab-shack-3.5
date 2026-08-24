@@ -79,7 +79,7 @@ const SKY_H = 58, SHORE_Y = 86, FLOOR_Y = 166, PANEL_Y = 176;
 // PADDING. A cap that admits what the art can do beats a layout that stretches
 // until it looks broken.
 const PANEL_H = H - PANEL_Y;
-const PT = Math.max(0, Math.min(1.5, (PANEL_H - 64) / 48));
+const PT = Math.max(0, Math.min(2.8, (PANEL_H - 64) / 48));
 const pstep = (lo, hi) => Math.round(lo + (hi - lo) * PT);
 const TALL = PANEL_H > 64;                                  // the 2x-portrait threshold
 const TAB_Y = PANEL_Y + 11, TAB_H = pstep(10, 16);          // crew/shop/new/bill row
@@ -88,6 +88,10 @@ const TAB_TX = TAB_Y + ((TAB_H - 5) >> 1);                  // small-text baseli
 const CARD = pstep(24, 34), CARD_STEP = pstep(27, 37);      // crew card size + pitch
 const BTN_H = pstep(18, 26), BTN_STEP = pstep(20, 30);      // shop button size + pitch
 const MROW = pstep(6, 8);                                   // menu-tab line pitch
+// The crew card is 16x12 of crab plus a border, so the portrait scale it can
+// hold falls straight out of its width - no thresholds to keep in sync.
+const CARD_PN = Math.max(1, Math.min(3, Math.floor((CARD - 2) / 16)));
+const CARD_STEPY = CARD + 9;                                // card + its name line
 const ROAD_Y0 = 90, ROAD_Y1 = 112, LOT_BOTTOM = 152;
 const HOUSE_XS = [30, 100, 170, 240, 310, 380, 512, 2064, 2128];   // promenade row, one by the shelter, two beach cottages past the pier
 const BUS_STOPS = [163, 660, 1180];
@@ -5448,14 +5452,16 @@ const HOUSES = CRAB_COLORS.map(c => houseArt(c[0]));
 const BOATS = CRAB_COLORS.map(c => boatArt(c[0]));
 const BUGGIES = CRAB_COLORS.map(c => buggyArt(c[0]));
 
-function scale2(art) {
+function scaleN(art, n) {
   const c = document.createElement("canvas");
-  c.width = art.w * 2; c.height = art.h * 2;
+  c.width = art.w * n; c.height = art.h * n;
   const x = c.getContext("2d");
   x.imageSmoothingEnabled = false;
-  x.drawImage(art.cv, 0, 0, art.w * 2, art.h * 2);
-  return { cv: c, fv: c, w: art.w * 2, h: art.h * 2 };
+  x.drawImage(art.cv, 0, 0, art.w * n, art.h * n);
+  return { cv: c, fv: c, w: art.w * n, h: art.h * n };
 }
+// 2x has a name of its own because a dozen call sites already say it
+function scale2(art) { return scaleN(art, 2); }
 const HOUSES2 = HOUSES.map(scale2);
 const HOUSE_EMPTY2 = scale2(HOUSE_EMPTY);
 const SHELTER2 = scale2(SHELTER);
@@ -14600,7 +14606,7 @@ function panelTap(p) {
         crewPage = (G.page + 1) % G.pages; sfx.ding(); return;
       }
       for (const t of G.tiles) {
-        if (p.x >= t.x && p.x < t.x + CARD && p.y >= ROW_Y && p.y < ROW_Y + CARD) {
+        if (p.x >= t.x && p.x < t.x + CARD && p.y >= t.y && p.y < t.y + CARD) {
           followIdx = followIdx === t.i ? -1 : t.i; followNpc = null; followCust = null;
           _crewPageFollow = followIdx;   // the strip's own tap never yanks the page
           sel = followIdx >= 0 ? crabs[t.i] : null; return;
@@ -16727,13 +16733,22 @@ let crewDock = true;   // the selector, popped up (true) or down - the player's 
 function crewStripGeom() {
   const n = crabs.length, limit = W - NAV_CHIP_W - 4;
   window._crewN = n;   // the probe tests read (harness + browser alike)
-  let fit = 0;
-  while (fit < n && 4 + fit * CARD_STEP + CARD <= limit) fit++;
-  if (fit >= n) {   // everyone fits: one page, no chip
+  // COLUMNS ARE THE CANVAS'S, NOT THE CREW'S: capacity is computed from the
+  // width alone, so a two-crab town and a twelve-crab town put their first
+  // card in the same place.
+  let cols = 0;
+  while (4 + cols * CARD_STEP + CARD <= limit) cols++;
+  cols = Math.max(1, cols);
+  // The panel's spare rows become MORE CREW rather than more brown. A short
+  // canvas works out at exactly one row, which is what it has always drawn.
+  const rows = Math.max(1, Math.floor((H - ROW_Y) / CARD_STEPY));
+  const slots = cols * rows;
+  const at = (s) => ({ x: 4 + (s % cols) * CARD_STEP, y: ROW_Y + ((s / cols) | 0) * CARD_STEPY });
+  if (n <= slots) {   // everyone fits: one page, no chip
     if (crewPage) crewPage = 0;
-    return { page: 0, pages: 1, tiles: crabs.map((c, i) => ({ i, x: 4 + i * CARD_STEP })), chip: null };
+    return { page: 0, pages: 1, tiles: crabs.map((c, i) => Object.assign({ i }, at(i))), chip: null };
   }
-  const per = Math.max(1, fit - 1);   // the chip takes the last slot on every page
+  const per = Math.max(1, slots - 1);   // the chip takes the last slot on every page
   const pages = Math.ceil(n / per);
   // a NEW selection snaps the strip to its crab's page; a standing one leaves
   // the player's own paging alone
@@ -16746,10 +16761,10 @@ function crewStripGeom() {
   for (let s = 0; s < per; s++) {
     const i = crewPage * per + s;
     if (i >= n) break;
-    tiles.push({ i, x: 4 + s * CARD_STEP });
+    tiles.push(Object.assign({ i }, at(s)));
   }
   return { page: crewPage, pages, tiles,
-    chip: { x: 4 + per * CARD_STEP, y: ROW_Y, w: CARD, h: CARD } };
+    chip: Object.assign({ w: CARD, h: CARD }, at(per)) };
 }
 // THE RULE, written down: ONE READING SURFACE OWNS THE SCREEN AT A TIME.
 // Every full-screen card already defers the follow card and the brain panel
@@ -17139,30 +17154,30 @@ function drawPanel() {
       rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 20]);
       rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [60, 48, 44]);
       const t1 = "MORE>";
-      smallText(ctx, t1, r.x + ((r.w - smallTextWidth(t1)) >> 1), ROW_Y + 5, [255, 216, 96]);
+      smallText(ctx, t1, r.x + ((r.w - smallTextWidth(t1)) >> 1), r.y + 5, [255, 216, 96]);
       const t2 = (G.page + 1) + "/" + G.pages;
-      smallText(ctx, t2, r.x + ((r.w - smallTextWidth(t2)) >> 1), ROW_Y + 13, [220, 210, 190]);
-      smallText(ctx, "[ ]", r.x + ((r.w - smallTextWidth("[ ]")) >> 1), ROW_Y + pstep(20, 25), [150, 140, 160]);
+      smallText(ctx, t2, r.x + ((r.w - smallTextWidth(t2)) >> 1), r.y + 13, [220, 210, 190]);
+      smallText(ctx, "[ ]", r.x + ((r.w - smallTextWidth("[ ]")) >> 1), r.y + pstep(20, 25), [150, 140, 160]);
     }
     for (const t of G.tiles) {
-      const c = crabs[t.i], bx = t.x;
+      const c = crabs[t.i], bx = t.x, ty = t.y;
       const picked = sel === c;
-      rect(ctx, bx, ROW_Y, CARD, CARD, picked ? [255, 230, 120] : [30, 20, 20]);
-      rect(ctx, bx + 1, ROW_Y + 1, CARD - 2, CARD - 2, [200, 230, 245]);
+      rect(ctx, bx, ty, CARD, CARD, picked ? [255, 230, 120] : [30, 20, 20]);
+      rect(ctx, bx + 1, ty + 1, CARD - 2, CARD - 2, [200, 230, 245]);
       const pa = personaArts(c.p);
-      if (pa.cul) blitPersonaIn(c.p, bx + 1, ROW_Y + 1, CARD - 2, CARD - 6);   // her own body (hat fit: named debt)
+      if (pa.cul) blitPersonaIn(c.p, bx + 1, ty + 1, CARD - 2, CARD - 6);   // her own body (hat fit: named debt)
       else {
         const hat = isMayor(c) ? "tophat" : c.duty ? "toque" : c.p.acc, acc = ACCESSORIES[hat];
-        if (TALL) {   // room for the full 2x portrait
-          blit(ctx, art2("c" + c.p.color, CRAB_ARTS[c.p.color].a), bx + 1, ROW_Y + 7);
-          if (acc) blit(ctx, art2("a" + hat, acc.art), bx + 1 + acc.dx * 2, ROW_Y + 7 + acc.dy * 2);
-        } else {
-          blit(ctx, CRAB_ARTS[c.p.color].a, bx + 4, ROW_Y + 7);
-          if (acc) blit(ctx, acc.art, bx + 4 + acc.dx, ROW_Y + 7 + acc.dy);
-        }
+        // ONE PATH FOR EVERY CARD SIZE. CARD_PN falls out of the card's own
+        // width, so 1x, 2x and 3x are the same three lines and a new card size
+        // cannot leave the portrait behind at the size it used to be.
+        const px0 = bx + 1 + ((CARD - 2 - 16 * CARD_PN) >> 1);
+        blit(ctx, artN("c" + c.p.color, CRAB_ARTS[c.p.color].a, CARD_PN), px0, ty + 7);
+        if (acc) blit(ctx, artN("a" + hat, acc.art, CARD_PN),
+                      px0 + acc.dx * CARD_PN, ty + 7 + acc.dy * CARD_PN);
       }
-      rect(ctx, bx + CARD - 6, ROW_Y + 2, 4, 4, c.p.sick ? [130, 220, 110] : c.duty ? [96, 232, 120] : [150, 140, 140]);
-      smallText(ctx, c.p.name.slice(0, pstep(5, 8)), bx + 1, ROW_Y + CARD + 1, [220, 210, 190]);
+      rect(ctx, bx + CARD - 6, ty + 2, 4, 4, c.p.sick ? [130, 220, 110] : c.duty ? [96, 232, 120] : [150, 140, 140]);
+      smallText(ctx, c.p.name.slice(0, pstep(5, 8)), bx + 1, ty + CARD + 1, [220, 210, 190]);
     }
     if (!crabs.length) text(ctx, "NO CREW YET", 8, ROW_Y + 7, [190, 170, 150]);
   }
@@ -17417,10 +17432,16 @@ function homeLabel(p) {
   if (p.house === 6) return ["HOUSE BY THE SHELTER", [90, 130, 90]];
   return ["HOUSE " + (p.house + 1) + " ON THE PROMENADE", [90, 130, 90]];
 }
-const _art2Cache = {};
-function art2(key, art) {   // lazily scaled 2x art for the dossier portrait
-  return _art2Cache[key] || (_art2Cache[key] = scale2(art));
+const _artNCache = {};
+// Lazily scaled art for the portraits. N is a REQUEST, not a promise of new
+// art: scaleN is nearest-neighbour, so a 3x crab is the 1x crab with bigger
+// pixels - which is the whole point on a phone, where the crew card is a tap
+// target before it is a picture.
+function artN(key, art, n) {
+  const k = key + "@" + n;
+  return _artNCache[k] || (_artNCache[k] = scaleN(art, n));
 }
+function art2(key, art) { return artN(key, art, 2); }
 // ONE PORTRAIT PATH FOR EVERY ROSTER SURFACE. The world's drawCrab learned
 // cultures in the settlers slice; the little portraits (crew strip, crew
 // card, the record's header, the towns shelf) kept indexing the crab rack,
