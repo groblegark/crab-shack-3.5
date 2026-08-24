@@ -873,7 +873,18 @@ const FLOOR_STEPS = WAGE_FLOOR.steps.length - 1;
 // on, and one already over it is grandfathered and thins out by attrition.
 // Step 0 is NO LIMIT and is the founding policy.
 const HEAD_CAP = { name: "THE HOUSE LIMIT", short: "STAFF", unit: "EMPLOYEES TO A BUSINESS",
-  who: "EVERY SHOP ON THE PROMENADE - YOURS FIRST", steps: [0, 2, 3, 4, 6] };
+// THE LADDER GREW (Matt, 2026-08-24: "Keep 6 as a rung, add higher ones").
+// His preview wrote [4, 6, 8, 12]; taken literally that DELETES step 0, and
+// step 0 is NO LIMIT - the founding policy, and what every save written
+// before this feature loads as (cap:0). Replacing the ladder would silently
+// convert every existing town's "no limit" into a four-head cap it never
+// voted for. So the ladder EXTENDS instead: 0 and 6 both keep their meaning
+// and their index, and 8 and 12 are new rungs above.
+//
+// This is also the bug Matt reported from play - "i cant specify more than 6
+// staff for my campaign platform" - which was never a UI defect at all: six
+// was simply the top of the ladder.
+  who: "EVERY SHOP ON THE PROMENADE - YOURS FIRST", steps: [0, 2, 3, 4, 6, 8, 12] };
 const CAP_STEPS = HEAD_CAP.steps.length - 1;
 function capOf(p) {
   return HEAD_CAP.steps[Math.max(0, Math.min(CAP_STEPS, (p && p.cap) | 0))] || 0;
