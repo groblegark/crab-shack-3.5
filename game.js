@@ -14264,8 +14264,15 @@ cv.addEventListener("click", (ev) => {
         sfx.buy(); save(); return;
       }
       const staff = allCrabs().filter(c => c.p.job === manage);
-      for (let i = 0; i < Math.min(staff.length, R.rows.length); i++) {
-        const c = staff[i], cell = R.cells[i];
+      const SW = schedWindow(staff.length, R);
+      if (SW.paged) {
+        const pr = SW.pagerRow;
+        if (pt.x >= pr.x && pt.x < pr.x + pr.w && pt.y >= pr.y && pt.y < pr.y + pr.h) {
+          schedPage = (schedPage + 1) % SW.pages; sfx.ding(); return;
+        }
+      }
+      for (let i = 0; i < Math.min(staff.length - SW.start, SW.per); i++) {
+        const c = staff[SW.start + i], cell = R.cells[i];
         if (hit(cell.wdn) || hit(cell.wup)) {   // a private deal, above or below the shop rate
           setCrabWage(c, Math.round(wageRate(c)) + (hit(cell.wup) ? 1 : -1));
           sfx.buy(); save(); return;   // DIARY HOOK: the player moved this crab's rate
@@ -15909,9 +15916,18 @@ function drawFollowCard() {
   const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);   // illness halves everything - show it
   if (eff < 0.995)
     smallText(ctx, "PACE " + Math.round(eff * 100) + "%", 74, 36, eff < 0.8 ? [190, 80, 80] : [200, 110, 40]);
-  const bars = [["FED", 1 - (p.hunger || 0), 6], ["SIP", 1 - (p.thirst || 0), 30],
-    ["CLN", 1 - (p.dirt || 0) / Q20, 54], ["FUN", 1 - (p.bored || 0) / Q20, 78], ["ZZZ", 1 - (p.tired || 0) / Q20, 102]];
-  for (const [label, frac, bx] of bars) {
+  // ALL FIVE needs are Q20 integers since the needs slice - FED and SIP read
+  // them raw here for a while, so `1 - hunger` went six digits negative and
+  // Math.round(11 * frac) handed the canvas a NEGATIVE width: fillRect drew it
+  // LEFTWARD from FED's slot, a red smear across the portrait to the card
+  // edge ("weird red bar near the FED indicator that doesn't come from
+  // there"). Divided like its three siblings, and CLAMPED like every bar on
+  // every card - a display fraction never leaves [0,1] no matter what a
+  // future unit migration does to its input.
+  const bars = [["FED", p.hunger, 6], ["SIP", p.thirst, 30],
+    ["CLN", p.dirt, 54], ["FUN", p.bored, 78], ["ZZZ", p.tired, 102]];
+  for (const [label, need, bx] of bars) {
+    const frac = Math.max(0, Math.min(1, 1 - (need || 0) / Q20));
     smallText(ctx, label, bx, 44, [110, 110, 130]);
     rect(ctx, bx + 11, 45, 13, 4, [30, 20, 36]);
     rect(ctx, bx + 12, 46, Math.round(11 * frac), 2,
@@ -17416,6 +17432,20 @@ function drawDossier() {
 // apart on purpose.
 function ownedBizList() { return Object.keys(BIZ).filter(b => bizUnlocked(b) && bizOwner(b) === "player"); }
 const MANAGE_TABS = ["HOURS", "SCHEDULE", "TOWN", "HALL"];
+// THE ROTA PAGES AT SEVEN. The schedule card has seven row rects; a shop
+// with more staff used to show the first seven and give the rest NO
+// controls at all - no shift, no OT, no sick, no wage (found chasing "cant
+// specify more than 6 staff"). When staff outgrow the rows, the last row
+// band becomes a pager line and the window walks; draw and hit test share
+// this one function so an unpainted row can never answer.
+let schedPage = 0;
+function schedWindow(staffN, R) {
+  const paged = staffN > R.rows.length;
+  const per = paged ? R.rows.length - 1 : R.rows.length;
+  const pages = Math.max(1, Math.ceil(staffN / per));
+  if (schedPage >= pages) schedPage = 0;
+  return { start: schedPage * per, per, pages, paged, pagerRow: R.rows[R.rows.length - 1] };
+}
 // NEXT> steps to the next SHOP you own, which means nothing at all on a page
 // about the TOWN - and the census is now reached straight from the nav strip,
 // by players who never picked a business in the first place. One predicate for
@@ -17719,8 +17749,14 @@ function drawManage() {
     smallText(ctx, fitSmall(rosterHint(key, deals), rosterHintBudget(R)),
       x + 6, y + h2 - 13, [110, 100, 110]);
     if (!staff.length) smallText(ctx, "NOBODY ASSIGNED - REASSIGN FROM A DOSSIER", x + 8, y + 70, [190, 80, 80]);
-    for (let i = 0; i < Math.min(staff.length, R.rows.length); i++) {
-      const c = staff[i], cell = R.cells[i], ry = R.rows[i].y;
+    const SW = schedWindow(staff.length, R);
+    if (SW.paged) {   // the pager line, in the row band it costs
+      const pr = SW.pagerRow;
+      smallText(ctx, "..MORE (" + (staff.length - SW.per) + ") TAP HERE  " + (schedPage + 1) + "/" + SW.pages,
+        pr.x + 2, pr.y + 2, [190, 170, 230]);
+    }
+    for (let i = 0; i < Math.min(staff.length - SW.start, SW.per); i++) {
+      const c = staff[SW.start + i], cell = R.cells[i], ry = R.rows[i].y;
       if (i % 2 === 0) rect(ctx, R.rows[i].x, ry - 1, R.rows[i].w, 11, [244, 238, 224]);
       const gripe = wageGripe(c);
       smallText(ctx, c.p.name.slice(0, 7), cell.name.x + 1, ry + 2,
@@ -17765,7 +17801,7 @@ function drawHall(R, chip) {
   const m = mayorCrab(), p = hall.policy, P = purseOf(p);
   const shut = shelterShut();
   smallText(ctx, "MAYOR", x + 8, y + 33, [58, 42, 38]);
-  smallText(ctx, (hall.mayor || "VACANT") + (m && !m.p.npc ? " (YOURS)" : ""), x + 42, y + 33,
+  smallText(ctx, fitSmall((hall.mayor || "VACANT") + (m && !m.p.npc ? " (YOURS)" : ""), w2 - 50), x + 42, y + 33,
     m && !m.p.npc ? [190, 110, 40] : [40, 30, 40]);
   const rollPages = Math.max(1, Math.ceil(((hall.poll && hall.poll.lines.length) || 0) / ROLL_ROWS));
   chip(R.hview, (HALL_VIEW_LABEL[hallView] || "BOOKS")
@@ -17844,7 +17880,7 @@ function drawHall(R, chip) {
     const poll = hall.poll;
     if (!poll) smallText(ctx, "NOBODY HAS VOTED YET", x + 8, y + 68, [150, 140, 160]);
     else {
-      smallText(ctx, "HOW THE TOWN VOTED - DAY " + poll.day, x + 8, y + 66, [58, 42, 38]);
+      smallText(ctx, fitSmall("HOW THE TOWN VOTED - DAY " + poll.day, w2 - 16), x + 8, y + 66, [58, 42, 38]);
       if (rollPages > 1)
         smallText(ctx, "TAP THE CHIP FOR THE REST", x + w2 - 6 - smallTextWidth("TAP THE CHIP FOR THE REST"),
           y + 66, [150, 140, 160]);
@@ -17861,7 +17897,7 @@ function drawHall(R, chip) {
     // the player sees here is exactly what a crab walking past the table sees:
     // who is on the paper, how many have voted, and how much paper is left.
     // A running total would quietly undo the whole point of counting by hand.
-    smallText(ctx, "TODAY'S BALLOT - " + B0.printed + " PAPERS PRINTED", x + 8, y + 66, [58, 42, 38]);
+    smallText(ctx, fitSmall("TODAY'S BALLOT - " + B0.printed + " PAPERS PRINTED", w2 - 16), x + 8, y + 66, [58, 42, 38]);
     let ly = y + 76;
     for (const k of B0.cands.slice(0, 4)) {
       const you = !!k.you;
@@ -17871,8 +17907,8 @@ function drawHall(R, chip) {
       ly += 8;
     }
     ly += 2;
-    smallText(ctx, B0.shut ? "THE POLLS HAVE SHUT" : "IN THE BOX  " + B0.cast.length
-      + "        ON THE TABLE  " + B0.papers, x + 8, ly, [58, 42, 38]); ly += 8;
+    smallText(ctx, fitSmall(B0.shut ? "THE POLLS HAVE SHUT" : "IN THE BOX  " + B0.cast.length
+      + "        ON THE TABLE  " + B0.papers, w2 - 16), x + 8, ly, [58, 42, 38]); ly += 8;
     // THE THREE WAYS A CRAB LOSES A VOTE, each of them by name, because every
     // one of them is a thing the player could have prevented.
     const missed = allCrabs().filter(c => !B0.voters[c.p.name]).map(c => c.p.name);
@@ -17886,8 +17922,8 @@ function drawHall(R, chip) {
     const poll = hall.poll;
     if (!poll) smallText(ctx, "NO BALLOT HAS BEEN HELD YET", x + 8, y + 68, [150, 140, 160]);
     else {
-      smallText(ctx, "DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
-        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), x + 8, y + 66, [58, 42, 38]);
+      smallText(ctx, fitSmall("DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
+        + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), w2 - 16), x + 8, y + 66, [58, 42, 38]);
       let ly = y + 76;
       for (const k of poll.cands.slice(0, 3)) {
         const won = k.name === poll.winner;
