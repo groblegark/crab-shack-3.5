@@ -13,9 +13,11 @@
   },
   "arms": [
     {
-      "id": "reef-week",
-      "entry": "tools/rethink-reef.mjs",
-      "args": [],
+      "id": "daysoff",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "days off: everyone"
+      ],
       "env": {
         "SIMLIB_REALM": "main"
       }
