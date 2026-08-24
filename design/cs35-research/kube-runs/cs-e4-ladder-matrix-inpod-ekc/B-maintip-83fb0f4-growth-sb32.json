@@ -1,0 +1,178 @@
+{
+  "release": "cs-e4-ladder-matrix-inpod-ekc",
+  "armId": "B-maintip-83fb0f4-growth-sb32",
+  "index": 12,
+  "sha": "83fb0f4",
+  "side": "B-maintip",
+  "root": "/home/agent/bot/cs/work",
+  "entry": "tools/headless.mjs (via scratchpad/perseed.mjs, batch.mjs fork convention)",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table"
+  ],
+  "env": {
+    "SIMLIB_KERNEL": "wasm",
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 177178,
+  "ranInPod": true,
+  "result": {
+    "root": "/home/agent/bot/cs/work",
+    "towns": 16,
+    "seedbase": 32,
+    "jobs": 7,
+    "workload": "--days 30 --quiet --buy chef,table",
+    "kernel": true,
+    "realm": "main",
+    "survived": 8,
+    "evicted": 8,
+    "workersDied": 0,
+    "escapes": [
+      32,
+      35,
+      36,
+      39,
+      41,
+      42,
+      43,
+      45
+    ],
+    "evictionDays": {
+      "histogram": {
+        "8": 1,
+        "9": 1,
+        "10": 1,
+        "11": 1,
+        "12": 2,
+        "13": 1,
+        "15": 1
+      },
+      "median": 12,
+      "min": 8,
+      "max": 15
+    },
+    "lifetime": {
+      "median": 9514,
+      "p10": 2396,
+      "p90": 16564,
+      "mean": 8671
+    },
+    "throughput": {
+      "livedSimDays": 338,
+      "wallSec": 177.1,
+      "simDaysPerSec": 1.9,
+      "loadavg": [
+        16.7,
+        18.7,
+        14.3
+      ]
+    },
+    "perSeed": [
+      {
+        "seed": 32,
+        "survived": true,
+        "day": null,
+        "lifetime": 14605
+      },
+      {
+        "seed": 33,
+        "survived": false,
+        "day": 12,
+        "lifetime": 3630
+      },
+      {
+        "seed": 34,
+        "survived": false,
+        "day": 13,
+        "lifetime": 3832
+      },
+      {
+        "seed": 35,
+        "survived": true,
+        "day": null,
+        "lifetime": 16564
+      },
+      {
+        "seed": 36,
+        "survived": true,
+        "day": null,
+        "lifetime": 13695
+      },
+      {
+        "seed": 37,
+        "survived": false,
+        "day": 12,
+        "lifetime": 3719
+      },
+      {
+        "seed": 38,
+        "survived": false,
+        "day": 9,
+        "lifetime": 2396
+      },
+      {
+        "seed": 39,
+        "survived": true,
+        "day": null,
+        "lifetime": 14934
+      },
+      {
+        "seed": 40,
+        "survived": false,
+        "day": 11,
+        "lifetime": 3170
+      },
+      {
+        "seed": 41,
+        "survived": true,
+        "day": null,
+        "lifetime": 9514
+      },
+      {
+        "seed": 42,
+        "survived": true,
+        "day": null,
+        "lifetime": 18234
+      },
+      {
+        "seed": 43,
+        "survived": true,
+        "day": null,
+        "lifetime": 11298
+      },
+      {
+        "seed": 44,
+        "survived": false,
+        "day": 10,
+        "lifetime": 2703
+      },
+      {
+        "seed": 45,
+        "survived": true,
+        "day": null,
+        "lifetime": 14275
+      },
+      {
+        "seed": 46,
+        "survived": false,
+        "day": 15,
+        "lifetime": 4212
+      },
+      {
+        "seed": 47,
+        "survived": false,
+        "day": 8,
+        "lifetime": 1954
+      }
+    ]
+  }
+}
