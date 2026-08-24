@@ -52,9 +52,21 @@ for (const seed of SEEDS.slice(0, TOWNS)) {
 
 const ranked = Object.entries(hist).sort((a, b) => b[1] - a[1]);
 const pct = (n) => (100 * n / Math.max(1, cards)).toFixed(1) + "%";
+// EVERY WINNER, NOT A TOP-8. The first version of this tool printed
+// `ranked.slice(0, 8)`, and the census write-up read "absent from the top 8" as
+// "never won" - which put three false sentences into the research doc, PLAN and
+// a devlog draft (see the CORRECTION block in depart-census-2026-08-24.md). The
+// glad and made winners are exactly the ones that live in the tail, so the
+// truncation hid the answer to the question being asked. A histogram's tail is
+// not a zero: print all of it and let the reader do the cutting.
+const byMood = {};
+for (const [id, n] of ranked) { const m = moods[id] || "?"; byMood[m] = (byMood[m] || 0) + n; }
 console.log(JSON.stringify({
   towns: TOWNS, days: DAYS, cards,
-  top: ranked.slice(0, 8).map(([id, n]) => [id, n, pct(n), moods[id] || "?"]),
+  everyWinner: ranked.map(([id, n]) => [id, n, pct(n), moods[id] || "?"]),
+  // the register question in one line, since "one rule wins everything" and
+  // "the card can never say anything kind" are different complaints
+  moodTotals: Object.entries(byMood).sort((a, b) => b[1] - a[1]).map(([m, n]) => [m, n, pct(n)]),
   rulesThatNeverWon: Object.keys(moods).filter(id => !hist[id]).sort(),
   distinctWinners: ranked.length,
 }));

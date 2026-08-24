@@ -62,9 +62,30 @@ A need rule only fires on a guest the town genuinely failed, and those guests
 have no competing story to tell. So rescaling the need weights redistributes
 *within* the needs; it does not let circumstance in. `delight` is a separate
 shape: already weight 66 (higher than hungry's 44 base), it never *enters* —
-its gate needs a non-crab guest eating their own cuisine (`game.js:13453`), so
-a crab who ate, bathed, played and slept indoors has no path to a glad card at
-any weight. Open decision: `kd-d0eIIm5FJF`.
+its gate needs a non-crab guest eating their own cuisine (`game.js:13453`), and
+`tasteW` returns exactly 1 for a crab against a `>= 1.5` test, so **`delight` is
+unreachable for a crab guest at any weight**. Ruled: option A on `kd-d0eIIm5FJF`.
+
+**CORRECTION (bae1786) — the card CAN say something glad; the earlier claim here
+was wrong.** This paragraph previously said "a crab who ate, bathed, played and
+slept indoors has no path to a glad card at any weight." That is false, and the
+engine says so directly. `visQuote` is a pure function of a row, so the guest can
+be built and asked: every need pegged at a full bar Q20 but having *bought the
+answer* to each returns mood **`made`** — *"SPENT EVERY DOLLAR OF MY $14100.
+WORTH THE CROSSING."* Strip the purchases from the same row and it goes sour.
+The five need rules each require the matching purchase count to be **zero**
+(`hungry` wants `meals === 0`), so a guest who bought the answer cannot be
+scolded for that need at all. Nor is `delight` "the only glad rule": four rules
+are `glad` (delight, bed, top, regular) and two are `made` (table, spentup).
+Glad+made won **66 of the 4,399 cards (1.5%)** — table 55, spentup 8, bed 1,
+top 1, regular 1.
+
+The error's mechanism is worth keeping: `tools/departcensus.mjs` prints only
+`ranked.slice(0, 8)`, and absence from that top-8 was read as never-won. The
+tool's own `rulesThatNeverWon` list was correct and did not contain them. **A
+histogram's tail is not a zero — check the tool's cutoff before saying "never".**
+So the honest finding is *the glad register is rare (1.5%) and one glad rule is
+structurally unreachable for crabs*, not *the card can only scold*.
 
 **A NUMBER WITHOUT ITS TREE IS NOT QUOTABLE.** Every figure above names the SHA
 it was measured at and the receipt it came from, because that is the one rule

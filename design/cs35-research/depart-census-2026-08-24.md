@@ -35,17 +35,46 @@ code disagree, and the code is what players read.
 
 ## The part that is not just a distribution
 
-**`delight` never wins. Not once in 4,399 cards.** It is the only `glad` rule
-in the table — the one that says *"FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY
-SO AT HOME."* With `quiet` (*"A DAY BY THE SEA. I'VE HAD WORSE."*) also never
-firing, the departure card has effectively ONE emotional register: complaint.
+**`delight` never wins. Not once in 4,399 cards.** It is the rule that says
+*"FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."*
+
+> **CORRECTION, added at `bae1786` after re-measuring.** The three sentences
+> that stood here were wrong, and are struck rather than quietly deleted so the
+> error stays legible:
+>
+> - ~~"It is the only `glad` rule in the table"~~ — **false.** Four rules carry
+>   mood `glad` (`delight`, `bed`, `top`, `regular`) and two carry `made`
+>   (`table`, `spentup`).
+> - ~~"the departure card has effectively ONE emotional register: complaint"~~ —
+>   **false.** Glad+made won **66 of the 4,399 cards (1.5%)**: `table` 55,
+>   `spentup` 8, `bed` 1, `top` 1, `regular` 1. Rare is not absent.
+> - ~~"A guest who ate well, bathed, played and slept indoors still leaves
+>   blaming whichever need decayed furthest"~~ — **false, and it was the
+>   load-bearing sentence.** `visQuote` is a pure function of a row, so that
+>   guest can simply be built and asked. With every need pegged at a full bar
+>   (Q20) but the answer to each one bought, the shipped table returns mood
+>   `made`: *"SPENT EVERY DOLLAR OF MY $14100. WORTH THE CROSSING."* The same
+>   row with the purchases removed goes sour. **Each need rule requires its
+>   matching purchase count to be zero** (`hungry` wants `meals === 0`), so a
+>   guest who bought the answer cannot be scolded for that need at all.
+>
+> **How the error happened, because the mechanism generalises:** this tool
+> prints only `top: ranked.slice(0, 8)`. The glad and made winners all sit below
+> that cutoff, and *absent from the top 8* was read as *never won*. The tool's
+> own `rulesThatNeverWon` field was correct the whole time and does not list
+> them. **A histogram's tail is not a zero — check the cutoff before writing
+> "never".**
+>
+> What survives unchanged: the 94.4% need share, the 80% sour top three, and
+> `delight` never winning once. And the sharper version of the real finding is
+> below — for a **crab** guest `delight` is not merely rare but *unreachable*,
+> since `tasteW` returns exactly 1 for a crab against a `>= 1.5` gate.
 
 This is categorically different from the dead house-limit rungs Matt ruled to
 keep. An unused *rung* is room for a culture that argues differently — a real
-degree of freedom. An unused *emotional register* means the game's main
-feedback surface can only ever scold the player, no matter how well the town
-is run. A guest who ate well, bathed, played and slept indoors still leaves
-blaming whichever need decayed furthest.
+degree of freedom. A glad register that is reachable in principle but wins 1.5%
+of cards is a *balance* question; a glad rule no crab can ever trip is a
+*structural* one, and only the second is a defect.
 
 Note the mechanism: a need rule only fires when its need crossed the 0.85
 threshold AND the guest never bought the answer (`meals == 0`, `drinks == 0`).
