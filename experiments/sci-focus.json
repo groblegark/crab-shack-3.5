@@ -1,0 +1,16 @@
+{
+  "name": "sci-focus",
+  "note": "The title-credit occlusion scenario alone, both backends. Kept because this scenario has already been vacuous once: its first version recomputed the fix's own formula inside the test and passed 2/2 with the bug fully restored. Re-arm the mutation (pin creditTop back to PANEL_Y + 8) and this must go RED naming the two credit strings and the button rect - measured 2026-08-24: withSave fails, noSave stays green, which is why both states are checked.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "4Gi" },
+    "limits": { "cpu": "2", "memory": "6Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ],
+  "arms": [
+    { "id": "sci-js", "entry": "tools/suite.mjs", "args": ["the title's credit block never lands on the science button"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "sci-wasm", "entry": "tools/suite.mjs", "args": ["the title's credit block never lands on the science button"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } }
+  ]
+}
