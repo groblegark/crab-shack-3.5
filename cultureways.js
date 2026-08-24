@@ -493,7 +493,7 @@ var BUNDLED_CULTUREWAYS = {
    }
   },
   "arrival": {
-   "repGate": 80,
+   "repGate": 55,
    "shareMax": 0.25,
    "shareRamp": 80
   },
@@ -826,7 +826,7 @@ var BUNDLED_CULTUREWAYS = {
    }
   },
   "arrival": {
-   "repGate": 60,
+   "repGate": 40,
    "shareMax": 0.3,
    "shareRamp": 40
   },

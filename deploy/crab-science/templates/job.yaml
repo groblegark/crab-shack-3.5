@@ -14,7 +14,9 @@ spec:
   # concurrent 20-arm batteries died 13/24-style to provisioning flakes under
   # backoffLimit alone. maxFailedIndexes still bounds a genuinely red run.
   backoffLimitPerIndex: {{ .Values.backoffLimitPerIndex | default 2 }}
-  maxFailedIndexes: {{ .Values.maxFailedIndexes | default 5 }}
+  # ...bounded by completions: k8s refuses maxFailedIndexes > completions, so
+  # a 1-arm manifest (phased-gates) must get 1, not the 5 that fits a battery.
+  maxFailedIndexes: {{ min (.Values.maxFailedIndexes | default 5) (int .Values.arms) }}
   ttlSecondsAfterFinished: {{ .Values.ttlSecondsAfterFinished }}
   activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
   template:
