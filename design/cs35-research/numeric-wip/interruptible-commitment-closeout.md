@@ -79,9 +79,24 @@ re-think gathers too, so departure cards name a blocked reason somewhat more
 often — the card is now quoting a guest who wanted the thing MORE OFTEN,
 which is honest.
 
+## THE SYMMETRY LESSON (this slice's keeper)
+
+The queue re-think's first home was the JS shuffle block - and under the
+kernel, queue states belong to `cust_step`, so the exit ran on ONE backend
+only. The stream forked immediately and measurably: seed 1337 day 1 drew
+1861 in the reference and 3063 under wasm, and the queue scenario went red
+on wasm alone. The fix is a placement rule worth keeping: **behavior that
+must exist on both backends lives in a call both backends make** - the
+re-think moved to `visTick` (the one per-visitor call each frame everywhere)
+and the fork closed. Corollary for every future JS-orchestrated feature:
+grep for `if (KERN)` early-returns and kernel-unit chains BEFORE choosing a
+code home; the agreement referee only compares the states it is pointed at,
+and a JS-only branch in kernel-owned territory is exactly the divergence it
+exists to catch.
+
 ## FIRST CROSSING
 
-(to be filled from the seed-1337 trace)
+(to be filled from the seed-1337 trace at the final SHA)
 
 ## THE DITHER NUMBER
 
