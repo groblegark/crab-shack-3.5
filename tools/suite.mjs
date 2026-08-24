@@ -7150,7 +7150,7 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // seller, she is heard of for two settlements, and then she is standing
   // behind his desk. The dangerous part of that is the handover, so this
   // scenario watches every tick of it.
-  let bad = null, seenHeard = 0;
+  let bad = null, seenHeard = 0, pickShot = null;
   const sim = createSim({ seed: 909 });
   if (sim.G(`bizOwner("hotel")`) !== "reef") return "the town does not open with REEF behind the desk";
   if (!sim.G(`canOffer("hotel")`)) return "REEF is not a willing seller any more";
@@ -7181,6 +7181,19 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
     if (!bad && st.o == null) bad = "the Driftwood stood unowned";
     if (!bad && st.keepers > 1) bad = "two owner-operators behind one desk";
     if (st.heard && !seenHeard) seenHeard = st.heard;
+    // SNAPSHOT THE LADDER AT THE MOMENT SHE PICKS, not at the end of the run.
+    // "Nearest free door" is a rule about the housing ladder AS IT STOOD when
+    // she chose. Asking at the end asks a different question - houses empty
+    // out afterwards, so a door that is free on day 9 may have been somebody's
+    // on the day she moved in, and the pin then reports a rule violation that
+    // never happened. That is what [[4,310],[5,380]] was.
+    if (st.came && !pickShot) pickShot = JSON.parse(G(`(() => {
+      const her = allCrabs().find(k => k.p.owner === hotelier.id);
+      if (!her || her.p.house == null) return "null";
+      const mine = Math.abs(HOUSE_XS[her.p.house] - BIZ.hotel.door);
+      return JSON.stringify({ house: her.p.house,
+        closerFree: HOUSE_XS.map((x, i) => [i, x])
+          .filter(([i, x]) => !houseOccupant(i) && Math.abs(x - BIZ.hotel.door) < mine) }); })()`));
   } });
   const closures = JSON.parse(sim.G(`JSON.stringify(window._stats.closures || [])`));
   if (bad && !closures.some(c => c.biz === "hotel" && c.why === "bankrupt")) return bad;
@@ -7204,12 +7217,14 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // fisher usually has the other, so the strict version was asserting a
   // coincidence and broke the moment the hotel fix changed who could afford a
   // roof. Testing the rule holds either way.
-  const closerFree = JSON.parse(sim.G(`(() => {
-    const mine = Math.abs(HOUSE_XS[${her.house}] - BIZ.hotel.door);
-    return JSON.stringify(HOUSE_XS.map((x, i) => [i, x])
-      .filter(([i, x]) => !houseOccupant(i) && Math.abs(x - BIZ.hotel.door) < mine)); })()`));
+  // ...asked of the ladder AS IT STOOD WHEN SHE CHOSE (the onTick snapshot),
+  // not as it stands nine days later. See the note at the snapshot site: the
+  // end-of-run form was reporting doors that emptied AFTER she moved in, which
+  // is not a rule violation and never was.
+  if (!pickShot) return "never caught the moment she took a door";
+  const closerFree = pickShot.closerFree;
   if (closerFree.length)
-    return `she walked past an empty house closer to her own front door: ${JSON.stringify(closerFree)}`;
+    return `she walked past an empty house closer to her own front door, at the moment she chose: ${JSON.stringify(closerFree)}`;
   // THE MONEY IS CONSERVED: what left her wallet is what REEF banked plus the
   // opening float in her till - a sale between two crabs mints nothing.
   const buy = JSON.parse(sim.G(`JSON.stringify((window._stats.buyouts || [])[0] || null)`));
