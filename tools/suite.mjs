@@ -5432,6 +5432,34 @@ scenario("no card prints text on top of its own text", () => {
     run("manage-hours", () => { dossier = null; manage = "shack"; manageTab = "HOURS"; }, () => drawManage());
     run("manage-sched", () => { manage = "shack"; manageTab = "SCHEDULE"; }, () => drawManage());
     run("census", () => { manage = "shack"; manageTab = "TOWN"; }, () => drawManage());
+    // THE HALL WAS NEVER SWEPT - which is how five raw header lines survived
+    // to scroll off the screen. Stuffed with worst-plausible content.
+    run("hall-books", () => { manage = "shack"; manageTab = "HALL"; hallView = "BOOKS";
+      for (let i = 0; i < 9; i++) townFund.ledger.push({ day: 100 + i, kind: i % 2 ? "take" : "give",
+        who: "BARNACLE THE MAGNIFICENT III", amt: 123456, why: "A LONG REASON THAT NAMES THE POLICY AND THE DAY" });
+    }, () => drawManage());
+    run("hall-ballot-open", () => { hallView = "BALLOT";
+      const longNames = ["BARNACLE THE MAGNIFICENT", "TIDEPOOL TIMOTHEUS", "SHELLSWORTH ESQUIRE", "MADAME CARAPACE"];
+      ballotBox = { day, want: 999, roll: 999, counted: 0, countT: 0, declared: false, shut: false,
+        cands: longNames.map((n, i) => ({ name: n, plat: hall.plat, inc: i === 0, you: i === 1 })),
+        papers: 4321, printed: 4321, cast: new Array(321).fill("X"),
+        voters: {}, lines: [],
+        turnedAway: longNames.concat(longNames), late: longNames };
+    }, () => { drawManage(); ballotBox = null; });
+    run("hall-ballot-results", () => { hallView = "BALLOT";
+      hall.poll = { day: 234, turnout: 128, roll: 156, away: 43, winner: "BARNACLE THE MAGNIFICENT",
+        cands: [["BARNACLE THE MAGNIFICENT", 99], ["TIDEPOOL TIMOTHEUS", 87], ["SHELLSWORTH ESQUIRE", 65], ["MADAME CARAPACE", 4]]
+          .map(([n, v]) => ({ name: n, votes: v, line: "RAISE THE LEVY AND STAFF THE HOUSE TO THE RAFTERS FOREVER" })),
+        lines: new Array(24).fill("SOMEBODY VOTED FOR SOMETHING FOR A REASON THAT RUNS VERY LONG INDEED") };
+    }, () => drawManage());
+    run("sched-12", () => { manageTab = "SCHEDULE";
+      const c00 = crabs[0];
+      while (crabs.length < 12)
+        crabs.push({ x: c00.x, y: c00.y, duty: false,
+          p: { name: "STAGED " + crabs.length, color: crabs.length % 4, acc: "none", culture: "crab",
+               trait: c00.p.trait, mode: c00.p.mode, sick: false, job: c00.p.job, wage: c00.p.wage, wallet: 0 } });
+      for (const c of crabs) c.p.job = "shack";   // all twelve on one rota: the pager must engage
+    }, () => drawManage());
     run("board", () => { manage = null; boardView = true; }, () => drawJobBoard());
     run("save", () => { boardView = false; saveView = true; }, () => drawSaveScreen());
     run("report", () => { saveView = false; }, () => drawReport());
@@ -5640,6 +5668,14 @@ scenario("no surface prints off the canvas", () => {
       return fn(c, str, x, y, col, sz);
     };
     text = wrap(T, textWidth); smallText = wrap(S, smallTextWidth);
+    // rects too: a NEGATIVE width or height is the red-bar class - an
+    // unclamped fraction handing fillRect a six-digit-negative width that
+    // paints leftward across the card (FED read raw Q20, 2026-08-23)
+    const R0 = rect;
+    rect = (c, rx, ry, rw, rh, col) => {
+      if (rw < 0 || rh < 0) bad.push([SURF, "RECT " + rw + "x" + rh, Math.round(rx), Math.round(ry)]);
+      return R0(c, rx, ry, rw, rh, col);
+    };
     const run = (name, setup, fn) => {
       SURF = name;
       try { if (setup) setup(); fn(); } catch (e) { bad.push([name, "THREW " + e.message, 0, 0]); }
