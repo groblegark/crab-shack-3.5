@@ -307,6 +307,7 @@ if (WORKER_SEED != null) {
 }
 
 // ---- seed matrix: sequential (--jobs 1) or a pool of forked workers ------
+const T0 = Date.now();   // science probes stamp worker completions against this
 function runParallel(seedList, jobs) {
   return new Promise((resolve, reject) => {
     const out = new Array(seedList.length);
@@ -323,7 +324,10 @@ function runParallel(seedList, jobs) {
         [...args, "--_worker", String(seedList[idx])],
         { stdio: ["ignore", "inherit", "inherit", "ipc"],
           ...(WORKERMEM ? { execArgv: ["--max-old-space-size=" + WORKERMEM] } : {}) });
-      child.on("message", (msg) => { out[idx] = msg; });
+      child.on("message", (msg) => { out[idx] = msg;
+        if (CITSCRIPT || CITDIVLOG || CITKNOCK.length)
+          console.log(`>> worker done seed=${seedList[idx]} (${out.filter(Boolean).length}/${seedList.length}) t=${(Date.now() - T0) / 1000 | 0}s`);
+      });
       child.on("error", reject);
       child.on("exit", (code) => {
         // the exit event can BEAT the final IPC message's delivery in this

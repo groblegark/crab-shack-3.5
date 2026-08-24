@@ -1,0 +1,17 @@
+{
+  "name": "cit-science-probe1",
+  "note": "One witnessed arm (live-t0, 4 towns, 2 workers) with logs streamed from launch - attempt 10's no-blind-relaunch probe. Same flags as the corpus arms plus per-worker completion prints.",
+  "activeDeadlineSeconds": 10800,
+  "resources": {
+    "requests": { "cpu": "2", "memory": "9Gi" },
+    "limits": { "cpu": "3", "memory": "10Gi" }
+  },
+  "arms": [
+    { "id": "live-t0", "entry": "tools/headless.mjs", "env": { "SIMLIB_REALM": "main" },
+      "args": ["--days", "30", "--seeds", "4", "--seedbase", "0", "--jobs", "2", "--workermem", "900", "--buy", "chef,table", "--citdivlog", "--quiet"] }
+  ],
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ]
+}
