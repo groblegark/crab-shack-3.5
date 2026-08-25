@@ -809,7 +809,7 @@
   "civics": {
    "type": "object",
    "additionalProperties": false,
-   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. Purses, calendar and relief are transcription that lands in later slices.",
+   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. purses: the four purses that fund the shelter (levy/dues/rents/tin) as rate grids - see the purses property. Calendar and relief are transcription that lands in later slices.",
    "required": ["stakes"],
    "properties": {
     "ballots": {
@@ -828,6 +828,25 @@
        "who": { "type": "string", "description": "Who the dial falls on." },
        "steps": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 },
         "description": "The ladder, low to high. steps[0] MUST be 0 (the founding no-policy). A save stores the index, never the value." }
+      }
+     }
+    },
+    "purses": {
+     "type": "array",
+     "description": "Phase E4 slice 4b - THE FOUR PURSES that fund the shelter, as rate grids. Four mechs (the engine's own id space): 'levy' (a share of every business's takings), 'dues' (a charge per visitor the ferry lands), 'rents' (a cut of Mr. Pincherton's house rents), 'tin' (a voluntary collection). Each is { id, name, short, unit, who, steps[] }. steps IS the rate grid and the INDEX (0..4) is what a save stores, so STEP 0 IS NO TAKE (rate 0 raises nothing), the founding grid. Every step is a whole count >= 0 (percent for levy/rents, cents for dues/tin). Like the ballot dials these are TOWN-LEVEL, so the crab's own bundle adopts them in place and the engine literal is the fallback; the levy's conflict-of-interest and the conservation math stay engine.",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "steps"],
+      "properties": {
+       "id": { "type": "string", "minLength": 1,
+        "description": "The purse mech id. levy/dues/rents/tin are the engine's own." },
+       "name": { "type": "string", "description": "The purse's full name." },
+       "short": { "type": "string", "description": "The purse's short label." },
+       "unit": { "type": "string", "description": "What a step counts (e.g. '% OF TAKINGS', '$ A HEAD')." },
+       "who": { "type": "string", "description": "Who the purse falls on." },
+       "steps": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 },
+        "description": "The rate grid, low to high. steps[0] MUST be 0 (NO TAKE). A save stores the index, never the value." }
       }
      }
     },

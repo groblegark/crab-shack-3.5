@@ -12065,6 +12065,14 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
     ballotTwice: boar({ stakes: platTermsWrap(), ballots: [{ id: "cap", steps: [0, 2] }, { id: "cap", steps: [0, 3] }] }),
     ballotStep0: boar({ stakes: platTermsWrap(), ballots: [{ id: "cap", steps: [4, 6, 8, 12] }] }),
     ballotFrac: boar({ stakes: platTermsWrap(), ballots: [{ id: "cap", steps: [0, 2.5] }] }),
+    // PURSES DOOR (slice 4b): a well-formed grid is accepted (inert), a malformed
+    // one refused by name.
+    goodPurses: boar({ stakes: platTermsWrap(), purses: [{ id: "levy", steps: [0, 2, 4] }] }),
+    pursesNotArray: boar({ stakes: platTermsWrap(), purses: 42 }),
+    purseBad: boar({ stakes: platTermsWrap(), purses: [null] }),
+    purseNoId: boar({ stakes: platTermsWrap(), purses: [{ steps: [0, 2] }] }),
+    purseTwice: boar({ stakes: platTermsWrap(), purses: [{ id: "levy", steps: [0, 2] }, { id: "levy", steps: [0, 4] }] }),
+    purseStep0: boar({ stakes: platTermsWrap(), purses: [{ id: "levy", steps: [2, 4, 6] }] }),
   };
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
     const docs = ${JSON.stringify(docs)};
@@ -12107,6 +12115,13 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
   if (v.ballotTwice !== "A BALLOT DIAL TWICE: cap") return "a doubled ballot dial slid in: " + v.ballotTwice;
   if (!/STEP 0 IS NOT THE FOUNDING/.test(String(v.ballotStep0))) return "a step-0-deleting ballot ladder slid in: " + v.ballotStep0;
   if (!/NOT A WHOLE COUNT/.test(String(v.ballotFrac))) return "a fractional ballot step slid in: " + v.ballotFrac;
+  // the purses door (slice 4b)
+  if (v.goodPurses !== null) return "a well-formed stranger purses was refused at the door: " + v.goodPurses;
+  if (v.pursesNotArray !== "A BAD PURSES SECTION") return "a non-array purses slid in: " + v.pursesNotArray;
+  if (v.purseBad !== "A BAD PURSE") return "a non-object purse slid in: " + v.purseBad;
+  if (v.purseNoId !== "A PURSE WITH NO ID") return "an id-less purse slid in: " + v.purseNoId;
+  if (v.purseTwice !== "A PURSE TWICE: levy") return "a doubled purse slid in: " + v.purseTwice;
+  if (!/STEP 0 IS NOT THE FOUNDING/.test(String(v.purseStep0))) return "a no-NO-TAKE purse grid slid in: " + v.purseStep0;
   return true;
 });
 scenario("civics: a people's voters score a platform on THEIR OWN declared stakes", () => {
@@ -12304,6 +12319,76 @@ scenario("civics ballots: the election is byte-equal to the pre-slice engine, an
   // and the cap dial, independently
   const bentCap = stage(`HEAD_CAP.steps[6] = 3;`);
   if (bentCap === base) return "bending the house limit's top step did not move the election - the dial is inert";
+  return true;
+});
+
+scenario("civics purses: the document's rate grids are byte-equal to the PURSES literals", () => {
+  // PHASE E4 SLICE 4b. The four purses (levy/dues/rents/tin) leave their game.js
+  // PURSES literal and ride the crab's own bundled civics document as
+  // civics.purses, adopted IN PLACE beside the ballot dials - the PURSES literal
+  // stays as the engine fallback and purseRate/purseYield/allPlatforms draw the
+  // same rate grids in the same order. This is the tabled==literal pin - the
+  // pinned copies below are the rate grids as they shipped, so ONE drifted step
+  // names the purse. A save stores the rate INDEX (0..4), so step 0 (NO TAKE) is
+  // load-bearing forever.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    levy: PURSES.levy.steps, dues: PURSES.dues.steps, rents: PURSES.rents.steps, tin: PURSES.tin.steps,
+    doc: !!(BUNDLED_CRAB_CIVICS && Array.isArray(BUNDLED_CRAB_CIVICS.purses)),
+    ids: (BUNDLED_CRAB_CIVICS.purses || []).map(p => p.id),
+    // purseRate resolves the index through the adopted grid
+    rateTop: PURSE_KEYS.map(k => purseRate({ mech: k, rate: 4 }))
+  })`));
+  if (!got.doc) return "the bundled crab civics carries no purses section - slice 4b did not install";
+  if (JSON.stringify(got.ids) !== JSON.stringify(["levy", "dues", "rents", "tin"])) return "the purse ids are " + JSON.stringify(got.ids) + ", not the four PURSE_KEYS";
+  if (JSON.stringify(got.levy) !== JSON.stringify([0, 2, 4, 6, 8])) return "the levy rate grid drifted: " + JSON.stringify(got.levy);
+  if (JSON.stringify(got.dues) !== JSON.stringify([0, 100, 200, 300, 400])) return "the dues rate grid drifted: " + JSON.stringify(got.dues);
+  if (JSON.stringify(got.rents) !== JSON.stringify([0, 10, 20, 30, 40])) return "the rents rate grid drifted: " + JSON.stringify(got.rents);
+  if (JSON.stringify(got.tin) !== JSON.stringify([0, 100, 200, 300, 400])) return "the tin rate grid drifted: " + JSON.stringify(got.tin);
+  for (const s of [got.levy, got.dues, got.rents, got.tin]) if (s[0] !== 0) return "a purse's step 0 is not NO TAKE (the founding grid): " + JSON.stringify(s);
+  // purseRate({rate:4}) must read the adopted top step, not the literal path
+  if (JSON.stringify(got.rateTop) !== JSON.stringify([8, 400, 40, 400])) return "purseRate does not read the adopted top step: " + JSON.stringify(got.rateTop);
+  return true;
+});
+
+scenario("civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate", () => {
+  // The runtime belt (civicsLadderProblem, purse noun) for a hand-tampered
+  // cultureways.js, and the ADOPTION MECHANISM proven the only honest way: a
+  // DISTINCT valid doc grid must REACH purseRate (which reads PURSES[k].steps),
+  // not the literal - a byte-equal grid cannot prove adoption fired (the E3
+  // return-value trap). Note purseRate reads the LIVE PURSES object, so this
+  // scenario rebuilds it from the (possibly tampered) bundle and restores.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    out.good = civicsLadderProblem([0, 2, 4, 6, 8], "PURSE");
+    out.noLadder = civicsLadderProblem([0], "PURSE");
+    out.step0 = civicsLadderProblem([2, 4, 6, 8], "PURSE");    // no NO-TAKE rung
+    out.negStep = civicsLadderProblem([0, -2, 4], "PURSE");
+    out.fracStep = civicsLadderProblem([0, 2.5], "PURSE");
+    // fallback: a malformed levy grid leaves the engine literal live
+    const saveLevy = PURSES.levy.steps.slice();
+    out.fallback = crabCivicsSteps("purses", "levy", "PURSE", [0, 2, 4, 6, 8]);   // doc is good -> [0,2,4,6,8]
+    // adoption mechanism: a DISTINCT valid grid must reach the reader
+    const save = JSON.stringify(BUNDLED_CRAB_CIVICS.purses);
+    BUNDLED_CRAB_CIVICS.purses = [{ id: "levy", steps: [0, 11, 22, 33, 44] },
+      { id: "dues", steps: [0, 100, 200, 300, 400] }, { id: "rents", steps: [0, 10, 20, 30, 40] },
+      { id: "tin", steps: [0, 100, 200, 300, 400] }];
+    // rebuild the live PURSES the way boot does, then read through purseRate
+    for (const k of PURSE_KEYS) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
+    out.adopts = purseRate({ mech: "levy", rate: 2 });   // the DISTINCT grid's index 2 = 22
+    // restore
+    BUNDLED_CRAB_CIVICS.purses = JSON.parse(save);
+    for (const k of PURSE_KEYS) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
+    return out;
+  })())`));
+  if (got.good !== null) return "a good grid was refused: " + got.good;
+  if (got.noLadder !== "A PURSE WITH NO LADDER") return "a one-step grid slid by: " + got.noLadder;
+  if (got.step0 !== "A PURSE WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY") return "a no-NO-TAKE grid slid by: " + got.step0;
+  if (got.negStep !== "A PURSE STEP THAT IS NOT A WHOLE COUNT") return "a negative rate slid by: " + got.negStep;
+  if (got.fracStep !== "A PURSE STEP THAT IS NOT A WHOLE COUNT") return "a fractional rate slid by: " + got.fracStep;
+  if (JSON.stringify(got.fallback) !== JSON.stringify([0, 2, 4, 6, 8])) return "the fallback did not return the levy grid: " + JSON.stringify(got.fallback);
+  if (got.adopts !== 22) return "a distinct document grid did not reach purseRate - adoption is a no-op, the purse reads the literal path: " + got.adopts;
   return true;
 });
 

@@ -254,6 +254,22 @@ function localise(d, verdict) {
         });
       }
     }
+    // phase E4 slice 4b: civics.purses - the four purse rate grids. Same ladder
+    // law as the ballot dials (the game's civicsLadderProblem with the PURSE noun).
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.purses != null) {
+      if (!Array.isArray(cv.purses)) say("civics.purses", "must be a list of purses (A BAD PURSES SECTION)");
+      else {
+        const pseen = {};
+        cv.purses.forEach((p, i) => {
+          if (!p || typeof p !== "object" || Array.isArray(p)) return say(`civics.purses[${i}]`, "must be an object (A BAD PURSE)");
+          if (typeof p.id !== "string" || !p.id.length) say(`civics.purses[${i}].id`, "required: a non-empty string (A PURSE WITH NO ID)");
+          else { if (pseen[p.id]) say(`civics.purses[${i}].id`, `"${p.id}" is declared twice (A PURSE TWICE)`); pseen[p.id] = 1; }
+          if (!Array.isArray(p.steps) || p.steps.length < 2) say(`civics.purses[${i}].steps`, "must be a rate grid of at least two steps (A PURSE WITH NO LADDER)");
+          else if (p.steps[0] !== 0) say(`civics.purses[${i}].steps`, "step 0 must be 0, NO TAKE - the founding grid (A PURSE WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY)");
+          else if (p.steps.some(s => !Number.isInteger(s) || s < 0)) say(`civics.purses[${i}].steps`, "every step is a whole count >= 0 (A PURSE STEP THAT IS NOT A WHOLE COUNT)");
+        });
+      }
+    }
   }
 
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");

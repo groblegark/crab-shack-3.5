@@ -11461,6 +11461,64 @@ var BUNDLED_CRAB_CIVICS = {
     12
    ]
   }
+ ],
+ "purses": [
+  {
+   "id": "levy",
+   "name": "THE LEVY",
+   "short": "LEVY",
+   "unit": "% OF TAKINGS",
+   "who": "EVERY BUSINESS - YOURS TOO",
+   "steps": [
+    0,
+    2,
+    4,
+    6,
+    8
+   ]
+  },
+  {
+   "id": "dues",
+   "name": "HARBOUR DUES",
+   "short": "DUES",
+   "unit": "$ A HEAD",
+   "who": "EVERY VISITOR THE FERRY LANDS",
+   "steps": [
+    0,
+    100,
+    200,
+    300,
+    400
+   ]
+  },
+  {
+   "id": "rents",
+   "name": "A CUT OF THE RENTS",
+   "short": "RENTS",
+   "unit": "% OF THE HOUSE RENTS",
+   "who": "MR. PINCHERTON, OFF HIS OWN BOOK",
+   "steps": [
+    0,
+    10,
+    20,
+    30,
+    40
+   ]
+  },
+  {
+   "id": "tin",
+   "name": "THE COLLECTION TIN",
+   "short": "TIN",
+   "unit": "$ ASKED OF EACH",
+   "who": "WHOEVER CAN SPARE IT",
+   "steps": [
+    0,
+    100,
+    200,
+    300,
+    400
+   ]
+  }
  ]
 };
 if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }

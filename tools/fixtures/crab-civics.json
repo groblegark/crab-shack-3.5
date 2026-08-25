@@ -57,6 +57,32 @@
       "unit": "EMPLOYEES TO A BUSINESS", "who": "EVERY SHOP ON THE PROMENADE - YOURS FIRST",
       "steps": [0, 2, 3, 4, 6, 8, 12] }
   ],
+  "_purses_comment": [
+    "THE FOUR PURSES, TRANSCRIBED (cultureway phase E4 slice 4b, plan section 2).",
+    "Who pays for the pot - the rate GRID a mayor sets and a voter prices. The",
+    "four mechs (levy/dues/rents/tin) are the engine's own id space (PURSE_KEYS",
+    "drives allPlatforms and the levy conflict-of-interest), so they ride the",
+    "crab's OWN bundle and adopt IN PLACE beside the ballot dials, the same E6",
+    "idiom: the PURSES object literals stay as the engine fallback and purseRate/",
+    "purseYield/allPlatforms read the same steps in the same order.",
+    "",
+    "steps[] IS the rate grid; the rate INDEX (0..4, hardcoded in the engine) is",
+    "what a save stores, so step 0 is NO TAKE (rate 0 raises nothing) and its",
+    "meaning is forever. Byte-equal to the literals by the tabled==literal",
+    "scenario and the election A/B. The name/short/unit/who ride the document for",
+    "E7's full-crab-document bar; the engine reads the rate grid here (the labels",
+    "are byte-equal decoration this slice, exactly as the ballot labels are)."
+  ],
+  "purses": [
+    { "id": "levy", "name": "THE LEVY", "short": "LEVY", "unit": "% OF TAKINGS",
+      "who": "EVERY BUSINESS - YOURS TOO", "steps": [0, 2, 4, 6, 8] },
+    { "id": "dues", "name": "HARBOUR DUES", "short": "DUES", "unit": "$ A HEAD",
+      "who": "EVERY VISITOR THE FERRY LANDS", "steps": [0, 100, 200, 300, 400] },
+    { "id": "rents", "name": "A CUT OF THE RENTS", "short": "RENTS", "unit": "% OF THE HOUSE RENTS",
+      "who": "MR. PINCHERTON, OFF HIS OWN BOOK", "steps": [0, 10, 20, 30, 40] },
+    { "id": "tin", "name": "THE COLLECTION TIN", "short": "TIN", "unit": "$ ASKED OF EACH",
+      "who": "WHOEVER CAN SPARE IT", "steps": [0, 100, 200, 300, 400] }
+  ],
   "stakes": [
     { "id": "platform", "terms": [
       { "name": "potStake",

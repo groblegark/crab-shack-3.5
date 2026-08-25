@@ -858,22 +858,38 @@ const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
 // cultureways.js. STEP 0 is the founding NO-POLICY (NO FLOOR / NO LIMIT) - what
 // every pre-feature save loads as (wage:0 / cap:0) - and Matt's ruling 4
 // invariant (rulings 2026-08-24 §4): the ladder EXTENDS, never deletes step 0.
-function ballotLadderProblem(steps) {
-  if (!Array.isArray(steps) || steps.length < 2) return "A BALLOT DIAL WITH NO LADDER";
-  if (steps[0] !== 0) return "A BALLOT DIAL WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY";
-  for (const s of steps) if (!Number.isInteger(s) || s < 0) return "A BALLOT DIAL STEP THAT IS NOT A WHOLE COUNT";
+// A civics LADDER is the step grid a save indexes into (a ballot dial's steps,
+// a purse's rate steps). One law for both: step 0 is the founding no-policy
+// (NO FLOOR / NO LIMIT / NO TAKE), every step a whole count, at least two rungs.
+// The noun rides the message so a bad purse and a bad dial name themselves.
+function civicsLadderProblem(steps, noun) {
+  if (!Array.isArray(steps) || steps.length < 2) return "A " + noun + " WITH NO LADDER";
+  if (steps[0] !== 0) return "A " + noun + " WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY";
+  for (const s of steps) if (!Number.isInteger(s) || s < 0) return "A " + noun + " STEP THAT IS NOT A WHOLE COUNT";
   return null;
 }
-function crabBallotSteps(id, fallback) {
+function ballotLadderProblem(steps) { return civicsLadderProblem(steps, "BALLOT DIAL"); }
+// Read a civics ladder from the crab's own bundle by id, validated, else the
+// literal fallback (the E6 crab-as-document idiom; a tampered ladder falls back
+// named). `section` is "ballots" or "purses"; `noun` names the refusal.
+function crabCivicsSteps(section, id, noun, fallback) {
   const doc = (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS
-    && Array.isArray(BUNDLED_CRAB_CIVICS.ballots)) ? BUNDLED_CRAB_CIVICS.ballots : null;
+    && Array.isArray(BUNDLED_CRAB_CIVICS[section])) ? BUNDLED_CRAB_CIVICS[section] : null;
   if (!doc) return fallback;
   const b = doc.find(x => x && x.id === id);
   if (!b) return fallback;
-  const why = ballotLadderProblem(b.steps);
-  if (why) { console.error("crab ballot dial " + id + " refused: " + why); return fallback; }
+  const why = civicsLadderProblem(b.steps, noun);
+  if (why) { console.error("crab " + section + " " + id + " refused: " + why); return fallback; }
   return b.steps.slice();
 }
+function crabBallotSteps(id, fallback) { return crabCivicsSteps("ballots", id, "BALLOT DIAL", fallback); }
+// THE PURSES ADOPT THEIR RATE GRIDS FROM THE DOCUMENT (phase E4 slice 4b), in
+// place, exactly as the ballot dials do - PURSES is defined above with the
+// literals (the engine fallback), and here each mech's steps take the crab's
+// own bundled purse grid when it matches. Every reader (purseRate/purseYield/
+// allPlatforms) draws the same steps in the same order; byte-equal by
+// construction. Step 0 is NO TAKE (rate 0 raises nothing), the founding grid.
+for (const k of PURSE_KEYS) if (PURSES[k]) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
 // THE FIFTH DIAL, and the only one on the ballot that is not about the
 // shelter. The four purses all answer "who pays for the pot"; the floor
 // answers a different question entirely - what the lowest day in town is
@@ -7683,8 +7699,23 @@ function cultureProblem(d, ownId) {
         if (typeof b.id !== "string" || !b.id.length) return "A BALLOT DIAL WITH NO ID";
         if (bseen[b.id]) return "A BALLOT DIAL TWICE: " + b.id;
         bseen[b.id] = 1;
-        const lw = ballotLadderProblem(b.steps);
+        const lw = civicsLadderProblem(b.steps, "BALLOT DIAL");
         if (lw) return "BALLOT DIAL " + b.id + ": " + lw;
+      }
+    }
+    // PURSES (slice 4b) - the rate grids, validated at the door the same way:
+    // inert for a stranger (the town's purses belong to the crab who founds it),
+    // but a malformed grid is refused BY NAME, never silently dropped.
+    if (d.civics.purses != null) {
+      if (!Array.isArray(d.civics.purses)) return "A BAD PURSES SECTION";
+      const pseen = {};
+      for (const p of d.civics.purses) {
+        if (!p || typeof p !== "object" || Array.isArray(p)) return "A BAD PURSE";
+        if (typeof p.id !== "string" || !p.id.length) return "A PURSE WITH NO ID";
+        if (pseen[p.id]) return "A PURSE TWICE: " + p.id;
+        pseen[p.id] = 1;
+        const lw = civicsLadderProblem(p.steps, "PURSE");
+        if (lw) return "PURSE " + p.id + ": " + lw;
       }
     }
   }

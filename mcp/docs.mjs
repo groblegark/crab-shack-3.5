@@ -163,7 +163,14 @@ A people, written as a document. Not code — data the engine reads:
             it never deletes step 0 (deleting it would silently reinterpret
             every existing save's cap:0). Unlike stakes these are one-per-town,
             so the crab's own bundle adopts them in place and the engine ladder
-            is the fallback. Purses, calendar and relief land in later slices.
+            is the fallback. civics.purses (slice 4b) declares the four purses
+            that fund the shelter as rate grids: 'levy' (a share of takings),
+            'dues' ($ a visitor), 'rents' (a cut of the house rents), 'tin' (a
+            voluntary collection), each { id, name, short, unit, who, steps[] }.
+            steps is the rate grid and a save stores the INDEX (0..4), so
+            steps[0] MUST be 0 (NO TAKE, the founding grid). Same in-place
+            adoption as the dials; the levy's conflict-of-interest and the
+            conservation math stay engine. Calendar and relief land next.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in

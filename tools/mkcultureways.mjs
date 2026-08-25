@@ -56,10 +56,12 @@ const crabDepartSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-depart.js
 const crabDepart = { rules: crabDepartSrc.rules };         // phase E3: the rule table as programs
 const crabCivicsSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-civics.json", import.meta.url), "utf8"));
 // phase E4: stakes (slice 3, platValue as named term-programs) + ballots
-// (slice 4a, the WAGE_FLOOR/HEAD_CAP dials as authorable tables). Key order is
-// stakes-first to keep the slice-3 bundle bytes where they were; ballots append.
+// (slice 4a, the WAGE_FLOOR/HEAD_CAP dials) + purses (slice 4b, the four purse
+// rate grids). Key order is stakes-first to keep the slice-3 bundle bytes where
+// they were; ballots and purses append.
 const crabCivics = { stakes: crabCivicsSrc.stakes };
 if (crabCivicsSrc.ballots) crabCivics.ballots = crabCivicsSrc.ballots;
+if (crabCivicsSrc.purses) crabCivics.purses = crabCivicsSrc.purses;
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
