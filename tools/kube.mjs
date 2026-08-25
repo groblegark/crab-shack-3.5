@@ -117,11 +117,29 @@ function doRun() {
   if (committed == null) die(`${target} is not committed at ${ref.slice(0, 10)} - commit it first`);
   const disk = readFileSync(target, "utf8");
   if (committed.trim() !== disk.trim()) die(`${target} on disk differs from the committed copy at ${ref.slice(0, 10)} - commit your edits`);
+  // Shape checks BEFORE the network: they are free, and a manifest that can
+  // never run should say so without first demanding you push it.
+  const manifest = JSON.parse(committed);
+  if (!Array.isArray(manifest.arms) || !manifest.arms.length) die("manifest has no arms[]");
+  // A manifest with NO nodeSelector does not fail - it lands wherever the
+  // scheduler likes, and every karpenter pool on this cluster is tainted
+  // (gasboat.agent, fics.pihealth.ai/mr, gvisor), so the only nodes that
+  // will take an untainted, unselected pod are the SHARED managed nodegroup
+  // that carries fleet workloads. That is how sim work ends up competing
+  // with the fleet - silently, and looking like a successful run. Two
+  // manifests shipped this way (crewux-focus, redbar-focus, fixed
+  // 2026-08-25). Fail closed: science declares where it runs, or it doesn't
+  // run. --anywhere is the deliberate escape hatch.
+  if (!manifest.nodeSelector && !has("--anywhere")) {
+    die(`${target} has no nodeSelector - it would schedule onto shared fleet nodes ` +
+        `(every karpenter pool is tainted; only the shared managed nodegroup takes an ` +
+        `unselected pod). Add "nodeSelector": {"karpenter.sh/nodepool": "ephemeral-pool"} ` +
+        `plus the matching toleration, or pass --anywhere if you truly mean it.`);
+  }
+
   sh(`git fetch ${remote()} --quiet`);
   if (!shq(`git branch -r --contains ${ref}`)) die(`${ref.slice(0, 10)} is not on any remote branch - push first (the pod clones the remote)`);
 
-  const manifest = JSON.parse(committed);
-  if (!Array.isArray(manifest.arms) || !manifest.arms.length) die("manifest has no arms[]");
   const arms = manifest.arms.length;
   const name = (manifest.name || "run").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20);
   const release = `cs-${name}-${ref.slice(0, 7)}-${Date.now().toString(36).slice(-4)}`;
@@ -139,7 +157,17 @@ function doRun() {
   writeFileSync(ovPath, JSON.stringify(overlay, null, 2));
 
   console.log(`kube: installing ${release}  (${arms} arms, ref ${ref.slice(0, 10)}, manifest ${target})`);
-  sh(`helm install ${release} deploy/crab-science -n ${NS} --create-namespace -f ${ovPath}`, { stdio: "inherit" });
+  // --create-namespace ONLY when the namespace is genuinely absent. helm 3's
+  // --create-namespace issues an UNCONDITIONAL namespace CREATE and only
+  // tolerates AlreadyExists - but the API server checks authz before
+  // existence, so a least-privilege in-pod caller (get namespaces: yes,
+  // create namespaces: no) gets a cluster-scope Forbidden and helm aborts,
+  // even though crab-science is operator-provisioned and already there. The
+  // pod does not NEED namespace-create; demanding it is a tool bug, not a
+  // grant gap. The operator's cluster-admin path still creates it if absent.
+  const nsExists = !!shq(`kubectl get namespace ${NS} -o name`);
+  const createNs = nsExists ? "" : "--create-namespace ";
+  sh(`helm install ${release} deploy/crab-science -n ${NS} ${createNs}-f ${ovPath}`, { stdio: "inherit" });
   console.log(`kube: installed. watch:   node tools/kube.mjs status ${release}`);
 
   if (has("--wait")) {

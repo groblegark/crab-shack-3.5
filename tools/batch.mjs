@@ -22,11 +22,18 @@
 // The throughput receipt counts LIVED sim-days (a town evicted on day 9 did
 // nine days of work), and stamps the load average next to the number - a
 // batch taken on a busy box is a real result with an honest denominator.
+//
+// --jobs defaults from the CGROUP quota (tools/cores.mjs), not the host core
+// count: in a fleet pod os.cpus().length reported 16 against a 4-core limit,
+// so this file used to fork 14 workers onto 4 cores. The receipt banks
+// `cores` beside `jobs` so an oversubscribed run is visible in the JSON
+// rather than inferred from a suspicious throughput number.
 
 import { fork } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { cpus, loadavg } from "os";
+import { loadavg } from "os";
+import { defaultJobs, coresNote, usableCores } from "./cores.mjs";
 
 const args = process.argv.slice(2);
 const opt = (name, dflt) => {
@@ -35,7 +42,9 @@ const opt = (name, dflt) => {
 };
 const TOWNS = parseInt(opt("towns", "64"));
 const SEEDBASE = parseInt(opt("seedbase", "0"));
-const JOBS = parseInt(opt("jobs", String(Math.max(1, cpus().length - 2))));
+// Cgroup quota, not host cores - see tools/cores.mjs. Reserve 2: this parent
+// plus headroom, since batch runs are the widest fan-out we do.
+const JOBS = parseInt(opt("jobs", String(defaultJobs({ reserve: 2, cap: TOWNS }))));
 const JSON_OUT = args.includes("--json");
 const NO_KERNEL = args.includes("--no-kernel");
 
@@ -89,7 +98,7 @@ const hist = {};
 for (const d of evictDays) hist[d] = (hist[d] || 0) + 1;
 
 const out = {
-  towns: TOWNS, seedbase: SEEDBASE, jobs: JOBS,
+  towns: TOWNS, seedbase: SEEDBASE, jobs: JOBS, cores: usableCores(),
   workload: passthrough.join(" "),
   kernel: env.SIMLIB_KERNEL === "wasm", realm: env.SIMLIB_REALM || "vm",
   survived: survived.length, evicted: evictDays.length, workersDied: died,
@@ -108,6 +117,7 @@ const out = {
 if (JSON_OUT) console.log(JSON.stringify(out));
 else {
   console.log(`batch      ${TOWNS} towns (seeds ${SEEDBASE}..${SEEDBASE + TOWNS - 1}) x ${opt("days", "30")} days, ${JOBS} workers, kernel ${out.kernel ? "armed" : "off"}, realm ${out.realm}`);
+  console.log(`           ${coresNote()}`);
   console.log(`outcome    ${survived.length} survived / ${evictDays.length} evicted${died ? ` / ${died} WORKERS DIED` : ""}`);
   if (evictDays.length) {
     const days = Object.keys(hist).map(Number).sort((a, b) => a - b);

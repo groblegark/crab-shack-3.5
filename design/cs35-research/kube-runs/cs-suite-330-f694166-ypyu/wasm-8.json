@@ -1,0 +1,21 @@
+{
+  "release": "cs-suite-330-f694166-ypyu",
+  "armId": "wasm-8",
+  "index": 20,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 32757,
+  "verdict": "31/31 passed in slice 8/12 (32.7s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (509ms)\n  PASS  queue hard cap holds for locals too (2411ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (877ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (460ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (51ms)\n  PASS  fish market: price + series roundtrip save/load (38ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (3597ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (8008ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (32ms)\n  PASS  the beach ball is LIMITED fun (309ms)\n  PASS  a town saved mid-errand reloads and keeps running (447ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (847ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (3963ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (869ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1858ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2144ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (870ms)\n  PASS  the help card fits the card, in the font the card is printed in (16ms)\n  PASS  the title screen credits the track that is actually queued (24ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1524ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (9ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (20ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (1911ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (14ms)\n  PASS  foodways: the validator names its refusals (27ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (697ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (7ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1116ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (6ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (6ms)\n31/31 passed in slice 8/12 (32.7s)\n"
+}

@@ -21,7 +21,7 @@ export const DOCS = [
   { uri: "crabshack://cultureway/schema", file: "design/cultureways/cultureway.schema.json",
     title: "cultureway.schema.json", why: "the machine-readable shape of a cultureway document" },
   { uri: "crabshack://cultureway/pigway", file: "design/cultureways/pigway.json",
-    title: "pigway.json — a complete worked example", why: "a real, shipping people; copy this shape" },
+    title: "pigway.json — a complete worked example", why: "a complete, valid worked example to copy — an illustration of the full format (richer than the shipped pig, to show the optional sections too), NOT the shipped document: the game generates its pig from tools/fixtures/cultures-pig.json" },
   { uri: "crabshack://cultureway/pig-spec", file: "design/cs35-spec-01-minimum-viable-pig.md",
     title: "Spec 01 — the minimum viable pig", why: "how the first foreign people was designed and what each part does" },
   { uri: "crabshack://numeric/core", file: "design/cs35-numeric-core.md",
@@ -317,7 +317,11 @@ crabshack://cultureway/research and crabshack://plan for the full text.
 
 ## The worked path from nothing to a tested people
 
-  1. read  crabshack://cultureway/pigway      (a real, complete document)
+  1. read  crabshack://cultureway/pigway      (a complete, valid document to
+                                               copy — an illustration of the
+                                               format, not the shipped pig; the
+                                               game generates its pig from
+                                               tools/fixtures/cultures-pig.json)
      and  crabshack://cultureway/schema       (the shape, formally)
   2. draft your document as JSON
   3. cultureway_validate  — field-level errors with exact paths

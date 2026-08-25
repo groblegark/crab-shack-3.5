@@ -735,7 +735,12 @@ vm — never fork game logic into tools/) and perf expectations live there.
   [--jobs J] [--failoff a,b,c]` — CLI; `--failoff` switches individual
   needs-failure behaviours off (`wander,chat,walkout,nod,rough`) so a matrix can
   attribute its own movement to one of them at a time; `--jobs` fans seeds out across worker processes
-  (default cores−1, deterministic either way, ~3x faster on 4 seeds).
+  (default USABLE cores−1, deterministic either way, ~3x faster on 4 seeds).
+  "Usable" means the cgroup quota, via `tools/cores.mjs` — NOT `os.cpus().length`,
+  which reports the host and in a fleet pod overshot 4 real cores as 16 (fixed
+  2026-08-25; see the runbook's in-pod section). An explicit `--jobs` is still
+  obeyed verbatim, so don't pass a big one to "go faster" in a pod — you buy
+  throttling and risk an OOMKill.
   Its buyer models a sensible player: hourly purchase checks, reserve = cost +
   tonight's bill + cushion, saves (doesn't skip) for the big unlocks, rehires
   after a death, and only staffs a side business if the shack keeps shift
@@ -5868,6 +5873,34 @@ copy of them.
   All balance-moving (labor supply changes on every axis) → full matrix;
   sick days probably shift the illness-duration distribution left, which
   is the intended payoff — measure it for the devlog.
+- **THE RECORD BOX + the hosted archive** — *shipped (branch `record-box`,
+  2026-08-25)*. Matt: "we have ~/suno-archive; tons of songs in there; would
+  love to get all of them in to crab shack 3.5, but need to kind of vet them."
+  - **MUS opens a full-screen bench over a LIVING town** — an overlay, not a
+    screen, so the town keeps trading while you audition ("need it to be avail
+    during gameplay and make it not pause the game"). Which is also the only
+    honest way to judge whether a track fits a town.
+  - **All 1,201 candidates are in it.** `tools/mkmusic.mjs` indexes the
+    archive (1,301 files − 50 stubs − 50 stems = 1,201), numbering duplicate
+    names from 2 — "just use numbers like 'Dense Portal 2'".
+  - **WE HOST THE AUDIO, on this repo's own releases** (`tools/mkmusichost.mjs`)
+    — 4,065 MB, sharded `music-v1`/`music-v2` because **a release takes at most
+    1000 assets** (HTTP 422 `file_count limited to 1000`). Not Pages (1 GB
+    limit), not committed (every clone pays forever), and **not suno** — "def
+    not suno": a soundtrack must not be a third party's implementation detail.
+    Tracks are matched to assets by the **8-char id**, never the name, because
+    GitHub rewrites stored names (spaces → dots).
+  - **Streaming, measured:** release assets serve `application/octet-stream`
+    with `Content-Disposition: attachment` and `<audio>` plays them anyway —
+    8 cold tracks, all canplay, **median 362 ms, worst 553 ms**. So the repo
+    carries none of the audio and the catalog ships at 81 KB gzipped.
+  - **Judgements REACH THE MUSIC.** The rotation is the shipped playlist minus
+    what you dropped, plus every catalog track you kept at the energy you gave
+    it — inert until you judge something. Before this the box recorded keeps,
+    drops and energies that nothing read.
+  - **Open:** no vetting pass has been made yet, so the rotation is still the
+    original 22 tracks until someone sits down with the box. `tools/mkplaylist.mjs`
+    turns an export into a shipped playlist when that happens.
 - **Music off by default, but sell it** (Matt): ship with music muted for
   new players (SFX stays on), and actively encourage flipping it on — e.g.
   a small pulse/glow on the MUS toggle early on, or a one-time toast at a

@@ -10,3 +10,21 @@ shots/
 .measure/
 tools/neuro/receipts/cit-data.json
 design/cs35-research/kube-runs/
+
+# the iOS app is GENERATED: ios/www is a copy of the game (55MB of it is
+# the music), the .xcodeproj comes from ios/project.yml, and Info.plist
+# comes from the same spec. tools/mkios.mjs rebuilds all three.
+ios/www/
+ios/*.xcodeproj/
+ios/Info.plist
+
+# the suno archive is 4.3GB and lives outside the repo; music/archive is a
+# symlink to it for local vetting only.
+music/archive
+# music/archive-path.json records where that archive is - an absolute path under
+# a home directory, which is local knowledge and must not be published.
+music/archive-path.json
+# music/catalog.json IS tracked, deliberately. Every track is hosted on the
+# repo's own releases (tools/mkmusichost.mjs), so shipping the 1,201-row index
+# - 81 KB gzipped - gives a player the whole archive as a bench instead of only
+# the tracks a build copied in.

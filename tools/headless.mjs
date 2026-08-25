@@ -5,11 +5,11 @@
 //   node tools/headless.mjs --days 14
 //   node tools/headless.mjs --days 30 --buy knife,flame,ads   (greedy buys, in priority order)
 //   node tools/headless.mjs --days 30 --set ads=3,chef=4
-import os from "os";
 import { fork } from "child_process";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { loadGame } from "./simlib.mjs";
+import { defaultJobs, coresNote } from "./cores.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -89,9 +89,12 @@ const REALM = opt("realm", null) || undefined;
 // against "raise everybody". Both go through the game's own setters.
 const WAGE = opt("wage", null) != null ? parseInt(opt("wage", null)) : null;
 const STAR = opt("star", null) != null ? parseInt(opt("star", null)) : null;
+// Default worker count comes from the CGROUP quota, not the host core count:
+// in a container os.cpus().length is the host's and overshoots badly (a
+// 4-core fleet pod on a 16-core node forked 15 workers). tools/cores.mjs.
 const JOBS = opt("jobs", null) != null
   ? parseInt(opt("jobs", null))
-  : Math.min(SEEDS, Math.max(1, os.cpus().length - 1));
+  : defaultJobs({ reserve: 1, cap: SEEDS });
 
 function mulberry32(a) {
   return function () {
@@ -323,3 +326,6 @@ if (SEEDS > 1) {
     + `; rough ${sum(l => l.roughNights)}; roomShort ${sum(l => l.roomShort)}`);
 }
 console.log(`(${results.reduce((s, r) => s + r.wall, 0)}ms total)`);
+// Name the parallelism whenever we actually forked: a timing read off an
+// oversubscribed box is a lie, and this is the line that makes it checkable.
+if (JOBS > 1 && SEEDS > 1) console.log(`(${JOBS} workers; ${coresNote()})`);
