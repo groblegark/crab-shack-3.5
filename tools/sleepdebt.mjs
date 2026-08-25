@@ -165,7 +165,20 @@ console.log("  ledger depth: " + ([...hist.entries()].sort((a, b) => a[0] - b[0]
 console.log("  illness causes (game's own tags): " + (JSON.stringify(causes) || "{}"));
 const died = illness.filter(x => x.out === "died");
 console.log("  illnesses: " + illness.length + "  died " + died.length
-  + "  (well " + illness.filter(x => x.out === "well").length + ")");
+  + "  (well " + illness.filter(x => x.out === "well").length + ")"
+  + "  CFR " + (illness.length ? (100 * died.length / illness.length).toFixed(1) : "n/a") + "%");
+// WHICH CARE LANE DID THEY GET? This is the seam that separates "the ramp is
+// noise" from "the ramp CAUGHT them" - the care ladder is generous (bed rest
+// cures 0.55/day and kills 0.04; NEGLECTED cures 0.12 and kills 0.25), so if a
+// ramp that makes MORE crabs ill also makes FEWER die, the lane mix is where
+// that would show up: illness pulls a crab off the rota and into a lane that
+// treats them, which is a real mechanism and not a rounding error.
+const lanes = {};
+for (const x of illness) lanes[x.lane] = (lanes[x.lane] || 0) + 1;
+const lanesDied = {};
+for (const x of died) lanesDied[x.lane] = (lanesDied[x.lane] || 0) + 1;
+console.log("  care lanes (all illnesses): " + JSON.stringify(lanes));
+console.log("  care lanes (the deaths):    " + JSON.stringify(lanesDied));
 // THE HEADLINE. A crab that spends a fortnight at the top of the bar and is
 // still on the rota is the whole of Matt's report, in one number.
 const byRun = new Map();
