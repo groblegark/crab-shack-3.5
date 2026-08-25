@@ -139,7 +139,17 @@ function doRun() {
   writeFileSync(ovPath, JSON.stringify(overlay, null, 2));
 
   console.log(`kube: installing ${release}  (${arms} arms, ref ${ref.slice(0, 10)}, manifest ${target})`);
-  sh(`helm install ${release} deploy/crab-science -n ${NS} --create-namespace -f ${ovPath}`, { stdio: "inherit" });
+  // --create-namespace ONLY when the namespace is genuinely absent. helm 3's
+  // --create-namespace issues an UNCONDITIONAL namespace CREATE and only
+  // tolerates AlreadyExists - but the API server checks authz before
+  // existence, so a least-privilege in-pod caller (get namespaces: yes,
+  // create namespaces: no) gets a cluster-scope Forbidden and helm aborts,
+  // even though crab-science is operator-provisioned and already there. The
+  // pod does not NEED namespace-create; demanding it is a tool bug, not a
+  // grant gap. The operator's cluster-admin path still creates it if absent.
+  const nsExists = !!shq(`kubectl get namespace ${NS} -o name`);
+  const createNs = nsExists ? "" : "--create-namespace ";
+  sh(`helm install ${release} deploy/crab-science -n ${NS} ${createNs}-f ${ovPath}`, { stdio: "inherit" });
   console.log(`kube: installed. watch:   node tools/kube.mjs status ${release}`);
 
   if (has("--wait")) {
