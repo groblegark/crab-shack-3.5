@@ -273,7 +273,7 @@
   }
  },
  "arrival": {
-  "repGate": 60,
+  "repGate": 34,
   "shareMax": 0.3,
   "shareRamp": 40
  },

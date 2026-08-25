@@ -468,7 +468,7 @@
   }
  },
  "arrival": {
-  "repGate": 80,
+  "repGate": 45,
   "shareMax": 0.25,
   "shareRamp": 80
  },

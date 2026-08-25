@@ -186,6 +186,39 @@ function memorialSpot(i) {
 }
 let townCatch = 6;   // the day's landed fish, crate-side
 let rep = 30000;     // word of mouth, int MILLIREP 0..100,000 (slice 5): happy guests talk, rage-quits talk louder
+// THE WORD ABROAD (reputation pass, 2026-08-23). Each people keeps its OWN
+// opinion of the town: `rep` stays the crabs' word (every legacy read), and
+// repC carries every other installed culture's, same millirep grain. Town
+// state - saved as `repc`, absent on old saves (= nobody had formed one),
+// cleared on every load so a scrubbed timeline cannot leak another town's
+// name around (the loader-reset rule).
+let repC = {};             // culture id -> millirep 0..100,000
+const REP_SPILL = 25;      // % of any word other peoples overhear at the pier
+const REP_HEARSAY = 5000;  // millirep discount when a people has ONLY hearsay to go on
+const REP_ROUGH = 900;     // a guest's night on the sand, told to her own people
+const REP_UNHOUSED = 250;  // ...and the fact the town had no bed at all
+const REP_SHORT = 150;     // a full house turning someone away (the town's own shame)
+const REP_CREW_ROUGH = 400;// a resident crab sleeping rough - the town talks
+function repOf(cid) { return (!cid || cid === "crab") ? rep : (repC[cid] != null ? repC[cid] : 30000); }
+function repSet(cid, v) { v = Math.max(0, Math.min(100000, v | 0)); if (!cid || cid === "crab") rep = v; else repC[cid] = v; }
+// ONE DOOR FOR EVERY WORD. Three rules live here and nowhere else:
+// gains SATURATE - idiv(g * (100000 - r), 100000), full at rep 0, nothing at
+// 100,000, so the top of the ladder is an equilibrium the town must HOLD, not
+// a ratchet it clicks once; losses never saturate (shame always lands); and
+// every installed people overhears REP_SPILL% of what another people is told
+// - which is also how word of a good crab town ever reaches the mainland's
+// pigs at all. Integer throughout, zero draws.
+function repAdd(cid, delta) {
+  if (!delta) return;
+  const home = (cid && CULTURES[cid]) ? cid : "crab";
+  const ids = ["crab"]; for (const id in CULTURES) if (CULTURES[id]) ids.push(id);
+  for (const h of ids) {
+    const share = (h === home) ? delta : idiv(delta * REP_SPILL, 100);
+    if (!share) continue;
+    const r = repOf(h);
+    repSet(h, r + (share > 0 ? idiv(share * (100000 - r), 100000) : share));
+  }
+}
 const HOME_BOTTOM = 160;   // house/shelter interiors reach the floor
 
 // ---------------------------------------------------------------- businesses
@@ -4181,6 +4214,7 @@ function runAnnexePolicy() {
 function noteRoomShort() {
   annexe.short = (annexe.short | 0) + 1;
   if (window._stats) window._stats.roomShort = (window._stats.roomShort || 0) + 1;
+  repAdd("crab", -REP_SHORT);   // a full house turning someone away is the TOWN's shame (reputation pass)
 }
 // ONE PASS AT SETTLEMENT for both ladders, after the books are closed and the
 // day's beds are counted.
@@ -6129,6 +6163,7 @@ function sleepRough(c) {
   c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 * SEC };
   popText("TOO TIRED TO GET HOME", c.x - 22, c.y - 26, [190, 160, 230]);
   if (window._stats) window._stats.roughNights = (window._stats.roughNights || 0) + 1;
+  repAdd("crab", -REP_CREW_ROUGH);   // a resident face-down on the promenade - the town talks (reputation pass)
 }
 
 // who lives at lot h (boat owners have house === null and match nothing).
@@ -9170,6 +9205,7 @@ function save(hold) {
   const lv = {}; for (const k in UPS) lv[k] = UPS[k].lvl;
   const env = {
     coins, lifetime, lv, day, tmin, lastRentDay, gameOver, memorials, rep, townCatch, t: nowMs(),   // (no `rate`: nothing accrues offline)
+    ...(Object.keys(repC).length ? { repc: { ...repC } } : {}),   // each people's own word (reputation pass); absent = nobody formed one
     bankrupt, credit: { bal: Math.round(credit.bal), warned: credit.warned },
     won, winRec,   // the ferry ending, snapshotted: a reloaded win reads identically
     // ONE WALLET (see defineTill). A save written before this kept a shop's
@@ -9567,6 +9603,13 @@ function load(slot, envIn) {
   if (Array.isArray(s.dayLog)) window.dayLog = s.dayLog;
   memorials = Array.isArray(s.memorials) ? s.memorials : [];
   if (typeof s.rep === "number") rep = s.rep;
+  // The word abroad: UNCONDITIONAL clear-then-fill (the loader-reset rule) -
+  // a scrubbed timeline must not carry another town's name around. Absent
+  // field = old save = nobody had formed an opinion yet.
+  repC = {};
+  if (s.repc && typeof s.repc === "object" && !Array.isArray(s.repc))
+    for (const cid in s.repc) if (typeof s.repc[cid] === "number" && isFinite(s.repc[cid]))
+      repC[cid] = Math.max(0, Math.min(100000, Math.round(s.repc[cid])));
   if (typeof s.townCatch === "number") townCatch = s.townCatch;
   for (const k in UPS) if (s.lv && s.lv[k] != null) UPS[k].lvl = s.lv[k];
   furnGen++;   // restored levels change bizTables' output
@@ -12953,7 +12996,7 @@ function serve(c) {
     // table delivery: payment + benefits as usual, then straight to dining
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100000, rep + 800);   // table service impresses
+    if (!cust.isCrab) repAdd(cust.culture, 800);   // table service impresses - she tells HER people
     cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
@@ -12974,7 +13017,7 @@ function serve(c) {
   if (cust && cust.stC === VS.waiting) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100000, rep + 400);
+    if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
     const seat = tables ? pickSeat(tables, cust) : null;
     const stall = stalls ? stalls.find(t => !t.occupant && !t.dirty) : null;
@@ -13432,11 +13475,21 @@ function seedVisitors() {
 function cultureRolls(cul, rand) {
   const ar = cul.def.arrival || {};
   const gateM = 1000 * (ar.repGate != null ? ar.repGate : 80);
-  if (rep <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
+  // WHOSE WORD OPENS THE GATE (reputation pass): a pig boards because PIGS
+  // say the town is good - her own people's word - or on hearsay: the crabs'
+  // word at a discount, which is how the first pig ever hears of the place.
+  // BAD NEWS BEATS HEARSAY: a people whose own word has gone below baseline
+  // is not talked back aboard by crab enthusiasm - a town the pigs soured on
+  // stays shut to pigs even at crab 100, until pig experiences mend it (the
+  // spill is how; it just takes time). Good news merely competes.
+  const own = repC[cul.def.meta && cul.def.meta.id];
+  const heard = (own != null && own < 30000) ? own
+    : Math.max(own != null ? own : 30000, rep - REP_HEARSAY);
+  if (heard <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
   const rampM = 1000 * (ar.shareRamp > 0 ? ar.shareRamp : 80);
   const cap = ar.shareMax != null ? ar.shareMax : 0.25;
   const draw = rand();
-  return draw < cap && draw * rampM < rep - gateM;
+  return draw < cap && draw * rampM < heard - gateM;
 }
 function ferryCulture() {
   for (const id in CULTURES) {
@@ -13600,7 +13653,7 @@ function visBoard(k) {
   // collapsed to 43 by day 5, which shrank the boat, which shrank the takings.
   // What ships is the one thing a player can actually fix.
   const rough = k.roughNights > 0;
-  rep = Math.max(0, Math.min(100000, rep + (rough ? -1200 : k.buys >= 2 ? 500 : 0)));
+  repAdd(k.culture, rough ? -1200 : k.buys >= 2 ? 500 : 0);
   if (window._stats) {
     const s = window._stats;
     s.visDepart = (s.visDepart || 0) + 1;
@@ -13706,6 +13759,11 @@ function sleepOnSand(k) {
   if (!k.roughFlag) {
     k.roughFlag = true; k.roughNights++;
     k.unhoused++;
+    // THE SINK THE SYSTEM NEVER HAD (reputation pass): a guest on the sand
+    // goes home and TELLS PEOPLE - her own people, tonight, per night, not a
+    // flat once-per-visit note at the gangway. This is the line that makes
+    // "tons of homeless tourists and a 100 rep" arithmetically impossible.
+    repAdd(k.culture, -(REP_ROUGH + REP_UNHOUSED));
     // Asked HERE, because this is the only frame in which the answer exists.
     // The order is the order of the FIXES: a guest who could not raise the
     // board price was never the hotel's to lose, a dark desk is hours and
@@ -14473,7 +14531,7 @@ function drainCustRing(k) {
       if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     } else if (code === 7) { // rage-quit at the table
       k.happy = false; k.claimed = false;
-      if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
+      if (!k.isCrab) { repAdd(k.culture, -3000); today.rage++; }
       if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
       popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
     } else if (code === 8) { // dining done: the table tip (a = tt, cents)
@@ -14626,7 +14684,7 @@ function updateCustomers(dt) {
       if (k.patience <= 0) {
         k.stC = VS.leaving; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }
-        if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
+        if (!k.isCrab) { repAdd(k.culture, -3000); today.rage++; }
         if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
         popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
       }
@@ -20831,6 +20889,7 @@ function simClock(dt, rawMs) {
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price
     townCatch = Math.min(townCatch, 4); rep = rep + idiv((30000 - rep) * 6, 100);   // nightly relaxation, exact; floor's deadband at milli is 0.017 rep
+    for (const cid in repC) repC[cid] = repC[cid] + idiv((30000 - repC[cid]) * 6, 100);   // every people's word cools the same way (reputation pass)
     for (const c of allCrabs()) { c.workedToday = false; c.otMin = 0; }   // a new day's ledger
     trade.day = { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }; trade.landedDay = 0;
     townFund.dayIn = 0; townFund.dayOut = 0; townFund.youPaid = 0; townFund.youGot = 0;   // the fund's own day book
@@ -21514,6 +21573,22 @@ function viewFrame(dt) {
     const rw = smallTextWidth(rTxt) + 8;
     rect(ctx, W - rw - 2, 2, rw, 10, [30, 20, 36]);
     smallText(ctx, rTxt, W - rw + 2, 4, rep >= 50000 ? [140, 220, 140] : rep >= 25000 ? [220, 205, 185] : [235, 130, 130]);
+    // THE WORD ABROAD, one small row under REP (reputation pass): each
+    // visiting people's own opinion, worst first, same color bands - because
+    // a town can be beloved by crabs and poison to pigs, and the player
+    // should see it where they see REP. Only drawn once an opinion exists.
+    const ids = Object.keys(repC).sort((a, b2) => repC[a] - repC[b2]).slice(0, 2);
+    if (ids.length) {   // left of the sun button (W-24..W-2, y 14..27) - measured, never assumed
+      const wTxt = ids.map((id) => id.toUpperCase().slice(0, 4) + " " + repPts(repC[id])).join(" ");
+      const ww = smallTextWidth(wTxt) + 8;
+      rect(ctx, W - 26 - ww, 14, ww, 10, [30, 20, 36]);
+      let wx = W - 26 - ww + 4;
+      for (const id of ids) {
+        const t = id.toUpperCase().slice(0, 4) + " " + repPts(repC[id]), r2 = repC[id];
+        smallText(ctx, t, wx, 16, r2 >= 50000 ? [140, 220, 140] : r2 >= 25000 ? [220, 205, 185] : [235, 130, 130]);
+        wx += smallTextWidth(t) + smallTextWidth(" ");
+      }
+    }
   }
   {  // the little sun: skip to morning (top-right, under the REP chip)
     const on = ffSleep;
@@ -21700,7 +21775,8 @@ function sciDayNote() {
   if (gameOver) return "THE TOWN FAILED";
   if (won) return "THE FERRY!";
   const c = crabs.length + npcs.length;
-  return c + (c === 1 ? " CRAB" : " CRABS") + ", REP " + repPts(rep) + "%";
+  return c + (c === 1 ? " CRAB" : " CRABS") + ", REP " + repPts(rep) + "%"
+    + Object.keys(repC).map((id) => ", " + id.toUpperCase().slice(0, 4) + " " + repPts(repC[id])).join("");
 }
 // SHUTTLING A TOWN IN, which a scrub does over and over. Loading an envelope
 // restores a town's DURABLE facts; it does not empty the room it walks into.

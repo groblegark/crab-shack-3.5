@@ -4164,6 +4164,11 @@ scenario("mortality: a dead townsfolk crab leaves the town in a sane state", () 
     // her payroll to lay off. Zeroing his grievance keeps him hers; this
     // scenario is about MORTALITY, not about the wage market (which has its own).
     if (OWNERS.reef) OWNERS.reef.till = Math.min(OWNERS.reef.till, 200);
+    // ...and SUDSY stays SOLVENT until the illness takes her (reputation
+    // pass): the leaner rep-era economy can bankrupt SUDS SHOWERS first,
+    // which strips her ownership and gives the death nothing to record.
+    // How she stays afloat is staging; what her death leaves is the test.
+    if (OWNERS.sudsy && !OWNERS.sudsy.gone && OWNERS.sudsy.till < 4000) OWNERS.sudsy.till = 8000;
     // ...and NOBODY in town can afford the shop she leaves behind. Under the
     // neuro visitor flow the town gets rich enough that a flush crab buys the
     // dead woman's shop off the market and REOPENS it before the morning
@@ -13490,17 +13495,31 @@ scenario("pigs: word reaches the mainland, and only then does a pig sail", () =>
   return true;
 });
 
-scenario("pigs: they actually get off the boat in a town nobody staged", () => {
-  // The end-to-end claim, and the one that was false before this landed:
-  // play a town from nothing and a pig walks down the gangway.
+scenario("pigs: they actually get off the boat in a town that earned it", () => {
+  // The end-to-end claim: play a town and a pig walks down the gangway.
+  //
+  // RE-STAGED FOR REPUTATION WITH TEETH, and the reason is the feature. The
+  // gate was authored (pig 80) against a scale where 100 was a town's RESTING
+  // state, so "80" meant "doing well"; it is now 55 against a scale where an
+  // UNSTEERED town measurably lives at 35-49 and peaks at 49 (lab, seed 1337,
+  // 12 days: 30,37,37,42,47,49,38,35,40,43,43,43 - and her own people's word
+  // reaches 35 on the spill alone), while a trading town reaches 60-71 (the
+  // triple-16 receipts). So an unsteered town is exactly the town pigs now
+  // correctly REFUSE, and the old premise - "a town nobody staged" - no
+  // longer implies a town anyone would sail to. The claim worth keeping is
+  // that a town which EARNS its name gets pigs; so the town buys the same two
+  // things the growth matrix buys, and must then still cross the gate on its
+  // own trading. (Whether 55 is the right bar is Matt's ruling; the mechanism
+  // is proved either way, and the gate scenario above pins the three ears.)
   const sim = createSim({ seed: 1337 });
+  sim.G(`coins = 500000; tryBuy("chef"); tryBuy("table"); coins = 15000;`);
   let firstDay = 0, name = "";
-  for (let d = 1; d <= 12 && !firstDay && !sim.G("gameOver"); d++) {
+  for (let d = 1; d <= 16 && !firstDay && !sim.G("gameOver"); d++) {
     sim.runDays(d);
     const n = sim.G(`(customers.filter(k => k.visitor && k.culture === "pig")[0] || {}).name || ""`);
     if (n) { firstDay = sim.G("day"); name = n; }
   }
-  if (!firstDay) return "no pig ever came ashore in a played town";
+  if (!firstDay) return "no pig ever came ashore in a town that traded well for a fortnight";
   if (firstDay < 4) return `a pig landed on day ${firstDay} - that is wallpaper, not an arrival`;
   // ...and she is a pig all the way down, not a crab wearing a name
   const her = JSON.parse(sim.G(`JSON.stringify((() => {
@@ -15740,6 +15759,120 @@ scenario("the boat lands a citizen's body: arrival needs sit in the hire band", 
     // the probe visitors join no list, so the next poolReap reclaims the slots
     return out; })()`);
   if (bad.length) return bad.join("; ");
+  return true;
+});
+
+// ------------------------------------------------- reputation with teeth
+scenario("rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted", () => {
+  // THE ONE DOOR's arithmetic, pinned to the integer. A +800 word is worth
+  // 640 at rep 20, 80 at rep 90, and NOTHING at 100 - while a -3000 rage
+  // lands in full at the very top. "Everybody ends up at 100" dies here.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    rep = 20000; repAdd("crab", 800); out.low = rep;
+    rep = 90000; repAdd("crab", 800); out.high = rep;
+    rep = 100000; repAdd("crab", 800); out.top = rep;
+    rep = 100000; repAdd("crab", -3000); out.shame = rep;
+    return out;
+  })())`));
+  if (got.low !== 20640) return `+800 at rep 20k built ${got.low}, want 20640 (eff 640)`;
+  if (got.high !== 90080) return `+800 at rep 90k built ${got.high}, want 90080 (eff 80)`;
+  if (got.top !== 100000) return `+800 at rep 100k built ${got.top}, want 100000 (eff 0 - saturated)`;
+  if (got.shame !== 97000) return `-3000 at rep 100k built ${got.shame}, want 97000 (losses never saturate)`;
+  return true;
+});
+
+scenario("rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks", () => {
+  // Per-culture word + spillover + the new sink, all to the exact integer.
+  // A pig's night on the sand costs the PIG word 1150 in full and the crab
+  // word the 25% overheard share (-288: idiv floors - the compass); a pig earn
+  // saturates against the PIG ladder and spills 25% pre-saturation.
+  const sim = createSim({ seed: 11 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    rep = 50000; repC = { pig: 40000 };
+    repAdd("pig", -1150); out.pigAfterSink = repC.pig; out.crabAfterSink = rep;
+    repAdd("pig", 800); out.pigAfterEarn = repC.pig; out.crabAfterEarn = rep;
+    const k = newVisitor(false); k.culture = "pig"; k.roughFlag = false;
+    rep = 50000; repC = { pig: 40000 };
+    sleepOnSand(k);
+    out.sandPig = repC.pig; out.sandCrab = rep; out.flagged = !!k.roughFlag;
+    return out;
+  })())`));
+  if (got.pigAfterSink !== 38850) return `the pig word after -1150: ${got.pigAfterSink}, want 38850 (full)`;
+  if (got.crabAfterSink !== 49712) return `the crab word after the pig's -1150: ${got.crabAfterSink}, want 49712 (spill -288, floored)`;
+  if (got.pigAfterEarn !== 39339) return `the pig word after +800: ${got.pigAfterEarn}, want 39339 (eff 489)`;
+  if (got.crabAfterEarn !== 49812) return `the crab word after the pig's +800: ${got.crabAfterEarn}, want 49812 (spill 200 -> eff 100)`;
+  if (!got.flagged) return "sleepOnSand did not flag the night";
+  if (got.sandPig !== 38850) return `a pig's sand night cost the pig word ${40000 - got.sandPig}, want 1150 (rough 900 + unhoused 250)`;
+  if (got.sandCrab !== 49712) return `a pig's sand night cost the crab word ${50000 - got.sandCrab}, want 288 (the pier overheard)`;
+  return true;
+});
+
+scenario("rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm", () => {
+  const sim = createSim({ seed: 13 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  fx.arrival = { repGate: 60, shareRamp: 80, shareMax: 0.25 };
+  sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const cul = CULTURES.pig, out = {};
+    rep = 30000; repC = { pig: 70000 };  out.ownWord   = cultureRolls(cul, () => 0.01);
+    rep = 90000; repC = {};              out.hearsay   = cultureRolls(cul, () => 0.01);
+    rep = 100000; repC = { pig: 20000 }; out.soured    = cultureRolls(cul, () => 0.01);
+    rep = 30000; repC = {};              out.unknown   = cultureRolls(cul, () => 0.01);
+    return out;
+  })())`));
+  if (!got.ownWord) return "pig word 70 did not open a gate-60 town (own word must govern)";
+  if (!got.hearsay) return "crab 90 hearsay did not board the first pig (bootstrap broken)";
+  if (got.soured) return "crab 100 talked pigs back aboard a town their own word holds at 20 - bad news must beat hearsay";
+  if (got.unknown) return "an unknown town at crab 30 opened a gate-60 culture";
+  return true;
+});
+
+scenario("rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset)", () => {
+  const store = new Map();
+  const a = createSim({ seed: 17, storage: store, fresh: false });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  a.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
+  a.runDays(2);
+  a.G("repC = { pig: 41234 }; save()");
+  const key = a.G("slotKey(activeSlot)");
+  const env = JSON.parse(store.get(key));
+  if (!env.repc || env.repc.pig !== 41234) return "the envelope did not carry the pig word: " + JSON.stringify(env.repc);
+  const b = createSim({ seed: 17, storage: store, fresh: false });
+  if (!b.G("load(activeSlot)")) return "the save would not load";
+  if (b.G("repC.pig") !== 41234) return "the pig word did not survive the load: " + b.G("JSON.stringify(repC)");
+  // the loader-reset rule: loading an envelope WITHOUT the field clears the
+  // slate - another town's name must not follow the player around
+  delete env.repc;
+  store.set(key, JSON.stringify(env));
+  const c = createSim({ seed: 17, storage: store, fresh: false });
+  if (!c.G("load(activeSlot)")) return "the field-less save would not load (old saves must)";
+  if (c.G("Object.keys(repC).length") !== 0) return "a field-less load kept a ghost opinion: " + c.G("JSON.stringify(repC)");
+  return true;
+});
+
+scenario("rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone", () => {
+  // Not an exact pin (the town lives during these days); a BAND on the
+  // property Matt named: a rep-100 town that coasts DOES NOT stay at 100.
+  // The exact arithmetic is pinned in the saturation scenario; this one
+  // proves the composition: relaxation beats saturated earns at the top.
+  const sim = createSim({ seed: 19 });
+  const fx = JSON.parse(JSON.stringify(PIG_FIXTURE));
+  sim.G("installCultures(" + JSON.stringify({ pig: fx }) + ", false)");
+  sim.G("rep = 100000; repC = { pig: 100000 }");
+  const d0 = parseInt(sim.G("day"), 10);   // G returns strings - the "12"-day concat trap
+  sim.runDays(d0 + 2);
+  const got = JSON.parse(sim.G("JSON.stringify({ crab: rep, pig: repC.pig })"));
+  if (!(got.crab < 97000)) return `the crab word held ${got.crab} after two nights at the top - the ratchet lives`;
+  if (!(got.pig < 97000)) return `the pig word held ${got.pig} after two nights at the top - the ratchet lives`;
+  // Measured on the branch: ~80.8/80.0 after two coasting nights - the fall
+  // is relaxation PLUS the fresh town's own unserved-guest shame (rage lands
+  // unsaturated at the top, by design). The floor pins "a fall, not a hole".
+  if (got.crab < 65000 || got.pig < 65000) return `the top collapsed too fast (${got.crab}/${got.pig}) - the equilibrium is a cliff`;
   return true;
 });
 

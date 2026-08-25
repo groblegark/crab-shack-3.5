@@ -98,6 +98,11 @@ const out = {
               mean: Math.round(lifetimes.reduce((s, v) => s + v, 0) / (lifetimes.length || 1)) },
   throughput: { livedSimDays: livedDays, wallSec: +wallSec.toFixed(2),
                 simDaysPerSec: +(livedDays / wallSec).toFixed(1), loadavg: loadavg().map((v) => +v.toFixed(1)) },
+  // The reputation pass's acceptance row: end-rep per town, sorted. REPORT
+  // ONLY - no town decision reads it. Exists so "tons of homeless tourists
+  // and a 100 rep" is a claim a receipt can falsify.
+  rep: (() => { const rs = results.map((r) => +r.rep || 0).sort((a, b) => a - b);
+    return { list: rs, median: q(rs, 0.5) }; })(),
 };
 
 if (JSON_OUT) console.log(JSON.stringify(out));
