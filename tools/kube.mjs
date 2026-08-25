@@ -117,11 +117,29 @@ function doRun() {
   if (committed == null) die(`${target} is not committed at ${ref.slice(0, 10)} - commit it first`);
   const disk = readFileSync(target, "utf8");
   if (committed.trim() !== disk.trim()) die(`${target} on disk differs from the committed copy at ${ref.slice(0, 10)} - commit your edits`);
+  // Shape checks BEFORE the network: they are free, and a manifest that can
+  // never run should say so without first demanding you push it.
+  const manifest = JSON.parse(committed);
+  if (!Array.isArray(manifest.arms) || !manifest.arms.length) die("manifest has no arms[]");
+  // A manifest with NO nodeSelector does not fail - it lands wherever the
+  // scheduler likes, and every karpenter pool on this cluster is tainted
+  // (gasboat.agent, fics.pihealth.ai/mr, gvisor), so the only nodes that
+  // will take an untainted, unselected pod are the SHARED managed nodegroup
+  // that carries fleet workloads. That is how sim work ends up competing
+  // with the fleet - silently, and looking like a successful run. Two
+  // manifests shipped this way (crewux-focus, redbar-focus, fixed
+  // 2026-08-25). Fail closed: science declares where it runs, or it doesn't
+  // run. --anywhere is the deliberate escape hatch.
+  if (!manifest.nodeSelector && !has("--anywhere")) {
+    die(`${target} has no nodeSelector - it would schedule onto shared fleet nodes ` +
+        `(every karpenter pool is tainted; only the shared managed nodegroup takes an ` +
+        `unselected pod). Add "nodeSelector": {"karpenter.sh/nodepool": "ephemeral-pool"} ` +
+        `plus the matching toleration, or pass --anywhere if you truly mean it.`);
+  }
+
   sh(`git fetch ${remote()} --quiet`);
   if (!shq(`git branch -r --contains ${ref}`)) die(`${ref.slice(0, 10)} is not on any remote branch - push first (the pod clones the remote)`);
 
-  const manifest = JSON.parse(committed);
-  if (!Array.isArray(manifest.arms) || !manifest.arms.length) die("manifest has no arms[]");
   const arms = manifest.arms.length;
   const name = (manifest.name || "run").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 20);
   const release = `cs-${name}-${ref.slice(0, 7)}-${Date.now().toString(36).slice(-4)}`;
