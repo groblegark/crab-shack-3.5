@@ -1,0 +1,19 @@
+{
+  "release": "cs-redbar-focus-f694166-sdvk",
+  "armId": "sweep",
+  "index": 0,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "no surface prints off the canvas"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 4566,
+  "verdict": "1/1 passed in 4.5s",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no surface prints off the canvas (4484ms)\n\n1/1 passed in 4.5s\n"
+}
