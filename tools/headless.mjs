@@ -46,6 +46,10 @@ const NOHALL = args.includes("--nohall");
 // top of visSeparate) - the parting only; the pier line has no hatch because
 // it is a walk target, not a system. The attribution arm for crowd effects.
 const NOVSEP = args.includes("--novsep");
+// `--norethink` switches INTERRUPTIBLE COMMITMENT off (game.js reads
+// window._norethink at the top of visRethink and the citizen walk re-think) -
+// the attribution arm for mid-commitment switching.
+const NORETHINK = args.includes("--norethink");
 // `--nofloor` leaves the hall running - elections, the fund, the pot - but
 // holds the WAGE FLOOR at zero, so a payroll effect can be attributed without
 // switching the whole office off (which would move the shelter too).
@@ -152,6 +156,7 @@ if (NORIVAL) G(`window._noRival = true;`);
 if (NOHOTELIER) G(`window._noHotelier = true;`);
 if (NOHALL) G(`window._noHall = true;`);
 if (NOVSEP) G(`window._novsep = true;`);
+if (NORETHINK) G(`window._norethink = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step

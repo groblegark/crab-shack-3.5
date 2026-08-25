@@ -11630,6 +11630,7 @@ function updateSelfCook(c, dt) {
 }
 function startErrand(c, e) {
   c.dsC = DS.toErrand; c.errandBiz = e.biz; c.errand = e;
+  c.rethinkT = VIS_RETHINK;   // interruptible commitment: the walk reconsiders on the slow clock
   c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.errand);   // errand legwork tires, a little
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
@@ -11782,6 +11783,38 @@ function afterErrand(c, chain) {
 }
 function updateErrand(c, dt) {
   if (c.dsC === DS.toErrand) {
+    // INTERRUPTIBLE COMMITMENT: mid-walk, the same re-think the visitors get.
+    // pickErrand is the whole dispatch (rails, brain seam, shadow tallies all
+    // inside it - untouched); errandScore's exact rationals are the judge,
+    // 4*new > 5*cur cross-multiplied. Nothing has joined a line yet, so a
+    // switch is just a fresh start toward the better plan - and this is the
+    // DIRE door: a crab who goes desperate mid-walk switches through plain
+    // scoring, because errandScore's desperate branch dwarfs every errand.
+    if (!window._norethink) {
+      c.rethinkT = (c.rethinkT == null ? VIS_RETHINK : c.rethinkT) - dtT;
+      if (c.rethinkT <= 0) {
+        c.rethinkT = VIS_RETHINK;
+        const e2 = pickErrand(c);
+        if (e2 && !(e2.biz === c.errand.biz && e2.need === c.errand.need
+            && !e2.ball && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
+          const s2 = errandScore(c, e2), s1 = errandScore(c, c.errand);
+          if (ratGt(4 * s2.n, s2.d, 5 * s1.n, s1.d)) {
+            if (window._stats) {
+              window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+              window._stats.rethinkCit = (window._stats.rethinkCit || 0) + 1;
+              if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
+                { day, tmin, who: c.p.name, from: c.errand.biz + ":" + (c.errand.need || "?"),
+                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
+            }
+            if (e2.selfCook) startSelfCook(c, e2);
+            else if (e2.ball) startBallStop(c);
+            else if (e2.vote || e2.soup || e2.tap != null) startTapStop(c, e2);
+            else startErrand(c, e2);
+            return;
+          }
+        }
+      }
+    }
     // THE LINE IS ALIVE WHILE YOU WALK TO IT. startErrand aims at the back of
     // the line as it stood when the crab set off; three guests can form up in
     // the time it takes to cross the promenade, and a fixed aim then lands the
@@ -13151,6 +13184,12 @@ const VIS_SPEED = 42;            // a stroll: a shade under a walking crab's 40 
 // $9 table tip and put rage 62% above the pre-pass build.
 const VIS_PATIENCE = 100;
 const VIS_THINK = 1.6 * SEC;     // real seconds between "what do I fancy" checks
+// INTERRUPTIBLE COMMITMENT (Matt, 2026-08-23): a committed visitor - walking
+// to a shop, or standing unclaimed in its line - reconsiders on a SLOWER
+// clock than a loafer. Commitment deserves inertia; it no longer deserves
+// blindness. SEAM: the manner design's arrival.thinkDs is the culture knob
+// for this cadence; until that section merges, the constant is the engine's.
+const VIS_RETHINK = 5 * SEC;
 // needs per GAME HOUR while awake. Pitched off the crabs' own cycle but a
 // little gentler: a visitor is not working a shift, and a visitor who needed
 // something every hour would simply queue all day.
@@ -13908,39 +13947,47 @@ function visCandidates(k) {
     cand.push({ biz: "hotel", need: "room", recipe: BIZ.hotel.recipes[0] });
   return cand;
 }
+// ONE CANDIDATE'S WORTH, on visPick's own books. Extracted so the picker and
+// the re-think judge (interruptible commitment) read the same valuation - a
+// switch mid-walk is priced by exactly the arithmetic that priced the
+// original choice, term for term.
+function visScoreOne(k, e) {
+  const d = Math.abs(k.x - BIZ[e.biz].queueX);
+  let s;
+  if (e.need === "room") {
+    // IN NEED UNITS, like every other candidate below (slice 3): the room
+    // is scored against needs, so it rides the same Q20 scale or a bed can
+    // never outrank a taco again.
+    if (tmin >= ROOM_HOUR) s = 99 * Q20;   // the desk shuts before the town does: go now, wherever you are
+    else s = (ROOM_RANK * Q20 + Math.floor(ROOM_URGE * Q20
+      * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60)))))
+      / (1 + d / DETOUR_SCALE);
+  } else {
+    // THE BOARD PRICE MOVES THE SHARE. The retired spawn timer carried the
+    // price war in its weights (`bizPull` = pull x priceAppeal); the demand
+    // model that replaced it chooses by NEED and DISTANCE, so without this
+    // term a rival could cut her price all day and take nothing off the shop
+    // next door - and the rivalry that ships with it measures exactly that.
+    // It is zero sum by construction now: the boat decides HOW MANY guests
+    // land, this decides WHOSE door they walk through. priceAppeal is
+    // exactly 1 at the default price, so a town nobody has repriced behaves
+    // bit-identically.
+    s = (VIS_RANK[e.need] * Q20 + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
+  }
+  // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
+  // its picked recipe, so the weight is a straight lookup. Guarded so a
+  // crab's scoring floats are never multiplied - not even by 1.
+  if (k.culture && k.culture !== "crab" && e.recipe) {
+    const tw = tasteW(k, e.recipe);
+    if (tw !== 1) s *= tw;
+  }
+  return s;
+}
 function visPick(k) {
   const cand = visCandidates(k);
   let best = null, bestScore = 0;
   for (const e of cand) {
-    const d = Math.abs(k.x - BIZ[e.biz].queueX);
-    let s;
-    if (e.need === "room") {
-      // IN NEED UNITS, like every other candidate below (slice 3): the room
-      // is scored against needs, so it rides the same Q20 scale or a bed can
-      // never outrank a taco again.
-      if (tmin >= ROOM_HOUR) s = 99 * Q20;   // the desk shuts before the town does: go now, wherever you are
-      else s = (ROOM_RANK * Q20 + Math.floor(ROOM_URGE * Q20
-        * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60)))))
-        / (1 + d / DETOUR_SCALE);
-    } else {
-      // THE BOARD PRICE MOVES THE SHARE. The retired spawn timer carried the
-      // price war in its weights (`bizPull` = pull x priceAppeal); the demand
-      // model that replaced it chooses by NEED and DISTANCE, so without this
-      // term a rival could cut her price all day and take nothing off the shop
-      // next door - and the rivalry that ships with it measures exactly that.
-      // It is zero sum by construction now: the boat decides HOW MANY guests
-      // land, this decides WHOSE door they walk through. priceAppeal is
-      // exactly 1 at the default price, so a town nobody has repriced behaves
-      // bit-identically.
-      s = (VIS_RANK[e.need] * Q20 + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
-    }
-    // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
-    // its picked recipe, so the weight is a straight lookup. Guarded so a
-    // crab's scoring floats are never multiplied - not even by 1.
-    if (k.culture && k.culture !== "crab" && e.recipe) {
-      const tw = tasteW(k, e.recipe);
-      if (tw !== 1) s *= tw;
-    }
+    const s = visScoreOne(k, e);
     if (s > bestScore) { bestScore = s; best = e; }
   }
   return visSettle(k, best);
@@ -14173,6 +14220,51 @@ function visGo(k, e) {
   k.biz = e.biz; k.recipe = e.recipe; k.need = e.need;
   k.stC = VS.toBiz; k.target = BIZ[e.biz].queueX + 46;
   k.claimed = false; k.served = false; k.happy = false; k.server = null;
+  k.thinkT = VIS_RETHINK;   // the commitment clock: slower than roam, never blind
+}
+// A CHANGE OF MIND IS NOT A WALKOUT (interruptible commitment). The wait she
+// actually stood is banked - it was real - but no quit is stamped and the
+// card says nothing: she left for a better plan, not in disgust. The held
+// room releases on visAfterCounter's exact condition, the pipeline fields
+// clear, and queue membership evaporates with the state (a line is derived
+// from who is standing in it; a later rejoin takes a fresh ticket).
+function visAbandon(k) {
+  stayWait(k);   // no-op unless a line stamped qJoin
+  if (!k.served && k.biz === "hotel" && k.room) { k.room.occupant = null; k.room = null; }
+  k.biz = null; k.recipe = null; k.need = null;
+  k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
+  k.target = null; k.y = FLOOR_Y; k.wy = FLOOR_Y;
+}
+// THE RE-THINK. The decider that owns the surface proposes (the same WHO
+// DECIDES dispatch as roam - live brain, kernel, or script, shadow watching);
+// the REFERENCE SCORER judges. A switch happens only when the challenger
+// beats the incumbent by a quarter - 4*new > 5*cur, one rule for every
+// decider, because whether a mid-course correction is worth the sunk walk is
+// an economic question priced the same for everyone. Geometry already backs
+// the incumbent: scores divide by detour, and hers shrinks with every step.
+function visRethink(k) {
+  if (window._norethink) return false;   // the arm-off hatch, attribution's friend
+  const bpol = BRAINS[k.culture || "crab"];
+  const bp = bpol && bpol["vis_pick.candidate"];
+  let e;
+  if (bp && bp.mode === "live") e = brainVisPick(k, bp);
+  else {
+    e = KERN ? kernelVisPick(k) : visPick(k);
+    if (bp && bp.mode === "shadow") shadowObserve(k, bp, e);
+  }
+  if (!e) return false;
+  if (e.biz === k.biz && e.need === k.need) return false;   // same plan: hold course
+  if (!(4 * visScoreOne(k, e) > 5 * visScoreOne(k, { biz: k.biz, need: k.need, recipe: k.recipe })))
+    return false;
+  if (window._stats) {
+    window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+    window._stats.rethinkVis = (window._stats.rethinkVis || 0) + 1;
+    if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
+      { day, tmin, who: k.name, from: k.biz + ":" + k.need, to: e.biz + ":" + e.need, inLine: inLine(k) };
+  }
+  visAbandon(k);
+  visGo(k, e);
+  return true;
 }
 // ---- MOVEMENT + THE DAY ----------------------------------------------------
 function visStep(k, tx, ty, dt) {
@@ -14201,6 +14293,16 @@ function visStep(k, tx, ty, dt) {
 // whatever state they are in, so a visitor stood in a queue still gets hungry
 let _ktMist = 0, _ktDrain = 0;   // vis_tick's per-frame args, set by updateCustomers when armed
 function visTick(k, dt) {
+  // INTERRUPTIBLE COMMITMENT, the line's half: an UNCLAIMED tourist in line
+  // reconsiders on the slow clock. It lives HERE - not in the queue shuffle -
+  // because visTick is the one per-visitor call BOTH backends make every
+  // frame; under the kernel the queue states belong to cust_step, and a
+  // JS-only exit forks the stream (measured before this moved: day 1 drew
+  // 3063 under wasm against 1861 in the reference).
+  if (k.visitor && k.stC === VS.waiting && !k.claimed && !k.gone) {
+    k.thinkT -= dtT;
+    if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; visRethink(k); }
+  }
   if (KERN) {   // the compiled body; the JS below stays the reference
     const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain, bodyOf(k).ROW);
     // the object side drains IN PLACE, exactly where the reference did it:
@@ -14284,6 +14386,10 @@ function updateVisitor(k, dt) {
   if (k.stC === VS.onSand) { visStep(k, k.target == null ? k.x : k.target, FLOOR_Y, dt); return; }
   if (k.stC === VS.toBiz) {
     if (!visOpen(k.biz)) { k.stC = VS.roam; k.biz = null; k.target = null; return; }
+    // INTERRUPTIBLE COMMITMENT: mid-walk, on the slow clock. A switch aims
+    // her at the new counter this same tick; the old plan releases cleanly.
+    k.thinkT -= dtT;
+    if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; if (visRethink(k)) return; }
     if (!visStep(k, k.target, FLOOR_Y, dt)) return;
     if (!visRoomFor(k, k.biz)) {   // the line filled while they walked: come back later
       k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;

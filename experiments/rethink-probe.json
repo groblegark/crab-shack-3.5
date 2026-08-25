@@ -1,0 +1,26 @@
+{
+  "name": "rethink-probe",
+  "note": "The first-crossing hunt and the attribution control. Arm 'crossing' runs seed 1337 four days with stats on - the jsonTail carries rethinkFirst (who turned, from what, to what) and the switch counts. Arm 'control' runs the same town with --norethink; run this manifest at the branch ref AND the base ref, and the two controls must tell the same story (the hatch IS the attribution).",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "4Gi" },
+    "limits": { "cpu": "2", "memory": "6Gi" }
+  },
+  "arms": [
+    {
+      "id": "crossing",
+      "entry": "tools/headless.mjs",
+      "args": ["--days", "4", "--seeds", "1", "--seedbase", "1337", "--jobs", "1", "--json"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "control",
+      "entry": "tools/headless.mjs",
+      "args": ["--days", "4", "--seeds", "1", "--seedbase", "1337", "--jobs", "1", "--json", "--norethink"],
+      "env": { "SIMLIB_REALM": "main" }
+    }
+  ],
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ]
+}
