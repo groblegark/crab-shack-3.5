@@ -19,7 +19,12 @@ ios/*.xcodeproj/
 ios/Info.plist
 
 # the suno archive is 4.3GB and lives outside the repo; music/archive is a
-# symlink to it for local vetting only. The game only ever SHIPS what the
-# record box keeps.
+# symlink to it for local vetting only.
 music/archive
-music/catalog.json
+# music/archive-path.json records where that archive is - an absolute path under
+# a home directory, which is local knowledge and must not be published.
+music/archive-path.json
+# music/catalog.json IS tracked, deliberately. Every track is hosted on the
+# repo's own releases (tools/mkmusichost.mjs), so shipping the 1,201-row index
+# - 81 KB gzipped - gives a player the whole archive as a bench instead of only
+# the tracks a build copied in.
