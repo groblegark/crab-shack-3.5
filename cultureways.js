@@ -11519,6 +11519,23 @@ var BUNDLED_CRAB_CIVICS = {
     400
    ]
   }
- ]
+ ],
+ "calendar": {
+  "pollWeekday": 6,
+  "pollOpen": 420,
+  "pollShut": 1140
+ },
+ "relief": {
+  "soup": {
+   "potMax": 6,
+   "margin": 200
+  },
+  "shelter": {
+   "rent": 1000,
+   "float": 1,
+   "strikes": 3,
+   "shutNights": 4
+  }
+ }
 };
 if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }

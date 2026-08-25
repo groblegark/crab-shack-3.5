@@ -83,6 +83,39 @@
     { "id": "tin", "name": "THE COLLECTION TIN", "short": "TIN", "unit": "$ ASKED OF EACH",
       "who": "WHOEVER CAN SPARE IT", "steps": [0, 100, 200, 300, 400] }
   ],
+  "_calendar_relief_comment": [
+    "THE CALENDAR AND THE RELIEF, TRANSCRIBED (cultureway phase E4 slice 4c).",
+    "Unlike the ballot dials and purses (step-ladders a save indexes), these are",
+    "SCALAR facts the town runs on - the polling clock and the shelter's terms.",
+    "They adopt in place beside the ladders (the E6 idiom): the engine consts",
+    "(POLL_WEEKDAY/OPEN/SHUT, SHELTER_RENT/FLOAT/STRIKES/SHUT_NIGHTS, SOUP_MARGIN,",
+    "POT_MAX) stay as the fallback, and every reader draws the same scalar.",
+    "",
+    "calendar: pollWeekday is the weekday INDEX (0..6; 6 = Sunday, the town's own",
+    "week). pollOpen/pollShut are MINUTES past midnight (7*60 = 420, 19*60 =",
+    "1140) - the polls open an hour before the town and shut an hour before it.",
+    "",
+    "relief.soup: potMax is the most bowls a mayor may put on for one night (6);",
+    "margin is the shack's margin on a bowl sold to the town, in CENTS (200).",
+    "relief.shelter: rent is Mr. Pincherton's nightly charge in CENTS (1000);",
+    "float is how many nights of rent the purse carries in hand (1); strikes is",
+    "missed nights running before the door is bolted (3); shutNights is how many",
+    "nights it stays bolted (4).",
+    "",
+    "THE TRAP THIS FAMILY CARRIES (discipline 5): these sit on STATE and TIME",
+    "paths - a pot is SPENT, the shelter CHARGES rent, the door is BOLTED after",
+    "strikes and REOPENS after shutNights, the polls OPEN and SHUT on the calendar",
+    "day. So the gate is the WHOLE-TOWN run (rent charged, pot bought, door",
+    "bolted/reopened), not only a returned number. NOTE potMax is woven into the",
+    "stakes lcm denominator (345000 = D/(20*potMax)); transcribing it byte-equal",
+    "(=6) is what keeps the stakes exact - a different potMax would silently",
+    "desync the platform valuation, which the stakes grid sweep would catch."
+  ],
+  "calendar": { "pollWeekday": 6, "pollOpen": 420, "pollShut": 1140 },
+  "relief": {
+    "soup": { "potMax": 6, "margin": 200 },
+    "shelter": { "rent": 1000, "float": 1, "strikes": 3, "shutNights": 4 }
+  },
   "stakes": [
     { "id": "platform", "terms": [
       { "name": "potStake",

@@ -787,7 +787,29 @@ const bizUnlocked = (b) => b === "shack" || (!!BIZ[b] && (!!BIZ[b].bought || biz
 // "This is exactly the choice the mayor will make." So the funding mechanism
 // is not a constant somebody picked. It is the office's lever, and it is the
 // thing an election is actually about.
-const SHELTER_RENT = 1000;   // cents         // Mr. Pincherton owns the shelter too, and he charges for it
+// THE RELIEF AND CALENDAR SCALARS, ADOPTED FROM THE DOCUMENT (phase E4 slice
+// 4c). Unlike the ballot dials and purses (step-ladders a save indexes), these
+// are SCALAR facts the town runs on - the shelter's terms and the polling clock.
+// They adopt in place the same E6 way: the const literals below are the engine
+// fallback, and crabCivicsInt reads the crab's own bundled civics document
+// (validated as a non-negative integer, else the literal, named). Every reader
+// draws the same scalar, so a bundle that matches the literals is byte-equal by
+// construction - and because these sit on STATE and TIME paths (a pot is spent,
+// the shelter charges rent and bolts, the polls open and shut) the gate proves
+// BEHAVIOUR, not just a returned number (discipline 5). NOTE potMax is woven
+// into the stakes lcm denominator (345000 = D/(20*POT_MAX)); it is transcribed
+// byte-equal (6) for exactly that reason. `crabCivicsInt` reads a dotted path
+// (e.g. "relief.shelter.rent") off BUNDLED_CRAB_CIVICS; a missing/typed-wrong/
+// negative value falls back to the literal, named, never wounding the town.
+function crabCivicsInt(path, fallback) {
+  if (typeof BUNDLED_CRAB_CIVICS === "undefined" || !BUNDLED_CRAB_CIVICS) return fallback;
+  let v = BUNDLED_CRAB_CIVICS;
+  for (const k of path.split(".")) { if (v == null || typeof v !== "object") return fallback; v = v[k]; }
+  if (v == null) return fallback;   // undeclared: the literal stands (byte-identical)
+  if (!Number.isInteger(v) || v < 0) { console.error("crab civics " + path + " is not a whole count: " + v); return fallback; }
+  return v;
+}
+const SHELTER_RENT = crabCivicsInt("relief.shelter.rent", 1000);   // cents; document-adopted, literal fallback   // Mr. Pincherton owns the shelter too, and he charges for it
 // ...AND HE CHARGES BY THE BED. The town RENTS this building, so a bigger
 // shelter is not something the town buys once - it is a bigger bill every
 // night, for as long as the beds stand (see ACCOMMODATION UPGRADES, where the
@@ -796,7 +818,7 @@ const SHELTER_RENT = 1000;   // cents         // Mr. Pincherton owns the shelter
 // the number in the ledger and the number a voter prices a platform against
 // can never disagree.
 function shelterRent() { return SHELTER_RENT + dormExtra() * DORM_CFG.RENT; }
-const SHELTER_FLOAT = 1;         // ...and the purse is struck to carry this many nights of it IN HAND.
+const SHELTER_FLOAT = crabCivicsInt("relief.shelter.float", 1);         // ...and the purse is struck to carry this many nights of it IN HAND.
                                  // Same idiom the town already uses everywhere money has to survive a
                                  // bad day (RIVAL_CFG.FLOAT_NIGHTS, and BANK_KEEP's "two nights' rent
                                  // and a wage in the till" before the war chest was retired). MEASURED, and this is what it is for: with no
@@ -805,11 +827,11 @@ const SHELTER_FLOAT = 1;         // ...and the purse is struck to carry this man
                                  // cleared the rent on polling day and came up a dollar short on a
                                  // quiet Tuesday. A failure mode should be about the choice the town
                                  // made, not about variance in the takings three days later.
-const SHELTER_STRIKES = 3;       // missed nights running before the door is bolted
-const SHELTER_SHUT_NIGHTS = 4;   // ...and how many nights it stays that way
-const SOUP_MARGIN = 200;   // cents           // the shack's margin on a bowl sold to the town
-const POT_MAX = 6;               // the most bowls any mayor may put on for one night
-const POLL_WEEKDAY = 6;          // SUNDAY. The town already keeps a week (WEEKDAYS, and the
+const SHELTER_STRIKES = crabCivicsInt("relief.shelter.strikes", 3);       // missed nights running before the door is bolted
+const SHELTER_SHUT_NIGHTS = crabCivicsInt("relief.shelter.shutNights", 4);   // ...and how many nights it stays that way
+const SOUP_MARGIN = crabCivicsInt("relief.soup.margin", 200);   // cents           // the shack's margin on a bowl sold to the town
+const POT_MAX = crabCivicsInt("relief.soup.potMax", 6);               // the most bowls any mayor may put on for one night (also D/(20*POT_MAX) in the stakes lcm - byte-equal keeps stakes exact)
+const POLL_WEEKDAY = crabCivicsInt("calendar.pollWeekday", 6);          // SUNDAY. The town already keeps a week (WEEKDAYS, and the
                                  // staggered rota hangs off it), so polling day rides on that
                                  // rather than inventing a second calendar. Day 1 is a Monday,
                                  // so the first ballot is day 7 - late enough that the town has
@@ -1027,13 +1049,13 @@ const POLL_PLACES = [
 // measured against this, never counted, so a future state that does not fit
 // gets trimmed rather than printed through the furniture next door.
 const POLL_BW = 40;
-const POLL_OPEN = 7 * 60;        // AN HOUR BEFORE THE TOWN OPENS, and that hour is load-bearing.
+const POLL_OPEN = crabCivicsInt("calendar.pollOpen", 7 * 60);        // AN HOUR BEFORE THE TOWN OPENS, and that hour is load-bearing.
                                  // A crab's errand window on a working day closes 30 minutes before
                                  // they leave (see updateSchedule), so an owner-operator on the D
                                  // shift - 8:30 to 18:30 under the default hours - has no daylight
                                  // at all between the town opening and their own front door. Polls
                                  // open early in real towns for exactly this crab.
-const POLL_SHUT = 19 * 60;       // ...and shut an hour before the town does. This is the number that
+const POLL_SHUT = crabCivicsInt("calendar.pollShut", 19 * 60);       // ...and shut an hour before the town does. This is the number that
                                  // decides whether a working crab has a vote, and it is meant to be
                                  // tight enough that the answer is sometimes no: the D-shift owner
                                  // finishing at 18:30 has half an hour and a walk, which makes the
@@ -7716,6 +7738,35 @@ function cultureProblem(d, ownId) {
         pseen[p.id] = 1;
         const lw = civicsLadderProblem(p.steps, "PURSE");
         if (lw) return "PURSE " + p.id + ": " + lw;
+      }
+    }
+    // CALENDAR + RELIEF (slice 4c) - scalar facts, validated at the door the
+    // same way: inert for a stranger, but a malformed value refused BY NAME. The
+    // ranges are the ones the reader trusts (a weekday index 0..6; minutes in a
+    // day; the shelter terms non-negative whole counts; the polls open before
+    // they shut). A missing field is FINE (the crab's own bundle carries them;
+    // a stranger may leave them off) - only a present-but-wrong value is refused.
+    const civInt = (v) => Number.isInteger(v) && v >= 0;
+    if (d.civics.calendar != null) {
+      const C = d.civics.calendar;
+      if (typeof C !== "object" || Array.isArray(C)) return "A BAD CALENDAR";
+      if (C.pollWeekday != null && !(civInt(C.pollWeekday) && C.pollWeekday <= 6)) return "A CALENDAR WEEKDAY OUTSIDE THE WEEK";
+      if (C.pollOpen != null && !(civInt(C.pollOpen) && C.pollOpen < 1440)) return "A CALENDAR POLL-OPEN OUTSIDE THE DAY";
+      if (C.pollShut != null && !(civInt(C.pollShut) && C.pollShut < 1440)) return "A CALENDAR POLL-SHUT OUTSIDE THE DAY";
+      if (C.pollOpen != null && C.pollShut != null && C.pollOpen >= C.pollShut) return "A CALENDAR WHOSE POLLS SHUT BEFORE THEY OPEN";
+    }
+    if (d.civics.relief != null) {
+      const R = d.civics.relief;
+      if (typeof R !== "object" || Array.isArray(R)) return "A BAD RELIEF SECTION";
+      if (R.soup != null) {
+        if (typeof R.soup !== "object" || Array.isArray(R.soup)) return "A BAD SOUP RELIEF";
+        if (R.soup.potMax != null && !civInt(R.soup.potMax)) return "A SOUP POT MAX THAT IS NOT A WHOLE COUNT";
+        if (R.soup.margin != null && !civInt(R.soup.margin)) return "A SOUP MARGIN THAT IS NOT A WHOLE COUNT";
+      }
+      if (R.shelter != null) {
+        if (typeof R.shelter !== "object" || Array.isArray(R.shelter)) return "A BAD SHELTER RELIEF";
+        for (const k of ["rent", "float", "strikes", "shutNights"])
+          if (R.shelter[k] != null && !civInt(R.shelter[k])) return "A SHELTER " + k.toUpperCase() + " THAT IS NOT A WHOLE COUNT";
       }
     }
   }

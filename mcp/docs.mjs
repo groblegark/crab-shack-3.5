@@ -170,7 +170,17 @@ A people, written as a document. Not code — data the engine reads:
             steps is the rate grid and a save stores the INDEX (0..4), so
             steps[0] MUST be 0 (NO TAKE, the founding grid). Same in-place
             adoption as the dials; the levy's conflict-of-interest and the
-            conservation math stay engine. Calendar and relief land next.
+            conservation math stay engine. civics.calendar (slice 4c) is the
+            polling clock as scalars: pollWeekday (weekday index 0..6, 6=Sun),
+            pollOpen/pollShut (minutes past midnight, default 420/1140, shut
+            after open). civics.relief (slice 4c) is the shelter and soup as
+            scalars: relief.soup { potMax (bowls a night, default 6 - also the
+            stakes lcm denominator), margin (cents, default 200) }, relief.shelter
+            { rent (cents, default 1000), float (nights carried, default 1),
+            strikes (missed nights before the door bolts, default 3), shutNights
+            (nights bolted, default 4) }. These sit on state/time paths, so a
+            transcription is byte-equal AND wired; conservation and the strike
+            mechanism stay engine. Only eligibility (who may vote/stand) lands next.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in

@@ -809,7 +809,7 @@
   "civics": {
    "type": "object",
    "additionalProperties": false,
-   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. purses: the four purses that fund the shelter (levy/dues/rents/tin) as rate grids - see the purses property. Calendar and relief are transcription that lands in later slices.",
+   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. purses: the four purses that fund the shelter (levy/dues/rents/tin) as rate grids - see the purses property. calendar: the polling clock (pollWeekday/pollOpen/pollShut) as scalars - see the calendar property. relief: the shelter and soup terms as scalars - see the relief property. eligibility (who may vote/stand) is the one family that lands in a later slice.",
    "required": ["stakes"],
    "properties": {
     "ballots": {
@@ -847,6 +847,50 @@
        "who": { "type": "string", "description": "Who the purse falls on." },
        "steps": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 },
         "description": "The rate grid, low to high. steps[0] MUST be 0 (NO TAKE). A save stores the index, never the value." }
+      }
+     }
+    },
+    "calendar": {
+     "type": "object",
+     "additionalProperties": false,
+     "description": "Phase E4 slice 4c - THE POLLING CLOCK, as scalars. pollWeekday is the weekday INDEX (0..6; 6 = Sunday, the town's own week - polling day rides that rather than inventing a second calendar). pollOpen/pollShut are MINUTES past midnight (default 420/1140 - the polls open an hour before the town and shut an hour before it, so a working crab's vote is sometimes tight). TOWN-LEVEL, adopted in place; the const literal is the fallback. Missing fields are fine (the crab's own bundle carries them). POLL_PLACES geometry, VOTE_SECS, and the ballot logistics stay engine.",
+     "properties": {
+      "pollWeekday": { "type": "integer", "minimum": 0, "maximum": 6,
+       "description": "The weekday index polling day falls on (0=Mon .. 6=Sun)." },
+      "pollOpen": { "type": "integer", "minimum": 0, "maximum": 1439,
+       "description": "Minutes past midnight the polls open (default 420 = 07:00)." },
+      "pollShut": { "type": "integer", "minimum": 0, "maximum": 1439,
+       "description": "Minutes past midnight the polls shut (default 1140 = 19:00). Must be after pollOpen." }
+     }
+    },
+    "relief": {
+     "type": "object",
+     "additionalProperties": false,
+     "description": "Phase E4 slice 4c - THE SHELTER AND THE SOUP, as scalars. These sit on STATE and TIME paths (a pot is spent, the shelter charges rent and bolts after strikes, reopens after shutNights), so a transcription must be byte-equal AND wired - the behaviour gate proves the paths fire on these numbers. TOWN-LEVEL, adopted in place; the const literals are the fallback. NOTE soup.potMax is also the stakes lcm denominator, so a different value would desync the platform valuation. Conservation (fundTake/Pay/Remit) and the strike-counter mechanism stay engine.",
+     "properties": {
+      "soup": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "potMax": { "type": "integer", "minimum": 0,
+         "description": "The most bowls a mayor may put on for one night (default 6). Also 345000 = D/(20*potMax) in the stakes lcm." },
+        "margin": { "type": "integer", "minimum": 0,
+         "description": "The shack's margin on a bowl sold to the town, in CENTS (default 200)." }
+       }
+      },
+      "shelter": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "rent": { "type": "integer", "minimum": 0,
+         "description": "Mr. Pincherton's nightly charge for the shelter, in CENTS (default 1000)." },
+        "float": { "type": "integer", "minimum": 0,
+         "description": "How many nights of rent the purse is struck to carry in hand (default 1)." },
+        "strikes": { "type": "integer", "minimum": 0,
+         "description": "Missed nights running before the door is bolted (default 3)." },
+        "shutNights": { "type": "integer", "minimum": 0,
+         "description": "How many nights the door stays bolted (default 4)." }
+       }
       }
      }
     },

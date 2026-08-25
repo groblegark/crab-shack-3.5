@@ -12392,6 +12392,146 @@ scenario("civics purses: a tampered grid is refused by name and falls back, and 
   return true;
 });
 
+scenario("civics calendar/relief: the scalars are byte-equal to the engine constants", () => {
+  // PHASE E4 SLICE 4c. The polling clock (POLL_WEEKDAY/OPEN/SHUT) and the
+  // shelter's terms (SHELTER_RENT/FLOAT/STRIKES/SHUT_NIGHTS, SOUP_MARGIN,
+  // POT_MAX) leave their game.js const literals and ride the crab's own bundled
+  // civics document as civics.calendar / civics.relief, adopted IN PLACE by
+  // crabCivicsInt (the E6 idiom, for scalars this time): the const literals stay
+  // as the engine fallback and every reader draws the same scalar. This is the
+  // tabled==const pin - the pinned numbers below are the constants as they
+  // shipped, so ONE drifted value names the scalar. potMax is called out because
+  // it is ALSO the stakes lcm denominator (345000 = D/(20*potMax)); byte-equal
+  // is what keeps the stakes exact.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    rent: SHELTER_RENT, float: SHELTER_FLOAT, strikes: SHELTER_STRIKES, shutNights: SHELTER_SHUT_NIGHTS,
+    margin: SOUP_MARGIN, potMax: POT_MAX, weekday: POLL_WEEKDAY, open: POLL_OPEN, shut: POLL_SHUT,
+    cal: !!(BUNDLED_CRAB_CIVICS && BUNDLED_CRAB_CIVICS.calendar),
+    rel: !!(BUNDLED_CRAB_CIVICS && BUNDLED_CRAB_CIVICS.relief),
+    // the document's own values, so the pin proves ADOPTION (the const == the doc),
+    // not merely that the const holds some number
+    docRent: BUNDLED_CRAB_CIVICS.relief.shelter.rent, docPotMax: BUNDLED_CRAB_CIVICS.relief.soup.potMax,
+    docWeekday: BUNDLED_CRAB_CIVICS.calendar.pollWeekday, docOpen: BUNDLED_CRAB_CIVICS.calendar.pollOpen
+  })`));
+  if (!got.cal) return "the bundled crab civics carries no calendar section - slice 4c did not install";
+  if (!got.rel) return "the bundled crab civics carries no relief section - slice 4c did not install";
+  const want = { rent: 1000, float: 1, strikes: 3, shutNights: 4, margin: 200, potMax: 6, weekday: 6, open: 420, shut: 1140 };
+  for (const k in want) if (got[k] !== want[k]) return "the " + k + " scalar drifted: " + got[k] + " (want " + want[k] + ")";
+  // ADOPTION: the const must equal the DOCUMENT value, not the literal by luck
+  if (got.rent !== got.docRent) return "SHELTER_RENT does not read the document (const " + got.rent + " vs doc " + got.docRent + ")";
+  if (got.potMax !== got.docPotMax) return "POT_MAX does not read the document (const " + got.potMax + " vs doc " + got.docPotMax + ")";
+  if (got.weekday !== got.docWeekday) return "POLL_WEEKDAY does not read the document (const " + got.weekday + " vs doc " + got.docWeekday + ")";
+  if (got.open !== got.docOpen) return "POLL_OPEN does not read the document (const " + got.open + " vs doc " + got.docOpen + ")";
+  return true;
+});
+
+scenario("civics calendar/relief: the scalars DRIVE the town, not just a readout (the behaviour gate)", () => {
+  // DISCIPLINE 5, the trap this family carries. The relief and calendar scalars
+  // sit on STATE and TIME paths - a pot is SPENT, the shelter CHARGES rent and
+  // BOLTS after strikes running and REOPENS after shutNights, the polls OPEN and
+  // SHUT on the calendar day. Value-equality is not behaviour-equality, so this
+  // does not read a number back - it makes the town run the paths and watches
+  // them fire ON the transcribed scalars.
+  const sim = createSim({ seed: 1337 });
+  // 1) THE SHELTER BOLTS on SHELTER_STRIKES running misses, and shows SHUT_NIGHTS
+  //    on the counter, then REOPENS. Starve the fund (the tin at $0, no rents),
+  //    settle by hand, and watch townFund.strikes climb to the transcribed
+  //    threshold and townFund.shut latch to the transcribed length.
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = { strikes: [], shutAtBolt: 0, potMaxCeiling: null, weekdayHit: null, openShut: null };
+    hall.policy = { mech: "tin", rate: 0, bowls: 0, wage: 0, cap: 0 };   // raises nothing
+    townFund.bal = 0; townFund.arrears = 0; townFund.strikes = 0; townFund.shut = 0;
+    if (window._stats) window._stats.shelterShuts = 0;
+    // run the office's night by hand until the door bolts, recording the strike
+    // count each night - it must reach exactly SHELTER_STRIKES and then latch
+    // townFund.shut to SHELTER_SHUT_NIGHTS.
+    for (let n = 0; n < 10 && out.shutAtBolt === 0; n++) {
+      townFund.bal = 0;                       // a purse that raised nothing
+      runTownHall();
+      out.strikes.push(townFund.strikes);
+      if (townFund.shut > 0 && out.shutAtBolt === 0) out.shutAtBolt = townFund.shut;
+    }
+    out.STRIKES = SHELTER_STRIKES; out.SHUT = SHELTER_SHUT_NIGHTS;
+    // 2) POT_MAX is the ceiling on the night's pot: ask for a hundred bowls with
+    //    the whole town sick and potWant clamps to POT_MAX.
+    for (const c of allCrabs()) c.p.sick = true;
+    hall.policy.bowls = 100;
+    out.potMaxCeiling = potWant();
+    out.POTMAX = POT_MAX;
+    for (const c of allCrabs()) c.p.sick = false;
+    // 3) THE CALENDAR: pollWeekday(d) is true exactly on POLL_WEEKDAY, and the
+    //    poll window is [POLL_OPEN, POLL_SHUT). Probe the predicates directly.
+    let hit = -1; for (let d = 1; d <= 7; d++) if (pollWeekday(d)) { hit = weekdayIdx(d); break; }
+    out.weekdayHit = hit;
+    out.WEEKDAY = POLL_WEEKDAY;
+    out.openShut = [POLL_OPEN, POLL_SHUT];
+    return out;
+  })())`));
+  // the strikes climb 1,2,...,STRIKES-1 and then the STRIKES-th consecutive miss
+  // bolts the door and resets the counter to 0 the same night (game.js runTownHall).
+  // So the recorded sequence is [1, 2, ..., STRIKES-1, 0] and the door bolts on
+  // exactly the SHELTER_STRIKES-th night, latched to SHELTER_SHUT_NIGHTS.
+  if (got.shutAtBolt !== got.SHUT) return "the shelter bolted for " + got.shutAtBolt + " nights, not the transcribed SHELTER_SHUT_NIGHTS " + got.SHUT;
+  const bolt = got.strikes.indexOf(0);   // strikes resets to 0 the night it bolts
+  if (bolt < 0) return "the shelter never bolted - the strike path did not fire on the transcribed threshold: " + JSON.stringify(got.strikes);
+  // the bolt fell on the SHELTER_STRIKES-th consecutive miss (0-indexed bolt = STRIKES-1)
+  if (bolt !== got.STRIKES - 1) return "the door bolted on miss " + (bolt + 1) + ", not the transcribed SHELTER_STRIKES " + got.STRIKES + " (strikes: " + JSON.stringify(got.strikes) + ")";
+  // and the climb before it was 1,2,...,STRIKES-1 exactly
+  for (let i = 0; i < bolt; i++) if (got.strikes[i] !== i + 1) return "the strike counter did not climb by ones to the threshold: " + JSON.stringify(got.strikes);
+  if (got.potMaxCeiling !== got.POTMAX) return "potWant did not clamp to the transcribed POT_MAX: " + got.potMaxCeiling + " vs " + got.POTMAX;
+  if (got.weekdayHit !== got.WEEKDAY) return "pollWeekday fired on weekday " + got.weekdayHit + ", not the transcribed POLL_WEEKDAY " + got.WEEKDAY;
+  if (got.openShut[0] >= got.openShut[1]) return "the poll window is degenerate: " + JSON.stringify(got.openShut);
+  return true;
+});
+
+scenario("civics calendar/relief: a stranger's malformed calendar or relief is refused by name", () => {
+  // The no-silent-drop contract (slice 3), extended to the scalar families now
+  // the schema admits them. A stranger's calendar/relief is INERT (the town's
+  // clock and shelter belong to the crab who founds it), but a present-but-wrong
+  // value is refused BY NAME at the document door, never quietly ignored.
+  const sim = createSim({ seed: 7 });
+  const goodStakes = JSON.parse(sim.G(`JSON.stringify(BUNDLED_CRAB_CIVICS.stakes)`));
+  const boar = (civics) => { const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    d.civics = { stakes: goodStakes }; Object.assign(d.civics, civics); return d; };
+  const docs = {
+    goodCal: boar({ calendar: { pollWeekday: 3, pollOpen: 400, pollShut: 1100 } }),
+    calNotObj: boar({ calendar: 42 }),
+    calWeekday: boar({ calendar: { pollWeekday: 9 } }),
+    calOpen: boar({ calendar: { pollOpen: 2000 } }),
+    calOrder: boar({ calendar: { pollOpen: 1100, pollShut: 400 } }),
+    goodRelief: boar({ relief: { soup: { potMax: 4 }, shelter: { rent: 800 } } }),
+    reliefNotObj: boar({ relief: 42 }),
+    soupNotObj: boar({ relief: { soup: 5 } }),
+    potMaxBad: boar({ relief: { soup: { potMax: -1 } } }),
+    marginBad: boar({ relief: { soup: { margin: 2.5 } } }),
+    shelterNotObj: boar({ relief: { shelter: 5 } }),
+    rentBad: boar({ relief: { shelter: { rent: -1 } } }),
+    strikesBad: boar({ relief: { shelter: { strikes: 1.5 } } }),
+  };
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const docs = ${JSON.stringify(docs)};
+    const out = {};
+    for (const k in docs) out[k] = cultureProblem(docs[k], "boar");
+    return out;
+  })())`));
+  if (got.goodCal !== null) return "a well-formed stranger calendar was refused: " + got.goodCal;
+  if (got.calNotObj !== "A BAD CALENDAR") return "a non-object calendar slid in: " + got.calNotObj;
+  if (got.calWeekday !== "A CALENDAR WEEKDAY OUTSIDE THE WEEK") return "a weekday past Sunday slid in: " + got.calWeekday;
+  if (got.calOpen !== "A CALENDAR POLL-OPEN OUTSIDE THE DAY") return "a poll-open past midnight slid in: " + got.calOpen;
+  if (got.calOrder !== "A CALENDAR WHOSE POLLS SHUT BEFORE THEY OPEN") return "a backwards poll window slid in: " + got.calOrder;
+  if (got.goodRelief !== null) return "a well-formed stranger relief was refused: " + got.goodRelief;
+  if (got.reliefNotObj !== "A BAD RELIEF SECTION") return "a non-object relief slid in: " + got.reliefNotObj;
+  if (got.soupNotObj !== "A BAD SOUP RELIEF") return "a non-object soup slid in: " + got.soupNotObj;
+  if (got.potMaxBad !== "A SOUP POT MAX THAT IS NOT A WHOLE COUNT") return "a negative pot max slid in: " + got.potMaxBad;
+  if (got.marginBad !== "A SOUP MARGIN THAT IS NOT A WHOLE COUNT") return "a fractional margin slid in: " + got.marginBad;
+  if (got.shelterNotObj !== "A BAD SHELTER RELIEF") return "a non-object shelter slid in: " + got.shelterNotObj;
+  if (got.rentBad !== "A SHELTER RENT THAT IS NOT A WHOLE COUNT") return "a negative rent slid in: " + got.rentBad;
+  if (got.strikesBad !== "A SHELTER STRIKES THAT IS NOT A WHOLE COUNT") return "a fractional strikes slid in: " + got.strikesBad;
+  return true;
+});
+
 scenario("cultureways: a save without cultures changes nothing", () => {
   // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,
   // 2026-08-21), seed 4242, runDays(2) - the registry code must not move a

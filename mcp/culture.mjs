@@ -270,6 +270,37 @@ function localise(d, verdict) {
         });
       }
     }
+    // phase E4 slice 4c: civics.calendar + civics.relief - the polling clock and
+    // shelter/soup scalars. Mirrors the game's calendar/relief door checks.
+    const civInt = (v) => Number.isInteger(v) && v >= 0;
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.calendar != null) {
+      const C = cv.calendar;
+      if (typeof C !== "object" || Array.isArray(C)) say("civics.calendar", "must be an object (A BAD CALENDAR)");
+      else {
+        if (C.pollWeekday != null && !(civInt(C.pollWeekday) && C.pollWeekday <= 6)) say("civics.calendar.pollWeekday", "a weekday index 0..6 (A CALENDAR WEEKDAY OUTSIDE THE WEEK)");
+        if (C.pollOpen != null && !(civInt(C.pollOpen) && C.pollOpen < 1440)) say("civics.calendar.pollOpen", "minutes past midnight 0..1439 (A CALENDAR POLL-OPEN OUTSIDE THE DAY)");
+        if (C.pollShut != null && !(civInt(C.pollShut) && C.pollShut < 1440)) say("civics.calendar.pollShut", "minutes past midnight 0..1439 (A CALENDAR POLL-SHUT OUTSIDE THE DAY)");
+        if (C.pollOpen != null && C.pollShut != null && C.pollOpen >= C.pollShut) say("civics.calendar.pollShut", "the polls must shut after they open (A CALENDAR WHOSE POLLS SHUT BEFORE THEY OPEN)");
+      }
+    }
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.relief != null) {
+      const R = cv.relief;
+      if (typeof R !== "object" || Array.isArray(R)) say("civics.relief", "must be an object (A BAD RELIEF SECTION)");
+      else {
+        if (R.soup != null) {
+          if (typeof R.soup !== "object" || Array.isArray(R.soup)) say("civics.relief.soup", "must be an object (A BAD SOUP RELIEF)");
+          else {
+            if (R.soup.potMax != null && !civInt(R.soup.potMax)) say("civics.relief.soup.potMax", "a whole count >= 0 (A SOUP POT MAX THAT IS NOT A WHOLE COUNT)");
+            if (R.soup.margin != null && !civInt(R.soup.margin)) say("civics.relief.soup.margin", "cents, a whole count >= 0 (A SOUP MARGIN THAT IS NOT A WHOLE COUNT)");
+          }
+        }
+        if (R.shelter != null) {
+          if (typeof R.shelter !== "object" || Array.isArray(R.shelter)) say("civics.relief.shelter", "must be an object (A BAD SHELTER RELIEF)");
+          else for (const k of ["rent", "float", "strikes", "shutNights"])
+            if (R.shelter[k] != null && !civInt(R.shelter[k])) say(`civics.relief.shelter.${k}`, `a whole count >= 0 (A SHELTER ${k.toUpperCase()} THAT IS NOT A WHOLE COUNT)`);
+        }
+      }
+    }
   }
 
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");
