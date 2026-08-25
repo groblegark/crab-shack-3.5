@@ -132,6 +132,30 @@ A people, written as a document. Not code — data the engine reads:
             ({WHY} {NIGHTS} {QUITS} {TABLES} {DUES} {PAID} {TOPBIZ} {LIST}
             plus the phase C slots). Every refusal is named; the engine's
             own lambdas remain the fallback for undeclared cultures.
+  civics    phase E4: HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM. platValue —
+            the number an election ranks a policy by, for one voter — as
+            civics.stakes, a list of stakes each with a name and a list of
+            NAMED signed term-programs; the stake's value is their SUM, and
+            the receipt reads off the largest-magnitude term. The engine owns
+            the id space: the "platform" stake is REQUIRED (a section that
+            omits it is refused — it would silently fall back to the engine
+            lambda). Each term is a straight-line Layer-1 program (same ops as
+            depart above) that CLOSES WITH TERM, the marker that it yields a
+            named term rather than a bare expression. A term is SIGNED —
+            negative bounds are FINE (floorBill and purseCost subtract),
+            unlike a depart weight; only the 2^52 magnitude rail applies. LD
+            reads the platform-value bundle by name: potStake20(0-20)
+            pBowls(bowls the purse funds) roofWeight20(0-24) roof(0/1)
+            fr(the wage floor's daily raise) fb(its bill on a payroll)
+            capStake100(signed hundredths) purseCost100(hundredths)
+            pTake(what the purse takes). The crab's own stakes ship bundled,
+            byte-equal to the coefficient lambda; a culture that declares none
+            leaves its voters on that same lambda. Every refusal is named
+            (an unknown op, a typo'd LD name, a term that never closes with
+            TERM, a program past 256 ops, a magnitude past 2^52, a missing
+            platform stake). Only the stake terms are authorable here;
+            ballots, purses, calendar and relief are transcription that lands
+            in a later slice.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in

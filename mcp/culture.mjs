@@ -204,6 +204,42 @@ function localise(d, verdict) {
     }
   }
 
+  // phase E4: civics.stakes - platValue as named signed term-programs. Shape
+  // checks here (missing platform, dup ids/names, no TERM close); the deep
+  // checks (op allowlist, static bounds, LD names, the 2^52 rail) are the
+  // game's stakesProblem, which the deep validate path exercises with named
+  // errors. Mirrors stakesProblem's field paths and its named messages.
+  const cv = d.civics;
+  if (cv != null) {
+    if (typeof cv !== "object" || Array.isArray(cv)) say("civics", "must be an object with a stakes list (A BAD CIVICS SECTION)");
+    else if (!Array.isArray(cv.stakes) || !cv.stakes.length) say("civics.stakes", "must be a non-empty list of stakes (A CIVICS SECTION WITH NO STAKES)");
+    else {
+      const seen = {};
+      cv.stakes.forEach((st, i) => {
+        if (!st || typeof st !== "object" || Array.isArray(st)) return say(`civics.stakes[${i}]`, "must be an object (A BAD STAKE ROW)");
+        if (typeof st.id !== "string" || !st.id.length) say(`civics.stakes[${i}].id`, "required: a non-empty string (A STAKE WITH NO ID)");
+        else { if (seen[st.id]) say(`civics.stakes[${i}].id`, `"${st.id}" is declared twice (A STAKE TWICE)`); seen[st.id] = 1; }
+        if (!Array.isArray(st.terms) || !st.terms.length) say(`civics.stakes[${i}].terms`, `must be a non-empty list of named term-programs (STAKE ${st.id} HAS NO TERMS)`);
+        else {
+          const tseen = {};
+          st.terms.forEach((t, j) => {
+            if (!t || typeof t !== "object" || typeof t.name !== "string" || !t.name.length)
+              return say(`civics.stakes[${i}].terms[${j}]`, "must be an object with a name and a prog (A BAD TERM)");
+            if (tseen[t.name]) say(`civics.stakes[${i}].terms[${j}].name`, `"${t.name}" is named twice in this stake (NAMES A TERM TWICE)`);
+            tseen[t.name] = 1;
+            if (!Array.isArray(t.prog) || !t.prog.length) say(`civics.stakes[${i}].terms[${j}].prog`, "must be a non-empty Layer-1 program (HAS NO PROGRAM)");
+            else {
+              const last = t.prog[t.prog.length - 1];
+              if (!(Array.isArray(last) ? last[0] === "TERM" : last === "TERM"))
+                say(`civics.stakes[${i}].terms[${j}].prog`, "a family-1 term must CLOSE WITH TERM (the last op is [\"TERM\"])");
+            }
+          });
+        }
+      });
+      if (!seen.platform) say("civics.stakes", "must include the \"platform\" stake - the engine reads it, and a section without it would silently fall back to the lambda (A CIVICS SECTION MISSING THE PLATFORM STAKE)");
+    }
+  }
+
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");
   const ap = d.appeal;
   if (ap && ap.tastes) for (const k in ap.tastes) {

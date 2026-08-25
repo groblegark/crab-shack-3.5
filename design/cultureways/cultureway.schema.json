@@ -808,7 +808,41 @@
   },
   "civics": {
    "type": "object",
-   "description": "Phase E - institutions, offices, policy step-tables, calendar phases, errand defs, invariants. Schema lands with the capability APIs."
+   "additionalProperties": false,
+   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM. platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. Only the stake terms are authorable in this slice; ballots, purses, calendar and relief are transcription that lands later.",
+   "required": ["stakes"],
+   "properties": {
+    "stakes": {
+     "type": "array",
+     "minItems": 1,
+     "description": "The signed value-terms a voter sums to score a platform. Must include the 'platform' stake (the engine's own).",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "terms"],
+      "properties": {
+       "id": { "type": "string", "minLength": 1,
+        "description": "The stake id. 'platform' is the engine's own and is required." },
+       "terms": {
+        "type": "array",
+        "minItems": 1,
+        "description": "Named signed value-terms; the stake's value is their sum.",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": ["name", "prog"],
+         "properties": {
+          "name": { "type": "string", "minLength": 1,
+           "description": "The term name - unique within the stake; the receipt reads off the largest-magnitude term." },
+          "prog": { "type": "array", "minItems": 1, "items": { "type": "array" },
+           "description": "A straight-line Layer-1 program over the platform-value bundle that CLOSES WITH TERM. Signed; only the 2^52 magnitude rail applies." }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "depart": {
    "type": "object",

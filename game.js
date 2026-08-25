@@ -1608,7 +1608,15 @@ function platValue(c, p) {
   // nothing - the only observable is the return value, so value-equality IS
   // behavioural equality here. If that ever stops being true, this path must do
   // whatever the lambda does on the way out, or the transcription is a lie.
-  const civ = (typeof window !== "undefined" && window._nol1plat) ? null : CRABCIV;
+  //
+  // A VOTER SCORES ON THEIR OWN CULTURE'S STAKES (phase E4, slice 3) - the same
+  // dispatch visQuote uses for departR: a resident of a stranger people that
+  // declared a civics section runs ITS term-programs; the crab's own (and any
+  // culture that declared none) runs CRABCIV. Native crabs carry no p.culture,
+  // so cul is null and civ is CRABCIV - byte-identical to before this slice.
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  const civ = (typeof window !== "undefined" && window._nol1plat) ? null
+    : (cul ? cul.civicsR : CRABCIV);
   if (civ && civ.platform) {
     const read = platReads(c, p);
     let v = 0;
@@ -7615,6 +7623,22 @@ function cultureProblem(d, ownId) {
       if (why) return why;
     }
   }
+  // CIVICS (phase E4): a culture may re-express platValue - how its voters
+  // score a platform - as a list of NAMED Layer-1 term-programs, the platform's
+  // value the SUM (family 1). The engine owns the id space (the E3 discipline:
+  // a culture re-expresses an engine consumer, never invents one), so the
+  // "platform" stake is required and stakesProblem owns every check - each term
+  // assembled statically against PLAT_BUNDLE, signed bounds permitted
+  // (floorBill/purseCost subtract), only the 2^52 magnitude rail applied. A
+  // typo'd term name or op fails HERE, at import, never in an election - and an
+  // undeclared civics section leaves this people's voters on the engine's own
+  // lambda (visQuote's CRABD precedent). Only the STAKE terms are authorable
+  // this slice; ballots/purses/calendar/relief are transcription that lands
+  // later (plan risk #4: transcribe, never invent).
+  if (d.civics != null) {
+    const why = stakesProblem(d.civics);
+    if (why) return why;
+  }
   // APPEAL is the one culture-owned table for what draws a people: the
   // standing taste weights AND the drop-nudge terms live together, because
   // they are the same fact at two time scales - what a stop is worth to a
@@ -8401,6 +8425,11 @@ function buildCulture(def) {
   // cultureProblem, so departCompile cannot fail. Null when undeclared -
   // that culture's departures run the engine lambdas exactly as today.
   const departR = (def.depart && def.depart.rules) ? departCompile(def.depart) : null;
+  // A declared CIVICS section compiles once here (phase E4): validated by
+  // cultureProblem (stakesProblem), so stakesCompile cannot fail. Null when
+  // undeclared - that culture's voters score platforms on the engine's own
+  // lambda (platValue's CRABCIV/lambda fallback), byte-identical to today.
+  const civicsR = (def.civics && def.civics.stakes) ? stakesCompile(def.civics) : null;
   // DECLARED BUSINESSES, built once into the runtime catalog's own shape
   // (author dollars cross the x100 boundary here, like every other section)
   // but PENDING: no plot, no door, not in BIZ or BIZ_KEYS. When placement
@@ -8466,7 +8495,7 @@ function buildCulture(def) {
   const drift = (def.appeal && def.appeal.drift) ? driftCompile(def.appeal.drift) : null;
   const accept = def.accept ? acceptCompile(def.accept) : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, businesses: biz, settlers, phys, rhythm, urge, drift, accept };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, civicsR, businesses: biz, settlers, phys, rhythm, urge, drift, accept };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim

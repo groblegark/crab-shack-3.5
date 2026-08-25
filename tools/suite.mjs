@@ -12005,6 +12005,145 @@ scenario("civics stakes: a hostile table is refused by name", () => {
   if (got.negOK !== null) return "a legitimately-negative term was refused: " + got.negOK;
   return true;
 });
+scenario("civics: a stranger's document declares its own stakes, or is refused by name at the door", () => {
+  // PHASE E4 SLICE 3: civics becomes an AUTHORABLE section of a culture
+  // DOCUMENT, wired the way E3 wired depart.rules - cultureProblem routes
+  // d.civics through stakesProblem, so a typo'd term name or op fails at
+  // IMPORT, never in an election. This is the FULL hostile battery THROUGH THE
+  // DOOR (cultureProblem(doc), not stakesProblem alone): a whole document with
+  // a malformed civics section is refused by name and never installs, while a
+  // document with a WELL-FORMED civics section installs and compiles a
+  // per-culture civicsR. Includes the fuel-bound (>256 ops) case the bundled
+  // 6-op crab table cannot reach - a program past its fuel bound is refused.
+  //
+  // A THING THE DOOR CATCHES THAT stakesProblem-ALONE DID NOT: an author who
+  // declares civics but forgets the platform stake would install a culture
+  // whose voters SILENTLY fall back to the lambda (civicsR built from a stake
+  // set the engine never reads). The required-platform check refuses that here,
+  // at the document door, exactly as the crab boot path requires it.
+  const sim = createSim({ seed: 7 });
+  // build the docs SUITE-SIDE (PIG_FIXTURE lives here, not in the sim realm),
+  // and pass the whole batch of variants into one sim eval. The good civics is
+  // the crab's own six terms verbatim - the honest thing an author would copy.
+  const goodCivics = JSON.parse(sim.G(`JSON.stringify({ stakes: BUNDLED_CRAB_CIVICS.stakes })`));
+  const platTerms = () => JSON.parse(JSON.stringify(goodCivics.stakes[0].terms));
+  const boar = (civics) => {
+    const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    if (civics !== undefined) d.civics = civics;
+    return d;
+  };
+  // a fuel-bomb term: 257 ops (> L1_MAX_OPS 256), still closing with TERM
+  const bomb = [["PUSHI", 0]]; for (let i = 0; i < 256; i++) bomb.push(["PUSHI", 0], ["ADD"]); bomb.push(["TERM"]);
+  const withProg = (prog) => { const t = platTerms(); t[0].prog = prog; return { stakes: [{ id: "platform", terms: t }] }; };
+  // key -> the whole document to feed cultureProblem(doc, "boar")
+  const docs = {
+    good: boar(goodCivics),
+    undeclared: boar(undefined),
+    notObj: boar(42),
+    noStakes: boar({ stakes: [] }),
+    missingPlatform: boar({ stakes: [{ id: "levy", terms: platTerms() }] }),
+    stakeTwice: boar({ stakes: [{ id: "platform", terms: platTerms() }, { id: "platform", terms: platTerms() }] }),
+    noTerms: boar({ stakes: [{ id: "platform", terms: [] }] }),
+    termTwice: boar({ stakes: [{ id: "platform", terms: (() => { const t = platTerms(); t.push(JSON.parse(JSON.stringify(t[0]))); return t; })() }] }),
+    badLD: boar(withProg([["LD", "nosuchread"], ["TERM"]])),
+    badOp: boar(withProg([["FROB", 1], ["TERM"]])),
+    noClose: boar(withProg([["PUSHI", 1], ["PUSHI", 2]])),
+    mag: boar(withProg([["LD", "fb"], ["PUSHI", 2000000000], ["MUL"], ["PUSHI", 2000000000], ["MUL"], ["TERM"]])),
+    fuel: boar(withProg(bomb)),
+    // a legitimately-NEGATIVE term is ACCEPTED at the door (family-1 sign law)
+    negAtDoor: boar(withProg([["PUSHI", -9200], ["LD", "fb"], ["MUL"], ["TERM"]])),
+  };
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const docs = ${JSON.stringify(docs)};
+    const out = { verdict: {} };
+    for (const k in docs) out.verdict[k] = cultureProblem(docs[k], "boar");
+    // the GOOD doc must also INSTALL and compile a per-culture civicsR...
+    installCultures({ boar: docs.good }, false);
+    out.installed = !!(CULTURES.boar && CULTURES.boar.civicsR && CULTURES.boar.civicsR.platform);
+    out.terms = CULTURES.boar && CULTURES.boar.civicsR ? CULTURES.boar.civicsR.platform.length : -1;
+    loadCultures(null);
+    // ...and an UNDECLARED civics builds civicsR=null (byte-inert), not a crash
+    installCultures({ boar: docs.undeclared }, false);
+    out.silentNull = !!(CULTURES.boar && CULTURES.boar.civicsR === null);
+    loadCultures(null);
+    return out;
+  })())`));
+  const v = got.verdict;
+  if (v.good !== null) return "a well-formed stranger civics was refused at the door: " + v.good;
+  if (v.undeclared !== null) return "an undeclared civics section was refused: " + v.undeclared;
+  if (!got.installed) return "a good civics installed but compiled no per-culture civicsR";
+  if (got.terms !== 6) return "the compiled stranger stake has " + got.terms + " terms, not 6";
+  if (!got.silentNull) return "an undeclared civics did not build civicsR=null (the silent-document law)";
+  if (v.notObj !== "A BAD CIVICS SECTION") return "a non-object civics slid in: " + v.notObj;
+  if (v.noStakes !== "A CIVICS SECTION WITH NO STAKES") return "an empty stakes list slid in: " + v.noStakes;
+  if (v.missingPlatform !== "A CIVICS SECTION MISSING THE PLATFORM STAKE") return "a civics without the platform stake slid in: " + v.missingPlatform;
+  if (v.stakeTwice !== "A STAKE TWICE: platform") return "a doubled stake slid in: " + v.stakeTwice;
+  if (v.noTerms !== "STAKE platform HAS NO TERMS") return "a termless stake slid in: " + v.noTerms;
+  if (!/NAMES A TERM TWICE/.test(String(v.termTwice))) return "a doubled term slid in: " + v.termTwice;
+  if (!/NOT A BUNDLE ROW/.test(String(v.badLD))) return "a typo'd LD name slid in: " + v.badLD;
+  if (!/NOT AN L1 OP/.test(String(v.badOp))) return "an unknown op slid in: " + v.badOp;
+  if (!/DOES NOT CLOSE WITH TERM/.test(String(v.noClose))) return "a program without TERM slid in: " + v.noClose;
+  if (!/PAST 2\^52/.test(String(v.mag))) return "an overflowing term slid in: " + v.mag;
+  if (!/MAX 256|OPS, MAX/.test(String(v.fuel))) return "a program past its fuel bound slid in: " + v.fuel;
+  if (v.negAtDoor !== null) return "a legitimately-negative term was refused at the door: " + v.negAtDoor;
+  return true;
+});
+scenario("civics: a people's voters score a platform on THEIR OWN declared stakes", () => {
+  // THE CONSUMPTION DOOR (ruling 5's bar, honored exactly): a declared civics
+  // option CAN be exercised - a resident tagged to a culture that declared its
+  // own stakes runs THOSE term-programs in platValue, and a resident of an
+  // UNDECLARED culture (and the crab) falls to the engine lambda. We do NOT
+  // assert that any particular rung gets voted; we assert the DISPATCH picks
+  // the right table, and prove it BY CONSTRUCTION - the stranger's stakes are
+  // the crab's own save with one term's coefficient bent, so the two tables
+  // MUST disagree on some (owner crab, platform) pair. That divergence is the
+  // dispatch firing; a null-culture crab scored on the same pair is unmoved.
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);
+  sim.runDays(12);
+  // the stranger's stakes = the crab's six terms, but with capStake's leading
+  // coefficient bent by +1 (414000 -> 414001) - byte-different from the crab
+  // table on any pair where capStake100 != 0, which the grown town has. Built
+  // suite-side from the crab's own bundled stakes, then wrapped in a doc.
+  const civ = JSON.parse(sim.G(`JSON.stringify({ stakes: BUNDLED_CRAB_CIVICS.stakes })`));
+  const cap = civ.stakes[0].terms.find(t => t.name === "capStake");
+  if (!cap || cap.prog[0][0] !== "PUSHI") return "capStake term not shaped as expected (fixture drift)";
+  cap.prog[0][1] = cap.prog[0][1] + 1;
+  const doc = (() => { const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies; d.civics = civ; return d; })();
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    installCultures({ boar: ${JSON.stringify(doc)} }, false);
+    if (!CULTURES.boar || !CULTURES.boar.civicsR) return { err: "boar civics did not install" };
+    const crabs = allCrabs(), grid = allPlatforms();
+    // pick a real (owner crab, platform) pair where capStake100 is nonzero, so
+    // the bent term actually moves the score.
+    let c = null, p = null;
+    outer: for (const cc of crabs) for (const pp of grid) {
+      if (capStake100(cc, pp) !== 0) { c = cc; p = pp; break outer; }
+    }
+    if (!c) return { err: "no pair with a live cap stake in this town" };
+    // score the SAME crab and platform, changing ONLY the culture tag
+    const was = c.p.culture;
+    c.p.culture = null;   const asCrab = platValue(c, p);   // -> CRABCIV
+    c.p.culture = "boar"; const asBoar = platValue(c, p);   // -> boar.civicsR (bent)
+    c.p.culture = "gull"; const asGull = platValue(c, p);   // undeclared -> lambda/CRABCIV
+    c.p.culture = was;
+    // the lambda for this exact pair (the engine's own answer, culture-blind)
+    window._nol1plat = true; const lam = platValue(c, p); window._nol1plat = false;
+    loadCultures(null);
+    return { asCrab, asBoar, asGull, lam };
+  })())`));
+  if (got.err) return got.err;
+  // the crab tag and an UNDECLARED tag both land on the engine's own value...
+  if (got.asCrab !== got.lam) return "a null-culture crab did not score on the engine lambda: " + got.asCrab + " vs " + got.lam;
+  if (got.asGull !== got.lam) return "an undeclared culture's voter did not fall to the lambda: " + got.asGull + " vs " + got.lam;
+  // ...and the culture that DECLARED its own (bent) stakes scores differently.
+  // This is the dispatch firing: the ONLY thing changed was the culture tag.
+  if (got.asBoar === got.lam) return "a culture's own declared stakes did not decide its voter - the dispatch never fired (boar " + got.asBoar + " == lambda " + got.lam + ")";
+  return true;
+});
 
 scenario("cultureways: a save without cultures changes nothing", () => {
   // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,
