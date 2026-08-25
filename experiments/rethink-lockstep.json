@@ -1,0 +1,49 @@
+{
+  "name": "rethink-lockstep",
+  "note": "Diagnostic, not a gate: name the first day/tick/field where the two backends diverge under interruptible commitment. The referee proves two days; the soak reds start later.",
+  "resources": {
+    "requests": {
+      "cpu": "2",
+      "memory": "6Gi"
+    },
+    "limits": {
+      "cpu": "2",
+      "memory": "8Gi"
+    }
+  },
+  "arms": [
+    {
+      "id": "lockstep-4242",
+      "entry": "tools/rethink-lockstep.mjs",
+      "args": [
+        "4242",
+        "4"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "lockstep-31",
+      "entry": "tools/rethink-lockstep.mjs",
+      "args": [
+        "31",
+        "6"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}

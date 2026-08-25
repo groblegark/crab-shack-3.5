@@ -38,7 +38,10 @@ code disagree, and the code is what players read.
 **`delight` never wins. Not once in 4,399 cards.** It is the rule that says
 *"FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."*
 
-> **CORRECTION, added at `bae1786` after re-measuring.** The three sentences
+> **CORRECTION, added at `bae1786` after re-measuring.** Receipt:
+> `kube-runs/cs-depart-fullcensus-inpod-bae1786/` — same seeds, same method,
+> full histogram instead of a top-8, reproducing the table above to the card.
+> The three sentences
 > that stood here were wrong, and are struck rather than quietly deleted so the
 > error stays legible:
 >

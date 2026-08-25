@@ -46,6 +46,10 @@ const NOHALL = args.includes("--nohall");
 // top of visSeparate) - the parting only; the pier line has no hatch because
 // it is a walk target, not a system. The attribution arm for crowd effects.
 const NOVSEP = args.includes("--novsep");
+// `--norethink` switches INTERRUPTIBLE COMMITMENT off (game.js reads
+// window._norethink at the top of visRethink and the citizen walk re-think) -
+// the attribution arm for mid-commitment switching.
+const NORETHINK = args.includes("--norethink");
 // `--nofloor` leaves the hall running - elections, the fund, the pot - but
 // holds the WAGE FLOOR at zero, so a payroll effect can be attributed without
 // switching the whole office off (which would move the shelter too).
@@ -152,6 +156,7 @@ if (NORIVAL) G(`window._noRival = true;`);
 if (NOHOTELIER) G(`window._noHotelier = true;`);
 if (NOHALL) G(`window._noHall = true;`);
 if (NOVSEP) G(`window._novsep = true;`);
+if (NORETHINK) G(`window._norethink = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
@@ -300,6 +305,12 @@ if (SEEDS > 1) {
   const evictDays = results.map(r => r.over ? r.day : DAYS + 1).sort((a, b) => a - b);
   const surv = results.filter(r => !r.over).length;
   console.log(`>> survived ${surv}/${SEEDS}; eviction days: ${evictDays.join(",")} (median ${evictDays[SEEDS >> 1]})`);
+  // The reputation pass's acceptance instrument: the END-REP DISTRIBUTION.
+  // Report-only - the bot never reads rep to decide anything (the floor
+  // doctrine); this line exists so "tons of homeless tourists and a 100 rep"
+  // is a number a receipt can falsify.
+  const reps = results.map(r => r.rep).slice().sort((a, b) => a - b);
+  console.log(`>> rep at end: ${reps.join(",")} (median ${reps[SEEDS >> 1]})`);
   const L = results.map(r => JSON.parse(r.labour));
   const sum = (f) => L.reduce((s, l) => s + f(l), 0);
   console.log(`>> lifetime $${results.reduce((s, r) => s + r.lifetime, 0)}`

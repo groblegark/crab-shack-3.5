@@ -387,7 +387,7 @@
      "top": "PAID PROPER FOR A {ITEM}. WORTH EVERY CENT.",
      "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
      "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE.",
-     "delight": "PROPER SLOP AT LAST. I'D SAIL BACK FOR ANOTHER."
+     "delight": "FED, WATERED, WASHED AND RESTED - AND NOT ONE DULL HOUR. I'D SAIL BACK FOR MORE OF IT."
     },
     "dossier": [
      "CAME FOR THE FOOD, STAYING FOR THE FOOD",
@@ -436,7 +436,7 @@
      "top": "THE {ITEM} WAS ACCEPTABLE. PAID IN FULL.",
      "regular": "{STOPS} STOPS IN {DAYS} DAYS. THE PIGPUBLIC APPROVES.",
      "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED.",
-     "delight": "THE SLOP WAS CORRECT. THE REPORT WILL SAY SO."
+     "delight": "EVERY WANT ATTENDED TO - TABLE, TUB AND BED. THE REPORT WILL SAY SO."
     },
     "dossier": [
      "MY PAPERS ARE ENTIRELY IN ORDER",
@@ -468,7 +468,7 @@
   }
  },
  "arrival": {
-  "repGate": 80,
+  "repGate": 45,
   "shareMax": 0.25,
   "shareRamp": 80
  },

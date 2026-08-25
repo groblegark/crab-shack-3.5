@@ -412,7 +412,7 @@ var BUNDLED_CULTUREWAYS = {
       "top": "PAID PROPER FOR A {ITEM}. WORTH EVERY CENT.",
       "regular": "ATE WELL, SLEPT WELL, PAID FAIR. GOOD TOWN.",
       "quiet": "QUIET PLACE. GOOD FOR NAPS, LITTLE ELSE.",
-      "delight": "PROPER SLOP AT LAST. I'D SAIL BACK FOR ANOTHER."
+      "delight": "FED, WATERED, WASHED AND RESTED - AND NOT ONE DULL HOUR. I'D SAIL BACK FOR MORE OF IT."
      },
      "dossier": [
       "CAME FOR THE FOOD, STAYING FOR THE FOOD",
@@ -461,7 +461,7 @@ var BUNDLED_CULTUREWAYS = {
       "top": "THE {ITEM} WAS ACCEPTABLE. PAID IN FULL.",
       "regular": "{STOPS} STOPS IN {DAYS} DAYS. THE PIGPUBLIC APPROVES.",
       "quiet": "A SEA VIEW AND LITTLE ELSE. SO NOTED.",
-      "delight": "THE SLOP WAS CORRECT. THE REPORT WILL SAY SO."
+      "delight": "EVERY WANT ATTENDED TO - TABLE, TUB AND BED. THE REPORT WILL SAY SO."
      },
      "dossier": [
       "MY PAPERS ARE ENTIRELY IN ORDER",
@@ -493,7 +493,7 @@ var BUNDLED_CULTUREWAYS = {
    }
   },
   "arrival": {
-   "repGate": 80,
+   "repGate": 45,
    "shareMax": 0.25,
    "shareRamp": 80
   },
@@ -825,7 +825,7 @@ var BUNDLED_CULTUREWAYS = {
    }
   },
   "arrival": {
-   "repGate": 60,
+   "repGate": 34,
    "shareMax": 0.3,
    "shareRamp": 40
   },
@@ -9191,7 +9191,7 @@ var BUNDLED_CRAB_VOICE = {
    },
    "depart": {
     "foreign": "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO.",
-    "delight": "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME.",
+    "delight": "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME.",
     "idle": "TOOK ${LEFT} OF MY ${PURSE} HOME AGAIN. NOTHING ELSE I FANCIED.",
     "hungry": "GETTING ON THIS BOAT HUNGRIER THAN I GOT OFF IT.",
     "parched": "NOT ONE COLD DRINK IN THE WHOLE PLACE. PARCHED.",
@@ -9878,12 +9878,40 @@ var BUNDLED_CRAB_DEPART = {
    "mood": "glad",
    "weight": [
     [
-     "PUSHI",
-     1
+     "LD",
+     "hunger"
     ],
     [
      "LD",
-     "de"
+     "thirst"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "dirt"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "bored"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "tired"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "PUSHI",
+     2359295
     ],
     [
      "LE"
@@ -9895,27 +9923,6 @@ var BUNDLED_CRAB_DEPART = {
     [
      "PUSHI",
      19800
-    ],
-    [
-     "PUSHI",
-     1200
-    ],
-    [
-     "PUSHI",
-     5
-    ],
-    [
-     "LD",
-     "de"
-    ],
-    [
-     "MIN"
-    ],
-    [
-     "MUL"
-    ],
-    [
-     "ADD"
     ],
     [
      "MUL"
@@ -9936,7 +9943,7 @@ var BUNDLED_CRAB_DEPART = {
      ]
     ],
     "templates": [
-     "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME."
+     "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME."
     ]
    }
   },
@@ -11280,4 +11287,269 @@ var BUNDLED_CRAB_DEPART = {
   }
  ]
 };
-if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }
+var BUNDLED_CRAB_CIVICS = {
+ "stakes": [
+  {
+   "id": "platform",
+   "terms": [
+    {
+     "name": "potStake",
+     "prog": [
+      [
+       "PUSHI",
+       345000
+      ],
+      [
+       "LD",
+       "potStake20"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "LD",
+       "pBowls"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "roof",
+     "prog": [
+      [
+       "PUSHI",
+       2070000
+      ],
+      [
+       "LD",
+       "roofWeight20"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "LD",
+       "roof"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "floorRaise",
+     "prog": [
+      [
+       "PUSHI",
+       18000
+      ],
+      [
+       "LD",
+       "fr"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "floorBill",
+     "prog": [
+      [
+       "PUSHI",
+       -9200
+      ],
+      [
+       "LD",
+       "fb"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "capStake",
+     "prog": [
+      [
+       "PUSHI",
+       414000
+      ],
+      [
+       "LD",
+       "capStake100"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    },
+    {
+     "name": "purseCost",
+     "prog": [
+      [
+       "PUSHI",
+       -69
+      ],
+      [
+       "LD",
+       "purseCost100"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "LD",
+       "pTake"
+      ],
+      [
+       "MUL"
+      ],
+      [
+       "TERM"
+      ]
+     ]
+    }
+   ]
+  }
+ ],
+ "ballots": [
+  {
+   "id": "floor",
+   "name": "THE WAGE FLOOR",
+   "short": "FLOOR",
+   "unit": "$ A DAY, LOWEST PAID",
+   "who": "EVERY TILL THAT MEETS A PAYROLL",
+   "steps": [
+    0,
+    1800,
+    2300,
+    2700,
+    3200
+   ]
+  },
+  {
+   "id": "cap",
+   "name": "THE HOUSE LIMIT",
+   "short": "STAFF",
+   "unit": "EMPLOYEES TO A BUSINESS",
+   "who": "EVERY SHOP ON THE PROMENADE - YOURS FIRST",
+   "steps": [
+    0,
+    2,
+    3,
+    4,
+    6,
+    8,
+    12
+   ]
+  }
+ ],
+ "purses": [
+  {
+   "id": "levy",
+   "name": "THE LEVY",
+   "short": "LEVY",
+   "unit": "% OF TAKINGS",
+   "who": "EVERY BUSINESS - YOURS TOO",
+   "steps": [
+    0,
+    2,
+    4,
+    6,
+    8
+   ]
+  },
+  {
+   "id": "dues",
+   "name": "HARBOUR DUES",
+   "short": "DUES",
+   "unit": "$ A HEAD",
+   "who": "EVERY VISITOR THE FERRY LANDS",
+   "steps": [
+    0,
+    100,
+    200,
+    300,
+    400
+   ]
+  },
+  {
+   "id": "rents",
+   "name": "A CUT OF THE RENTS",
+   "short": "RENTS",
+   "unit": "% OF THE HOUSE RENTS",
+   "who": "MR. PINCHERTON, OFF HIS OWN BOOK",
+   "steps": [
+    0,
+    10,
+    20,
+    30,
+    40
+   ]
+  },
+  {
+   "id": "tin",
+   "name": "THE COLLECTION TIN",
+   "short": "TIN",
+   "unit": "$ ASKED OF EACH",
+   "who": "WHOEVER CAN SPARE IT",
+   "steps": [
+    0,
+    100,
+    200,
+    300,
+    400
+   ]
+  }
+ ],
+ "calendar": {
+  "pollWeekday": 6,
+  "pollOpen": 420,
+  "pollShut": 1140
+ },
+ "relief": {
+  "soup": {
+   "potMax": 6,
+   "margin": 200
+  },
+  "shelter": {
+   "rent": 1000,
+   "float": 1,
+   "strikes": 3,
+   "shutNights": 4
+  }
+ },
+ "eligibility": {
+  "vote": [
+   [
+    "PUSHI",
+    1
+   ]
+  ],
+  "stand": [
+   [
+    "LD",
+    "npc"
+   ]
+  ]
+ }
+};
+if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }

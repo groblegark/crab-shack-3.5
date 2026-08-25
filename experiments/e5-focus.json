@@ -1,0 +1,24 @@
+{
+  "name": "e5-focus",
+  "note": "The E5 families-3-5 machinery scenarios alone (urgency ramp host-capped, taste-drift on a data plane, acceptance meter on a data plane, and the byte-neutral shipped-bundle check) - the mutation-demo instrument. E5 ships MACHINERY WITH NO CONTENT, so the proof is INVERTED: against a tree with a family's write/read ripped out, the data-must-bite scenario goes RED for the right named reason; against the shipping tree it is green on both backends AND the shipped bundle declares nothing. Full-suite verdicts (byte-neutrality of the fingerprints and matrix) still come from the tip's suite-312 manifest.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "6Gi" },
+    "limits": { "cpu": "2", "memory": "8Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [{ "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }],
+  "arms": [
+    {
+      "id": "js-e5",
+      "entry": "tools/suite.mjs",
+      "args": ["E5 urgency ramp", "E5 taste-drift", "E5 acceptance", "E5 byte-neutral"],
+      "env": { "SIMLIB_REALM": "main" }
+    },
+    {
+      "id": "wasm-e5",
+      "entry": "tools/suite.mjs",
+      "args": ["E5 urgency ramp", "E5 taste-drift", "E5 acceptance", "E5 byte-neutral"],
+      "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" }
+    }
+  ]
+}

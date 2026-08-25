@@ -40,15 +40,28 @@ first, platform second, ruled after the pigs shipped hungry:
 
 ## STATE OF PLAY — start here (numbers re-measured 2026-08-24)
 
-**Suite 341 scenarios, GREEN both backends — 341/341 js and 341/341 wasm at
-`ec6f74b`, whose game engine is byte-identical to the current tip. Receipt:
-`design/cs35-research/kube-runs/inpod-suite-ec6f74b-18z/`.**
+**Suite 374 scenarios, GREEN both backends — 374/374 js and 374/374 wasm at
+`4af658f` (the economy-trio build, current tip), main realm, in-pod. Receipt:
+`design/cs35-research/kube-runs/cs-trio-combined-gate-5178257-inpod/` (the trio's
+own gate SHA; 4d's byte-neutral rebase adds only its civics scenarios, re-gated
+green at `4af658f`).**
 
-**Baseline 0/48. Growth `--buy chef,table` 15/48.** Measured 2026-08-24 in-pod
-over 48 towns (`--seedbase 0,16,32`, 30 days) at `83fb0f4` AND at its ladder
-parent `09d78ba` — **identical seed-for-seed on both sides**, which is how the
-E4 house-limit ladder was shown to be inert on the floor. Receipt:
-`design/cs35-research/kube-runs/cs-e4-ladder-matrix-inpod-ekc/`.
+**Baseline 0/48. Growth `--buy chef,table` 26/48.** THE ECONOMY TRIO LANDED
+2026-08-25 (`4af658f`): visitor-stats + reputation + interruptible-commitment,
+together, and the combination matrix is the acted-on pre-commitment (task
+kd-vr8HmkknUh). Measured in-pod over 48 towns (`--seedbase 0,16,32`, 30 days),
+ADJACENT against pre-trio main `537607c` on the same instrument: pre-trio growth
+**15/48** → trio **26/48** (sb 7·9·10); baseline UNMOVED at **0/48**; eviction
+medians in-band. Attribution (measured): visitor-stats is the LIFT (its solo was
+already 32/48, ABOVE the combination); interruptible-commitment is net **−6** on
+escapes (`--norethink` reads 32/48 vs 26/48 — a committed guest who re-thinks
+abandons banked errands, so the trio does NOT compound); reputation caps the
+ACCEPTANCE axis — over all 48 growth towns end-rep tops out at **66, ZERO towns
+≥90** (Matt's "tons of homeless tourists and a 100 rep" is now arithmetically
+unreachable on the floor). Operator ruled LAND (decision kd-5NuThQ83ul). Receipt:
+`design/cs35-research/kube-runs/cs-trio-combined-matrix-5178257-inpod/`. The old
+E4-ladder matrix (`83fb0f4`/`09d78ba`, growth 15/48) is the pre-trio baseline it
+replaces — `design/cs35-research/kube-runs/cs-e4-ladder-matrix-inpod-ekc/`.
 
 **The departure card is 94% unmet need, and `delight` never wins.** 4,399 cards
 over 12 towns × 30 days: hungry 41.7%, parched 21.5%, grubby 17.2%, and seven
@@ -67,7 +80,8 @@ its gate needs a non-crab guest eating their own cuisine (`game.js:13453`), and
 unreachable for a crab guest at any weight**. Ruled: option A on `kd-d0eIIm5FJF`.
 
 **CORRECTION (bae1786) — the card CAN say something glad; the earlier claim here
-was wrong.** This paragraph previously said "a crab who ate, bathed, played and
+was wrong.** Receipt:
+`design/cs35-research/kube-runs/cs-depart-fullcensus-inpod-bae1786/`. This paragraph previously said "a crab who ate, bathed, played and
 slept indoors has no path to a glad card at any weight." That is false, and the
 engine says so directly. `visQuote` is a pure function of a row, so the guest can
 be built and asked: every need pegged at a full bar Q20 but having *bought the

@@ -437,6 +437,17 @@
     }
    }
   },
+  "manner": {
+   "description": "Census C4: how this people carries itself. speed: a visitor's stroll in px/s (crab: 42) - the stepper, the JS reference, AND the ferry ETA all read the same dispatched value, so a slow culture is never promised a boat it cannot catch. stroll: how far one stroll wanders in px (crab: 340); the promenade band itself (VIS_ROAM) is the town's geography and stays engine. space: personal-space radius in px (crab: 8, RULED on a measured growth curve - declaring wider buys the same detour tax that cost 5 escapes in 48 at 10px; capped at 16 so no document can gridlock a counter; a mixed pair parts to the LARGER radius, give_berth's own max rule). walkMul20: a settled resident's gait in twentieths (20 = the crab pace), composing with the trait multiplier. rides: may this people take the buggy - REFUSED true until a culture-ride art seam exists (the buggy art indexes crab colorways); false is the settlers walk pin, as data. Fields left out inherit the crab values.",
+   "type": "object",
+   "properties": {
+    "speed": { "type": "integer", "minimum": 8, "maximum": 120 },
+    "stroll": { "type": "integer", "minimum": 60, "maximum": 800 },
+    "space": { "type": "integer", "minimum": 4, "maximum": 16 },
+    "walkMul20": { "type": "integer", "minimum": 10, "maximum": 40 },
+    "rides": { "type": "boolean" }
+   }
+  },
   "arrival": {
    "type": "object",
    "properties": {
@@ -454,7 +465,10 @@
      "type": "integer",
      "minimum": 1,
      "maximum": 1000
-    }
+    },
+    "daytrip20": { "type": "integer", "minimum": 0, "maximum": 20 },
+    "patienceSecs": { "type": "integer", "minimum": 20, "maximum": 400 },
+    "thinkDs": { "type": "integer", "minimum": 4, "maximum": 80 }
    }
   },
   "body": {
@@ -808,7 +822,135 @@
   },
   "civics": {
    "type": "object",
-   "description": "Phase E - institutions, offices, policy step-tables, calendar phases, errand defs, invariants. Schema lands with the capability APIs."
+   "additionalProperties": false,
+   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. purses: the four purses that fund the shelter (levy/dues/rents/tin) as rate grids - see the purses property. calendar: the polling clock (pollWeekday/pollOpen/pollShut) as scalars - see the calendar property. relief: the shelter and soup terms as scalars - see the relief property. eligibility: the two franchise predicates (who may vote/stand) as 0/1 Layer-1 programs, dispatched per voter like stakes - see the eligibility property. All five civics families (stakes, ballots, purses, calendar, relief) plus eligibility are now authorable.",
+   "required": ["stakes"],
+   "properties": {
+    "ballots": {
+     "type": "array",
+     "description": "Phase E4 slice 4a - THE BALLOT DIALS a mayor sets and a voter prices, as step-ladders. Two dials: 'floor' (the wage floor, cents a day) and 'cap' (the house limit, employees a shop). Each is { id, name, short, unit, who, steps[] }. steps IS the ladder and the INDEX is what a save stores (hall.policy.cap = 4 is the INDEX of the 6-head rung, not six heads), so STEP 0 IS THE FOUNDING NO-POLICY (NO FLOOR / NO LIMIT - what every pre-feature save loads as) and must stay index 0 forever: the ladder EXTENDS, it never deletes step 0 (Matt's ruling 4, 2026-08-24). Every step is a whole count >= 0. These are TOWN-LEVEL (one town, one floor, one limit), so unlike stakes they are not dispatched per voter; the crab's own bundle adopts them in place and the engine literal is the fallback for a culture that declares none.",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "steps"],
+      "properties": {
+       "id": { "type": "string", "minLength": 1,
+        "description": "The dial id. 'floor' (wage floor) and 'cap' (house limit) are the engine's own." },
+       "name": { "type": "string", "description": "The dial's full name on the campaign card." },
+       "short": { "type": "string", "description": "The dial's short label." },
+       "unit": { "type": "string", "description": "What a step counts (e.g. '$ A DAY, LOWEST PAID')." },
+       "who": { "type": "string", "description": "Who the dial falls on." },
+       "steps": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 },
+        "description": "The ladder, low to high. steps[0] MUST be 0 (the founding no-policy). A save stores the index, never the value." }
+      }
+     }
+    },
+    "purses": {
+     "type": "array",
+     "description": "Phase E4 slice 4b - THE FOUR PURSES that fund the shelter, as rate grids. Four mechs (the engine's own id space): 'levy' (a share of every business's takings), 'dues' (a charge per visitor the ferry lands), 'rents' (a cut of Mr. Pincherton's house rents), 'tin' (a voluntary collection). Each is { id, name, short, unit, who, steps[] }. steps IS the rate grid and the INDEX (0..4) is what a save stores, so STEP 0 IS NO TAKE (rate 0 raises nothing), the founding grid. Every step is a whole count >= 0 (percent for levy/rents, cents for dues/tin). Like the ballot dials these are TOWN-LEVEL, so the crab's own bundle adopts them in place and the engine literal is the fallback; the levy's conflict-of-interest and the conservation math stay engine.",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "steps"],
+      "properties": {
+       "id": { "type": "string", "minLength": 1,
+        "description": "The purse mech id. levy/dues/rents/tin are the engine's own." },
+       "name": { "type": "string", "description": "The purse's full name." },
+       "short": { "type": "string", "description": "The purse's short label." },
+       "unit": { "type": "string", "description": "What a step counts (e.g. '% OF TAKINGS', '$ A HEAD')." },
+       "who": { "type": "string", "description": "Who the purse falls on." },
+       "steps": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 },
+        "description": "The rate grid, low to high. steps[0] MUST be 0 (NO TAKE). A save stores the index, never the value." }
+      }
+     }
+    },
+    "calendar": {
+     "type": "object",
+     "additionalProperties": false,
+     "description": "Phase E4 slice 4c - THE POLLING CLOCK, as scalars. pollWeekday is the weekday INDEX (0..6; 6 = Sunday, the town's own week - polling day rides that rather than inventing a second calendar). pollOpen/pollShut are MINUTES past midnight (default 420/1140 - the polls open an hour before the town and shut an hour before it, so a working crab's vote is sometimes tight). TOWN-LEVEL, adopted in place; the const literal is the fallback. Missing fields are fine (the crab's own bundle carries them). POLL_PLACES geometry, VOTE_SECS, and the ballot logistics stay engine.",
+     "properties": {
+      "pollWeekday": { "type": "integer", "minimum": 0, "maximum": 6,
+       "description": "The weekday index polling day falls on (0=Mon .. 6=Sun)." },
+      "pollOpen": { "type": "integer", "minimum": 0, "maximum": 1439,
+       "description": "Minutes past midnight the polls open (default 420 = 07:00)." },
+      "pollShut": { "type": "integer", "minimum": 0, "maximum": 1439,
+       "description": "Minutes past midnight the polls shut (default 1140 = 19:00). Must be after pollOpen." }
+     }
+    },
+    "relief": {
+     "type": "object",
+     "additionalProperties": false,
+     "description": "Phase E4 slice 4c - THE SHELTER AND THE SOUP, as scalars. These sit on STATE and TIME paths (a pot is spent, the shelter charges rent and bolts after strikes, reopens after shutNights), so a transcription must be byte-equal AND wired - the behaviour gate proves the paths fire on these numbers. TOWN-LEVEL, adopted in place; the const literals are the fallback. NOTE soup.potMax is also the stakes lcm denominator, so a different value would desync the platform valuation. Conservation (fundTake/Pay/Remit) and the strike-counter mechanism stay engine.",
+     "properties": {
+      "soup": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "potMax": { "type": "integer", "minimum": 0,
+         "description": "The most bowls a mayor may put on for one night (default 6). Also 345000 = D/(20*potMax) in the stakes lcm." },
+        "margin": { "type": "integer", "minimum": 0,
+         "description": "The shack's margin on a bowl sold to the town, in CENTS (default 200)." }
+       }
+      },
+      "shelter": {
+       "type": "object",
+       "additionalProperties": false,
+       "properties": {
+        "rent": { "type": "integer", "minimum": 0,
+         "description": "Mr. Pincherton's nightly charge for the shelter, in CENTS (default 1000)." },
+        "float": { "type": "integer", "minimum": 0,
+         "description": "How many nights of rent the purse is struck to carry in hand (default 1)." },
+        "strikes": { "type": "integer", "minimum": 0,
+         "description": "Missed nights running before the door is bolted (default 3)." },
+        "shutNights": { "type": "integer", "minimum": 0,
+         "description": "How many nights the door stays bolted (default 4)." }
+       }
+      }
+     }
+    },
+    "eligibility": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": ["vote", "stand"],
+     "description": "Phase E4 slice 4d - THE FRANCHISE (family 2: who may). Two 0/1 PREDICATE programs over the persona read bundle (npc/owner/homeless), NOT tables. vote: who may cast a ballot (the crab's is [[\"PUSHI\",1]] - every resident votes; the visitor is excluded structurally). stand: who may put themselves forward (the crab's is [[\"LD\",\"npc\"]] - only townsfolk self-nominate; the player's crew stand only by nomination). Each is a bare Layer-1 program (the depart weight/select shape, NOT TERM-closed) whose static bound must lie in [0,1] - a program that could return anything else is not a predicate and is refused. PER-VOTER, so it dispatches on the voter's culture like stakes; a culture that declares none leaves its residents on the engine's inlined gates, byte-identical. Both keys are required (the engine reads both).",
+     "properties": {
+      "vote": { "type": "array", "minItems": 1, "items": { "type": "array" },
+       "description": "A 0/1 Layer-1 predicate over the persona bundle: who may vote." },
+      "stand": { "type": "array", "minItems": 1, "items": { "type": "array" },
+       "description": "A 0/1 Layer-1 predicate over the persona bundle: who may self-nominate." }
+     }
+    },
+    "stakes": {
+     "type": "array",
+     "minItems": 1,
+     "description": "The signed value-terms a voter sums to score a platform. Must include the 'platform' stake (the engine's own).",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "terms"],
+      "properties": {
+       "id": { "type": "string", "minLength": 1,
+        "description": "The stake id. 'platform' is the engine's own and is required." },
+       "terms": {
+        "type": "array",
+        "minItems": 1,
+        "description": "Named signed value-terms; the stake's value is their sum.",
+        "items": {
+         "type": "object",
+         "additionalProperties": false,
+         "required": ["name", "prog"],
+         "properties": {
+          "name": { "type": "string", "minLength": 1,
+           "description": "The term name - unique within the stake; the receipt reads off the largest-magnitude term." },
+          "prog": { "type": "array", "minItems": 1, "items": { "type": "array" },
+           "description": "A straight-line Layer-1 program over the platform-value bundle that CLOSES WITH TERM. Signed; only the 2^52 magnitude rail applies." }
+         }
+        }
+       }
+      }
+     }
+    }
+   }
   },
   "depart": {
    "type": "object",

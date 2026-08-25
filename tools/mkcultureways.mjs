@@ -26,7 +26,9 @@ const crabTraits = { traits: crabTraitsSrc.traits };
 // authoring rule: "a typo'd name fails the build").
 const crabPeopleSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-people.json", import.meta.url), "utf8"));
 const crabPeople = { crew: crabPeopleSrc.crew, walkins: crabPeopleSrc.walkins, fallback: crabPeopleSrc.fallback };
-const crabArtSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-art.json", import.meta.url), "utf8"));
+// CS_CRAB_ART_FIXTURE is a TEST SEAM (suite: "a founder with no shell fails the
+// BUILD"): unset it reads the real fixture, so the shipped build is unchanged.
+const crabArtSrc = JSON.parse(readFileSync(process.env.CS_CRAB_ART_FIXTURE || new URL("./fixtures/crab-art.json", import.meta.url), "utf8"));
 const crabArt = { colorways: crabArtSrc.colorways, founders: crabArtSrc.founders };
 {
   const badName = (n) => typeof n !== "string" || !n.length || n.length > 16;
@@ -54,6 +56,17 @@ const crabArt = { colorways: crabArtSrc.colorways, founders: crabArtSrc.founders
 }
 const crabDepartSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-depart.json", import.meta.url), "utf8"));
 const crabDepart = { rules: crabDepartSrc.rules };         // phase E3: the rule table as programs
+const crabCivicsSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-civics.json", import.meta.url), "utf8"));
+// phase E4: stakes (slice 3, platValue as named term-programs) + ballots
+// (slice 4a, the WAGE_FLOOR/HEAD_CAP dials) + purses (slice 4b, the four purse
+// rate grids). Key order is stakes-first to keep the slice-3 bundle bytes where
+// they were; ballots and purses append.
+const crabCivics = { stakes: crabCivicsSrc.stakes };
+if (crabCivicsSrc.ballots) crabCivics.ballots = crabCivicsSrc.ballots;
+if (crabCivicsSrc.purses) crabCivics.purses = crabCivicsSrc.purses;
+if (crabCivicsSrc.calendar) crabCivics.calendar = crabCivicsSrc.calendar;   // slice 4c: the polling clock
+if (crabCivicsSrc.relief) crabCivics.relief = crabCivicsSrc.relief;         // slice 4c: the soup + shelter terms
+if (crabCivicsSrc.eligibility) crabCivics.eligibility = crabCivicsSrc.eligibility;   // slice 4d: the vote/stand predicates
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled
@@ -109,10 +122,13 @@ const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)
   + `var BUNDLED_CRAB_TRAITS = ${JSON.stringify(crabTraits, null, 1)};\n`
   + `var BUNDLED_CRAB_PEOPLE = ${JSON.stringify(crabPeople, null, 1)};\n`
   + `var BUNDLED_CRAB_ART = ${JSON.stringify(crabArt, null, 1)};\n`
-  + `var BUNDLED_CRAB_DEPART = ${JSON.stringify(crabDepart, null, 1)};\n`;
-const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; }\n`;
+  + `var BUNDLED_CRAB_DEPART = ${JSON.stringify(crabDepart, null, 1)};\n`
+  + `var BUNDLED_CRAB_CIVICS = ${JSON.stringify(crabCivics, null, 1)};\n`;
+const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }\n`;
 
-writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
+// CS_CULTUREWAYS_OUT is the matching test seam for the output path — unset it
+// writes the real bundle, so the merge ritual's byte-exact regen is untouched.
+writeFileSync(process.env.CS_CULTUREWAYS_OUT || new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",
   Object.keys({ pig, gull }).join(","), "; policies: crab ; crab voice:",
   crabVoice.registers.length, "register(s) ; crab people:",

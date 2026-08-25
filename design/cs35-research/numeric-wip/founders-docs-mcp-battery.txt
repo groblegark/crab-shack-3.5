@@ -1,0 +1,63 @@
+crab-science MCP server
+  ok    initialize returns serverInfo
+  ok    initialize points at orientation
+  ok    tools/list is non-empty
+  ok    every tool has a description
+  ok    every tool has an input schema
+  ok    resources/list is non-empty
+  ok    orientation mentions the id rule
+  ok    orientation mentions incentives-not-puppeteering
+  ok    resources/read returns the pigway
+  ok    docs_search finds the hostile-file ruling
+  ok    cultureway_get returns a document
+  ok    the bundled pig validates clean
+  ok    a declared business validates and builds
+  ok    invalid document is rejected
+  ok    error names the re-priced native ingredient
+  ok    error names the bad business rent
+  ok    error names the forbidden owner
+  ok    error names the station the business never declared
+  ok    error names the offending pose row
+  ok    error names the over-long name
+  ok    error names the out-of-range taste
+  ok    error names the out-of-range nudge thumb
+  ok    error names the cents-habit table tip
+  ok    error names the hot depart weight
+  ok    error names the string apron answer
+  ok    error names the flood walk-in share
+  ok    error names the rocket stroll
+  ok    error refuses the wheel for want of art
+  ok    error names the flooded daytrip share
+  ok    error names the unknown depart rule
+  ok    error names the civics term that never closes with TERM
+  ok    error names the civics stakes missing the platform stake
+  ok    error names the ballot ladder that deletes step 0
+  ok    error names the purse grid with no NO-TAKE rung
+  ok    error names the calendar weekday past the week
+  ok    error names the negative shelter rent
+  ok    error names the franchise missing its stand predicate
+  ok    error catches the silently-skipped id
+  ok    error names the unregistered card observable
+  ok    cultureway_render returns a PNG
+  ok    cultureway_test reports arrivals
+  ok    cultureway_test names who came
+  ok    cultureway_test returns a reproducible recipe
+  ok    cultureway_diff compares against the pigs
+  ok    render_town returns a PNG
+  ok    render_town reports the clock
+  ok    render_town honours the portrait screen
+  ok    sim_scenarios lists the suite
+  ok    sim_run returns a report
+  ok    sim_run returns its recipe
+  ok    sim_sweep returns a chart
+  ok    sim_sweep reports a distribution
+  ok    a sweep with no evictions returns data and no chart
+  ok    policy_distill returns an artifact with receipts
+  ok    the artifact declares its inputs from the registry
+  ok    policy_verify accepts what distill produced
+  ok    a broken artifact is refused with the observable named
+  ok    an oversized document is refused before parsing
+  ok    no tool offers file writes or shell
+  ok    an unknown tool reports an error as content
+60/60 checks passed
+EXIT=0 (60/60)

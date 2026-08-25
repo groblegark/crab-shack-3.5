@@ -1,0 +1,58 @@
+{
+  "name": "manner-scenarios",
+  "note": "The manner slice's own scenarios plus the gates its change could bend: the hostile cultureway gate (broken art) and the kernel-agreement referee (vis_step ABI). Both backends. Cheap enough to be the mutation-test instrument.",
+  "resources": {
+    "requests": {
+      "cpu": "2",
+      "memory": "6Gi"
+    },
+    "limits": {
+      "cpu": "2",
+      "memory": "8Gi"
+    }
+  },
+  "arms": [
+    {
+      "id": "js",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--jobs",
+        "2",
+        "manner",
+        "broken art",
+        "kernel and the reference agree",
+        "personal space"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main"
+      }
+    },
+    {
+      "id": "wasm",
+      "entry": "tools/suite.mjs",
+      "args": [
+        "--jobs",
+        "2",
+        "manner",
+        "broken art",
+        "kernel and the reference agree",
+        "personal space"
+      ],
+      "env": {
+        "SIMLIB_REALM": "main",
+        "SIMLIB_KERNEL": "wasm"
+      }
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}

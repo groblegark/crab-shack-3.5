@@ -1,0 +1,9 @@
+JS backend (SIMLIB_REALM=main, --jobs 4), tree a68d5e3 == executable-identical to 1f1bab4:
+377/377 passed in 1333.0s
+
+WASM backend (SIMLIB_REALM=main SIMLIB_KERNEL=wasm, --jobs 4):
+377/377 passed in 890.7s
+
+founders scenario, both backends:
+  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (299ms)
+  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (289ms)

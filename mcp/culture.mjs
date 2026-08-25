@@ -204,6 +204,118 @@ function localise(d, verdict) {
     }
   }
 
+  // phase E4: civics.stakes - platValue as named signed term-programs. Shape
+  // checks here (missing platform, dup ids/names, no TERM close); the deep
+  // checks (op allowlist, static bounds, LD names, the 2^52 rail) are the
+  // game's stakesProblem, which the deep validate path exercises with named
+  // errors. Mirrors stakesProblem's field paths and its named messages.
+  const cv = d.civics;
+  if (cv != null) {
+    if (typeof cv !== "object" || Array.isArray(cv)) say("civics", "must be an object with a stakes list (A BAD CIVICS SECTION)");
+    else if (!Array.isArray(cv.stakes) || !cv.stakes.length) say("civics.stakes", "must be a non-empty list of stakes (A CIVICS SECTION WITH NO STAKES)");
+    else {
+      const seen = {};
+      cv.stakes.forEach((st, i) => {
+        if (!st || typeof st !== "object" || Array.isArray(st)) return say(`civics.stakes[${i}]`, "must be an object (A BAD STAKE ROW)");
+        if (typeof st.id !== "string" || !st.id.length) say(`civics.stakes[${i}].id`, "required: a non-empty string (A STAKE WITH NO ID)");
+        else { if (seen[st.id]) say(`civics.stakes[${i}].id`, `"${st.id}" is declared twice (A STAKE TWICE)`); seen[st.id] = 1; }
+        if (!Array.isArray(st.terms) || !st.terms.length) say(`civics.stakes[${i}].terms`, `must be a non-empty list of named term-programs (STAKE ${st.id} HAS NO TERMS)`);
+        else {
+          const tseen = {};
+          st.terms.forEach((t, j) => {
+            if (!t || typeof t !== "object" || typeof t.name !== "string" || !t.name.length)
+              return say(`civics.stakes[${i}].terms[${j}]`, "must be an object with a name and a prog (A BAD TERM)");
+            if (tseen[t.name]) say(`civics.stakes[${i}].terms[${j}].name`, `"${t.name}" is named twice in this stake (NAMES A TERM TWICE)`);
+            tseen[t.name] = 1;
+            if (!Array.isArray(t.prog) || !t.prog.length) say(`civics.stakes[${i}].terms[${j}].prog`, "must be a non-empty Layer-1 program (HAS NO PROGRAM)");
+            else {
+              const last = t.prog[t.prog.length - 1];
+              if (!(Array.isArray(last) ? last[0] === "TERM" : last === "TERM"))
+                say(`civics.stakes[${i}].terms[${j}].prog`, "a family-1 term must CLOSE WITH TERM (the last op is [\"TERM\"])");
+            }
+          });
+        }
+      });
+      if (!seen.platform) say("civics.stakes", "must include the \"platform\" stake - the engine reads it, and a section without it would silently fall back to the lambda (A CIVICS SECTION MISSING THE PLATFORM STAKE)");
+    }
+    // phase E4 slice 4a: civics.ballots - the town-level dials as step-ladders.
+    // Mirrors the game's ballots-door checks (cultureProblem) and ballotLadderProblem.
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.ballots != null) {
+      if (!Array.isArray(cv.ballots)) say("civics.ballots", "must be a list of dials (A BAD BALLOTS SECTION)");
+      else {
+        const dseen = {};
+        cv.ballots.forEach((b, i) => {
+          if (!b || typeof b !== "object" || Array.isArray(b)) return say(`civics.ballots[${i}]`, "must be an object (A BAD BALLOT DIAL)");
+          if (typeof b.id !== "string" || !b.id.length) say(`civics.ballots[${i}].id`, "required: a non-empty string (A BALLOT DIAL WITH NO ID)");
+          else { if (dseen[b.id]) say(`civics.ballots[${i}].id`, `"${b.id}" is declared twice (A BALLOT DIAL TWICE)`); dseen[b.id] = 1; }
+          if (!Array.isArray(b.steps) || b.steps.length < 2) say(`civics.ballots[${i}].steps`, "must be a ladder of at least two steps (A BALLOT DIAL WITH NO LADDER)");
+          else if (b.steps[0] !== 0) say(`civics.ballots[${i}].steps`, "step 0 must be 0, the founding no-policy - the ladder extends, it never deletes step 0 (A BALLOT DIAL WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY)");
+          else if (b.steps.some(s => !Number.isInteger(s) || s < 0)) say(`civics.ballots[${i}].steps`, "every step is a whole count >= 0 (A BALLOT DIAL STEP THAT IS NOT A WHOLE COUNT)");
+        });
+      }
+    }
+    // phase E4 slice 4b: civics.purses - the four purse rate grids. Same ladder
+    // law as the ballot dials (the game's civicsLadderProblem with the PURSE noun).
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.purses != null) {
+      if (!Array.isArray(cv.purses)) say("civics.purses", "must be a list of purses (A BAD PURSES SECTION)");
+      else {
+        const pseen = {};
+        cv.purses.forEach((p, i) => {
+          if (!p || typeof p !== "object" || Array.isArray(p)) return say(`civics.purses[${i}]`, "must be an object (A BAD PURSE)");
+          if (typeof p.id !== "string" || !p.id.length) say(`civics.purses[${i}].id`, "required: a non-empty string (A PURSE WITH NO ID)");
+          else { if (pseen[p.id]) say(`civics.purses[${i}].id`, `"${p.id}" is declared twice (A PURSE TWICE)`); pseen[p.id] = 1; }
+          if (!Array.isArray(p.steps) || p.steps.length < 2) say(`civics.purses[${i}].steps`, "must be a rate grid of at least two steps (A PURSE WITH NO LADDER)");
+          else if (p.steps[0] !== 0) say(`civics.purses[${i}].steps`, "step 0 must be 0, NO TAKE - the founding grid (A PURSE WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY)");
+          else if (p.steps.some(s => !Number.isInteger(s) || s < 0)) say(`civics.purses[${i}].steps`, "every step is a whole count >= 0 (A PURSE STEP THAT IS NOT A WHOLE COUNT)");
+        });
+      }
+    }
+    // phase E4 slice 4c: civics.calendar + civics.relief - the polling clock and
+    // shelter/soup scalars. Mirrors the game's calendar/relief door checks.
+    const civInt = (v) => Number.isInteger(v) && v >= 0;
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.calendar != null) {
+      const C = cv.calendar;
+      if (typeof C !== "object" || Array.isArray(C)) say("civics.calendar", "must be an object (A BAD CALENDAR)");
+      else {
+        if (C.pollWeekday != null && !(civInt(C.pollWeekday) && C.pollWeekday <= 6)) say("civics.calendar.pollWeekday", "a weekday index 0..6 (A CALENDAR WEEKDAY OUTSIDE THE WEEK)");
+        if (C.pollOpen != null && !(civInt(C.pollOpen) && C.pollOpen < 1440)) say("civics.calendar.pollOpen", "minutes past midnight 0..1439 (A CALENDAR POLL-OPEN OUTSIDE THE DAY)");
+        if (C.pollShut != null && !(civInt(C.pollShut) && C.pollShut < 1440)) say("civics.calendar.pollShut", "minutes past midnight 0..1439 (A CALENDAR POLL-SHUT OUTSIDE THE DAY)");
+        if (C.pollOpen != null && C.pollShut != null && C.pollOpen >= C.pollShut) say("civics.calendar.pollShut", "the polls must shut after they open (A CALENDAR WHOSE POLLS SHUT BEFORE THEY OPEN)");
+      }
+    }
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.relief != null) {
+      const R = cv.relief;
+      if (typeof R !== "object" || Array.isArray(R)) say("civics.relief", "must be an object (A BAD RELIEF SECTION)");
+      else {
+        if (R.soup != null) {
+          if (typeof R.soup !== "object" || Array.isArray(R.soup)) say("civics.relief.soup", "must be an object (A BAD SOUP RELIEF)");
+          else {
+            if (R.soup.potMax != null && !civInt(R.soup.potMax)) say("civics.relief.soup.potMax", "a whole count >= 0 (A SOUP POT MAX THAT IS NOT A WHOLE COUNT)");
+            if (R.soup.margin != null && !civInt(R.soup.margin)) say("civics.relief.soup.margin", "cents, a whole count >= 0 (A SOUP MARGIN THAT IS NOT A WHOLE COUNT)");
+          }
+        }
+        if (R.shelter != null) {
+          if (typeof R.shelter !== "object" || Array.isArray(R.shelter)) say("civics.relief.shelter", "must be an object (A BAD SHELTER RELIEF)");
+          else for (const k of ["rent", "float", "strikes", "shutNights"])
+            if (R.shelter[k] != null && !civInt(R.shelter[k])) say(`civics.relief.shelter.${k}`, `a whole count >= 0 (A SHELTER ${k.toUpperCase()} THAT IS NOT A WHOLE COUNT)`);
+        }
+      }
+    }
+    // phase E4 slice 4d: civics.eligibility - the two franchise predicates. Shape
+    // checks here (both keys required, non-empty program); the deep checks (op
+    // allowlist, LD names, the 0/1 bound) are the game's eligProblem.
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.eligibility != null) {
+      const E = cv.eligibility;
+      if (typeof E !== "object" || Array.isArray(E)) say("civics.eligibility", "must be an object with vote and stand predicates (A BAD ELIGIBILITY SECTION)");
+      else {
+        if (E.vote == null) say("civics.eligibility.vote", "required: a 0/1 Layer-1 predicate (AN ELIGIBILITY SECTION MISSING THE VOTE PREDICATE)");
+        else if (!Array.isArray(E.vote) || !E.vote.length) say("civics.eligibility.vote", "must be a non-empty Layer-1 program returning 0/1 (AN ELIGIBILITY VOTE WITH NO PROGRAM)");
+        if (E.stand == null) say("civics.eligibility.stand", "required: a 0/1 Layer-1 predicate (AN ELIGIBILITY SECTION MISSING THE STAND PREDICATE)");
+        else if (!Array.isArray(E.stand) || !E.stand.length) say("civics.eligibility.stand", "must be a non-empty Layer-1 program returning 0/1 (AN ELIGIBILITY STAND WITH NO PROGRAM)");
+      }
+    }
+  }
+
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");
   const ap = d.appeal;
   if (ap && ap.tastes) for (const k in ap.tastes) {
@@ -342,6 +454,33 @@ function localise(d, verdict) {
           say(`cards[${i}].rows[${j}].obs`, `${r && r.obs} is not a registered observable (see the registry: ${OBSERVABLE_NAMES.slice(0, 4).join(", ")}, ...)`);
       });
     });
+  }
+  const mn = d.manner;
+  if (mn) {
+    const int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (typeof mn !== "object" || Array.isArray(mn)) say("manner", "must be an object - how this people carries itself");
+    else {
+      if (mn.speed != null && !(int(mn.speed) && mn.speed >= 8 && mn.speed <= 120))
+        say("manner.speed", `${mn.speed} is outside 8-120 px/s (the crab stroll is 42)`);
+      if (mn.stroll != null && !(int(mn.stroll) && mn.stroll >= 60 && mn.stroll <= 800))
+        say("manner.stroll", `${mn.stroll} is outside 60-800 px (the crab value is 340; the promenade band stays the town's)`);
+      if (mn.space != null && !(int(mn.space) && mn.space >= 4 && mn.space <= 16))
+        say("manner.space", `${mn.space} is outside 4-16 px (crab: 8, on a measured growth curve - wider costs the town)`);
+      if (mn.walkMul20 != null && !(int(mn.walkMul20) && mn.walkMul20 >= 10 && mn.walkMul20 <= 40))
+        say("manner.walkMul20", `${mn.walkMul20} is outside 10-40 twentieths (20 = the crab pace)`);
+      if (mn.rides === true)
+        say("manner.rides", "no ride art for this people - the buggy art indexes crab colorways; declare false or leave it out");
+    }
+  }
+  const ar2 = d.arrival;
+  if (ar2 && typeof ar2 === "object" && !Array.isArray(ar2)) {
+    const int = (v) => typeof v === "number" && Number.isInteger(v);
+    if (ar2.daytrip20 != null && !(int(ar2.daytrip20) && ar2.daytrip20 >= 0 && ar2.daytrip20 <= 20))
+      say("arrival.daytrip20", `${ar2.daytrip20} is outside 0-20 twentieths (crab: 12 = the old 0.60; 0 = a culture of overnighters)`);
+    if (ar2.patienceSecs != null && !(int(ar2.patienceSecs) && ar2.patienceSecs >= 20 && ar2.patienceSecs <= 400))
+      say("arrival.patienceSecs", `${ar2.patienceSecs} is outside 20-400 seconds (the crab value is 100)`);
+    if (ar2.thinkDs != null && !(int(ar2.thinkDs) && ar2.thinkDs >= 4 && ar2.thinkDs <= 80))
+      say("arrival.thinkDs", `${ar2.thinkDs} is outside 4-80 tenths of a second (crab: 16 = 1.6s)`);
   }
   const fw = d.foodways;
   if (fw && fw.ingredients) for (const k in fw.ingredients) {

@@ -38,7 +38,6 @@
 #define MNULL (-0x7fffffff - 1) /* the _mx/_my no-motion sentinel */
 #define FLOOR_MIN_Q (126 * Q8)
 #define FLOOR_MAX_Q (168 * Q8)
-#define VIS_SPEED 42
 
 static int32_t *const PXQ  = (int32_t *)16384;
 static int32_t *const PYQ  = (int32_t *)17024;
@@ -176,9 +175,12 @@ int32_t step_to(int32_t i, int32_t txq, int32_t tyq, int32_t speed, int32_t dtT)
 
 /* visStep's stroll (game.js ~10749): returns bit0 done, bit1 face-set,
    bit2 face-negative. */
+/* `speed` is the caller's culture-dispatched px/s (census C4), mirroring
+   step_to's shape; the crab caller passes 42 and the arithmetic below is
+   byte-identical to the old #define. */
 __attribute__((export_name("vis_step")))
-int32_t vis_step(int32_t i, int32_t txq, int32_t tyq, int32_t dtT) {
-  int64_t spq = ((int64_t)VIS_SPEED * Q8 * dtT) / TICK_HZ;
+int32_t vis_step(int32_t i, int32_t txq, int32_t tyq, int32_t speed, int32_t dtT) {
+  int64_t spq = ((int64_t)speed * Q8 * dtT) / TICK_HZ;
   int64_t dxq = (int64_t)txq - PXQ[i], dyq = (int64_t)tyq - PWYQ[i];
   int32_t r = 0;
   if (dxq > Q8 || dxq < -Q8) {

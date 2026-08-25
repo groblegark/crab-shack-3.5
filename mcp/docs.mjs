@@ -95,7 +95,15 @@ A people, written as a document. Not code — data the engine reads:
             moments (commute/work/home). Key order is the hire draw order.
             Undeclared = your settlers carry the island's six traits.
   art       palette, body (w/h 4-32, four poses a/b/w/s as pixel rows),
-            colorways (per-slot recolours), anchors, accessories, items
+            colorways (per-slot recolours), anchors, accessories, items.
+            founders is a CRAB-DOCUMENT field, not a foreign-culture one: a
+            map of founder key -> colorway id (e.g. { sudsy: "teal" }),
+            resolved BY NAME so a founder's shell rides the id, never the
+            colorway ORDER. A key naming a colorway that does not exist is
+            refused "A FOUNDER WITH NO SHELL" at runtime and fails the BUILD
+            ("crab-art.founders.<f>: names a colorway that does not exist").
+            A foreign people declares no founders — that asymmetry is the
+            design, not a gap; do not declare founders in a pig.
   voice     registers — a register is bound to an accessory, because THE HAT
             IS THE CLASS MARKER: what someone wears picks how they speak and
             how fat their purse is (purseMul, 0.1-5). The crab default's own
@@ -132,6 +140,62 @@ A people, written as a document. Not code — data the engine reads:
             ({WHY} {NIGHTS} {QUITS} {TABLES} {DUES} {PAID} {TOPBIZ} {LIST}
             plus the phase C slots). Every refusal is named; the engine's
             own lambdas remain the fallback for undeclared cultures.
+  civics    phase E4: HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM. platValue —
+            the number an election ranks a policy by, for one voter — as
+            civics.stakes, a list of stakes each with a name and a list of
+            NAMED signed term-programs; the stake's value is their SUM, and
+            the receipt reads off the largest-magnitude term. The engine owns
+            the id space: the "platform" stake is REQUIRED (a section that
+            omits it is refused — it would silently fall back to the engine
+            lambda). Each term is a straight-line Layer-1 program (same ops as
+            depart above) that CLOSES WITH TERM, the marker that it yields a
+            named term rather than a bare expression. A term is SIGNED —
+            negative bounds are FINE (floorBill and purseCost subtract),
+            unlike a depart weight; only the 2^52 magnitude rail applies. LD
+            reads the platform-value bundle by name: potStake20(0-20)
+            pBowls(bowls the purse funds) roofWeight20(0-24) roof(0/1)
+            fr(the wage floor's daily raise) fb(its bill on a payroll)
+            capStake100(signed hundredths) purseCost100(hundredths)
+            pTake(what the purse takes). The crab's own stakes ship bundled,
+            byte-equal to the coefficient lambda; a culture that declares none
+            leaves its voters on that same lambda. Every refusal is named
+            (an unknown op, a typo'd LD name, a term that never closes with
+            TERM, a program past 256 ops, a magnitude past 2^52, a missing
+            platform stake). civics.ballots (slice 4a) declares the two
+            TOWN-LEVEL dials a mayor sets: 'floor' (the wage floor, cents a
+            day) and 'cap' (the house limit, employees a shop), each
+            { id, name, short, unit, who, steps[] }. steps IS the ladder low
+            to high, and a save stores the INDEX not the value — so steps[0]
+            MUST be 0, the founding NO-POLICY (NO FLOOR / NO LIMIT, what every
+            pre-feature save loads as). The ladder EXTENDS with higher rungs;
+            it never deletes step 0 (deleting it would silently reinterpret
+            every existing save's cap:0). Unlike stakes these are one-per-town,
+            so the crab's own bundle adopts them in place and the engine ladder
+            is the fallback. civics.purses (slice 4b) declares the four purses
+            that fund the shelter as rate grids: 'levy' (a share of takings),
+            'dues' ($ a visitor), 'rents' (a cut of the house rents), 'tin' (a
+            voluntary collection), each { id, name, short, unit, who, steps[] }.
+            steps is the rate grid and a save stores the INDEX (0..4), so
+            steps[0] MUST be 0 (NO TAKE, the founding grid). Same in-place
+            adoption as the dials; the levy's conflict-of-interest and the
+            conservation math stay engine. civics.calendar (slice 4c) is the
+            polling clock as scalars: pollWeekday (weekday index 0..6, 6=Sun),
+            pollOpen/pollShut (minutes past midnight, default 420/1140, shut
+            after open). civics.relief (slice 4c) is the shelter and soup as
+            scalars: relief.soup { potMax (bowls a night, default 6 - also the
+            stakes lcm denominator), margin (cents, default 200) }, relief.shelter
+            { rent (cents, default 1000), float (nights carried, default 1),
+            strikes (missed nights before the door bolts, default 3), shutNights
+            (nights bolted, default 4) }. These sit on state/time paths, so a
+            transcription is byte-equal AND wired; conservation and the strike
+            mechanism stay engine. civics.eligibility (slice 4d) is the franchise
+            (family 2: who may) as two 0/1 predicate programs over the persona
+            bundle (npc/owner/homeless): vote (the crab's is [["PUSHI",1]], every
+            resident votes) and stand (the crab's is [["LD","npc"]], only townsfolk
+            self-nominate). Each is a bare Layer-1 program (the depart weight
+            shape, NOT TERM-closed) whose static bound must be 0/1; per-voter, so
+            it dispatches on culture like stakes. Both keys required. The player
+            nomination, the visitor exclusion, and the count stay engine.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in
@@ -158,6 +222,16 @@ A people, written as a document. Not code — data the engine reads:
             walk-ins and migrated-save seeding — 0 draws nothing and is
             byte-identical to today. Business ownership binds to a settler
             in a later slice.
+  manner    how this people carries itself, each field defaulting to the
+            crab value when left out. speed: a visitor's stroll in px/s
+            (crab 42; the ferry ETA reads the same value, so a slow people
+            is never promised a boat it cannot catch). stroll: how far one
+            stroll wanders, px (crab 340; the promenade band is the town's).
+            space: personal-space radius, px 4-16 (crab 8, on a measured
+            growth curve — wider costs the town; a mixed pair parts to the
+            larger). walkMul20: a settled resident's gait in twentieths
+            (20 = crab pace, composes with traits). rides: REFUSED true
+            until a culture-ride art seam exists; false = walks, as data.
   rhythm    when this people sleep and work, relative to the world's one sun
             (the sun never moves — a nocturnal culture moves its bodies).
             Integer game-minutes on the 30-minute grain: wake/bed (the
@@ -171,7 +245,11 @@ A people, written as a document. Not code — data the engine reads:
             >= 4h, not before 6:00 — a sign across midnight waits on R3).
             Visitor bed/wake and the ferry-vs-nocturnal-guest rule are R3.
   arrival   repGate (how well-regarded the town must be before word reaches
-            them), shareMax, shareRamp
+            them), shareMax, shareRamp — and the STAY SHAPE: daytrip20
+            (0-20 twentieths, crab 12 = 0.60; 0 = a culture of overnighters),
+            patienceSecs (20-400, crab 100 — how long a guest gives a
+            counter), thinkDs (4-80 tenths of a second, crab 16 — the
+            what-do-I-fancy cadence, which is also brain-call cadence)
   body      THE CULTURAL BODY: multipliers in twentieths of the crab
             constants (20 = 1x exactly; converted once at install,
             round-half-up). rates {hunger thirst dirt bored tired} 10-40:

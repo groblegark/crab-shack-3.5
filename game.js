@@ -186,6 +186,39 @@ function memorialSpot(i) {
 }
 let townCatch = 6;   // the day's landed fish, crate-side
 let rep = 30000;     // word of mouth, int MILLIREP 0..100,000 (slice 5): happy guests talk, rage-quits talk louder
+// THE WORD ABROAD (reputation pass, 2026-08-23). Each people keeps its OWN
+// opinion of the town: `rep` stays the crabs' word (every legacy read), and
+// repC carries every other installed culture's, same millirep grain. Town
+// state - saved as `repc`, absent on old saves (= nobody had formed one),
+// cleared on every load so a scrubbed timeline cannot leak another town's
+// name around (the loader-reset rule).
+let repC = {};             // culture id -> millirep 0..100,000
+const REP_SPILL = 25;      // % of any word other peoples overhear at the pier
+const REP_HEARSAY = 5000;  // millirep discount when a people has ONLY hearsay to go on
+const REP_ROUGH = 900;     // a guest's night on the sand, told to her own people
+const REP_UNHOUSED = 250;  // ...and the fact the town had no bed at all
+const REP_SHORT = 150;     // a full house turning someone away (the town's own shame)
+const REP_CREW_ROUGH = 400;// a resident crab sleeping rough - the town talks
+function repOf(cid) { return (!cid || cid === "crab") ? rep : (repC[cid] != null ? repC[cid] : 30000); }
+function repSet(cid, v) { v = Math.max(0, Math.min(100000, v | 0)); if (!cid || cid === "crab") rep = v; else repC[cid] = v; }
+// ONE DOOR FOR EVERY WORD. Three rules live here and nowhere else:
+// gains SATURATE - idiv(g * (100000 - r), 100000), full at rep 0, nothing at
+// 100,000, so the top of the ladder is an equilibrium the town must HOLD, not
+// a ratchet it clicks once; losses never saturate (shame always lands); and
+// every installed people overhears REP_SPILL% of what another people is told
+// - which is also how word of a good crab town ever reaches the mainland's
+// pigs at all. Integer throughout, zero draws.
+function repAdd(cid, delta) {
+  if (!delta) return;
+  const home = (cid && CULTURES[cid]) ? cid : "crab";
+  const ids = ["crab"]; for (const id in CULTURES) if (CULTURES[id]) ids.push(id);
+  for (const h of ids) {
+    const share = (h === home) ? delta : idiv(delta * REP_SPILL, 100);
+    if (!share) continue;
+    const r = repOf(h);
+    repSet(h, r + (share > 0 ? idiv(share * (100000 - r), 100000) : share));
+  }
+}
 const HOME_BOTTOM = 160;   // house/shelter interiors reach the floor
 
 // ---------------------------------------------------------------- businesses
@@ -787,7 +820,29 @@ const bizUnlocked = (b) => b === "shack" || (!!BIZ[b] && (!!BIZ[b].bought || biz
 // "This is exactly the choice the mayor will make." So the funding mechanism
 // is not a constant somebody picked. It is the office's lever, and it is the
 // thing an election is actually about.
-const SHELTER_RENT = 1000;   // cents         // Mr. Pincherton owns the shelter too, and he charges for it
+// THE RELIEF AND CALENDAR SCALARS, ADOPTED FROM THE DOCUMENT (phase E4 slice
+// 4c). Unlike the ballot dials and purses (step-ladders a save indexes), these
+// are SCALAR facts the town runs on - the shelter's terms and the polling clock.
+// They adopt in place the same E6 way: the const literals below are the engine
+// fallback, and crabCivicsInt reads the crab's own bundled civics document
+// (validated as a non-negative integer, else the literal, named). Every reader
+// draws the same scalar, so a bundle that matches the literals is byte-equal by
+// construction - and because these sit on STATE and TIME paths (a pot is spent,
+// the shelter charges rent and bolts, the polls open and shut) the gate proves
+// BEHAVIOUR, not just a returned number (discipline 5). NOTE potMax is woven
+// into the stakes lcm denominator (345000 = D/(20*POT_MAX)); it is transcribed
+// byte-equal (6) for exactly that reason. `crabCivicsInt` reads a dotted path
+// (e.g. "relief.shelter.rent") off BUNDLED_CRAB_CIVICS; a missing/typed-wrong/
+// negative value falls back to the literal, named, never wounding the town.
+function crabCivicsInt(path, fallback) {
+  if (typeof BUNDLED_CRAB_CIVICS === "undefined" || !BUNDLED_CRAB_CIVICS) return fallback;
+  let v = BUNDLED_CRAB_CIVICS;
+  for (const k of path.split(".")) { if (v == null || typeof v !== "object") return fallback; v = v[k]; }
+  if (v == null) return fallback;   // undeclared: the literal stands (byte-identical)
+  if (!Number.isInteger(v) || v < 0) { console.error("crab civics " + path + " is not a whole count: " + v); return fallback; }
+  return v;
+}
+const SHELTER_RENT = crabCivicsInt("relief.shelter.rent", 1000);   // cents; document-adopted, literal fallback   // Mr. Pincherton owns the shelter too, and he charges for it
 // ...AND HE CHARGES BY THE BED. The town RENTS this building, so a bigger
 // shelter is not something the town buys once - it is a bigger bill every
 // night, for as long as the beds stand (see ACCOMMODATION UPGRADES, where the
@@ -796,7 +851,7 @@ const SHELTER_RENT = 1000;   // cents         // Mr. Pincherton owns the shelter
 // the number in the ledger and the number a voter prices a platform against
 // can never disagree.
 function shelterRent() { return SHELTER_RENT + dormExtra() * DORM_CFG.RENT; }
-const SHELTER_FLOAT = 1;         // ...and the purse is struck to carry this many nights of it IN HAND.
+const SHELTER_FLOAT = crabCivicsInt("relief.shelter.float", 1);         // ...and the purse is struck to carry this many nights of it IN HAND.
                                  // Same idiom the town already uses everywhere money has to survive a
                                  // bad day (RIVAL_CFG.FLOAT_NIGHTS, and BANK_KEEP's "two nights' rent
                                  // and a wage in the till" before the war chest was retired). MEASURED, and this is what it is for: with no
@@ -805,11 +860,11 @@ const SHELTER_FLOAT = 1;         // ...and the purse is struck to carry this man
                                  // cleared the rent on polling day and came up a dollar short on a
                                  // quiet Tuesday. A failure mode should be about the choice the town
                                  // made, not about variance in the takings three days later.
-const SHELTER_STRIKES = 3;       // missed nights running before the door is bolted
-const SHELTER_SHUT_NIGHTS = 4;   // ...and how many nights it stays that way
-const SOUP_MARGIN = 200;   // cents           // the shack's margin on a bowl sold to the town
-const POT_MAX = 6;               // the most bowls any mayor may put on for one night
-const POLL_WEEKDAY = 6;          // SUNDAY. The town already keeps a week (WEEKDAYS, and the
+const SHELTER_STRIKES = crabCivicsInt("relief.shelter.strikes", 3);       // missed nights running before the door is bolted
+const SHELTER_SHUT_NIGHTS = crabCivicsInt("relief.shelter.shutNights", 4);   // ...and how many nights it stays that way
+const SOUP_MARGIN = crabCivicsInt("relief.soup.margin", 200);   // cents           // the shack's margin on a bowl sold to the town
+const POT_MAX = crabCivicsInt("relief.soup.potMax", 6);               // the most bowls any mayor may put on for one night (also D/(20*POT_MAX) in the stakes lcm - byte-equal keeps stakes exact)
+const POLL_WEEKDAY = crabCivicsInt("calendar.pollWeekday", 6);          // SUNDAY. The town already keeps a week (WEEKDAYS, and the
                                  // staggered rota hangs off it), so polling day rides on that
                                  // rather than inventing a second calendar. Day 1 is a Monday,
                                  // so the first ballot is day 7 - late enough that the town has
@@ -845,6 +900,51 @@ const PURSES = {
     who: "WHOEVER CAN SPARE IT", steps: [0, 100, 200, 300, 400] },   // cents
 };
 const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
+// THE BALLOT DIALS, ADOPTED FROM THE DOCUMENT (phase E4 slice 4a). WAGE_FLOOR
+// and HEAD_CAP are TOWN-LEVEL facts - one town, one floor, one house limit -
+// so unlike the per-voter stakes (slice 3, dispatched on culture) they ride the
+// crab's OWN bundled civics document and adopt IN PLACE, the E6 crab-as-document
+// idiom: the object literals below stay as the engine fallback, and every reader
+// (floorOf/capOf, allPlatforms, the FLOOR_STEPS/CAP_STEPS ladder lengths, capAsk)
+// draws the same steps in the same order. A bundle that matches the literals is
+// byte-equal BY CONSTRUCTION; a drifted or hand-tampered dial falls back to the
+// literal, named. Build-time validation lives in mkcultureways.mjs (a bad
+// fixture fails the BUILD); ballotLadderProblem is the belt for a tampered
+// cultureways.js. STEP 0 is the founding NO-POLICY (NO FLOOR / NO LIMIT) - what
+// every pre-feature save loads as (wage:0 / cap:0) - and Matt's ruling 4
+// invariant (rulings 2026-08-24 §4): the ladder EXTENDS, never deletes step 0.
+// A civics LADDER is the step grid a save indexes into (a ballot dial's steps,
+// a purse's rate steps). One law for both: step 0 is the founding no-policy
+// (NO FLOOR / NO LIMIT / NO TAKE), every step a whole count, at least two rungs.
+// The noun rides the message so a bad purse and a bad dial name themselves.
+function civicsLadderProblem(steps, noun) {
+  if (!Array.isArray(steps) || steps.length < 2) return "A " + noun + " WITH NO LADDER";
+  if (steps[0] !== 0) return "A " + noun + " WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY";
+  for (const s of steps) if (!Number.isInteger(s) || s < 0) return "A " + noun + " STEP THAT IS NOT A WHOLE COUNT";
+  return null;
+}
+function ballotLadderProblem(steps) { return civicsLadderProblem(steps, "BALLOT DIAL"); }
+// Read a civics ladder from the crab's own bundle by id, validated, else the
+// literal fallback (the E6 crab-as-document idiom; a tampered ladder falls back
+// named). `section` is "ballots" or "purses"; `noun` names the refusal.
+function crabCivicsSteps(section, id, noun, fallback) {
+  const doc = (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS
+    && Array.isArray(BUNDLED_CRAB_CIVICS[section])) ? BUNDLED_CRAB_CIVICS[section] : null;
+  if (!doc) return fallback;
+  const b = doc.find(x => x && x.id === id);
+  if (!b) return fallback;
+  const why = civicsLadderProblem(b.steps, noun);
+  if (why) { console.error("crab " + section + " " + id + " refused: " + why); return fallback; }
+  return b.steps.slice();
+}
+function crabBallotSteps(id, fallback) { return crabCivicsSteps("ballots", id, "BALLOT DIAL", fallback); }
+// THE PURSES ADOPT THEIR RATE GRIDS FROM THE DOCUMENT (phase E4 slice 4b), in
+// place, exactly as the ballot dials do - PURSES is defined above with the
+// literals (the engine fallback), and here each mech's steps take the crab's
+// own bundled purse grid when it matches. Every reader (purseRate/purseYield/
+// allPlatforms) draws the same steps in the same order; byte-equal by
+// construction. Step 0 is NO TAKE (rate 0 raises nothing), the founding grid.
+for (const k of PURSE_KEYS) if (PURSES[k]) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
 // THE FIFTH DIAL, and the only one on the ballot that is not about the
 // shelter. The four purses all answer "who pays for the pot"; the floor
 // answers a different question entirely - what the lowest day in town is
@@ -858,7 +958,8 @@ const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
 // 23, so the steps straddle it - two below, two above - which is what makes
 // the vote a real argument instead of a ratchet.
 const WAGE_FLOOR = { name: "THE WAGE FLOOR", short: "FLOOR", unit: "$ A DAY, LOWEST PAID",
-  who: "EVERY TILL THAT MEETS A PAYROLL", steps: [0, 1800, 2300, 2700, 3200] };   // cents
+  who: "EVERY TILL THAT MEETS A PAYROLL",
+  steps: crabBallotSteps("floor", [0, 1800, 2300, 2700, 3200]) };   // cents; document-adopted, literal fallback
 const FLOOR_STEPS = WAGE_FLOOR.steps.length - 1;
 // ...AND THE SIXTH (Matt, 2026-08-20: "another policy to vote on: maximum
 // employees per business"). The floor says what a day is worth; the house
@@ -884,7 +985,8 @@ const HEAD_CAP = { name: "THE HOUSE LIMIT", short: "STAFF", unit: "EMPLOYEES TO 
 // This is also the bug Matt reported from play - "i cant specify more than 6
 // staff for my campaign platform" - which was never a UI defect at all: six
 // was simply the top of the ladder.
-  who: "EVERY SHOP ON THE PROMENADE - YOURS FIRST", steps: [0, 2, 3, 4, 6, 8, 12] };
+  who: "EVERY SHOP ON THE PROMENADE - YOURS FIRST",
+  steps: crabBallotSteps("cap", [0, 2, 3, 4, 6, 8, 12]) };   // document-adopted, literal fallback
 const CAP_STEPS = HEAD_CAP.steps.length - 1;
 function capOf(p) {
   return HEAD_CAP.steps[Math.max(0, Math.min(CAP_STEPS, (p && p.cap) | 0))] || 0;
@@ -980,13 +1082,13 @@ const POLL_PLACES = [
 // measured against this, never counted, so a future state that does not fit
 // gets trimmed rather than printed through the furniture next door.
 const POLL_BW = 40;
-const POLL_OPEN = 7 * 60;        // AN HOUR BEFORE THE TOWN OPENS, and that hour is load-bearing.
+const POLL_OPEN = crabCivicsInt("calendar.pollOpen", 7 * 60);        // AN HOUR BEFORE THE TOWN OPENS, and that hour is load-bearing.
                                  // A crab's errand window on a working day closes 30 minutes before
                                  // they leave (see updateSchedule), so an owner-operator on the D
                                  // shift - 8:30 to 18:30 under the default hours - has no daylight
                                  // at all between the town opening and their own front door. Polls
                                  // open early in real towns for exactly this crab.
-const POLL_SHUT = 19 * 60;       // ...and shut an hour before the town does. This is the number that
+const POLL_SHUT = crabCivicsInt("calendar.pollShut", 19 * 60);       // ...and shut an hour before the town does. This is the number that
                                  // decides whether a working crab has a vote, and it is meant to be
                                  // tight enough that the answer is sometimes no: the D-shift owner
                                  // finishing at 18:30 has half an hour and a walk, which makes the
@@ -1111,6 +1213,31 @@ function isMayor(c) { return !!hall.mayor && c.p.name === hall.mayor; }
 // is the conflict of interest, in one predicate: the same hand sets the levy
 // and pays it.
 function playerMayor() { const m = mayorCrab(); return !!m && !m.p.npc; }
+// THE FRANCHISE (phase E4 slice 4d, family 2). Who may VOTE, and who may put
+// themselves forward to STAND, as two per-voter predicates dispatched on the
+// voter's culture - the same dispatch platValue uses for stakes. A resident of
+// a stranger people that declared an eligibility section runs ITS 0/1 program;
+// the crab's own (and any culture that declared none) runs CRABELIG, whose
+// programs are byte-equal to the engine's inlined gates: stand = c.p.npc (only
+// townsfolk self-nominate), vote = 1 (every resident votes). window._noeligprog
+// is the arm-off hatch (attribution + the staged-election A/B), mirroring
+// _nol1plat. NO hook, NO RNG, NO mutation on either path - pure reads - so
+// value-equality is behaviour-equality here (the E3 trap does not bite).
+function eligOf(c) {
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  if (typeof window !== "undefined" && window._noeligprog) return null;
+  return cul ? cul.eligR : CRABELIG;
+}
+function canStand(c) {
+  const e = eligOf(c);
+  if (e && e.stand) return l1Run(e.stand, eligReads(c)) !== 0;
+  return !!(c && c.p && c.p.npc);   // the engine default: only townsfolk self-nominate
+}
+function canVote(c) {
+  const e = eligOf(c);
+  if (e && e.vote) return l1Run(e.vote, eligReads(c)) !== 0;
+  return true;                      // the engine default: every resident votes
+}
 function purseOf(p) { return PURSES[p.mech] || PURSES.rents; }
 function purseRate(p) { const s = purseOf(p).steps; return s[Math.max(0, Math.min(s.length - 1, p.rate | 0))]; }
 function policyLine(p) {
@@ -1593,6 +1720,36 @@ function pBowls(p) { return p._bowls != null ? p._bowls : platBowls(p); }
 // compare exactly instead of through a 1e-9 blur. Only ever compared or
 // sorted - nothing reads the absolute scale.
 function platValue(c, p) {
+  // THE TABLED PATH (phase E4): a civics stake table re-expresses this function
+  // as a LIST of named term-programs; the platform's value is their SUM, run
+  // against the nine reads platReads gathers by calling the real helpers. The
+  // sum is byte-equal to the lambda below - proven on a (real crab, real
+  // platform) grid sweep across poor and growth towns, both backends, and
+  // unlike E3's scaled-space depart weights the equality is on the RAW value,
+  // so a coefficient typo is visible (every +/-1 flips hundreds of pairs).
+  // window._nol1plat is the arm-off hatch (attribution + the sweep's own A/B).
+  //
+  // NO SIDE EFFECT TO PRESERVE (the E3 lesson, checked): platValue and its whole
+  // call chain (potStake20/roofWeight20/purseCost100/purseYield/platTake/
+  // platBowls/floorRaise/floorBill/capStake100) fire NO hooks and mutate
+  // nothing - the only observable is the return value, so value-equality IS
+  // behavioural equality here. If that ever stops being true, this path must do
+  // whatever the lambda does on the way out, or the transcription is a lie.
+  //
+  // A VOTER SCORES ON THEIR OWN CULTURE'S STAKES (phase E4, slice 3) - the same
+  // dispatch visQuote uses for departR: a resident of a stranger people that
+  // declared a civics section runs ITS term-programs; the crab's own (and any
+  // culture that declared none) runs CRABCIV. Native crabs carry no p.culture,
+  // so cul is null and civ is CRABCIV - byte-identical to before this slice.
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  const civ = (typeof window !== "undefined" && window._nol1plat) ? null
+    : (cul ? cul.civicsR : CRABCIV);
+  if (civ && civ.platform) {
+    const read = platReads(c, p);
+    let v = 0;
+    for (const t of civ.platform) v += l1Run(t.code, read);
+    return v;
+  }
   const roof = pYield(p) >= shelterRent() ? 1 : 0;
   const floor = floorOf(p);
   const fr = floor > 0 ? floorRaise(c, floor) : 0, fb = floor > 0 ? floorBill(c, floor) : 0;
@@ -1682,7 +1839,7 @@ function buildBallot() {
   // to them. Without this the hat lands on a crew crab the player never chose
   // and whose policy they cannot set, which reads as a bug rather than a
   // government.
-  const grid = allPlatforms(), town = allCrabs().filter(c => c.p.npc);
+  const grid = allPlatforms(), town = allCrabs().filter(c => canStand(c));   // family-2 self-nomination predicate (crab: c.p.npc)
   const byPlat = {};
   for (const c of town) {
     const p = idealPlatform(c, grid);
@@ -1699,7 +1856,7 @@ function buildBallot() {
   // squeezed them out; an election missing the crab currently doing the job
   // reads as a bug even when the arithmetic is right.
   const inc = mayorCrab();
-  if (inc && inc.p.npc && !cands.some(k => k.name === inc.p.name))
+  if (inc && canStand(inc) && !cands.some(k => k.name === inc.p.name))
     cands.unshift({ name: inc.p.name, plat: idealPlatform(inc, grid), votes: 0, inc: true });
   else for (const k of cands) if (inc && k.name === inc.p.name) k.inc = true;
   // ...AND THE PLAYER STANDS, if they said so (Matt: the player can stand and
@@ -2016,7 +2173,7 @@ function runTownHall() {
 // day 7 - the town needs a week's trading before it has anything to vote on.
 function seatFoundingMayor() {
   if (hall.mayor && mayorCrab()) return;
-  const town = allCrabs().filter(c => c.p.npc);
+  const town = allCrabs().filter(c => canStand(c));   // family-2 self-nomination predicate (crab: c.p.npc)
   if (!town.length) return;
   let best = town[0], bs = -Infinity;
   for (const c of town) {
@@ -4057,6 +4214,7 @@ function runAnnexePolicy() {
 function noteRoomShort() {
   annexe.short = (annexe.short | 0) + 1;
   if (window._stats) window._stats.roomShort = (window._stats.roomShort || 0) + 1;
+  repAdd("crab", -REP_SHORT);   // a full house turning someone away is the TOWN's shame (reputation pass)
 }
 // ONE PASS AT SETTLEMENT for both ladders, after the books are closed and the
 // day's beds are counted.
@@ -6005,6 +6163,7 @@ function sleepRough(c) {
   c.quip = { text: "JUST... FIVE MINUTES", t: 3.2 * SEC };
   popText("TOO TIRED TO GET HOME", c.x - 22, c.y - 26, [190, 160, 230]);
   if (window._stats) window._stats.roughNights = (window._stats.roughNights || 0) + 1;
+  repAdd("crab", -REP_CREW_ROUGH);   // a resident face-down on the promenade - the town talks (reputation pass)
 }
 
 // who lives at lot h (boat owners have house === null and match nothing).
@@ -6646,6 +6805,12 @@ function heatShimmerQ12(c) {
 for (const k of Object.keys(TRAITS)) TRAITS[k].moveQ8 = Math.round(40 * TRAITS[k].move * Q8);
 function crabMoveQ8(c) {
   let v = traitOf(c).moveQ8;
+  // a settled people's own gait (manner.walkMul20, twentieths): composes with
+  // the trait multiplier exactly here, where the trait already does. The crab
+  // path is UNTOUCHED (the branch is false), and a declared 20 is skipped -
+  // idiv(v*20,20) === v, but why pay the multiply to prove it.
+  const _mc = c.p.culture && c.p.culture !== "crab" ? CULTURES[c.p.culture] : null;
+  if (_mc && _mc.manner && _mc.manner.WMUL20 !== 20) v = idiv(v * _mc.manner.WMUL20, 20);
   const over = Math.max(0, (c.p.bored || 0) - qn(0.5));
   v -= idiv(v * over, 5 * Q20);                    // 1 - 0.2*(over/Q20), 0.2 = 1/5
   if (c.p.sick) v = idiv(v, 2);
@@ -7310,6 +7475,161 @@ function departCompile(dep) {
   return out;
 }
 // ---------------------------------------------------------------------------
+// THE PLATFORM-VALUE READ BUNDLE (phase E4) - the nine numbers platValue reads
+// to score a platform for a voter, as the LD index space for the STAKE
+// term-programs. Order is the ABI: programs compiled against these rows run
+// against platReads' vector, so rows only ever APPEND.
+//
+// WHY THESE NINE AND NOT THE PLATFORM ITSELF: platValue's terms multiply
+// COEFFICIENTS by helper OUTPUTS, and two of those helpers - floorBill (a loop
+// over every crab on this owner's payroll) and capStake100 (a loop over every
+// business) - are LOOPS, which a straight-line Layer-1 program cannot express.
+// pBowls/pTake/roof likewise fold town-wide reads (purseYield walks the roster).
+// So the honest transcription is: the ENGINE computes each helper (once, in
+// platReads, by calling the real function - never a reimplementation, per the
+// rungreach.mjs lesson), and the term-programs do only the coefficient
+// arithmetic platValue's own body does. Every read is an exact integer
+// (clampWage snaps wages to whole cents; POT_MAX/steps/stakes are fixed-point
+// ints), so the tabled value equals the lambda value EXACTLY - byte, not blur.
+//
+// RANGES are honest bounds MEASURED on real towns (poor + growth, both engines)
+// with generous headroom, and are the validator's magnitude proof: the worst
+// term (floorBill at -9200 * fb) bounds near 3.7e10, six orders under 2^52.
+// platReads clamps to them and counts every clamp - a read outside its declared
+// range is a loud dev-gate failure (the sweep asserts platClamped stays 0),
+// never a silent divergence from the lambda.
+const PLAT_BUNDLE = [
+  { name: "potStake20", min: 0, max: 20 },        // potStake20: clamped 0..20
+  { name: "pBowls", min: 0, max: POT_MAX },       // bowls the purse can pay for
+  { name: "roofWeight20", min: 0, max: 24 },      // (homeless?12:4) * seen(1|2)
+  { name: "roof", min: 0, max: 1 },               // pYield >= shelterRent ? 1 : 0
+  { name: "fr", min: 0, max: 3200 },              // floorRaise <= top floor step
+  { name: "fb", min: 0, max: 4000000 },           // floorBill: sum over a payroll
+  { name: "capStake100", min: -2000, max: 300 },  // signed: your own hands vs theirs
+  { name: "purseCost100", min: 0, max: 100 },     // int hundredths, 2..100
+  { name: "pTake", min: 0, max: 20000 },          // what the purse would actually take
+];
+let platClamped = 0;   // dev tripwire: the stake sweep asserts this stays 0
+// The nine reads, in PLAT_BUNDLE order, each an ENGINE call (not a copy). The
+// roof flag and the fr/fb floor>0 guards are resolved here exactly as
+// platValue's own body resolves them, so the term-programs stay pure
+// coefficient arithmetic and the transcription is obviously faithful.
+function platReads(c, p) {
+  const roof = pYield(p) >= shelterRent() ? 1 : 0;
+  const floor = floorOf(p);
+  const fr = floor > 0 ? floorRaise(c, floor) : 0;
+  const fb = floor > 0 ? floorBill(c, floor) : 0;
+  const raw = [
+    potStake20(c), pBowls(p), roofWeight20(c), roof, fr, fb,
+    capStake100(c, p), purseCost100(c, p.mech), pTake(p),
+  ];
+  for (let i = 0; i < raw.length; i++) {
+    // every read is an exact integer by the feasibility proof (clampWage snaps
+    // wages to whole cents; the stakes are fixed-point ints), so no rounding is
+    // needed - and NO int32 coercion, which would wrap a large fb before the
+    // clamp could see it. The clamp is the only transform: a read outside its
+    // declared range is a loud dev-gate failure, never a silent bend.
+    const v = raw[i], b = PLAT_BUNDLE[i];
+    if (v < b.min || v > b.max) { platClamped++; raw[i] = v < b.min ? b.min : b.max; }
+  }
+  return raw;
+}
+// THE STAKE TABLE'S CLAMPS (phase E4). A civics stake table re-expresses
+// platValue as a LIST of named term-programs (family 1): each term is a
+// straight-line program yielding a SIGNED int, and the platform's value is the
+// SUM. Unlike a depart weight (compared in a scaled space, so non-negative by
+// contract), a stake term is legitimately negative - floorBill and purseCost
+// SUBTRACT - so the validator permits negative bounds; only the magnitude
+// (2^52) rail applies. The term NAME rides the list, so voteReason can be
+// derived from the largest-magnitude term: the receipt and the valuation from
+// one definition (substrate section 3's legibility ruling).
+function stakesProblem(civ) {
+  if (!civ || typeof civ !== "object" || Array.isArray(civ)) return "A BAD CIVICS SECTION";
+  if (!Array.isArray(civ.stakes) || !civ.stakes.length) return "A CIVICS SECTION WITH NO STAKES";
+  const seen = {};
+  for (const st of civ.stakes) {
+    if (!st || typeof st !== "object") return "A BAD STAKE ROW";
+    if (typeof st.id !== "string" || !st.id.length) return "A STAKE WITH NO ID";
+    if (seen[st.id]) return "A STAKE TWICE: " + st.id;
+    seen[st.id] = 1;
+    if (!Array.isArray(st.terms) || !st.terms.length) return "STAKE " + st.id + " HAS NO TERMS";
+    const tseen = {};
+    for (const t of st.terms) {
+      if (!t || typeof t !== "object" || typeof t.name !== "string" || !t.name.length)
+        return "A BAD TERM ON STAKE " + st.id;
+      if (tseen[t.name]) return "STAKE " + st.id + " NAMES A TERM TWICE: " + t.name;
+      tseen[t.name] = 1;
+      if (!Array.isArray(t.prog) || !t.prog.length) return "STAKE " + st.id + " TERM " + t.name + " HAS NO PROGRAM";
+      // a family-1 term CLOSES with TERM - the marker that this program yields a
+      // named term rather than a bare expression. TERM is legal only last, so
+      // this also proves the shape the assembler will accept.
+      const last = t.prog[t.prog.length - 1];
+      if (!(Array.isArray(last) ? last[0] === "TERM" : last === "TERM"))
+        return "STAKE " + st.id + " TERM " + t.name + " DOES NOT CLOSE WITH TERM";
+      const a = l1Assemble(t.prog, PLAT_BUNDLE);
+      if (a.why) return "STAKE " + st.id + " TERM " + t.name + ": " + a.why;
+    }
+  }
+  // THE ENGINE OWNS THE ID SPACE (the E3 discipline: a culture may re-express
+  // an engine consumer, not invent one). platValue reads the "platform" stake,
+  // so a civics section that omits it would install CRABCIV and then SILENTLY
+  // run the lambda - a broken bundle that costs neither a console error nor a
+  // suite red. Requiring it keeps the "broken bundle -> loud refusal" contract.
+  if (!seen.platform) return "A CIVICS SECTION MISSING THE PLATFORM STAKE";
+  return null;
+}
+// Compile a VALIDATED civics stake table to run form: id -> [{ name, code }].
+function stakesCompile(civ) {
+  const out = {};
+  for (const st of civ.stakes)
+    out[st.id] = st.terms.map(t => ({ name: t.name, code: l1Assemble(t.prog, PLAT_BUNDLE).code }));
+  return out;
+}
+// ELIGIBILITY (phase E4 slice 4c/4d, family 2: "who may"). The two franchise
+// PREDICATES a culture may re-express - who may VOTE, and who may put themselves
+// forward to STAND. Each is a bare Layer-1 program (NOT TERM-closed; the depart
+// weight/select shape) over the persona read bundle below, returning 0/1. The
+// engine's own gates are `stand(c) = c.p.npc` (buildBallot: only townsfolk
+// self-nominate; crew stand only by player nomination) and `vote(c) = 1` (every
+// resident votes; the visitor is excluded STRUCTURALLY, not by a persona
+// predicate). So the crab transcription is vote=[PUSHI 1], stand=[LD npc],
+// byte-equal to those inlined gates. Like stakes this is PER-VOTER, so it
+// dispatches on the voter's culture; a culture that declares none runs the
+// engine default. The read bundle is small, ranged 0/1 flags, APPEND-only (the
+// depart-bundle ABI): the crab reads only `npc`; owner/homeless are there so a
+// stranger culture can express a different franchise without a new read surface.
+const ELIG_BUNDLE = [
+  { name: "npc", min: 0, max: 1 },        // townsfolk (1) vs the player's crew (0)
+  { name: "owner", min: 0, max: 1 },      // keeps a till
+  { name: "homeless", min: 0, max: 1 },   // sleeps at the shelter
+];
+function eligReads(c) {
+  return [ c.p.npc ? 1 : 0, c.p.owner ? 1 : 0, c.p.homeless ? 1 : 0 ];
+}
+// A franchise predicate must be a program that provably returns 0/1 - a "weight"
+// that could land at 7 is not a predicate. l1Assemble's static bound proves it,
+// exactly as a depart line-select proves its index lands in the template list.
+function eligPredProblem(prog, which) {
+  if (!Array.isArray(prog) || !prog.length) return "AN ELIGIBILITY " + which + " WITH NO PROGRAM";
+  const a = l1Assemble(prog, ELIG_BUNDLE);
+  if (a.why) return "ELIGIBILITY " + which + ": " + a.why;
+  if (a.bound[0] < 0 || a.bound[1] > 1) return "ELIGIBILITY " + which + " IS NOT A 0/1 PREDICATE (CAN REACH " + (a.bound[1] > 1 ? a.bound[1] : a.bound[0]) + ")";
+  return null;
+}
+function eligProblem(elig) {
+  if (!elig || typeof elig !== "object" || Array.isArray(elig)) return "A BAD ELIGIBILITY SECTION";
+  // both keys are the engine's own consumers; a section that declares one and
+  // not the other would leave a voter half on a program and half on the default,
+  // a broken bundle - so both are required, exactly as stakes requires platform.
+  if (elig.vote == null) return "AN ELIGIBILITY SECTION MISSING THE VOTE PREDICATE";
+  if (elig.stand == null) return "AN ELIGIBILITY SECTION MISSING THE STAND PREDICATE";
+  return eligPredProblem(elig.vote, "VOTE") || eligPredProblem(elig.stand, "STAND");
+}
+// Compile a VALIDATED eligibility section to run form: { vote: code, stand: code }.
+function eligCompile(elig) {
+  return { vote: l1Assemble(elig.vote, ELIG_BUNDLE).code, stand: l1Assemble(elig.stand, ELIG_BUNDLE).code };
+}
+// ---------------------------------------------------------------------------
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
 // with a message, not at first draw.
@@ -7494,6 +7814,94 @@ function cultureProblem(d, ownId) {
       if (why) return why;
     }
   }
+  // CIVICS (phase E4): a culture may re-express platValue - how its voters
+  // score a platform - as a list of NAMED Layer-1 term-programs, the platform's
+  // value the SUM (family 1). The engine owns the id space (the E3 discipline:
+  // a culture re-expresses an engine consumer, never invents one), so the
+  // "platform" stake is required and stakesProblem owns every check - each term
+  // assembled statically against PLAT_BUNDLE, signed bounds permitted
+  // (floorBill/purseCost subtract), only the 2^52 magnitude rail applied. A
+  // typo'd term name or op fails HERE, at import, never in an election - and an
+  // undeclared civics section leaves this people's voters on the engine's own
+  // lambda (visQuote's CRABD precedent). Only the STAKE terms are authorable
+  // this slice; ballots/purses/calendar/relief are transcription that lands
+  // later (plan risk #4: transcribe, never invent).
+  if (d.civics != null) {
+    const why = stakesProblem(d.civics);
+    if (why) return why;
+    // BALLOTS (slice 4a) are validated at the door even though they are inert
+    // for a stranger - the town's ballot dials belong to the crab who founds it,
+    // so a stranger people's ballots are the E5 "declared, validated, inert"
+    // shape rather than a per-voter dispatch. But the no-silent-drop contract
+    // (slice 3) still holds: a malformed ladder in ANY document is refused BY
+    // NAME here, not quietly ignored now that the schema admits the key.
+    if (d.civics.ballots != null) {
+      if (!Array.isArray(d.civics.ballots)) return "A BAD BALLOTS SECTION";
+      const bseen = {};
+      for (const b of d.civics.ballots) {
+        if (!b || typeof b !== "object" || Array.isArray(b)) return "A BAD BALLOT DIAL";
+        if (typeof b.id !== "string" || !b.id.length) return "A BALLOT DIAL WITH NO ID";
+        if (bseen[b.id]) return "A BALLOT DIAL TWICE: " + b.id;
+        bseen[b.id] = 1;
+        const lw = civicsLadderProblem(b.steps, "BALLOT DIAL");
+        if (lw) return "BALLOT DIAL " + b.id + ": " + lw;
+      }
+    }
+    // PURSES (slice 4b) - the rate grids, validated at the door the same way:
+    // inert for a stranger (the town's purses belong to the crab who founds it),
+    // but a malformed grid is refused BY NAME, never silently dropped.
+    if (d.civics.purses != null) {
+      if (!Array.isArray(d.civics.purses)) return "A BAD PURSES SECTION";
+      const pseen = {};
+      for (const p of d.civics.purses) {
+        if (!p || typeof p !== "object" || Array.isArray(p)) return "A BAD PURSE";
+        if (typeof p.id !== "string" || !p.id.length) return "A PURSE WITH NO ID";
+        if (pseen[p.id]) return "A PURSE TWICE: " + p.id;
+        pseen[p.id] = 1;
+        const lw = civicsLadderProblem(p.steps, "PURSE");
+        if (lw) return "PURSE " + p.id + ": " + lw;
+      }
+    }
+    // CALENDAR + RELIEF (slice 4c) - scalar facts, validated at the door the
+    // same way: inert for a stranger, but a malformed value refused BY NAME. The
+    // ranges are the ones the reader trusts (a weekday index 0..6; minutes in a
+    // day; the shelter terms non-negative whole counts; the polls open before
+    // they shut). A missing field is FINE (the crab's own bundle carries them;
+    // a stranger may leave them off) - only a present-but-wrong value is refused.
+    const civInt = (v) => Number.isInteger(v) && v >= 0;
+    if (d.civics.calendar != null) {
+      const C = d.civics.calendar;
+      if (typeof C !== "object" || Array.isArray(C)) return "A BAD CALENDAR";
+      if (C.pollWeekday != null && !(civInt(C.pollWeekday) && C.pollWeekday <= 6)) return "A CALENDAR WEEKDAY OUTSIDE THE WEEK";
+      if (C.pollOpen != null && !(civInt(C.pollOpen) && C.pollOpen < 1440)) return "A CALENDAR POLL-OPEN OUTSIDE THE DAY";
+      if (C.pollShut != null && !(civInt(C.pollShut) && C.pollShut < 1440)) return "A CALENDAR POLL-SHUT OUTSIDE THE DAY";
+      if (C.pollOpen != null && C.pollShut != null && C.pollOpen >= C.pollShut) return "A CALENDAR WHOSE POLLS SHUT BEFORE THEY OPEN";
+    }
+    if (d.civics.relief != null) {
+      const R = d.civics.relief;
+      if (typeof R !== "object" || Array.isArray(R)) return "A BAD RELIEF SECTION";
+      if (R.soup != null) {
+        if (typeof R.soup !== "object" || Array.isArray(R.soup)) return "A BAD SOUP RELIEF";
+        if (R.soup.potMax != null && !civInt(R.soup.potMax)) return "A SOUP POT MAX THAT IS NOT A WHOLE COUNT";
+        if (R.soup.margin != null && !civInt(R.soup.margin)) return "A SOUP MARGIN THAT IS NOT A WHOLE COUNT";
+      }
+      if (R.shelter != null) {
+        if (typeof R.shelter !== "object" || Array.isArray(R.shelter)) return "A BAD SHELTER RELIEF";
+        for (const k of ["rent", "float", "strikes", "shutNights"])
+          if (R.shelter[k] != null && !civInt(R.shelter[k])) return "A SHELTER " + k.toUpperCase() + " THAT IS NOT A WHOLE COUNT";
+      }
+    }
+    // ELIGIBILITY (slice 4d, family 2) - the two franchise predicates. Unlike
+    // the town-level tables above, this one IS consumed for a stranger's own
+    // residents (canStand/canVote dispatch on the voter's culture), so it is
+    // both validated AND live. eligProblem owns every check (both keys required,
+    // each a 0/1 program over ELIG_BUNDLE). A typo'd predicate fails HERE, at
+    // import, never in an election.
+    if (d.civics.eligibility != null) {
+      const why = eligProblem(d.civics.eligibility);
+      if (why) return why;
+    }
+  }
   // APPEAL is the one culture-owned table for what draws a people: the
   // standing taste weights AND the drop-nudge terms live together, because
   // they are the same fact at two time scales - what a stop is worth to a
@@ -7525,7 +7933,21 @@ function cultureProblem(d, ownId) {
       if (n.relax != null && !(typeof n.relax === "number" && isFinite(n.relax)
         && n.relax >= 0 && n.relax <= 0.5)) return "A BAD NUDGE RELAX";
     }
+    // URGENCY RAMPS (phase E5 family 3): errand need-curves, host-capped BELOW
+    // survival - the cap is host-side, not trusted to the expression. Attaches
+    // to a REGISTERED errand (the phase-D registry is the id space). urgeProblem
+    // owns the named refusals, including the cap-at-survival refusal.
+    if (A.urge != null) { const p = urgeProblem(A.urge); if (p) return p; }
+    // TASTE DRIFT (phase E5 family 4): weight' = f(weight, exposures), the
+    // Victoria-3 mechanic as one update rule, written to the TASTE_DRIFT plane
+    // on settlement. driftProblem owns the named refusals.
+    if (A.drift != null) { const p = driftProblem(A.drift); if (p) return p; }
   }
+  // ACCEPTANCE (phase E5 family 5): the CK3-style town-level meter per culture
+  // pair, updated on settlement and written to the ACCEPT plane. Top-level (it
+  // is a between-peoples fact, not an appeal one). acceptProblem owns the
+  // named refusals.
+  if (d.accept != null) { const p = acceptProblem(d.accept); if (p) return p; }
   // MANAGEMENT is the culture's working norms (cultureway phase B, debt item
   // 7): what a guest of this people leaves on the table, the jar's token share
   // of it, and the shape of their working day. Author units are whole dollars
@@ -7648,8 +8070,31 @@ function cultureProblem(d, ownId) {
       if (!inArc(v)) return "A SHIFT IN THEIR SLEEP";
     }
   }
+  // MANNER (census C4): how this people carries itself. Author px and px/s;
+  // rides is refused-TRUE by name until a culture-ride art seam exists - the
+  // settlers walk pin made visible instead of silent.
+  if (d.manner != null) {
+    const M = d.manner;
+    if (typeof M !== "object" || Array.isArray(M)) return "A BAD MANNER";
+    const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+    if (M.speed != null && !int(M.speed, 8, 120)) return "A BAD STROLL SPEED";
+    if (M.stroll != null && !int(M.stroll, 60, 800)) return "A BAD STROLL RANGE";
+    if (M.space != null && !int(M.space, 4, 16)) return "A BAD PERSONAL SPACE";
+    if (M.walkMul20 != null && !int(M.walkMul20, 10, 40)) return "A BAD WALKING PACE";
+    if (M.rides != null && typeof M.rides !== "boolean") return "A BAD RIDE ANSWER";
+    if (M.rides === true) return "NO RIDE ART FOR THIS PEOPLE";
+  }
   if (d.arrival != null) for (const k of ["repGate", "shareMax", "shareRamp"])
     if (d.arrival[k] != null && (typeof d.arrival[k] !== "number" || !isFinite(d.arrival[k]))) return "A BAD ARRIVAL";
+  // STAY SHAPE (census C5) rides the arrival section - the same subject, how
+  // this people arrives and how long it stays. Twentieths / seconds / tenths.
+  if (d.arrival != null) {
+    const S = d.arrival;
+    const int = (v, lo, hi) => typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi;
+    if (S.daytrip20 != null && !int(S.daytrip20, 0, 20)) return "A BAD DAYTRIP SHARE";
+    if (S.patienceSecs != null && !int(S.patienceSecs, 20, 400)) return "A BAD PATIENCE";
+    if (S.thinkDs != null && !int(S.thinkDs, 4, 80)) return "A BAD THINK CADENCE";
+  }
   // DECLARATIVE CARDS (phase D): a culture may declare dossier cards whose
   // rows bind labels to REGISTERED observables - data reading data, no code.
   // The registry is the versioned neuro observable table, which is the point:
@@ -8129,6 +8574,8 @@ function traitOfP(p) {
 }
 function traitOf(c) { return traitOfP(c.p); }
 let CRABD = null;   // the crab default's depart TABLE, compiled - null = lambdas
+let CRABCIV = null; // the crab default's civics STAKES, compiled - null = lambda
+let CRABELIG = null; // the crab default's ELIGIBILITY predicates, compiled - null = engine gates
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -8176,6 +8623,46 @@ function rebuildBrains() {
     if (why) console.error("crab depart table refused: " + why);
     else CRABD = departCompile(BUNDLED_CRAB_DEPART);
   }
+  // THE CRAB'S CIVICS STAKES, TRANSCRIBED (phase E4). platValue as a list of
+  // named term-programs, same bundle door, same validator discipline as a
+  // stranger's document, same lifecycle. The transcription is byte-equal to the
+  // coefficient lambda by the (crab, platform) grid sweep; the lambda remains
+  // the engine fallback, so a broken bundle costs a console error and a suite
+  // red, never a town.
+  CRABCIV = null;
+  if (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS) {
+    const why = stakesProblem(BUNDLED_CRAB_CIVICS);
+    if (why) console.error("crab civics stakes refused: " + why);
+    else CRABCIV = stakesCompile(BUNDLED_CRAB_CIVICS);
+  }
+  // THE CRAB'S FRANCHISE PREDICATES, TRANSCRIBED (phase E4 slice 4d). Same
+  // bundle door, same validator as a stranger's, same lifecycle. Byte-equal to
+  // the engine gates (stand=c.p.npc, vote=1) by the staged-election A/B; the
+  // inlined defaults in canStand/canVote remain the fallback, so a broken or
+  // undeclared eligibility section costs a console error and a suite red, never
+  // a town's ability to hold an election.
+  CRABELIG = null;
+  if (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS && BUNDLED_CRAB_CIVICS.eligibility) {
+    const why = eligProblem(BUNDLED_CRAB_CIVICS.eligibility);
+    if (why) console.error("crab eligibility refused: " + why);
+    else CRABELIG = eligCompile(BUNDLED_CRAB_CIVICS.eligibility);
+  }
+  // THE E5 DATA PLANES AND UPDATE DRIVER (phase E5, families 4 & 5). Loader-
+  // reset by construction: the planes clear here, and any prior e5.update hook
+  // is spliced out before a fresh one is (maybe) registered - so a reload never
+  // inherits a session's drift, and re-registering never trips the duplicate-id
+  // throw. The hook is registered ONLY if some built culture declares a drift
+  // or accept rule; with none declared (the shipped bundle: crab/pig/gull all
+  // declare nothing), HOOKS.settlementAggregate stays empty and the fire sites'
+  // length-guard skips - byte-identical, nothing allocated. Family 3's ramp
+  // needs no hook: it is a pure read wired into needLevel, inert by the same
+  // per-culture guard.
+  TASTE_DRIFT = {}; ACCEPT = {};
+  const i = HOOKS.settlementAggregate.findIndex(h => h.id === "e5.update");
+  if (i >= 0) HOOKS.settlementAggregate.splice(i, 1);
+  let anyRule = false;
+  for (const id in CULTURES) { const c = CULTURES[id]; if (c && (c.drift || c.accept)) { anyRule = true; break; } }
+  if (anyRule) registerHook("settlementAggregate", { id: "e5.update", fn: e5Settle });
 }
 // The build: pose art per colorway through the same parseArt/swap machinery
 // as sprites.js. Called only from loadCultures, i.e. only at load/import.
@@ -8237,6 +8724,16 @@ function buildCulture(def) {
   // cultureProblem, so departCompile cannot fail. Null when undeclared -
   // that culture's departures run the engine lambdas exactly as today.
   const departR = (def.depart && def.depart.rules) ? departCompile(def.depart) : null;
+  // A declared CIVICS section compiles once here (phase E4): validated by
+  // cultureProblem (stakesProblem), so stakesCompile cannot fail. Null when
+  // undeclared - that culture's voters score platforms on the engine's own
+  // lambda (platValue's CRABCIV/lambda fallback), byte-identical to today.
+  const civicsR = (def.civics && def.civics.stakes) ? stakesCompile(def.civics) : null;
+  // A declared ELIGIBILITY section (phase E4 slice 4d) compiles once here,
+  // validated by cultureProblem (eligProblem), so eligCompile cannot fail. Null
+  // when undeclared - that culture's voters fall to the engine's own franchise
+  // gates (canStand/canVote's c.p.npc / constant-1 defaults), byte-identical.
+  const eligR = (def.civics && def.civics.eligibility) ? eligCompile(def.civics.eligibility) : null;
   // DECLARED BUSINESSES, built once into the runtime catalog's own shape
   // (author dollars cross the x100 boundary here, like every other section)
   // but PENDING: no plot, no door, not in BIZ or BIZ_KEYS. When placement
@@ -8277,6 +8774,27 @@ function buildCulture(def) {
   const settlers = def.settlers
     ? { apron: !!def.settlers.apron, walkins: def.settlers.walkins != null ? def.settlers.walkins : 0 }
     : null;
+  // MANNER + STAY SHAPE (census C4+C5), built once into the crab constants'
+  // own units: px cross the Q8 boundary here, seconds become PQ patience,
+  // deciseconds become ticks (thinkDs*SEC exactly divides by 10: SEC is 20).
+  // Partial documents inherit crab values field by field; RIDES builds false
+  // regardless - the gate refused `true`, and a false in the table is the
+  // walk pin as data. Null when undeclared: mannerOf/arrivalOf hand back the
+  // engine object BY IDENTITY.
+  const mn = def.manner || null;
+  const manner = mn ? {
+    SPEED: mn.speed != null ? mn.speed : MANNER.SPEED,
+    STROLL: mn.stroll != null ? mn.stroll : MANNER.STROLL,
+    SPACEQ: mn.space != null ? mn.space * Q8 : MANNER.SPACEQ,
+    WMUL20: mn.walkMul20 != null ? mn.walkMul20 : 20,
+    RIDES: false,
+  } : null;
+  const arv = def.arrival || null;
+  const stay = arv && (arv.daytrip20 != null || arv.patienceSecs != null || arv.thinkDs != null) ? {
+    DT: arv.daytrip20 != null ? arv.daytrip20 / 20 : ARRIVE.DT,
+    PATQ: arv.patienceSecs != null ? arv.patienceSecs * PQ : ARRIVE.PATQ,
+    THINK: arv.thinkDs != null ? idiv(arv.thinkDs * SEC, 10) : ARRIVE.THINK,
+  } : null;
   // THE RHYTHM, converted once (census C1): author game-minutes at the
   // 30-minute grain ARE the engine's own unit, so this is inheritance, not
   // arithmetic - a partial document keeps crab values field by field, and the
@@ -8293,8 +8811,17 @@ function buildCulture(def) {
     } : RHYTHM.SS,
     HOURS: rh.hours ? { open: rh.hours.open, close: rh.hours.close } : RHYTHM.HOURS,
   } : null;
+  // THE E5 RULES, compiled once here (phase E5, validated by cultureProblem so
+  // the compiles cannot fail). Null when undeclared - and needLevel/tasteW/
+  // e5Settle all treat null as "today's behaviour", so a silent document is
+  // byte-inert by construction. urge keys by need (needLevel's O(1) lookup);
+  // drift/accept ride as arrays the settlement driver walks.
+  const urge = (def.appeal && def.appeal.urge) ? urgeCompile(def.appeal.urge) : null;
+  const drift = (def.appeal && def.appeal.drift) ? driftCompile(def.appeal.drift) : null;
+  const accept = def.accept ? acceptCompile(def.accept) : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, businesses: biz, settlers, phys, rhythm };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, civicsR, eligR, businesses: biz, settlers, phys, rhythm, urge, drift, accept,
+    manner, stay };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -8581,6 +9108,12 @@ function vline(k, id, fallback, slots) {
 function tasteW(k, recipe) {
   if (!k || !k.culture || k.culture === "crab" || !recipe) return 1;
   const cul = CULTURES[k.culture];
+  // FAMILY 4 (phase E5): a drifted taste weight, if this culture's drift rule
+  // has written one for this recipe into the data plane. Byte-neutral: the
+  // plane is empty for every culture that declares no drift (crab exits above,
+  // pig/gull declare none), so this falls through to the base exactly as today.
+  const dr = TASTE_DRIFT[k.culture];
+  if (dr && dr[recipe.id] != null) return dr[recipe.id] / 1000;
   const t = cul && cul.def.appeal && cul.def.appeal.tastes;
   const w = t && t[recipe.id];
   return typeof w === "number" ? w : 1;
@@ -8735,6 +9268,7 @@ function save(hold) {
   const lv = {}; for (const k in UPS) lv[k] = UPS[k].lvl;
   const env = {
     coins, lifetime, lv, day, tmin, lastRentDay, gameOver, memorials, rep, townCatch, t: nowMs(),   // (no `rate`: nothing accrues offline)
+    ...(Object.keys(repC).length ? { repc: { ...repC } } : {}),   // each people's own word (reputation pass); absent = nobody formed one
     bankrupt, credit: { bal: Math.round(credit.bal), warned: credit.warned },
     won, winRec,   // the ferry ending, snapshotted: a reloaded win reads identically
     // ONE WALLET (see defineTill). A save written before this kept a shop's
@@ -9132,6 +9666,13 @@ function load(slot, envIn) {
   if (Array.isArray(s.dayLog)) window.dayLog = s.dayLog;
   memorials = Array.isArray(s.memorials) ? s.memorials : [];
   if (typeof s.rep === "number") rep = s.rep;
+  // The word abroad: UNCONDITIONAL clear-then-fill (the loader-reset rule) -
+  // a scrubbed timeline must not carry another town's name around. Absent
+  // field = old save = nobody had formed an opinion yet.
+  repC = {};
+  if (s.repc && typeof s.repc === "object" && !Array.isArray(s.repc))
+    for (const cid in s.repc) if (typeof s.repc[cid] === "number" && isFinite(s.repc[cid]))
+      repC[cid] = Math.max(0, Math.min(100000, Math.round(s.repc[cid])));
   if (typeof s.townCatch === "number") townCatch = s.townCatch;
   for (const k in UPS) if (s.lv && s.lv[k] != null) UPS[k].lvl = s.lv[k];
   furnGen++;   // restored levels change bizTables' output
@@ -10178,9 +10719,11 @@ function convertTourist(k) {
   // A SETTLER KEEPS HERSELF (phase B): the culture, the face, the hat, the
   // name she came ashore with - PETUNIA who settles is still PETUNIA the
   // farmhand pig, and drawCrab reads her document's tables through p.culture.
-  // Mode pins to walk: the buggy art indexes crab colorways, and a pig at the
-  // wheel of a crab buggy is a crash, not a joke.
-  if (k.culture && k.culture !== "crab") { p2.culture = k.culture; p2.mode = "walk"; }
+  // The walk pin is DATA now (manner.rides, census C4): culRides answers
+  // false for every cultured people - the gate refuses `rides: true` until a
+  // culture-ride art seam exists, because the buggy art indexes crab
+  // colorways and a pig at the wheel of a crab buggy is a crash, not a joke.
+  if (k.culture && k.culture !== "crab") { p2.culture = k.culture; if (!culRides(k.culture)) p2.mode = "walk"; }
   p2.shift = hireShift(); p2.homeless = true; p2.house = null;
   const c = newCrab(p2);
   c.x = k.x; c.y = 166;
@@ -10469,9 +11012,193 @@ const DETOUR_SCALE = 400;   // px of added walking that halves a stop's appeal
 const DETOUR_MAX = 900;     // ~half the promenade: not before a shift, it can wait
 const DIRE = qn(0.9);           // this needy and geography stops mattering
 const CHAIN_PX = 260;       // a second stop this close beats walking home and back out
+// ------------------------------------------------------------ THE E5 MACHINERY
+// (cultureway phase E5, substrate §3 families 3-5.) THREE families of Layer-1
+// rule, shipped as MACHINERY WITH NO CONTENT: nothing in the bundle declares a
+// ramp, a drift curve or an acceptance update, so every fingerprint, matrix
+// number and scenario is UNCHANGED and a moved one is a BUG. Each family is
+// proven INVERTED - a declared curve handed to the engine IN A SCENARIO must
+// move a band, while the shipped bundle (which declares nothing) stays byte-
+// identical to today.
+//
+// FAMILY 3, URGENCY RAMP: an errand need-curve, host-capped BELOW survival.
+// The cap is HOST-SIDE, not trusted to the expression (substrate §3): the
+// engine constant below is the ceiling, the declared cap is refused if it
+// reaches it, and the runtime clamps to it regardless of what the program
+// computes. The ramp can only ADD urgency, never suppress a real need - so it
+// is civicUrge's "special trip" generalized, and it can never make a crab walk
+// off a survival need (max(base, cappedRamp) below).
+const HOST_URGE_CAP = DIRE - 1;   // one Q20 grain below survival: nobody rides a ramp off a shift
+const DRIFT_MIN = 100, DRIFT_MAX = 5000;   // family 4: milli-weight, 0.1x..5.0x, the appeal.tastes range
+const ACCEPT_MAX = 1000;                    // family 5: the culture-pair meter's ceiling
+// FAMILY 3 read bundle: the ramp reads the crab's raw need level and the minute
+// of the day - civicUrge's inputs, generalized. Order is the LD index space.
+const URGE_BUNDLE = [{ name: "base", min: 0, max: Q20 }, { name: "tmin", min: 0, max: 1439 }];
+// FAMILIES 4 & 5 read bundle: the settlementAggregate ctx projected as the
+// "exposures" of one lived stay, plus `prev` (the current plane value) so the
+// update rule is exactly weight' = f(weight, exposures). Order is the LD index.
+const SETTLE_BUNDLE = [
+  { name: "prev", min: 0, max: DRIFT_MAX },
+  { name: "buys", min: 0, max: 255 }, { name: "days", min: 0, max: 64 },
+  { name: "nights", min: 0, max: 64 }, { name: "delight", min: 0, max: 9999 },
+  { name: "purse", min: 1, max: 20000 }, { name: "left", min: 0, max: 20000 },
+];
+// THE DATA PLANES (families 4 & 5). Reset on load in rebuildBrains (loader-
+// reset, like BRAINS/CRABD). NOT serialized: a save-format key with no consumer
+// is non-byte-neutral surface, deferred to a content phase.
+let TASTE_DRIFT = {};   // cultureId -> { recipeId: milliWeight }
+let ACCEPT = {};        // cultureId -> { pairId: meter }
 function needLevel(c, need) {
-  return need === "food" ? (c.p.hunger || 0) : need === "drink" ? (c.p.thirst || 0)
+  const base = need === "food" ? (c.p.hunger || 0) : need === "drink" ? (c.p.thirst || 0)
     : need === "clean" ? (c.p.dirt || 0) : need === "vote" ? civicUrge(c) : (c.p.bored || 0);
+  // FAMILY 3 (phase E5): a cultured crab whose culture declares an urgency ramp
+  // on a registered errand serving THIS need runs the ramp. Crab-native short-
+  // circuits to base (byte-neutral, the tasteW/idleLines seam). needLevel is a
+  // PURE read - civicUrge and l1Run take no draws and fire no hooks - so value-
+  // equality IS behavioural equality and the ramp adds no side effect a second
+  // path could skip (the E3 lesson). The ramp reshapes the SCORING urgency
+  // only, never the stored need, and can only RAISE it (max below), host-capped
+  // BELOW survival - so it can never suppress a real need or ride a crab off a
+  // shift, whatever the expression computes.
+  const cul = c && c.p && c.p.culture && c.p.culture !== "crab" && CULTURES[c.p.culture];
+  const r = cul && cul.urge && cul.urge[need];
+  if (!r) return base;
+  const b = base < 0 ? 0 : base > Q20 ? Q20 : base;   // clamp to the declared LD range, the departReads discipline
+  const v = l1Run(r.code, [b, tmin]);
+  const capped = v < 0 ? 0 : v > r.cap ? r.cap : v;   // host-side: the engine ceiling, not the expression
+  return base > capped ? base : capped;
+}
+// FAMILY 3 validator: every refusal NAMED, the registerErrand/cultureProblem
+// voice. A ramp ATTACHES to a registered errand (the phase-D registry is the
+// id space) and its cap is HOST-CAPPED below survival - a declared cap that
+// reaches the ceiling is refused here, by name, before anything runs.
+function urgeProblem(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "AN URGE TABLE WITH NO RAMPS";
+  const seen = {}, seenNeed = {};
+  for (const u of arr) {
+    if (!u || typeof u !== "object" || Array.isArray(u)) return "A BAD URGE RAMP";
+    if (typeof u.errand !== "string") return "A RAMP WITH NO ERRAND";
+    const e = ERRANDS.find(x => x.id === u.errand);
+    if (!e) return "A RAMP ON AN UNREGISTERED ERRAND: " + u.errand;
+    if (seen[u.errand]) return "A RAMP TWICE: " + u.errand;
+    seen[u.errand] = 1;
+    // one need has one urgency, so one curve: two ramps on the same need is
+    // ambiguous data, the vacuous-declaration trap - refused by name, not
+    // silently dropped by the need-keying in urgeCompile.
+    if (seenNeed[e.need]) return "TWO RAMPS FOR THE SAME NEED: " + e.need;
+    seenNeed[e.need] = 1;
+    if (!Number.isInteger(u.cap) || u.cap < 0) return "RAMP " + u.errand + " HAS A BAD CAP";
+    if (u.cap > HOST_URGE_CAP) return "RAMP " + u.errand + " CAP AT/ABOVE SURVIVAL";
+    const a = l1Assemble(u.prog, URGE_BUNDLE);
+    if (a.why) return "RAMP " + u.errand + ": " + a.why;
+  }
+  return null;
+}
+// FAMILY 4 validator: a drift rule updates one recipe's taste weight from the
+// stay's exposures. Host floor/cap inside DRIFT_MIN..DRIFT_MAX (belt to the
+// runtime clamp's suspenders); every refusal named.
+function driftProblem(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "A DRIFT TABLE WITH NO RULES";
+  const seen = {};
+  for (const d of arr) {
+    if (!d || typeof d !== "object" || Array.isArray(d)) return "A BAD DRIFT RULE";
+    if (typeof d.recipe !== "string" || !d.recipe.length) return "A DRIFT RULE WITH NO RECIPE";
+    if (seen[d.recipe]) return "A DRIFT RULE TWICE: " + d.recipe;
+    seen[d.recipe] = 1;
+    if (!Number.isInteger(d.floor) || !Number.isInteger(d.cap) || d.floor > d.cap)
+      return "DRIFT " + d.recipe + " HAS A BAD FLOOR/CAP";
+    if (d.floor < DRIFT_MIN || d.cap > DRIFT_MAX)
+      return "DRIFT " + d.recipe + " CAP OUTSIDE " + DRIFT_MIN + ".." + DRIFT_MAX;
+    const a = l1Assemble(d.prog, SETTLE_BUNDLE);
+    if (a.why) return "DRIFT " + d.recipe + ": " + a.why;
+  }
+  return null;
+}
+// FAMILY 5 validator: an acceptance rule updates a town-level meter per culture
+// pair. Base and cap inside 0..ACCEPT_MAX; every refusal named.
+function acceptProblem(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "AN ACCEPT TABLE WITH NO RULES";
+  const seen = {};
+  for (const a of arr) {
+    if (!a || typeof a !== "object" || Array.isArray(a)) return "A BAD ACCEPT RULE";
+    if (typeof a.pair !== "string" || !a.pair.length) return "AN ACCEPT RULE WITH NO PAIR";
+    if (seen[a.pair]) return "AN ACCEPT RULE TWICE: " + a.pair;
+    seen[a.pair] = 1;
+    if (!Number.isInteger(a.base) || a.base < 0 || a.base > ACCEPT_MAX) return "ACCEPT " + a.pair + " HAS A BAD BASE";
+    if (!Number.isInteger(a.cap) || a.cap < 0 || a.cap > ACCEPT_MAX) return "ACCEPT " + a.pair + " HAS A BAD CAP";
+    const p = l1Assemble(a.prog, SETTLE_BUNDLE);
+    if (p.why) return "ACCEPT " + a.pair + ": " + p.why;
+  }
+  return null;
+}
+// Compile VALIDATED tables to run form. urgeCompile keys by NEED (needLevel
+// looks up by need in O(1)); the cap is host-floored here too, so the runtime
+// never trusts the declaration alone.
+function urgeCompile(arr) {
+  const out = {};
+  for (const u of arr) {
+    const e = ERRANDS.find(x => x.id === u.errand);
+    out[e.need] = { errand: u.errand, need: e.need,
+      cap: Math.min(u.cap, HOST_URGE_CAP), code: l1Assemble(u.prog, URGE_BUNDLE).code };
+  }
+  return out;
+}
+function driftCompile(arr) {
+  return arr.map(d => ({ recipe: d.recipe, floor: d.floor, cap: d.cap,
+    code: l1Assemble(d.prog, SETTLE_BUNDLE).code }));
+}
+function acceptCompile(arr) {
+  return arr.map(a => ({ pair: a.pair, base: a.base, cap: a.cap,
+    code: l1Assemble(a.prog, SETTLE_BUNDLE).code }));
+}
+// A culture's declared base taste for a recipe, in milli - the value a drift
+// rule departs from on the first settlement (else 1.0x = 1000).
+function e5BaseMilli(cul, recipe) {
+  const t = cul.def.appeal && cul.def.appeal.tastes;
+  const w = t && t[recipe];
+  return typeof w === "number" ? Math.round(w * 1000) : 1000;
+}
+// THE UPDATE DRIVER (families 4 & 5). Registered as a SINGLE settlementAggregate
+// hook in rebuildBrains iff some culture declares a rule, so a hookless town
+// allocates nothing and stays byte-identical (the phase-D guarded dispatch).
+// Runs the declaring culture's drift + accept programs over one stay's
+// exposures and writes the data planes, each output host-clamped - the mutation
+// verb the phase-D contract deferred to "Layer-1's fuel-counted bytecode".
+function e5Settle(ctx) {
+  const cul = CULTURES[ctx.culture];
+  if (!cul) return;   // the crab default carries no document; a crab never drifts
+  // The exposures are CLAMPED to the SETTLE_BUNDLE ranges the validator proved
+  // its static magnitude bound against - the departReads/platReads discipline:
+  // a live stay longer or richer than the declared range is bent to the range,
+  // never fed past it, so the 2^52 bound the validator promised is an honest
+  // guarantee and not an assumption. `prev` (slot 0) is set per rule below and
+  // is already in range by construction (each write is host-clamped).
+  const clamp = (v, i) => { const b = SETTLE_BUNDLE[i]; v = Math.round(v || 0); return v < b.min ? b.min : v > b.max ? b.max : v; };
+  const exp = [0, clamp(ctx.buys, 1), clamp(ctx.days, 2), clamp(ctx.nights, 3),
+    clamp(ctx.delight, 4), clamp(ctx.purse, 5), clamp(ctx.left, 6)];
+  if (cul.drift) for (const d of cul.drift) {
+    const cur = TASTE_DRIFT[ctx.culture] && TASTE_DRIFT[ctx.culture][d.recipe];
+    exp[0] = cur != null ? cur : e5BaseMilli(cul, d.recipe);
+    let v = l1Run(d.code, exp);
+    v = v < d.floor ? d.floor : v > d.cap ? d.cap : v;              // the declared band
+    v = v < DRIFT_MIN ? DRIFT_MIN : v > DRIFT_MAX ? DRIFT_MAX : v;  // the host band, not trusted to the expression
+    (TASTE_DRIFT[ctx.culture] = TASTE_DRIFT[ctx.culture] || {})[d.recipe] = v;
+  }
+  if (cul.accept) for (const a of cul.accept) {
+    const cur = ACCEPT[ctx.culture] && ACCEPT[ctx.culture][a.pair];
+    exp[0] = cur != null ? cur : a.base;
+    let v = l1Run(a.code, exp);
+    v = v < 0 ? 0 : v > a.cap ? a.cap : v;                          // the declared band
+    v = v > ACCEPT_MAX ? ACCEPT_MAX : v;                            // the host ceiling
+    (ACCEPT[ctx.culture] = ACCEPT[ctx.culture] || {})[a.pair] = v;
+  }
+}
+// FAMILY 5 accessor: the culture-pair acceptance meter, or null. No live
+// consumer this phase (ruling 5: a declared option CAN be exercised, need not
+// BE) - the scenario reads the plane the rule wrote.
+function acceptOf(cu, pair) {
+  const m = ACCEPT[cu];
+  return m && m[pair] != null ? m[pair] : null;
 }
 // where this trip ends no matter what: the job while a shift is still coming
 // (or under way), home the rest of the time
@@ -10848,7 +11575,10 @@ registerErrand({ id: "soup", need: "food", kind: "post", gather: (c, take, X) =>
   // Both tables are offered and the detour score picks the near one - the
   // identical shape the two standpipes use, three blocks up.
 registerErrand({ id: "vote", need: "vote", kind: "post", gather: (c, take, X) => {
-  if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
+  // canVote is the family-2 franchise predicate (crab: constant 1 - every
+  // resident votes; the visitor is excluded structurally, not here). The rest
+  // is timing/state, unchanged: polls open, not already voted, off the clock.
+  if (canVote(c) && pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
 } });
 registerErrand({ id: "fun.arcade", need: "fun", kind: "biz", gather: (c, take, X) => {
@@ -10965,6 +11695,7 @@ function updateSelfCook(c, dt) {
 }
 function startErrand(c, e) {
   c.dsC = DS.toErrand; c.errandBiz = e.biz; c.errand = e;
+  c.rethinkT = VIS_RETHINK;   // interruptible commitment: the walk reconsiders on the slow clock
   c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.errand);   // errand legwork tires, a little
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
@@ -11117,6 +11848,38 @@ function afterErrand(c, chain) {
 }
 function updateErrand(c, dt) {
   if (c.dsC === DS.toErrand) {
+    // INTERRUPTIBLE COMMITMENT: mid-walk, the same re-think the visitors get.
+    // pickErrand is the whole dispatch (rails, brain seam, shadow tallies all
+    // inside it - untouched); errandScore's exact rationals are the judge,
+    // 4*new > 5*cur cross-multiplied. Nothing has joined a line yet, so a
+    // switch is just a fresh start toward the better plan - and this is the
+    // DIRE door: a crab who goes desperate mid-walk switches through plain
+    // scoring, because errandScore's desperate branch dwarfs every errand.
+    if (!window._norethink) {
+      c.rethinkT = (c.rethinkT == null ? VIS_RETHINK : c.rethinkT) - dtT;
+      if (c.rethinkT <= 0) {
+        c.rethinkT = VIS_RETHINK;
+        const e2 = pickErrand(c);
+        if (e2 && !(e2.biz === c.errand.biz && e2.need === c.errand.need
+            && !e2.ball && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
+          const s2 = errandScore(c, e2), s1 = errandScore(c, c.errand);
+          if (ratGt(4 * s2.n, s2.d, 5 * s1.n, s1.d)) {
+            if (window._stats) {
+              window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+              window._stats.rethinkCit = (window._stats.rethinkCit || 0) + 1;
+              if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
+                { day, tmin, who: c.p.name, from: c.errand.biz + ":" + (c.errand.need || "?"),
+                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
+            }
+            if (e2.selfCook) startSelfCook(c, e2);
+            else if (e2.ball) startBallStop(c);
+            else if (e2.vote || e2.soup || e2.tap != null) startTapStop(c, e2);
+            else startErrand(c, e2);
+            return;
+          }
+        }
+      }
+    }
     // THE LINE IS ALIVE WHILE YOU WALK TO IT. startErrand aims at the back of
     // the line as it stood when the crab set off; three guests can form up in
     // the time it takes to cross the promenade, and a fixed aim then lands the
@@ -12331,7 +13094,7 @@ function serve(c) {
     // table delivery: payment + benefits as usual, then straight to dining
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100000, rep + 800);   // table service impresses
+    if (!cust.isCrab) repAdd(cust.culture, 800);   // table service impresses - she tells HER people
     cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
@@ -12352,7 +13115,7 @@ function serve(c) {
   if (cust && cust.stC === VS.waiting) {
     payAndBenefit(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
-    if (!cust.isCrab) rep = Math.min(100000, rep + 400);
+    if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
     const seat = tables ? pickSeat(tables, cust) : null;
     const stall = stalls ? stalls.find(t => !t.occupant && !t.dirty) : null;
@@ -12486,6 +13249,12 @@ const VIS_SPEED = 42;            // a stroll: a shade under a walking crab's 40 
 // $9 table tip and put rage 62% above the pre-pass build.
 const VIS_PATIENCE = 100;
 const VIS_THINK = 1.6 * SEC;     // real seconds between "what do I fancy" checks
+// INTERRUPTIBLE COMMITMENT (Matt, 2026-08-23): a committed visitor - walking
+// to a shop, or standing unclaimed in its line - reconsiders on a SLOWER
+// clock than a loafer. Commitment deserves inertia; it no longer deserves
+// blindness. SEAM: the manner design's arrival.thinkDs is the culture knob
+// for this cadence; until that section merges, the constant is the engine's.
+const VIS_RETHINK = 5 * SEC;
 // needs per GAME HOUR while awake. Pitched off the crabs' own cycle but a
 // little gentler: a visitor is not working a shift, and a visitor who needed
 // something every hour would simply queue all day.
@@ -12641,6 +13410,39 @@ const VIS_DAYTRIP = 0.60;        // share of every boat BUT THE LAST who go home
                                  // this and FERRY_LOAD it is what sizes the hotel's demand.
                                  // (the afternoon boat is overnighters by construction -
                                  //  there is no later sailing for them to catch)
+// MANNER + STAY SHAPE (cultureway census C4+C5, design/cs35-manner.md): how a
+// people carries itself through a visit, and how long it stays. The crab
+// tables below ARE the engine constants above, held by identity - the
+// behavior-neutral guarantee is `===`, not field equality, exactly as NUDGE
+// and MGMT before them. VIS_ROAM is deliberately NOT here: the promenade is
+// the town's geography, not a culture's manner.
+const MANNER = { SPEED: VIS_SPEED, STROLL: VIS_STROLL, SPACEQ: VSEP_RXQ, WMUL20: 20, RIDES: true };
+// which manner governs this actor: their culture's, if it declared one, else
+// the crab table. Serves both homes (a strolling GUEST at k.culture, a
+// settled WORKER at c.p.culture) - the mgmtOf lesson.
+function mannerOf(k) {
+  const id = k && (k.culture || (k.p && k.p.culture));
+  const cul = id && id !== "crab" ? CULTURES[id] : null;
+  return (cul && cul.manner) || MANNER;
+}
+// may this people take the wheel? Crab: yes (their art owns the buggy rack).
+// A cultured people: only if their document says so - and the gate refuses
+// `rides: true` until a culture-ride art seam exists, so today this is
+// always false for them: the settlers walk pin, as data instead of code.
+function culRides(id) {
+  if (!id || id === "crab") return true;
+  const cul = CULTURES[id];
+  return !!(cul && cul.manner && cul.manner.RIDES);
+}
+// stay shape: the daytrip share, the patience, the think cadence. DT stays
+// the double the roll compares against (a declared 12/20 computes to the
+// same double as the crab's 0.60 literal); PATQ and THINK are prebuilt in
+// the countdown's own units so the hot path never converts.
+const ARRIVE = { DT: VIS_DAYTRIP, PATQ: VIS_PATIENCE * PQ, THINK: VIS_THINK };
+function arrivalOf(k) {
+  const cul = k && k.culture && k.culture !== "crab" ? CULTURES[k.culture] : null;
+  return (cul && cul.stay) || ARRIVE;
+}
 const SAND_SPOTS = [600, 1160, 1590, 1836, 2110];   // where a visitor with no room beds down
 const VIS_LOG_MAX = 24;          // a visit is short; the diary is shorter than a crab's
 function visLog(k, cat, line) {
@@ -12663,14 +13465,33 @@ function freeVisitorName(pool) {
   if (!free.length) return pool[(srand() * pool.length) | 0];
   return free[(srand() * free.length) | 0];
 }
-// STATUS BARS IN VARIOUS CONDITIONS (the directive's own words). Everybody
-// comes off the boat with a low baseline and ONE OR TWO needs genuinely
-// pressing, which is what makes a batch legible from the pier: this one is
-// starving, that one has been on a boat all morning and wants a wash.
+// THE BOAT RIDE IS PART OF THE STAY (Matt, 2026-08-23: "they should come in
+// some semi sane initilized state and have same stats as citizens"). Arrival
+// anchors to the band the town's own crabs are hired at (qn(0.1)-qn(0.3),
+// the persona literals above newCrab): the crossing makes a body hungry,
+// thirsty and a little bored; nobody boards filthy. The old floor was
+// qn(0.08) for everything - a tourist stepped off a three-hour ferry less
+// worn than a local waking up. ONE OR TWO needs still land genuinely
+// pressing (the LOADED mechanic, unchanged), which is what keeps a batch
+// legible from the pier: this one is starving, that one wants a wash.
+// Draw discipline: same draw count, same order, same sites as the old form -
+// only the authored constants moved, so every draw-count pin holds.
+// A culture's own arrival init is a natural future `body` field; this table
+// is the dispatch point when that day comes.
+const VIS_ARRIVE = {                       // [floor, span], Q20 at the boundary
+  hunger: [qn(0.25), qn(0.30)],            // the ride was long
+  thirst: [qn(0.30), qn(0.30)],            // sea air
+  dirt:   [qn(0.10), qn(0.20)],            // they washed for the trip
+  bored:  [qn(0.20), qn(0.30)],            // a ferry is a bench
+  tired:  [qn(0.10), qn(0.25)],            // depends who slept aboard
+};
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
-  for (const key of keys) n[key] = qn(0.08) + Math.floor(srand() * qn(0.32));
+  for (const key of keys) {
+    const a = VIS_ARRIVE[key];
+    n[key] = a[0] + Math.floor(srand() * a[1]);
+  }
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
@@ -12683,8 +13504,12 @@ function newVisitor(overnightOnly, cu) {
   // crab path below is byte-for-byte the pre-cultures code, and either branch
   // consumes the SAME number of srand() draws in the same order.
   const cul = cu && cu !== "crab" && CULTURES[cu] ? CULTURES[cu] : null;
+  // stay shape reads the culture's table (crab: ARRIVE, the same constants by
+  // identity - A.DT IS VIS_DAYTRIP, so the roll below is the pre-manner
+  // compare to the bit). Same draws either way.
+  const A = (cul && cul.stay) || ARRIVE;
   const nights = overnightOnly ? (srand() < 0.80 ? 1 : 2)
-    : srand() < VIS_DAYTRIP ? 0 : srand() < 0.78 ? 1 : 2;
+    : srand() < A.DT ? 0 : srand() < 0.78 ? 1 : 2;
   const n = visNeeds();
   // THE PURSE. A day-tripper brings lunch money; somebody staying two nights
   // brings two nights' worth plus the room. A third of the boat is FLUSH and a
@@ -12711,12 +13536,12 @@ function newVisitor(overnightOnly, cu) {
     // the shop pipeline's own fields, dormant until they join a line
     // (patience/table/stall are PLANE fields now - set through the accessors
     // below the attach, never in the literal: an own property shadows)
-    biz: null, recipe: null, maxPatience: VIS_PATIENCE * PQ,
+    biz: null, recipe: null, maxPatience: A.PATQ,
     claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
     nights, nightsHad: 0, rough: false, roughNights: 0, unhoused: 0,
-    arrived: day, leaveT, room: null, buys: 0, thinkT: srand() * VIS_THINK,
+    arrived: day, leaveT, room: null, buys: 0, thinkT: srand() * A.THINK,
     idleT: 0, target: null, log: [],
     // the visit's own ledger, minted with the purse - see THE DEPARTURE CARD
     stay: newStay(), qJoin: null,
@@ -12726,7 +13551,7 @@ function newVisitor(overnightOnly, cu) {
   // property in the literal above would shadow the doors (lesson #1)
   v.stC = VS.ashore;
   v.hunger = n.hunger; v.thirst = n.thirst; v.dirt = n.dirt; v.bored = n.bored; v.tired = n.tired;
-  v.patience = VIS_PATIENCE * PQ; v.table = null; v.stall = null;
+  v.patience = A.PATQ; v.table = null; v.stall = null;
   v.x = FERRY.gangway; v.y = FERRY.deckY; v.wy = FERRY.deckY;
   // THE CLASS AND ITS MONEY (CS3.5 step 4): the register bound to the rolled
   // accessory carries a purse multiplier - strawhat farmhands land lighter
@@ -12791,11 +13616,21 @@ function seedVisitors() {
 function cultureRolls(cul, rand) {
   const ar = cul.def.arrival || {};
   const gateM = 1000 * (ar.repGate != null ? ar.repGate : 80);
-  if (rep <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
+  // WHOSE WORD OPENS THE GATE (reputation pass): a pig boards because PIGS
+  // say the town is good - her own people's word - or on hearsay: the crabs'
+  // word at a discount, which is how the first pig ever hears of the place.
+  // BAD NEWS BEATS HEARSAY: a people whose own word has gone below baseline
+  // is not talked back aboard by crab enthusiasm - a town the pigs soured on
+  // stays shut to pigs even at crab 100, until pig experiences mend it (the
+  // spill is how; it just takes time). Good news merely competes.
+  const own = repC[cul.def.meta && cul.def.meta.id];
+  const heard = (own != null && own < 30000) ? own
+    : Math.max(own != null ? own : 30000, rep - REP_HEARSAY);
+  if (heard <= gateM) return false;   // gate shut: NO draw - a pre-cultures town sails byte-identical forever
   const rampM = 1000 * (ar.shareRamp > 0 ? ar.shareRamp : 80);
   const cap = ar.shareMax != null ? ar.shareMax : 0.25;
   const draw = rand();
-  return draw < cap && draw * rampM < rep - gateM;
+  return draw < cap && draw * rampM < heard - gateM;
 }
 function ferryCulture() {
   for (const id in CULTURES) {
@@ -12881,7 +13716,9 @@ function nearestSail(want) {
 // how long this visitor needs to reach the boat from where they are standing,
 // in game minutes, with a little slack for the queue at the plank
 function visWalkMins(k) {
-  return Math.abs(k.x - FERRY.gangway) / VIS_SPEED * TS + 25;
+  // the ETA divides by the SAME dispatched speed the stepper walks at, or a
+  // slow culture misses boats the sign promised (the design doc's named trap)
+  return Math.abs(k.x - FERRY.gangway) / mannerOf(k).SPEED * TS + 25;
 }
 // WHO IS GOING HOME ON THIS ONE - and, just as importantly, WHEN THEY SET OFF.
 // `minsLeft` is how long until she sails; a guest leaves when the walk needs
@@ -12959,7 +13796,7 @@ function visBoard(k) {
   // collapsed to 43 by day 5, which shrank the boat, which shrank the takings.
   // What ships is the one thing a player can actually fix.
   const rough = k.roughNights > 0;
-  rep = Math.max(0, Math.min(100000, rep + (rough ? -1200 : k.buys >= 2 ? 500 : 0)));
+  repAdd(k.culture, rough ? -1200 : k.buys >= 2 ? 500 : 0);
   if (window._stats) {
     const s = window._stats;
     s.visDepart = (s.visDepart || 0) + 1;
@@ -13065,6 +13902,11 @@ function sleepOnSand(k) {
   if (!k.roughFlag) {
     k.roughFlag = true; k.roughNights++;
     k.unhoused++;
+    // THE SINK THE SYSTEM NEVER HAD (reputation pass): a guest on the sand
+    // goes home and TELLS PEOPLE - her own people, tonight, per night, not a
+    // flat once-per-visit note at the gangway. This is the line that makes
+    // "tons of homeless tourists and a 100 rep" arithmetically impossible.
+    repAdd(k.culture, -(REP_ROUGH + REP_UNHOUSED));
     // Asked HERE, because this is the only frame in which the answer exists.
     // The order is the order of the FIXES: a guest who could not raise the
     // board price was never the hotel's to lose, a dark desk is hours and
@@ -13209,39 +14051,47 @@ function visCandidates(k) {
     cand.push({ biz: "hotel", need: "room", recipe: BIZ.hotel.recipes[0] });
   return cand;
 }
+// ONE CANDIDATE'S WORTH, on visPick's own books. Extracted so the picker and
+// the re-think judge (interruptible commitment) read the same valuation - a
+// switch mid-walk is priced by exactly the arithmetic that priced the
+// original choice, term for term.
+function visScoreOne(k, e) {
+  const d = Math.abs(k.x - BIZ[e.biz].queueX);
+  let s;
+  if (e.need === "room") {
+    // IN NEED UNITS, like every other candidate below (slice 3): the room
+    // is scored against needs, so it rides the same Q20 scale or a bed can
+    // never outrank a taco again.
+    if (tmin >= ROOM_HOUR) s = 99 * Q20;   // the desk shuts before the town does: go now, wherever you are
+    else s = (ROOM_RANK * Q20 + Math.floor(ROOM_URGE * Q20
+      * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60)))))
+      / (1 + d / DETOUR_SCALE);
+  } else {
+    // THE BOARD PRICE MOVES THE SHARE. The retired spawn timer carried the
+    // price war in its weights (`bizPull` = pull x priceAppeal); the demand
+    // model that replaced it chooses by NEED and DISTANCE, so without this
+    // term a rival could cut her price all day and take nothing off the shop
+    // next door - and the rivalry that ships with it measures exactly that.
+    // It is zero sum by construction now: the boat decides HOW MANY guests
+    // land, this decides WHOSE door they walk through. priceAppeal is
+    // exactly 1 at the default price, so a town nobody has repriced behaves
+    // bit-identically.
+    s = (VIS_RANK[e.need] * Q20 + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
+  }
+  // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
+  // its picked recipe, so the weight is a straight lookup. Guarded so a
+  // crab's scoring floats are never multiplied - not even by 1.
+  if (k.culture && k.culture !== "crab" && e.recipe) {
+    const tw = tasteW(k, e.recipe);
+    if (tw !== 1) s *= tw;
+  }
+  return s;
+}
 function visPick(k) {
   const cand = visCandidates(k);
   let best = null, bestScore = 0;
   for (const e of cand) {
-    const d = Math.abs(k.x - BIZ[e.biz].queueX);
-    let s;
-    if (e.need === "room") {
-      // IN NEED UNITS, like every other candidate below (slice 3): the room
-      // is scored against needs, so it rides the same Q20 scale or a bed can
-      // never outrank a taco again.
-      if (tmin >= ROOM_HOUR) s = 99 * Q20;   // the desk shuts before the town does: go now, wherever you are
-      else s = (ROOM_RANK * Q20 + Math.floor(ROOM_URGE * Q20
-        * Math.min(1, Math.max(0, (tmin - 9 * 60) / (ROOM_HOUR - 9 * 60)))))
-        / (1 + d / DETOUR_SCALE);
-    } else {
-      // THE BOARD PRICE MOVES THE SHARE. The retired spawn timer carried the
-      // price war in its weights (`bizPull` = pull x priceAppeal); the demand
-      // model that replaced it chooses by NEED and DISTANCE, so without this
-      // term a rival could cut her price all day and take nothing off the shop
-      // next door - and the rivalry that ships with it measures exactly that.
-      // It is zero sum by construction now: the boat decides HOW MANY guests
-      // land, this decides WHOSE door they walk through. priceAppeal is
-      // exactly 1 at the default price, so a town nobody has repriced behaves
-      // bit-identically.
-      s = (VIS_RANK[e.need] * Q20 + visLevel(k, e.need)) * priceAppeal(e.biz) / (1 + d / DETOUR_SCALE);
-    }
-    // CULTURAL TASTE MOVES THE SCORE (CS3.5): the candidate already carries
-    // its picked recipe, so the weight is a straight lookup. Guarded so a
-    // crab's scoring floats are never multiplied - not even by 1.
-    if (k.culture && k.culture !== "crab" && e.recipe) {
-      const tw = tasteW(k, e.recipe);
-      if (tw !== 1) s *= tw;
-    }
+    const s = visScoreOne(k, e);
     if (s > bestScore) { bestScore = s; best = e; }
   }
   return visSettle(k, best);
@@ -13474,6 +14324,51 @@ function visGo(k, e) {
   k.biz = e.biz; k.recipe = e.recipe; k.need = e.need;
   k.stC = VS.toBiz; k.target = BIZ[e.biz].queueX + 46;
   k.claimed = false; k.served = false; k.happy = false; k.server = null;
+  k.thinkT = VIS_RETHINK;   // the commitment clock: slower than roam, never blind
+}
+// A CHANGE OF MIND IS NOT A WALKOUT (interruptible commitment). The wait she
+// actually stood is banked - it was real - but no quit is stamped and the
+// card says nothing: she left for a better plan, not in disgust. The held
+// room releases on visAfterCounter's exact condition, the pipeline fields
+// clear, and queue membership evaporates with the state (a line is derived
+// from who is standing in it; a later rejoin takes a fresh ticket).
+function visAbandon(k) {
+  stayWait(k);   // no-op unless a line stamped qJoin
+  if (!k.served && k.biz === "hotel" && k.room) { k.room.occupant = null; k.room = null; }
+  k.biz = null; k.recipe = null; k.need = null;
+  k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
+  k.target = null; k.y = FLOOR_Y; k.wy = FLOOR_Y;
+}
+// THE RE-THINK. The decider that owns the surface proposes (the same WHO
+// DECIDES dispatch as roam - live brain, kernel, or script, shadow watching);
+// the REFERENCE SCORER judges. A switch happens only when the challenger
+// beats the incumbent by a quarter - 4*new > 5*cur, one rule for every
+// decider, because whether a mid-course correction is worth the sunk walk is
+// an economic question priced the same for everyone. Geometry already backs
+// the incumbent: scores divide by detour, and hers shrinks with every step.
+function visRethink(k) {
+  if (window._norethink) return false;   // the arm-off hatch, attribution's friend
+  const bpol = BRAINS[k.culture || "crab"];
+  const bp = bpol && bpol["vis_pick.candidate"];
+  let e;
+  if (bp && bp.mode === "live") e = brainVisPick(k, bp);
+  else {
+    e = KERN ? kernelVisPick(k) : visPick(k);
+    if (bp && bp.mode === "shadow") shadowObserve(k, bp, e);
+  }
+  if (!e) return false;
+  if (e.biz === k.biz && e.need === k.need) return false;   // same plan: hold course
+  if (!(4 * visScoreOne(k, e) > 5 * visScoreOne(k, { biz: k.biz, need: k.need, recipe: k.recipe })))
+    return false;
+  if (window._stats) {
+    window._stats.rethinkSwitch = (window._stats.rethinkSwitch || 0) + 1;
+    window._stats.rethinkVis = (window._stats.rethinkVis || 0) + 1;
+    if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
+      { day, tmin, who: k.name, from: k.biz + ":" + k.need, to: e.biz + ":" + e.need, inLine: inLine(k) };
+  }
+  visAbandon(k);
+  visGo(k, e);
+  return true;
 }
 // ---- MOVEMENT + THE DAY ----------------------------------------------------
 function visStep(k, tx, ty, dt) {
@@ -13486,12 +14381,12 @@ function visStep(k, tx, ty, dt) {
     // only consumer - a mover this frame is exempt from personal space.
     const x0 = PXQ[i], y0 = PWYQ[i];
     const kr = KERN.exports.vis_step(i, Math.round(tx * Q8),
-      ty == null ? PWYQ[i] : Math.round(ty * Q8), dtT);
+      ty == null ? PWYQ[i] : Math.round(ty * Q8), mannerOf(k).SPEED, dtT);
     if (kr & 2) k.face = (kr & 4) ? -1 : 1;
     if (PXQ[i] !== x0 || PWYQ[i] !== y0) k._vmoved = true;
     return !!(kr & 1);
   }
-  const spq = idiv(VIS_SPEED * Q8 * dtT, TICK_HZ);
+  const spq = idiv(mannerOf(k).SPEED * Q8 * dtT, TICK_HZ);
   const txq = Math.round(tx * Q8), tyq = ty == null ? PWYQ[i] : Math.round(ty * Q8);
   const dxq = txq - PXQ[i], dyq = tyq - PWYQ[i];
   if (dxq > Q8 || dxq < -Q8) { PXQ[i] += Math.sign(dxq) * Math.min(spq, Math.abs(dxq)); k.face = Math.sign(dxq); k._vmoved = true; }
@@ -13502,6 +14397,16 @@ function visStep(k, tx, ty, dt) {
 // whatever state they are in, so a visitor stood in a queue still gets hungry
 let _ktMist = 0, _ktDrain = 0;   // vis_tick's per-frame args, set by updateCustomers when armed
 function visTick(k, dt) {
+  // INTERRUPTIBLE COMMITMENT, the line's half: an UNCLAIMED tourist in line
+  // reconsiders on the slow clock. It lives HERE - not in the queue shuffle -
+  // because visTick is the one per-visitor call BOTH backends make every
+  // frame; under the kernel the queue states belong to cust_step, and a
+  // JS-only exit forks the stream (measured before this moved: day 1 drew
+  // 3063 under wasm against 1861 in the reference).
+  if (k.visitor && k.stC === VS.waiting && !k.claimed && !k.gone) {
+    k.thinkT -= dtT;
+    if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; visRethink(k); }
+  }
   if (KERN) {   // the compiled body; the JS below stays the reference
     const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain, bodyOf(k).ROW);
     // the object side drains IN PLACE, exactly where the reference did it:
@@ -13585,9 +14490,13 @@ function updateVisitor(k, dt) {
   if (k.stC === VS.onSand) { visStep(k, k.target == null ? k.x : k.target, FLOOR_Y, dt); return; }
   if (k.stC === VS.toBiz) {
     if (!visOpen(k.biz)) { k.stC = VS.roam; k.biz = null; k.target = null; return; }
+    // INTERRUPTIBLE COMMITMENT: mid-walk, on the slow clock. A switch aims
+    // her at the new counter this same tick; the old plan releases cleanly.
+    k.thinkT -= dtT;
+    if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; if (visRethink(k)) return; }
     if (!visStep(k, k.target, FLOOR_Y, dt)) return;
     if (!visRoomFor(k, k.biz)) {   // the line filled while they walked: come back later
-      k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = VIS_THINK * 4;
+      k.stC = VS.roam; k.biz = null; k.target = null; k.thinkT = arrivalOf(k).THINK * 4;
       return;
     }
     k.stC = VS.arriving; k.spawnXQ = Math.round(k.x * Q8); k.y = FLOOR_Y;
@@ -13595,7 +14504,8 @@ function updateVisitor(k, dt) {
     // five different y values reads as a huddle however even the spacing is.
     // Everybody in a line stands ON the boardwalk line.
     k.wy = FLOOR_Y;
-    k.patience = VIS_PATIENCE * PQ; k.maxPatience = VIS_PATIENCE * PQ;
+    const patq = arrivalOf(k).PATQ;
+    k.patience = patq; k.maxPatience = patq;
     queueJoin(k);   // the ticket is stamped HERE, not when their ferry docked
     stayQueued(k);  // ...and so is the clock the departure card quotes
     noteArrival(k.biz);
@@ -13616,7 +14526,7 @@ function updateVisitor(k, dt) {
     return;
   }
   if (k.thinkT <= 0) {
-    k.thinkT = VIS_THINK;
+    k.thinkT = arrivalOf(k).THINK;
     // WHO DECIDES: a live brain outranks both backends (and bypasses the
     // kernel identically in both modes, so kernel-vs-JS agreement holds by
     // construction); otherwise the compiled scorer with visPick as the
@@ -13636,7 +14546,7 @@ function updateVisitor(k, dt) {
   if (k.target == null || Math.abs(k.x - k.target) < 4) {
     if (k.idleT > 0) { k.idleT -= dtT; return; }
     k.target = Math.round(Math.max(VIS_ROAM[0], Math.min(VIS_ROAM[1],
-      k.x + (srand() - 0.5) * 2 * VIS_STROLL)));
+      k.x + (srand() - 0.5) * 2 * mannerOf(k).STROLL)));
     k.idleT = 0;
   }
   if (visStep(k, k.target, FLOOR_Y, dt)) k.idleT = 2 * SEC + ((srand() * 5 * SEC) | 0);
@@ -13682,6 +14592,10 @@ function visSeparate() {
     if (!k.visitor || k.gone || k.hidden || k._vmoved) continue;
     if (k.stC === VS.inRoom || k.stC === VS.showering) continue;
     if (PWYQ[k.si] < FLOOR_MIN * Q8) continue;   // on the deck: that line is visLeave's
+    // personal space is the CULTURE's (manner.space); a mixed pair parts to
+    // the LARGER of the two - give_berth's own max64(ra, rb) rule. Cached
+    // per pass like _vmoved: transient, never saved.
+    k._vsq = mannerOf(k).SPACEQ;
     still.push(k);
   }
   if (still.length < 2) return;
@@ -13693,11 +14607,12 @@ function visSeparate() {
       if (dyq > VSEP_RYQ || dyq < -VSEP_RYQ) continue;
       const dxq = PXQ[b.si] - PXQ[a.si];
       const adx = dxq < 0 ? -dxq : dxq;
-      if (adx >= VSEP_RXQ) continue;
+      const rxq = a._vsq > b._vsq ? a._vsq : b._vsq;   // the wider custom governs the pair
+      if (adx >= rxq) continue;
       const pa = a.stC === VS.roam || a.stC === VS.onSand;
       const pb = b.stC === VS.roam || b.stC === VS.onSand;
       if (!pa && !pb) continue;
-      const need = VSEP_RXQ - adx;
+      const need = rxq - adx;
       // dxq === 0 is the exact pile (three guests on one point): the earlier
       // body holds the west, and array order is the tiebreak. No dice.
       const dir = dxq < 0 ? -1 : 1;
@@ -13727,7 +14642,7 @@ function visAfterCounter(k) {
   }
   k.stC = VS.roam; k.biz = null; k.recipe = null; k.need = null;
   k.table = null; k.stall = null; k.server = null; k.claimed = false; k.served = false;
-  k.target = null; k.thinkT = VIS_THINK;
+  k.target = null; k.thinkT = arrivalOf(k).THINK;
   k.y = FLOOR_Y; k.wy = FLOOR_Y;
 }
 
@@ -13832,7 +14747,7 @@ function drainCustRing(k) {
       if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
     } else if (code === 7) { // rage-quit at the table
       k.happy = false; k.claimed = false;
-      if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
+      if (!k.isCrab) { repAdd(k.culture, -3000); today.rage++; }
       if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
       popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
     } else if (code === 8) { // dining done: the table tip (a = tt, cents)
@@ -13985,7 +14900,7 @@ function updateCustomers(dt) {
       if (k.patience <= 0) {
         k.stC = VS.leaving; k.happy = false; k.claimed = false;
         if (k.table) { k.table.occupant = null; k.table = null; }
-        if (!k.isCrab) { rep = Math.max(0, rep - 3000); today.rage++; }
+        if (!k.isCrab) { repAdd(k.culture, -3000); today.rage++; }
         if (window._stats) window._stats[k.isCrab ? "crabRage" : "tourRage"]++;
         popText("!!", k.x, 120, [255, 80, 80]); sfx.angry();
       }
@@ -16269,10 +17184,16 @@ function visCondition(k) {
 // the five bars, in the follow card's one-row idiom - the SAME five a crab
 // carries, in the same order, so the player learns one thing and reads two
 const VIS_BAR = [["FED", "hunger"], ["THR", "thirst"], ["CLN", "dirt"], ["FUN", "bored"], ["SPA", "tired"]];
+// the meter's fraction, in the plane's own units: needs are Q20 grains (a
+// full bar = Q20), and this is the ONLY place the card converts. The pre-Q20
+// form (min(1, raw)) pegged every meter the moment a need was nonzero - the
+// bars read as "no real stats" for a whole era while the sim underneath was
+// honest.
+function barFrac(k, key) { return Math.max(0, Math.min(1, (k[key] || 0) / Q20)); }
 function visBars(k, x, y, w) {
   const cw = ((w - 16) / 5) | 0;   // four gaps of 4px: five meters have to read as five
   for (let i = 0; i < VIS_BAR.length; i++) {
-    const [lbl, key] = VIS_BAR[i], v = Math.max(0, Math.min(1, k[key] || 0));
+    const [lbl, key] = VIS_BAR[i], v = barFrac(k, key);
     const bx = x + i * (cw + 4);
     smallText(ctx, lbl, bx, y, [120, 110, 125]);
     rect(ctx, bx, y + 6, cw, 3, [30, 20, 36]);
@@ -19267,7 +20188,24 @@ function depList(r) {
 // different headlines out of the same table, and a rule only ever outranks
 // another rule because the thing it describes was actually bigger.
 //
-// The bands, and why they sit where they do:
+// A NUMBER THAT DEPENDS ON THE ROW, NOT A FIXED LADDER - and the census proved
+// this matters, because the fixed constants below are NOT the whole weight.
+// The five need rules add a per-unit term (44 + 20 * r.hunger, ...) on a RAW
+// Q20 bar, so a need that actually fires scores in the MILLIONS (a full hunger
+// bar reads 44 + 20 * 1048576 ~ 21,000,000), not ~64. The base constants set
+// only the ORDER AMONG THE NEEDS; against every fixed-weight rule a fired need
+// wins outright. Measured over 4,399 cards (design/cs35-research/depart-census-
+// 2026-08-24.md): the five needs took 94.4% of every card, hungry alone 41.7%,
+// and the top three (80% of all cards) are all SOUR. So read the ladder below
+// as "which rule speaks WHEN NO NEED WENT UNMET" - the fixed weights order the
+// tail, and the needs stand above all of them.
+//
+//   MILLIONS  A NEED THEY LEFT WITH AND NEVER BOUGHT THE ANSWER TO. hungry,
+//         parched, grubby, weary, bored: each is a full Q20 bar times its
+//         per-unit term, gated on the matching purchase being zero (a guest
+//         who bought the answer cannot be scolded for that need). This is what
+//         the card actually says in almost every real departure.
+//   The fixed-weight rules, which decide the card only when no need fired:
 //   120+  SOMETHING WENT WRONG AND THE PLAYER CAUSED IT. A night on the sand
 //         is the loudest thing that can happen to a visitor - it is the only
 //         departure that costs the town reputation (-1.2), and the fix (rooms
@@ -19282,7 +20220,11 @@ function depList(r) {
 //         a guest who spent nine tenths never says this and one who spent a
 //         fifth always does. This is the card's economic argument.
 //    20+  THE GOOD DAY, read in order: waited on at a table, slept at the
-//         Driftwood, spent up, one good plate, a few honest stops.
+//         Driftwood, spent up, one good plate, a few honest stops. Rare in
+//         practice (made+glad together were 1.5% of cards) - not because the
+//         register is empty but because a fixed weight in the tens cannot
+//         outrank a need in the millions, so a good day only surfaces when the
+//         guest left with nothing pressing.
 //     1   Nothing happened. Say so, honestly, rather than inventing colour.
 const DEPART_RULES = [
   { id: "rough", mood: "sour",
@@ -19323,13 +20265,35 @@ const DEPART_RULES = [
   { id: "foreign", mood: "mixed",
     w: (r) => (r.foreign || 0) >= 2 ? 60 + 4 * Math.min(5, r.foreign) : 0,
     line: () => "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO." },
-  // THE FOREIGN PALATE, ANSWERED (foodways). A cultured guest who found a
-  // dish they LOVE - taste 1.5+, counted at the pick like its foreign twin -
-  // says so on the way out. It outranks the grumble: a kitchen that learned
-  // the bun deserves to hear about it over one long line at the showers.
+  // A WELL-TENDED STAY, READ OFF THE GUEST'S OWN CONDITION (ruling 6,
+  // design/cs35-rulings-2026-08-24.md#6). delight used to gate on `de`, the
+  // foodways-only counter - which no CRAB could ever trip (de is written only
+  // for a non-crab eating their own culture's dish, game.js:13453, behind a
+  // tasteW that returns exactly 1 for a crab against a >= 1.5 test: two locks).
+  // So the glad register had no path for the species that fills every town.
+  // Matt ruled the gate should be a READOUT of the guest's OVERALL CONDITION AT
+  // EXIT, not a predicate - the same five bars the follow card already shows
+  // (visCondition/VIS_BAR): hunger, thirst, dirt, bored, tired. A guest whose
+  // bars are low left fed, watered, washed, rested and amused - the town looked
+  // after them - and that is what earns the glad word. This reads no `de` at
+  // all, so it clears both locks by not touching either.
+  //
+  // ONE LEGIBLE NUMBER, SHAPED FOR THE MATRIX (ruling 6 horizon 2). The
+  // condition is the SUM of the five bars against a tolerance - a weighted sum
+  // whose coefficients are all 1 today (the identity matrix). Horizon 2's
+  // cultural/class/individual weight matrix replaces those coefficients without
+  // re-litigating the gate: the shape is `sum(w_i * bar_i) <= tol`, and today
+  // every w_i is 1. The tolerance is five times the per-need want line
+  // (qn(0.45)): a guest whose bars average below what they would even start
+  // wanting is, by definition, wanting for nothing. It CANNOT collide with a
+  // real complaint - a need that actually failed (bar >= 0.85 and never bought)
+  // scores in the millions off its raw Q20 term, so a low-band glad rule like
+  // this only ever surfaces when nothing went wrong (measured: 0 sour cards
+  // displaced across 1,870 departures; design bundle kd-ICjpq0dCrb).
   { id: "delight", mood: "glad",
-    w: (r) => (r.de || 0) >= 1 ? 66 + 4 * Math.min(5, r.de) : 0,
-    line: () => "FOUND MY DISH HERE, OF ALL PLACES. I'LL SAY SO AT HOME." },
+    w: (r) => ((r.hunger || 0) + (r.thirst || 0) + (r.dirt || 0)
+      + (r.bored || 0) + (r.tired || 0)) <= 5 * qn(0.45) ? 66 : 0,
+    line: () => "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
   // home unspent since the visitor pass shipped, and the reason clause is what
   // turns that from a complaint into something the player can act on.
@@ -20161,6 +21125,7 @@ function simClock(dt, rawMs) {
     dayOpen = coins;   // the mark the panel's TODAY readout is measured from
     settleFishMarket();   // the day's landings vs the day's appetite set tomorrow's pier price
     townCatch = Math.min(townCatch, 4); rep = rep + idiv((30000 - rep) * 6, 100);   // nightly relaxation, exact; floor's deadband at milli is 0.017 rep
+    for (const cid in repC) repC[cid] = repC[cid] + idiv((30000 - repC[cid]) * 6, 100);   // every people's word cools the same way (reputation pass)
     for (const c of allCrabs()) { c.workedToday = false; c.otMin = 0; }   // a new day's ledger
     trade.day = { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }; trade.landedDay = 0;
     townFund.dayIn = 0; townFund.dayOut = 0; townFund.youPaid = 0; townFund.youGot = 0;   // the fund's own day book
@@ -20845,6 +21810,22 @@ function viewFrame(dt) {
     const rw = smallTextWidth(rTxt) + 8;
     rect(ctx, W - rw - 2, 2, rw, 10, [30, 20, 36]);
     smallText(ctx, rTxt, W - rw + 2, 4, rep >= 50000 ? [140, 220, 140] : rep >= 25000 ? [220, 205, 185] : [235, 130, 130]);
+    // THE WORD ABROAD, one small row under REP (reputation pass): each
+    // visiting people's own opinion, worst first, same color bands - because
+    // a town can be beloved by crabs and poison to pigs, and the player
+    // should see it where they see REP. Only drawn once an opinion exists.
+    const ids = Object.keys(repC).sort((a, b2) => repC[a] - repC[b2]).slice(0, 2);
+    if (ids.length) {   // left of the sun button (W-24..W-2, y 14..27) - measured, never assumed
+      const wTxt = ids.map((id) => id.toUpperCase().slice(0, 4) + " " + repPts(repC[id])).join(" ");
+      const ww = smallTextWidth(wTxt) + 8;
+      rect(ctx, W - 26 - ww, 14, ww, 10, [30, 20, 36]);
+      let wx = W - 26 - ww + 4;
+      for (const id of ids) {
+        const t = id.toUpperCase().slice(0, 4) + " " + repPts(repC[id]), r2 = repC[id];
+        smallText(ctx, t, wx, 16, r2 >= 50000 ? [140, 220, 140] : r2 >= 25000 ? [220, 205, 185] : [235, 130, 130]);
+        wx += smallTextWidth(t) + smallTextWidth(" ");
+      }
+    }
   }
   {  // the little sun: skip to morning (top-right, under the REP chip)
     const on = ffSleep;
@@ -21294,7 +22275,8 @@ function sciDayNote() {
   if (gameOver) return "THE TOWN FAILED";
   if (won) return "THE FERRY!";
   const c = crabs.length + npcs.length;
-  return c + (c === 1 ? " CRAB" : " CRABS") + ", REP " + repPts(rep) + "%";
+  return c + (c === 1 ? " CRAB" : " CRABS") + ", REP " + repPts(rep) + "%"
+    + Object.keys(repC).map((id) => ", " + id.toUpperCase().slice(0, 4) + " " + repPts(repC[id])).join("");
 }
 // SHUTTLING A TOWN IN, which a scrub does over and over. Loading an envelope
 // restores a town's DURABLE facts; it does not empty the room it walks into.

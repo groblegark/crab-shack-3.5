@@ -1,0 +1,11 @@
+........
+
+== SLEEP DEBT   8-20, crew 6   (2416 crab-nights, 8 seeds x 24d)
+who        nights   tired  woke  pinned%  rough%   home%   died
+CREW         1152   0.515 0.134     3.2     0.8    66.4      0
+TOWNSFOLK    1264   0.516 0.258    13.2     2.7    65.7      8
+EVERYONE     2416   0.516 0.199     8.4     1.8    66.1      8
+
+LONGEST UNBROKEN RUN PINNED AT tired >= 0.95: 8 nights
+deaths (all causes, all seeds): 8
+most pinned nights served: DRIFT 41, KELP 39, SALTY 38, BRASS 16, SHELLDON 10, SURF MOM 10

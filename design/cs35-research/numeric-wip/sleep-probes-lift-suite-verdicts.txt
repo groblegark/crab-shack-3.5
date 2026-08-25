@@ -1,0 +1,27 @@
+=== JS backend (SIMLIB_REALM=main), 6 shards ===
+63/63 passed in slice 0/6 (764.0s)
+EXIT=0
+63/63 passed in slice 1/6 (1060.8s)
+EXIT=0
+63/63 passed in slice 2/6 (702.7s)
+EXIT=0
+63/63 passed in slice 3/6 (807.5s)
+EXIT=0
+62/62 passed in slice 4/6 (846.5s)
+EXIT=0
+62/62 passed in slice 5/6 (802.5s)
+EXIT=0
+
+=== WASM backend (SIMLIB_KERNEL=wasm SIMLIB_REALM=main), 6 shards ===
+63/63 passed in slice 0/6 (233.3s)
+EXIT=0
+63/63 passed in slice 1/6 (393.1s)
+EXIT=0
+63/63 passed in slice 2/6 (206.7s)
+EXIT=0
+63/63 passed in slice 3/6 (262.3s)
+EXIT=0
+62/62 passed in slice 4/6 (570.2s)
+EXIT=0
+62/62 passed in slice 5/6 (253.3s)
+EXIT=0
