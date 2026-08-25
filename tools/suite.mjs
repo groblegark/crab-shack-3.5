@@ -11555,6 +11555,18 @@ scenario("back pay is paid before tonight's wages, and the bank has a limit", ()
 // The pig fixture is the real step-3 content; here it is a test instrument.
 const PIG_FIXTURE = JSON.parse(readFileSync(new URL("./fixtures/cultures-pig.json", import.meta.url), "utf8"));
 
+// Every culture the bundle SHIPS, keyed by its bundle id, mapped to the source
+// document it was generated from. mkcultureways.mjs writes BUNDLED_CULTUREWAYS
+// as a pure pass-through of these files (JSON.stringify({ pig, gull })), so the
+// pin below can hold the whole document to its source byte for byte. A culture
+// that ships without an entry here FAILS that pin by name — the next people is
+// covered the day it lands, not by a follow-up bead. Paths mirror the
+// generator's own reads (tools/mkcultureways.mjs).
+const CULTURE_SOURCES = {
+  pig: PIG_FIXTURE,
+  gull: JSON.parse(readFileSync(new URL("../design/cultureways/gullway.json", import.meta.url), "utf8")),
+};
+
 // ---- THE CRAB'S OWN VOICE, TABLED (cultureway phase C) ----------------------
 scenario("crab voice: every tabled line is the literal, byte for byte", () => {
   // The contract that lets the table exist at all: arm the bundled crab voice
@@ -11619,6 +11631,75 @@ scenario("crab voice: every tabled line is the literal, byte for byte", () => {
       return "depart " + want + " diverged: " + line + " vs " + got.bare.depart[i][2];
   }
   if (got.armed.dossier !== "JUST OFF THE BOAT.") return "dossier diverged: " + got.armed.dossier;
+  return true;
+});
+scenario("bundled cultures: every shipped document is byte-equal to its source", () => {
+  // The crab pin above proves the CODE fallbacks equal their tabled bundle. This
+  // is the same promise for every FOREIGN culture the bundle ships, and it is the
+  // one the merge ritual's byte-exactness rule (CLAUDE.md) actually leans on: the
+  // game reads BUNDLED_CULTUREWAYS at play, the suite's ~50 pig scenarios inject
+  // PIG_FIXTURE straight from the file, and the generator is the only thing
+  // keeping the two equal. If cultureways.js is hand-edited, mis-merged in one
+  // region while another stays put, or a generator regression touches only a
+  // foreign culture, the player hears a document the suite never reads. This
+  // closes that: assert each shipped culture EQUALS its source document, whole,
+  // byte for byte — voice AND every other section, since the bundle is a pure
+  // pass-through of these files. Property, not literal: it never harvests a
+  // sentence, so a voice retune moves bundle and source together and stays green,
+  // and a desync of either one alone goes red naming the culture, the register
+  // (by id) and the key. The loop walks the cultures the BUNDLE ships, so gull is
+  // covered today and the next people the day it lands — a ship with no source
+  // entry fails by name rather than passing unpinned.
+  // Read the bundle the GAME loads at play, not the file text: createSim runs
+  // the real cultureways.js into its realm, so a hand-edit or bad merge in that
+  // file is exactly what BUNDLED_CULTUREWAYS carries here. loadCultures does not
+  // mutate it in place (installCultures builds into CULTURES; the bundle is left
+  // as shipped), so runtime IS the shipped document.
+  const sim = createSim({ seed: 7 });
+  const bundle = JSON.parse(sim.G("JSON.stringify(typeof BUNDLED_CULTUREWAYS !== 'undefined' ? BUNDLED_CULTUREWAYS : null)"));
+  if (!bundle) return "BUNDLED_CULTUREWAYS did not install";
+  const shipped = Object.keys(bundle);
+  if (!shipped.length) return "the bundle ships no cultures - the pin proves nothing";
+  // deep first-divergence path, naming register rows by their id so a failure
+  // points at "voice.registers[clerk].depart.delight", not an array index.
+  const diff = (a, b, path) => {
+    if (JSON.stringify(a) === JSON.stringify(b)) return null;
+    if (a === null || b === null || typeof a !== "object" || typeof b !== "object")
+      return path + ": " + JSON.stringify(a) + " vs " + JSON.stringify(b);
+    const byId = (arr) => Array.isArray(arr) && arr.length && arr.every(e => e && typeof e === "object" && typeof e.id === "string");
+    if (Array.isArray(a) !== Array.isArray(b))
+      return path + ": " + JSON.stringify(a) + " vs " + JSON.stringify(b);
+    if (Array.isArray(a)) {
+      if (byId(a) && byId(b)) {
+        const bm = new Map(b.map(e => [e.id, e]));
+        for (const e of a) {
+          if (!bm.has(e.id)) return path + "[" + e.id + "]: only in one document";
+          const d = diff(e, bm.get(e.id), path + "[" + e.id + "]"); if (d) return d;
+        }
+        for (const e of b) if (!a.some(x => x.id === e.id)) return path + "[" + e.id + "]: only in one document";
+        return path + ": row order or count differs";
+      }
+      if (a.length !== b.length) return path + ": length " + a.length + " vs " + b.length;
+      for (let i = 0; i < a.length; i++) { const d = diff(a[i], b[i], path + "[" + i + "]"); if (d) return d; }
+      return path + ": arrays differ";
+    }
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) {
+      if (!(k in a)) return path + "." + k + ": only in source";
+      if (!(k in b)) return path + "." + k + ": only in bundle";
+      const d = diff(a[k], b[k], path + "." + k); if (d) return d;
+    }
+    return path + ": objects differ";
+  };
+  for (const id of shipped) {
+    const src = CULTURE_SOURCES[id];
+    if (!src) return "bundled culture '" + id + "' has no source document registered in the suite - pin it in CULTURE_SOURCES";
+    if (JSON.stringify(bundle[id]) === JSON.stringify(src)) continue;
+    return "bundle diverged from its source at " + (diff(bundle[id], src, id) || id + ": documents differ");
+  }
+  // and no source went un-shipped without notice - a fixture the bundle forgot
+  for (const id of Object.keys(CULTURE_SOURCES))
+    if (!bundle[id]) return "source culture '" + id + "' is registered but the bundle does not ship it";
   return true;
 });
 scenario("idle quips: the island's table is the literal, key for key", () => {
