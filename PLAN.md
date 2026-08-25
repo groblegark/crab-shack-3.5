@@ -6387,6 +6387,80 @@ language is merely kept distinct so either reading still works.
   reviews screenshots + suite output, merges, re-verifies, pushes).
 - Balance work happens in the sim, not by intuition — measure, then tune.
 
+## SLEEP DEBT (2026-08-25, branch `cs-sleep-debt`) — giving exhaustion a memory
+
+**Matt, from play:** *"I have crabs working impossible hours, lack of sleep
+should eventually be deadly."* It was not, and the reason is one word:
+`illRisk` was **memoryless**. It reads four needs at the instant of the
+settlement and asks nothing about the nights before it, so a crab pinned at
+`tired >= 0.95` rolled the same `+0.05` on night 30 as on night 1 — and
+exhaustion was the **weakest** of the four terms (hunger bills `+0.10`, twice
+as hard). The ceiling probe recorded above — a whole crew pinned at
+`tired = 1.0` for thirty days, town still earning $9,713 — is the same fact
+from the other end: **in the limit, sleep deprivation was free.**
+
+**The baseline, re-measured on the tree this landed on** (`tools/sleepdebt.mjs`,
+8 seeds × 24d, crew 6):
+
+| arm | crew pinned% | rough% | crew deaths |
+|---|---|---|---|
+| ordinary 8-20 | 3.2 | 0.8 | 0 |
+| impossible 6-24 +OT | **30.6** | 11.1 | 1 |
+
+PINCHY served **97 pinned nights** across that block and stayed on the rota.
+The town can work a crab into the ground; the ground did nothing.
+
+**What it is.** `p.sleepDebt`, a per-crab ledger ticked once at the settlement
+immediately *before* the roll reads it. Over the line adds 1; under it repays
+`DEBT_REPAY` (2); clamped `0..DEBT_CAP`. `debtRisk()` adds `DEBT_STEP` (0.035)
+per night past `DEBT_GRACE` (3) — so nights 1–3 are free and the ladder runs
+0.085 / 0.120 / … / 0.295 at the cap, which is ×5.9 the old flat term and
+finally the heaviest thing on the roll.
+
+### Two traps, both already in the codebase, both found by tracing
+
+**1. It must count NIGHTS, not HOURS AWAKE.** "Hours banked over the line" is
+the obvious build and **it was already measured and rejected for this exact
+roll** (see the clock-artifact section below): it reads **M/E ×1.43**, because
+a morning crab finishes at 14:00 exhausted and stays awake six hours while an
+evening crab finishes at 20:00 and goes to bed. Integrating over the day
+*surfaces* that difference and would resurrect by the back door the very shift
+unfairness `TIRED_NAP` was added to fix. A night is one tick whoever you are.
+Pinned by a gate — and the gate was **mutation-tested**: arming the rejected
+rule fails it with `M 6, E 1`.
+
+**2. A hard reset makes the ramp SELF-LIMITING — measured, and it was a clean
+null.** The first cut zeroed the ledger on any good night. Measured 8 seeds ×
+30d on a 6-24 +OT town, same seeds both arms:
+
+| arm | deaths | illnesses | exhaustion-tagged | nights billed |
+|---|---|---|---|---|
+| control (no ramp) | **11** | **117** | 77 | 0.0% |
+| ramp @ hard reset | **11** | **117** | 78 | 2.9% |
+
+It billed and changed *nothing*. The control's own depth histogram says why —
+of 3,119 crab-nights, only **nine** ever passed 5 consecutive bad nights
+(`1n×376 2n×196 3n×107 4n×58 5n×23 6n×7 7n×1 8n×1`). A ten-rung ladder built
+for a town whose stairs are five steps high. Two structural ceilings caused it:
+
+- **A mandatory weekly rota day off** (`OFF_BASE` per business) means a crab
+  essentially cannot serve more than ~6 consecutive over-line nights while the
+  rota holds. `DEBT_CAP = 10` was unreachable **by construction**.
+- **The ramp cured what it was measuring.** Traced on one crab: debt reaches 5,
+  the hazard fires, they fall ill, illness sends them **home to rest**, resting
+  drains exhaustion to ~0, and the ledger zeroes. It worked and then erased its
+  own evidence.
+
+So a consecutive-night counter asks *"are they on a bad run right now"* when the
+ask was *"have they been ground down over weeks"*. `DEBT_REPAY` subtracts
+instead, so a rota day off or a bout of illness **blunts** the debt without
+clearing it. **That is the whole reason the feature has a chance of meaning
+"eventually".**
+
+**The lesson, and it is this file's usual one:** both traps were already written
+down — one in the receipt above `illRisk`, one in `OFF_BASE` — and neither was
+visible from the design. Tracing one crab night-by-night found both in minutes.
+
 ## THE ILLNESS-ROLL CLOCK ARTIFACT (investigated 2026-08-20, worktree) — MEASURED, AND DELIBERATELY NOT FIXED
 
 **Matt:** *"clawdia still has supercrab powers of never getting sick btw, she
