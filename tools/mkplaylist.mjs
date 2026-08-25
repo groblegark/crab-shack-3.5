@@ -14,15 +14,20 @@
 // carries none of the 4.3 GB. A thousand-track playlist costs about 90 KB of
 // JSON instead of ninety megabytes of audio.
 //
-// VERIFIED before relying on it (2026-08-24): cdn1.suno.ai is S3 behind
-// CloudFront, answers 206 with range support so a browser can stream and seek,
-// needs no auth, and enforces no referer check. An <audio> element playing a
-// cross-origin file needs no CORS headers, unlike fetch or Web Audio.
+// WE HOST IT. Every url in the catalog points at this repo's own releases
+// (tools/mkmusichost.mjs), not at suno - so the soundtrack is not somebody
+// else's implementation detail waiting to rotate out from under us.
 //
-// THE RISK, stated plainly because it is real: this is somebody else's CDN.
-// If suno rotates those URLs the music stops, and offline play is gone. The
-// hedge is --local, which copies a small core set into music/ so a town is
-// never silent; the long tail streams.
+// VERIFIED in a real browser (2026-08-25), against a same-origin control so
+// the instrument was checked too: release assets serve as
+// application/octet-stream with Content-Disposition: attachment, and <audio>
+// plays them anyway - 8 cold tracks all reached canplay, median 362 ms, worst
+// 553 ms. They answer 206 with accept-ranges, so a browser streams and seeks,
+// and a cross-origin <audio> needs no CORS headers (unlike fetch or Web Audio).
+//
+// THE REMAINING RISK is offline play, not availability: a streamed town is
+// silent with no network. The hedge is --local, which copies a small core set
+// into music/ so a town is never silent; the long tail streams.
 //
 //   node tools/mkplaylist.mjs [--picks music-picks.json] [--local 0]
 import { readFileSync, writeFileSync, copyFileSync, existsSync, statSync, mkdirSync } from "fs";

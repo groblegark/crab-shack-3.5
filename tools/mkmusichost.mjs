@@ -19,6 +19,19 @@
 //     github.com. VERIFIED to answer 206 with accept-ranges: bytes, so a
 //     browser streams and seeks exactly as it did from suno.
 //
+// AND VERIFIED IN A BROWSER, WITH A CONTROL. Assets come back as
+// application/octet-stream with Content-Disposition: attachment, either of
+// which could plausibly stop <audio>. Neither does: 8 cold tracks all reached
+// canplay, median 362 ms, worst 553 ms.
+//
+// A first probe DID stall at zero bytes for 44 s and nearly became the
+// finding: "GitHub releases cannot be played". It had no control, and it ran
+// while this script was saturating the uplink with a 4 GB upload. Re-run
+// afterwards beside a known-good same-origin mp3, the release url reached
+// loadedmetadata in 375 ms. The stall was never reproduced. A probe with no
+// control cannot tell "the thing is broken" from "my instrument is broken",
+// and here the wrong answer would have thrown away the whole approach.
+//
 // THERE IS A CAP, AND WE HIT IT. A release takes at most 1000 assets:
 //   HTTP 422: file_count limited to 1000 assets per release
 // The first run put 1000 up and the remaining 201 bounced. So the tracks are

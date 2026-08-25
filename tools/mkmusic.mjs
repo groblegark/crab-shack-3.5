@@ -63,12 +63,15 @@ for (const t of manifest) {
     date: hit.date,
     secs: Math.round(t.duration || 0),
     tags: shout(t.tags).toLowerCase(),
-    // THE CDN URL, which is what makes the whole archive shippable. Verified
-    // 2026-08-24: cdn1.suno.ai is S3 behind CloudFront, answers 206 with range
-    // support, needs no auth and enforces no referer check - and an <audio>
-    // element playing a cross-origin file needs no CORS headers, unlike fetch
-    // or Web Audio. So a track can stream on demand instead of living in the
-    // repo, and 4.3 GB of archive costs the repo nothing.
+    // THE STREAM URL, which is what makes the whole archive shippable: a track
+    // is fetched when it plays, so 4.3 GB of archive costs the repo nothing.
+    //
+    // This is suno's own url and it is a PLACEHOLDER - tools/mkmusichost.mjs
+    // overwrites every one of them with the copy on our releases. Matt,
+    // 2026-08-24: "def not suno." A soundtrack should not be a third party's
+    // implementation detail; those urls can rotate and take every town silent
+    // with them. Keep it only so a freshly-indexed archive is auditionable
+    // before the upload has run.
     url: t.audio_url || "",
   });
 }
