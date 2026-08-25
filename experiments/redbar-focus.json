@@ -5,6 +5,8 @@
     "requests": { "cpu": "1", "memory": "3Gi" },
     "limits": { "cpu": "1", "memory": "4Gi" }
   },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [{ "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }],
   "arms": [
     { "id": "sweep", "entry": "tools/suite.mjs", "args": ["no surface prints off the canvas"], "env": { "SIMLIB_REALM": "main" } },
     { "id": "rota",  "entry": "tools/suite.mjs", "args": ["rota pages at seven"], "env": { "SIMLIB_REALM": "main" } }

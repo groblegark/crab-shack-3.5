@@ -14,7 +14,9 @@
 //
 // Receipt shape (ConfigMap data["receipt.json"]):
 //   { release, armId, index, sha, entry, args, env, exitCode, wallMs,
-//     verdict, failures[], jsonTail, stdoutTail }
+//     verdict, failures[], cores, hostCores, jsonTail, stdoutTail }
+// - cores/hostCores: the cgroup grant vs the node's count, so a wallMs can be
+//   read as a real timing instead of a number of unknown provenance
 // - verdict: the last "N/M passed" style line if the tool printed one
 // - jsonTail: the last stdout line iff it parses as JSON (batch.mjs --json)
 // - stdoutTail capped so the ConfigMap stays far under the 1MB object limit
@@ -24,7 +26,9 @@
 
 import { readFileSync } from "fs";
 import { spawnSync } from "child_process";
+import { cpus } from "os";
 import https from "https";
+import { usableCores } from "./cores.mjs";
 
 const need = (k) => {
   const v = process.env[k];
@@ -89,6 +93,13 @@ const receipt = {
   release, armId: arm.id ?? String(index), index, sha,
   entry: arm.entry, args, env: arm.env || {},
   exitCode, wallMs, verdict, failures,
+  // The CPU the arm actually had. A wallMs without this is uninterpretable:
+  // an earlier gate receipt recorded 1467s at "nproc -> 8, --jobs 7" with no
+  // note of the cgroup limit, so there is now no way to tell whether that
+  // number was measured on 8 cores or on a throttled 4 - the verdict stands
+  // (determinism does not depend on worker count) but the timing cannot be
+  // cited. Bank the basis so a future reader never has to guess.
+  cores: usableCores(), hostCores: cpus().length,
   jsonTail, stdoutTail: stdout.slice(-4000),
 };
 

@@ -35,8 +35,39 @@ protects the operator's Mac and a fleet pod IS cluster compute — is run sim
 workloads in-pod within its own limits: `node tools/suite.mjs --jobs N`,
 matrices, probes. That is enough to GATE. Cluster access buys back the wide
 fan-outs, not the ability to get a verdict at all. Leave headroom when peers
-are running (`--jobs 6` on 8 cores), and per the perf note below, never read a
-timing from a box running two sims.
+are running, and per the perf note below, never read a timing from a box
+running two sims.
+
+### "within its own limits" means the CGROUP, not `nproc` (fixed 2026-08-25)
+
+**A fleet pod cannot brown out its node — but it can badly oversubscribe
+itself, and for months it did.** The pod is cgroup-capped (`limits.cpu=4`,
+`requests.cpu=2`, `cpu.max = 400000 100000` → a hard 4 cores) while sitting on
+a 16-core m5.4xlarge. Neighbours are protected by the kernel, not by our
+manners. But `nproc` and `os.cpus().length` both report the HOST's 16:
+
+    os.cpus().length          => 16   # the host. WRONG number to schedule on.
+    os.availableParallelism()  => 4   # cgroup-aware. This one.
+
+`headless.mjs` defaulted to `min(seeds, 15)` workers and `batch.mjs` to
+`16-2 = 14` — onto a quota of 4, a ~3.75x self-oversubscription (`cpu.stat`
+`nr_throttled` was already climbing). Throttling only makes runs slow; the
+sharp edge is MEMORY, since a worker holds its worlds in one heap (lesson #3:
+js slices OOM at 4Gi) and 15 heaps against a 16Gi limit is an OOMKill. And a
+timing taken while throttled is a lie that looks like a clean single run.
+
+Both now default from `tools/cores.mjs` (`usableCores()` = min of libuv's
+answer and the cgroup quota we parse ourselves — two derivations, so a wrong
+one is visible). `batch.mjs` prints `cores:` and banks `cores` in its JSON;
+`headless.mjs` prints the worker count whenever it forked. **This changed no
+cluster receipt: all 29 forking arms across the 36 manifests pass `--jobs`
+explicitly, and an explicit `--jobs` is still obeyed verbatim.** Determinism
+is unaffected — `--seeds 3` gives byte-identical output at `--jobs 3` and
+`--jobs 1`.
+
+Practical upshot: on a 4-core pod you get ~3 workers, so budget accordingly
+and don't hand-pass a big `--jobs` to "go faster" — you will only buy
+throttling and risk an OOMKill.
 
 `run --wait` = validate -> install -> watch -> collect (receipts land in
 `design/cs35-research/kube-runs/<release>/`) -> clean (uninstall + delete
@@ -63,12 +94,33 @@ tree does not exist to it.**
 
 - One ARM = one indexed pod = one receipt. `entry` must be a committed
   `tools/**.mjs`; `env` is allowlisted to `SIMLIB_*`.
+- **`nodeSelector` is MANDATORY — kube.mjs refuses a manifest without one.**
+  An unselected pod does not fail, it lands on whatever will take it, and
+  every karpenter pool here is tainted (`gasboat.agent`,
+  `fics.pihealth.ai/mr`, `gvisor`) — so the only nodes that accept it are the
+  SHARED managed nodegroup carrying fleet workloads. Enumerated 2026-08-25:
+  exactly 6 of 30 nodes are untainted, and all 6 are **m5.large** (2 vCPU) —
+  so an unselected arm doesn't merely touch shared infra, it contends with
+  fleet work on the smallest nodes on the cluster. `crewux-focus.json` and
+  `redbar-focus.json` shipped that way and would have put sim work on fleet
+  infra, silently, while looking like clean runs (fixed 2026-08-25). Always
+  pair the selector with the matching toleration. `--anywhere` is the
+  deliberate escape hatch; the guard runs before the push check, so a bad
+  manifest tells you so without demanding a push first.
 - Suite arms use `--slice i/N` (standalone shard mode, no IPC; `--count`
   answers how many scenarios exist). Matrix/science arms use batch.mjs or
   headless flags verbatim.
 - The ephemeral pool: `karpenter.sh/nodepool=ephemeral-pool`, taint
   `gasboat.ephemeral=true:NoSchedule` (probed live 2026-08-23), m5
   xlarge/2xlarge on-demand, pool limit 400 cpu.
+- **Spot is NOT set anywhere yet** (probed 2026-08-25: all 29 cluster nodes
+  read `karpenter.sh/capacity-type=on-demand`; no manifest asks for spot).
+  Do NOT just add `"karpenter.sh/capacity-type": "spot"` to a manifest on
+  spec — if the pool's requirement doesn't permit spot, every arm sits
+  Pending forever, which is worse than the on-demand spend. A pod cannot
+  check: `kubectl get nodepool` is Forbidden to the `cs` SA (cluster-scoped).
+  Escalation kd-BAwwftJfdH asks gasboat to confirm-or-allow spot, and to
+  grant read-only nodepool access so this is answerable next time.
 
 ## MEASURED BASELINE CAPABILITIES (2026-08-23, ref b7e6a66 = tip dc0f4b7 + this branch)
 

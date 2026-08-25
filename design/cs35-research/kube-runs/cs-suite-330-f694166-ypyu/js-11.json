@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-330-f694166-ypyu",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 116360,
+  "verdict": "31/31 passed in slice 11/12 (116.3s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (2134ms)\n  PASS  sick crabs can still wash (mobility + cure path) (1408ms)\n  PASS  crew never staff npc-owned shops (781ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (1553ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (69531ms)\n  PASS  hours: shortened hours really close the shop (587ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (2247ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (43ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (43ms)\n  PASS  tips: the counter gets a token, the table gets the lot (10ms)\n  PASS  no card prints text on top of its own text (1515ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (4306ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1145ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (917ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1547ms)\n  PASS  departures: a stay survives a save and a reload (2379ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (3809ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (82ms)\n  PASS  a hire is something you can see happen (522ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1671ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (9259ms)\n  PASS  crab-as-document: a hostile document is refused by name (9ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (9ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (420ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (53ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (595ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2947ms)\n  PASS  the kernel and the reference agree, byte for byte (1731ms)\n  PASS  load: the new town's desk is clear of the last town's books (4080ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (7ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (915ms)\n31/31 passed in slice 11/12 (116.3s)\n"
+}

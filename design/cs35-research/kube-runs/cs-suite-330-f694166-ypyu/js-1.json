@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-330-f694166-ypyu",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 276000,
+  "verdict": "32/32 passed in slice 1/12 (275.9s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (149970ms)\n  PASS  disease: care cures, neglect can kill (25690ms)\n  PASS  job board: unpaid staff quit back to the pier (436ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (27639ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (3568ms)\n  PASS  tired: fatigue scales with the hours actually worked (1738ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (944ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (474ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2275ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (3428ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (132ms)\n  PASS  one reading surface owns the screen (1120ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1157ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (1914ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (5120ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (9ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (10ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (48ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (695ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1787ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (9ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (3511ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (18ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (31134ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (652ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (628ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (505ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3359ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (242ms)\n  PASS  science: one recipe lives the same town twice (7568ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (15ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (110ms)\n32/32 passed in slice 1/12 (275.9s)\n"
+}

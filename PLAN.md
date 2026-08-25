@@ -717,7 +717,12 @@ vm — never fork game logic into tools/) and perf expectations live there.
   [--jobs J] [--failoff a,b,c]` — CLI; `--failoff` switches individual
   needs-failure behaviours off (`wander,chat,walkout,nod,rough`) so a matrix can
   attribute its own movement to one of them at a time; `--jobs` fans seeds out across worker processes
-  (default cores−1, deterministic either way, ~3x faster on 4 seeds).
+  (default USABLE cores−1, deterministic either way, ~3x faster on 4 seeds).
+  "Usable" means the cgroup quota, via `tools/cores.mjs` — NOT `os.cpus().length`,
+  which reports the host and in a fleet pod overshot 4 real cores as 16 (fixed
+  2026-08-25; see the runbook's in-pod section). An explicit `--jobs` is still
+  obeyed verbatim, so don't pass a big one to "go faster" in a pod — you buy
+  throttling and risk an OOMKill.
   Its buyer models a sensible player: hourly purchase checks, reserve = cost +
   tonight's bill + cushion, saves (doesn't skip) for the big unlocks, rehires
   after a death, and only staffs a side business if the shack keeps shift

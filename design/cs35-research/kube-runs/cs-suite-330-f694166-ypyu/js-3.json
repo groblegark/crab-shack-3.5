@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-330-f694166-ypyu",
+  "armId": "js-3",
+  "index": 3,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 114382,
+  "verdict": "32/32 passed in slice 3/12 (114.3s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (3716ms)\n  PASS  save/load roundtrip preserves state (1781ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1537ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1869ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (1085ms)\n  PASS  days off: everyone rests their weekday and plays customer (6420ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (459ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1259ms)\n  PASS  sale: the player buys a failed business through the shopfront (3509ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7372ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (37720ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1063ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (16025ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2805ms)\n  PASS  the fund is struck to the bill and does not hoard (1536ms)\n  PASS  departures: three ways to be turned away are three different counters (193ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1478ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (2179ms)\n  PASS  the HALL tab's text is measured, in every state it has (5625ms)\n  PASS  the shack says where the money comes from, and only your shops do (698ms)\n  PASS  the cabana row leaves both travel lanes a real margin (7ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (11ms)\n  PASS  depart programs: a hostile table is refused by name (14ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (14ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (17ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (4002ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (5049ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (1041ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (6ms)\n  PASS  science: the seed is the town - a different one lives differently (5720ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (13ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (70ms)\n32/32 passed in slice 3/12 (114.3s)\n"
+}

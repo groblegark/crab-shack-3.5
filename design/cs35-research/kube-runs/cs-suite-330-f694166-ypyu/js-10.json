@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-330-f694166-ypyu",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 232281,
+  "verdict": "31/31 passed in slice 10/12 (232.2s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2513ms)\n  PASS  housing: npcs sleep at the shelter, then move up (733ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (1067ms)\n  PASS  credit: the town is warned before it goes under (50220ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (720ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (2741ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (56748ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (10ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (6030ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1416ms)\n  PASS  the title's credit block never lands on the science button (11ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (69439ms)\n  PASS  visitors: the wallet is real money, and it runs out (647ms)\n  PASS  the town fund moves money and never mints it (16721ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1642ms)\n  PASS  departures: nobody on the boat knows the town's name (900ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (2137ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (237ms)\n  PASS  the help card teaches the machine and does not spoil the ending (7ms)\n  PASS  nothing paints over an open card except another card (940ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (8559ms)\n  PASS  crab-as-document: the crab diary never reaches the code literal (1155ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (13ms)\n  PASS  cultureways: a save without cultures changes nothing (1133ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (8ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (375ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2984ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  load: the same envelope lands the same way however often you land it (1651ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1404ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (7ms)\n31/31 passed in slice 10/12 (232.2s)\n"
+}
