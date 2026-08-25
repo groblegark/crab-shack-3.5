@@ -7402,17 +7402,30 @@ const DEPART_BUNDLE = [
   { name: "thirst", min: 0, max: 1048576 }, { name: "dirt", min: 0, max: 1048576 },
   { name: "bored", min: 0, max: 1048576 },  { name: "tired", min: 0, max: 1048576 },
   { name: "sandwhy", min: 0, max: 4 },      { name: "topitem", min: 0, max: 1 },
+  // THE NEED-WEIGHT MATRIX (ruling 6 h2), appended per the ABI's rows-only-
+  // APPEND rule: the composed x1/4 effective weight for each of the five bars
+  // (0..8, 4 the identity). departReads writes needW(r) into these slots so the
+  // delight PROGRAM can weight each bar the way the delight LAMBDA does - one
+  // per-culture program stays correct for every class inside it, because the
+  // composed vector rides the read rather than folding into a per-culture
+  // constant. Identity for every undeclared culture, so the frozen fingerprints
+  // hold: an all-4s vector is the pre-matrix engine, byte for byte.
+  { name: "wFood", min: 0, max: 8 },        { name: "wDrink", min: 0, max: 8 },
+  { name: "wClean", min: 0, max: 8 },       { name: "wFun", min: 0, max: 8 },
+  { name: "wRest", min: 0, max: 8 },
 ];
 let departClamped = 0;   // dev tripwire: scenarios assert this stays 0
 function departReads(r) {
   const BLK = { shut: 1, full: 2, broke: 3 };
   const SWY = { broke: 1, shut: 2, unmade: 3, full: 4 };
+  const w = needW(r);   // the composed x1/4 need weights (ruling 6 h2), all-4s undeclared
   const raw = [
     r.days, r.nightsBed, r.rough, r.purse, r.left, r.buys, r.serves, r.tables,
     r.meals, r.drinks, r.washes, r.games, r.rooms, r.topPaid, r.dues,
     r.worstMin, r.quits, r.quitMin, BLK[r.blocked] || 0, r.mistMin, r.missed,
     r.foreign || 0, r.de || 0, r.hunger, r.thirst, r.dirt, r.bored, r.tired,
     SWY[r.sandWhy] || 0, r.topItem ? 1 : 0,
+    w[0], w[1], w[2], w[3], w[4],
   ];
   for (let i = 0; i < raw.length; i++) {
     let v = Math.round(raw[i] || 0);
@@ -7421,6 +7434,59 @@ function departReads(r) {
     raw[i] = v;
   }
   return raw;
+}
+// THE NEED-WEIGHT MATRIX (ruling 6, horizon 2). Matt: the glad card "should be
+// derived from a cultural/class/individual weight matrix that ALSO influences
+// their decisions". The atom is a per-need weight VECTOR over the five bars, in
+// the same x1/4-integer space as departW (0..8, 4 the identity = 1.0), composed
+// multiplicatively around all-4s. This slice ships the CARD consumer (the
+// delight readout); the DECISION consumer (visScoreOne + the wasm kernel) is
+// horizon 3 (kd-I9fjOBARav), which reads THIS same vector - one matrix, two
+// readers, so the two never diverge (the failure the bead names).
+// NEED_KEYS pins the order and is the validator's allowlist: hunger->food,
+// thirst->drink, dirt->clean, bored->fun, tired->rest (VIS_BAR's five).
+const NEED_KEYS = ["food", "drink", "clean", "fun", "rest"];
+const NEED_IDENT = 4;   // quarters: 4 = x1.0, the byte-neutral identity
+// A need-weight object's named refusals: a map of KNOWN needs to x1/4 ints 0..8,
+// nothing else. Shape-shared by the CULTURAL axis (appeal.needs) and the CLASS
+// axis (a register's needMul), so both refuse identically. Null/absent is legal
+// (identity) - a partial map inherits 4 on the needs it omits.
+function needWProblem(w) {
+  if (typeof w !== "object" || Array.isArray(w)) return "A BAD NEED WEIGHT";
+  for (const k in w) {
+    if (!NEED_KEYS.includes(k)) return "A NEED NOBODY FEELS: " + k;
+    const v = w[k];
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 8) return "A BAD NEED WEIGHT";
+  }
+  return null;
+}
+// The composed effective weight vector for a stay row, in quarters (4 = x1).
+// cultural (appeal.needs) x class (register needMul) x individual, each around
+// 4, divided back to quarters and clamped to 0..8. The individual axis is a
+// declared-but-identity slot (ruling 6 A1, decision kd-uQifN1xD5z): the matrix
+// carries room for a future per-guest temperament, all-4s today, so nothing
+// sources it yet and every current row composes to pure identity. A crab row
+// (no r.cu) and every undeclared culture return the all-4s vector, so the
+// arithmetic is byte-identical to the pre-matrix engine - the tasteW precedent.
+function needW(r) {
+  const out = [NEED_IDENT, NEED_IDENT, NEED_IDENT, NEED_IDENT, NEED_IDENT];
+  const cul = (r && r.cu) ? CULTURES[r.cu] : null;
+  if (!cul) return out;   // crab / undeclared: identity, floats never touched
+  const cw = cul.def && cul.def.appeal && cul.def.appeal.needs;
+  const reg = cul.regs && (cul.regs.find(g => g.acc === r.acc) || cul.regs[0]);
+  const clw = reg && reg.needMul;
+  if (!cw && !clw) return out;   // this culture declares no matrix: identity
+  for (let i = 0; i < NEED_KEYS.length; i++) {
+    const k = NEED_KEYS[i];
+    const c = cw && cw[k] != null ? cw[k] : NEED_IDENT;
+    const l = clw && clw[k] != null ? clw[k] : NEED_IDENT;
+    // c/4 * l/4 * ident/4, back to quarters: (c*l*4)/(4*4) = c*l/4. Integer
+    // truncation toward zero, the house grid idiom (departReads/l1Run DIVI).
+    let v = Math.floor((c * l) / NEED_IDENT);
+    if (v < 0) v = 0; else if (v > 8) v = 8;
+    out[i] = v;
+  }
+  return out;
 }
 // The depart transcription's clamps (phase E3). A depart table re-expresses
 // the ENGINE's rule table through Layer-1 programs, and it is all-or-nothing:
@@ -7633,6 +7699,12 @@ function voiceProblem(v) {
     if (typeof g.id !== "string" || !g.id.length || typeof g.acc !== "string") return "A BAD REGISTER";
     if (g.purseMul != null && !(typeof g.purseMul === "number" && isFinite(g.purseMul)
       && g.purseMul >= 0.1 && g.purseMul <= 5)) return "A BAD PURSE CLASS";
+    // THE NEED-WEIGHT MATRIX, class axis (ruling 6 h2): the register (the hat is
+    // the class) carries its own per-need weight, x1/4 ints 0..8. A strawhat
+    // farmhand and a bare-headed clerk can weight rest against fun differently,
+    // just as they already land with different purses. Null -> identity;
+    // needWProblem owns the named refusals.
+    if (g.needMul != null) { const p = needWProblem(g.needMul); if (p) return p; }
     for (const part of ["diary", "depart"]) if (g[part] != null) {
       if (typeof g[part] !== "object" || Array.isArray(g[part])) return "A BAD REGISTER";
       for (const k in g[part]) if (!line(g[part][k])) return "A BAD VOICE LINE";
@@ -7907,6 +7979,12 @@ function cultureProblem(d, ownId) {
         if (typeof w !== "number" || !isFinite(w) || w < 0.1 || w > 5) return "A BAD TASTE";
       }
     }
+    // THE NEED-WEIGHT MATRIX, cultural axis (ruling 6 h2): a people's per-need
+    // weight over the five bars, x1/4 ints 0..8 (4 the identity). Sibling of
+    // tastes - tastes weight the RECIPE, needs weight the NEED. Null -> identity;
+    // needWProblem owns the named refusals (an unknown need, an out-of-range or
+    // fractional weight).
+    if (A.needs != null) { const p = needWProblem(A.needs); if (p) return p; }
     // nudge terms are author-unit numbers converted ONCE at build (see
     // buildCulture): px, game-minutes, a Q20-quantized relax, and the
     // multiplier in appeal's own hundredths. Partial objects inherit the
@@ -20250,17 +20328,26 @@ const DEPART_RULES = [
   // condition is the SUM of the five bars against a tolerance - a weighted sum
   // whose coefficients are all 1 today (the identity matrix). Horizon 2's
   // cultural/class/individual weight matrix replaces those coefficients without
-  // re-litigating the gate: the shape is `sum(w_i * bar_i) <= tol`, and today
-  // every w_i is 1. The tolerance is five times the per-need want line
-  // (qn(0.45)): a guest whose bars average below what they would even start
-  // wanting is, by definition, wanting for nothing. It CANNOT collide with a
-  // real complaint - a need that actually failed (bar >= 0.85 and never bought)
-  // scores in the millions off its raw Q20 term, so a low-band glad rule like
-  // this only ever surfaces when nothing went wrong (measured: 0 sour cards
-  // displaced across 1,870 departures; design bundle kd-ICjpq0dCrb).
+  // re-litigating the gate: the shape is `sum(w_i * bar_i) <= qn(0.45)*sum(w_i)`,
+  // scale-invariant so a people who weights food twice as heavily is held twice
+  // as hard on food to earn the glad word. HORIZON 2 HAS LANDED THE COEFFICIENT
+  // SUPPLIER (ruling 6, decision kd-uQifN1xD5z=A1): needW(r) is the composed
+  // x1/4 vector (4 the identity), all-4s for every undeclared culture - so at
+  // identity this is `4*sum(bar) <= qn(0.45)*20` i.e. `sum(bar) <= 5*qn(0.45)`,
+  // byte-for-byte the horizon-1 gate. The tolerance is five times the per-need
+  // want line (qn(0.45)): a guest whose bars average below what they would even
+  // start wanting is, by definition, wanting for nothing. It CANNOT collide with
+  // a real complaint - a need that actually failed (bar >= 0.85 and never
+  // bought) scores in the millions off its raw Q20 term, so a low-band glad rule
+  // like this only ever surfaces when nothing went wrong (measured: 0 sour cards
+  // displaced across 1,870 departures; design bundle kd-ICjpq0dCrb). The L1 twin
+  // in crab-depart.json reads the same vector from the appended bundle slots, so
+  // the program and this lambda agree on every stay (E3's contract).
   { id: "delight", mood: "glad",
-    w: (r) => ((r.hunger || 0) + (r.thirst || 0) + (r.dirt || 0)
-      + (r.bored || 0) + (r.tired || 0)) <= 5 * qn(0.45) ? 66 : 0,
+    w: (r) => { const w = needW(r);
+      return (w[0] * (r.hunger || 0) + w[1] * (r.thirst || 0) + w[2] * (r.dirt || 0)
+        + w[3] * (r.bored || 0) + w[4] * (r.tired || 0))
+        <= qn(0.45) * (w[0] + w[1] + w[2] + w[3] + w[4]) ? 66 : 0; },
     line: () => "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
   // home unspent since the visitor pass shipped, and the reason clause is what
