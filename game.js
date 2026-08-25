@@ -10640,7 +10640,7 @@ function updateSchedule(c, dt) {
   const errandWindow = ownTime ? tmin >= rhythmOf(c).LIEIN   // day off (or a sick day): the whole town is yours
     : (tmin < leaveGmin(c) - 30 || tmin >= sh.end);   // workday: before leaving, or after shift
   const townAwake = townOpen() || (tmin >= 20 * 60 && tmin < 23 * 60) || (tmin >= 5.5 * 60 && tmin < 8 * 60);
-  if (c.dsC === DS.home && townAwake && c.errandCd <= 0 && errandWindow) {
+  if (c.dsC === DS.home && townAwake && c.errandCd <= 0 && errandWindow && !pastBedtime(c)) {
     const e = pickErrand(c);
     if (!beginErrand(c, e, true)) c.errandCd = 2 * SEC;
   }
@@ -11485,6 +11485,13 @@ function beginErrand(c, e, requireOpen) {
 //      into "eat on the way in".
 function afterErrand(c, chain) {
   const sh = effShift(c);
+  // ...and the CHAIN is the other half of the bedtime (see pastBedtime). The
+  // at-home dispatch is what sends a crab out at night; the chain is what
+  // turns one late stop into three. Gate both or the fix only halves the
+  // problem: a crab who clocks off at 21:30 still grabs dinner on the way home
+  // - one stop, on a walk they were making anyway - but does not then tour the
+  // town off the back of it.
+  if (chain && pastBedtime(c)) chain = false;
   if (chain && !c.p.sick && (c.chainN || 0) < 2) {
     const e = pickErrand(c);
     // four kinds of stop that never ring a till now - the taps, the shelter
@@ -13019,6 +13026,87 @@ function rhythmOf(k) {
   const cul = id && id !== "crab" ? CULTURES[id] : null;
   return (cul && cul.rhythm) || RHYTHM;
 }
+// ---- BEDTIME (Matt, 2026-08-25) -------------------------------------------
+// "scheduling seems to get busted so some crabs never go home?" - and the
+// answer was that BED_HOUR existed and NOBODY READ IT. rhythmOf(k).BED was
+// consulted in exactly one place, updateVisitor: TOURISTS turned in at 21:00
+// and crabs never did, because nothing in a crab's day ever said GO TO BED.
+//
+// What a crab had instead was an errand window that opens at shift-end and
+// runs to townAwake's 23:00 - and selfCook, a crab's own kitchen, has no hours
+// at all. Every stop ends in afterErrand(chain), which chains two more. So the
+// evening was: clock off, eat, chain, tap, home, cooldown expires, still
+// peckish, BACK OUT AGAIN, with no terminating condition. MEASURED on the
+// pre-fix build (3 seeds x 10d, crew 6): 2.09 trips out of the house per
+// crab-evening after clocking off (max 10); 65 departures FROM HOME after
+// 20:00 (selfCook 46, tap 12, ball 7); 15.7% of crab-nights never reached home
+// at all; the town did not clear 90% home until 01:00. Crew slept a p50 of
+// 7.0h and 30% of crew-nights came in under 6h.
+//
+// THE RULE. Past their culture's BED, a crab off the clock stops PICKING UP
+// new errands and goes home. It is deliberately the narrowest thing that
+// works:
+//   - it gates the DISPATCH, never the walk. A crab already mid-errand
+//     finishes it and heads home; nobody is teleported or stranded.
+//   - a crab still ON SHIFT is untouched. Bedtime is not a labour law, and a
+//     late rota is the player's business - which is the whole point, because
+//     it leaves "worked into the ground" available as a thing a player DOES.
+//   - DIRE needs still walk. needLevel >= DIRE is the same escape hatch
+//     errandScore already grants ("desperate: walk it, wherever it is"), so a
+//     starving or parched crab eats at midnight exactly as before. Without
+//     this the fix would quietly re-break the dehydration line the public
+//     taps were built to hold.
+// A culture that declares its own `bed` gets its own bedtime, by the same
+// rhythmOf identity the rest of the day already uses - a nocturnal people
+// keeps its own hours rather than the host's.
+// EVENING ONLY, and that boundary was MEASURED rather than reasoned. A first
+// cut also gated the pre-dawn side (tmin < WAKE) on the theory that a crab out
+// at 05:00 is a crab not sleeping. It is not: townAwake deliberately opens
+// 05:30-08:00 so a crab can EAT BEFORE A SHIFT, and closing it sent the crew
+// to work hungry. That cut read growth escape 2/16 against a 3/16 control,
+// median eviction 11 against 14 - a real regression, and the honest reading of
+// it is that breakfast is load-bearing. So the gate is the evening alone: past
+// BED, stop going out. The dead hours are already covered - townAwake is false
+// from 23:00 to 05:30, so nothing dispatches there whatever this says.
+function pastBedtime(c) {
+  if (patOff("bedtime")) return false;   // the attribution arm
+  if (c.dsC === DS.working || c.duty) return false;   // on the clock is the player's business
+  if (tmin < rhythmOf(c).BED) return false;            // ...and the morning is nobody's bedtime
+  return !DIRE_NEEDS.some(n => needLevel(c, n) >= NIGHT_NEED);   // a real need still walks
+}
+// the needs a crab will still cross a dark town for. FUN and VOTE are not on
+// it on purpose: nobody's life turns on a beach ball at midnight, and the
+// ballot box keeps its own VOTE_MAX ceiling well below DIRE anyway.
+const DIRE_NEEDS = ["food", "drink", "clean"];
+// WHAT STILL GETS YOU OUT OF BED. This dial was swept and IT HAS NO GOOD
+// SETTING on the current economy - which is the finding, not a gap in the
+// tuning. DO NOT re-tune it without reading this; both ends have been paid for.
+//
+//   setting            growth (seeds 16-31)   never-home   23:00 home%
+//   control, no gate         8/16               15.7%          57%
+//   NIGHT_NEED 0.90          4/16                ~0%           64%
+//   NIGHT_NEED 0.70          5/16               16.1%          56%
+//
+// At 0.90 the bedtime WORKS and the town starves: a crab who clocks off at
+// 20:00, walks an hour home and is hungry at 0.7 cannot eat, goes to bed
+// hungry, wakes hungrier, and meets the nightly roll over the 0.95 line where
+// hunger is the HEAVIEST term (+0.10, against exhaustion's +0.05). Growth
+// escape read 6/32 against an 11/32 control over two 16-seed blocks.
+// At 0.70 the economy comes back only because THE GATE STOPS FIRING - 0.70 is
+// below where an evening crab actually sits, so never-home returns to its
+// baseline 16% and the bedtime buys nothing. There is no middle here; there
+// are two ends of a dial.
+//
+// THE REAL COUPLING, stated plainly for whoever picks this up: the late-evening
+// errand tour is LOAD-BEARING. Crabs are out at 23:00 because that is when they
+// eat, and the roll punishes hunger twice as hard as it punishes exhaustion.
+// A bedtime alone cannot ship - it needs a way for a crab to eat BEFORE it
+// (the post-shift meal moved earlier, or a selfCook cheap enough that dinner is
+// not a town-crossing expedition). That is a design call about the crab day,
+// not a threshold, and it is parked with the owner.
+// Held at 0.90 - the setting where the gate does what it says - so that
+// whoever lands the meal half is measuring against a bedtime that is real.
+const NIGHT_NEED = DIRE;
 // an INSTITUTION keeps its owner's day: a placed shop carries its culture at
 // cu (placeBusiness stamps it), and its shift anchors + default sign read
 // that culture's rhythm. Native shops have no cu and read the crab table.
