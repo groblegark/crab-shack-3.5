@@ -1,0 +1,7 @@
+...
+== 489 home->out departures, 3 seeds x 10d
+departures AFTER 20:00 (i.e. leaving the house at night): 66
+by hour: 3h:2 4h:38 5h:40 6h:73 7h:41 8h:42 9h:49 10h:9 11h:12 12h:47 13h:18 14h:5 15h:1 16h:8 17h:13 18h:13 19h:12 20h:53 21h:1 22h:12
+night departures by destination: {"selfCook":43,"atTap":16,"atBall":7}
+per crab-evening trips out after clocking off: mean 2.08  max 7  >=3 trips: 23/78
+departures on DAY-OFF crabs: 74; after 20:00: 5

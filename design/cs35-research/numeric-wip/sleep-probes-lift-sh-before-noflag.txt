@@ -1,0 +1,12 @@
+...
+
+== SLEEP AUDIT  3 seeds x 8d   157 full crab-nights
+CREW       n= 112  dark hours available 12.7  SLEPT: mean 8.91h  p10 4.50h  p50 7.25h  min 0.00h  | under 6h: 28%  under 4h: 8%
+TOWNSFOLK  n=  45  dark hours available 27.2  SLEPT: mean 14.09h  p10 4.25h  p50 15.00h  min 0.00h  | under 6h: 18%  under 4h: 9%
+EVERYONE   n= 157  dark hours available 16.8  SLEPT: mean 10.39h  p10 4.25h  p50 8.50h  min 0.00h  | under 6h: 25%  under 4h: 8%
+
+share of crabs HOME, by hour (the bedtime curve):
+  17:  29%  
+  18:  31%  19:  33%  20:  31%  21:  32%  22:  42%  23:  60%  
+  00:  78%  01:  85%  02:  91%  03:  97%  04:  94%  05:  83%  
+  06:  66%  07:  51%  
