@@ -94,9 +94,27 @@ const REALM = opt("realm", null) || undefined;
 // against "raise everybody". Both go through the game's own setters.
 const WAGE = opt("wage", null) != null ? parseInt(opt("wage", null)) : null;
 const STAR = opt("star", null) != null ? parseInt(opt("star", null)) : null;
+// HOW MANY CORES DO WE ACTUALLY HAVE? `os.cpus().length` reports the HOST's
+// core count, NOT this container's cgroup quota - so in a pod it is a lie, and
+// a "cores - 1" default oversubscribes by the node:limit ratio.
+//
+// MEASURED (fleet pod, gasboat-prod, 2026-08-25): limits.cpu=4 on a 16-core
+// m5.4xlarge read `os.cpus().length` 16 and forked 15 workers onto a quota of
+// FOUR. Nothing fails - the cgroup just throttles (cpu.stat nr_throttled 8465,
+// throttled_usec 2.94e9 in one session) and the run reads as "the sim is
+// heavy" rather than "I asked for 4x the CPU I have". That silently violates
+// this project's own "don't run two sims concurrently when benchmarking, or
+// timings lie" rule while appearing to follow it.
+//
+// availableParallelism() IS cgroup-aware (node 18.14+). Take the min of both
+// derivations and floor at 1: two independent readings that must agree, which
+// is the same discipline the rest of this toolchain uses for balance numbers.
+const CORES = Math.max(1, Math.min(
+  typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length,
+  os.cpus().length));
 const JOBS = opt("jobs", null) != null
   ? parseInt(opt("jobs", null))
-  : Math.min(SEEDS, Math.max(1, os.cpus().length - 1));
+  : Math.min(SEEDS, Math.max(1, CORES - 1));
 
 function mulberry32(a) {
   return function () {
