@@ -14673,6 +14673,22 @@ scenario("layer 1: hostile programs are refused by name, before anything runs", 
   const longProg = new Array(257).fill(["PUSHI", 1]);
   const deepProg = new Array(17).fill(["PUSHI", 1]);
   const magProg = [["LD", 0], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"], ["LD", 0], ["MUL"]];
+  // A BRACKETING PAIR that pins L1_MAG to EXACTLY 2^52, not merely "enormous
+  // overflow is refused". magProg above clears the bound by ~222x (its interval
+  // climbs 1e6..1e18), so any L1_MAG in (1e15, 1e18] refuses it - it pins the
+  // far side of the cliff, not where the cliff sits. 2^26 * 2^26 == 2^52 EXACTLY
+  // in f64 and 2^52 + 1 is still integer-exact, so this pair straddles the
+  // boundary with zero slack:
+  //  - magAtBound lands the static interval ON the boundary and must be ACCEPTED
+  //    (the four guards are strict `> L1_MAG`, so 2^52 == L1_MAG passes). This is
+  //    the load-bearing half: a battery made only of refusals is structurally
+  //    blind to a WIDENED bound, because loosening can only turn a refusal into
+  //    an acceptance. NARROW L1_MAG below 2^52 and this goes red, naming the MUL.
+  //  - magOverByOne is the same product plus one - 2^52 + 1, the minimal integer
+  //    past the boundary - and must be REFUSED naming PAST 2^52. WIDEN L1_MAG by
+  //    anything >= 1 and this goes red. Between them the constant cannot move.
+  const magAtBound   = [["PUSHI", 67108864], ["PUSHI", 67108864], ["MUL"]];                            // 2^26 * 2^26 == 2^52
+  const magOverByOne = [["PUSHI", 67108864], ["PUSHI", 67108864], ["MUL"], ["PUSHI", 1], ["ADD"]];     // 2^52 + 1
   const cases = [
     { p: [["FOO"]], re: /NOT AN L1 OP/ },
     { p: longProg, re: /257 OPS, MAX 256/ },
@@ -14684,6 +14700,8 @@ scenario("layer 1: hostile programs are refused by name, before anything runs", 
     { p: [["PUSHI", 1], ["PUSHI", 4], ["MULDIV", 0]], re: /MULDIV AT OP 2 DIVIDES BY 0/ },
     { p: [["PUSHI", 1.5]], re: /READS 1\.5 - int32 ONLY/ },
     { p: magProg, re: /PAST 2\^52/ },
+    { p: magOverByOne, re: /PAST 2\^52/ },      // 2^52 + 1: the tight refuse side of the pin
+    { p: magAtBound, re: /^ACCEPTED$/ },        // 2^52 exactly: the load-bearing accept side
     { p: [["PUSHI", 1], ["PUSHI", 2]], re: /MUST END WITH ONE VALUE, ENDS WITH 2/ },
     { p: [["PUSHI", 1], ["TERM"], ["PUSHI", 2], ["ADD"]], re: /TERM AT OP 1 - TERM CLOSES A PROGRAM/ },
     { p: [], re: /A PROGRAM WITH NO OPS/ },
