@@ -847,14 +847,14 @@
     },
     "purses": {
      "type": "array",
-     "description": "Phase E4 slice 4b - THE FOUR PURSES that fund the shelter, as rate grids. Four mechs (the engine's own id space): 'levy' (a share of every business's takings), 'dues' (a charge per visitor the ferry lands), 'rents' (a cut of Mr. Pincherton's house rents), 'tin' (a voluntary collection). Each is { id, name, short, unit, who, steps[] }. steps IS the rate grid and the INDEX (0..4) is what a save stores, so STEP 0 IS NO TAKE (rate 0 raises nothing), the founding grid. Every step is a whole count >= 0 (percent for levy/rents, cents for dues/tin). Like the ballot dials these are TOWN-LEVEL, so the crab's own bundle adopts them in place and the engine literal is the fallback; the levy's conflict-of-interest and the conservation math stay engine.",
+     "description": "Phase E4 slice 4b - THE PURSES that fund the shelter, as rate grids. Five mechs (the engine's own id space): 'levy' (a share of every business's takings), 'dues' (a charge per visitor the ferry lands), 'rents' (a cut of Mr. Pincherton's house rents), 'tin' (a voluntary collection), 'tariff' (a duty on the landed price of imported goods, off the till that buys them). Each is { id, name, short, unit, who, steps[] }. steps IS the rate grid and the INDEX (0..4) is what a save stores, so STEP 0 IS NO TAKE (rate 0 raises nothing), the founding grid. Every step is a whole count >= 0 (percent for levy/rents/tariff, cents for dues/tin). Like the ballot dials these are TOWN-LEVEL, so the crab's own bundle adopts them in place and the engine literal is the fallback; the levy's conflict-of-interest and the conservation math stay engine.",
      "items": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "steps"],
       "properties": {
        "id": { "type": "string", "minLength": 1,
-        "description": "The purse mech id. levy/dues/rents/tin are the engine's own." },
+        "description": "The purse mech id. levy/dues/rents/tin/tariff are the engine's own." },
        "name": { "type": "string", "description": "The purse's full name." },
        "short": { "type": "string", "description": "The purse's short label." },
        "unit": { "type": "string", "description": "What a step counts (e.g. '% OF TAKINGS', '$ A HEAD')." },

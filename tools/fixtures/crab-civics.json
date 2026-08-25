@@ -58,9 +58,11 @@
       "steps": [0, 2, 3, 4, 6, 8, 12] }
   ],
   "_purses_comment": [
-    "THE FOUR PURSES, TRANSCRIBED (cultureway phase E4 slice 4b, plan section 2).",
+    "THE FIVE PURSES, TRANSCRIBED (cultureway phase E4 slice 4b, plan section 2;",
+    "the tariff joined 2026-08-25 - a duty on the gangway is a fifth answer to",
+    "the same question).",
     "Who pays for the pot - the rate GRID a mayor sets and a voter prices. The",
-    "four mechs (levy/dues/rents/tin) are the engine's own id space (PURSE_KEYS",
+    "five mechs (levy/dues/rents/tin/tariff) are the engine's own id space (PURSE_KEYS",
     "drives allPlatforms and the levy conflict-of-interest), so they ride the",
     "crab's OWN bundle and adopt IN PLACE beside the ballot dials, the same E6",
     "idiom: the PURSES object literals stay as the engine fallback and purseRate/",
@@ -81,7 +83,9 @@
     { "id": "rents", "name": "A CUT OF THE RENTS", "short": "RENTS", "unit": "% OF THE HOUSE RENTS",
       "who": "MR. PINCHERTON, OFF HIS OWN BOOK", "steps": [0, 10, 20, 30, 40] },
     { "id": "tin", "name": "THE COLLECTION TIN", "short": "TIN", "unit": "$ ASKED OF EACH",
-      "who": "WHOEVER CAN SPARE IT", "steps": [0, 100, 200, 300, 400] }
+      "who": "WHOEVER CAN SPARE IT", "steps": [0, 100, 200, 300, 400] },
+    { "id": "tariff", "name": "THE TARIFF", "short": "TARIFF", "unit": "% ON THE LANDED PRICE",
+      "who": "EVERY TILL THAT BUYS AN IMPORTED GOOD - FISH FIRST", "steps": [0, 10, 25, 50, 100] }
   ],
   "_calendar_relief_comment": [
     "THE CALENDAR AND THE RELIEF, TRANSCRIBED (cultureway phase E4 slice 4c).",

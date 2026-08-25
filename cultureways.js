@@ -11518,6 +11518,20 @@ var BUNDLED_CRAB_CIVICS = {
     300,
     400
    ]
+  },
+  {
+   "id": "tariff",
+   "name": "THE TARIFF",
+   "short": "TARIFF",
+   "unit": "% ON THE LANDED PRICE",
+   "who": "EVERY TILL THAT BUYS AN IMPORTED GOOD - FISH FIRST",
+   "steps": [
+    0,
+    10,
+    25,
+    50,
+    100
+   ]
   }
  ],
  "calendar": {
