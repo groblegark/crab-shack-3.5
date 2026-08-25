@@ -25,7 +25,11 @@ arms: 1
 parallelism: null
 
 image:
-  node: node:26-slim
+  # The arm runtime is an artefact THIS repo builds and verifies
+  # (.github/workflows/image.yml), pinned to its :sha tag — never a floating
+  # upstream tag that can move under a gate. Carries node 26, git, and zig, so
+  # an arm can rebuild kernel.wasm rather than trust the committed binary.
+  node: ghcr.io/groblegark/crab-shack-toolchain:6d74cac89a2724a9ada3032b325556156386cd2c
   git: alpine/git:2.45.2
 
 # Sized for the MANIFEST's declared resources by kube.mjs (a suite slice is

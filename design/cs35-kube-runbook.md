@@ -15,13 +15,20 @@ export AWS_PROFILE=gasboat-prod        # every shell; the env does not persist
 node tools/kube.mjs run experiments/<manifest>.json --wait
 ```
 
-**This verb is OPERATOR-SIDE ONLY today — a gasboat `cs` fleet pod cannot
-drive the cluster.** Measured from two independent pods, 2026-08-24: there is
-no kubeconfig context (so `kubectl auth can-i` returns NotFound, not a clean
-RBAC no) and the pod's IRSA principal has no `eks:*`, so it cannot even
-`aws eks update-kubeconfig` to build one. `kube.mjs` gets as far as preflight
-and stops at `kube context "" is not the gasboat cluster - refusing`, which is
-the honest answer, not a bug to work around. Tracked as kd-wbdYahwATd.
+**A gasboat `cs` fleet pod CAN now drive the cluster — PROVEN end to end
+2026-08-25** (kd-bk9jS2Yp3Q / kd-wbdYahwATd, both closed). `node tools/kube.mjs
+run experiments/sci-focus.json --ref <SHA> --wait` from a fresh cs pod ran
+install -> 2 arms -> receipts -> MERGED SUITE VERDICT 2/2 passed -> uninstall ->
+scale-down verified. Three blockers had to fall for this, each a separate fix:
+(1) preflight now proves the cluster by CA bytes, not context name (main
+9eb0143) — a pod legitimately has no kubeconfig context; (2) the `crab-science-runner`
+Role gained rbac roles/rolebindings verbs incl. delete (escalation kd-Y7RzIznJAw,
+2026-08-25) so helm can install AND uninstall its per-release Role/RoleBinding;
+(3) kube.mjs no longer hardcodes `helm install --create-namespace` (main 0fc9e1b)
+— it demanded a cluster-scope namespace CREATE the least-privilege SA correctly
+lacks, though crab-science already exists. The earlier "OPERATOR-SIDE ONLY"
+reading was three tool bugs stacked (runbook lesson #9), not a substrate wall.
+The operator's Mac path is unchanged and still works.
 
 What a pod CAN do — and should, per CLAUDE.md's scope note, since the local ban
 protects the operator's Mac and a fleet pod IS cluster compute — is run sim
@@ -87,17 +94,20 @@ cs pod (SA `gasboat-system/gasboat-agent`, token at
 | create secrets / configmaps | yes | helm 3 release state + receipts |
 | get pods/log, list events | yes | forensics work |
 | delete jobs, create serviceaccounts | yes | |
-| **get/create roles, rolebindings** | **NO** | blocks `helm install` — the chart ships a per-release Role/RoleBinding |
+| **get/create/delete roles, rolebindings** | **yes** (ns crab-science only) | granted 2026-08-25 (kd-Y7RzIznJAw); delete included so helm uninstall cleans its own Role/RoleBinding |
+| create namespaces (cluster scope) | **no** | correct least-privilege; kube.mjs no longer needs it (main 0fc9e1b) |
+| create clusterroles, create jobs -n kafka | **no** | least privilege intact |
 
 Tooling: helm **3.20.2**, kubectl **1.35.4** against server **1.31.14-eks**.
 Note `kubectl version --short` was REMOVED in 1.35 — use bare `kubectl version`.
 `aws eks describe-cluster` SUCCEEDS from the pod; only `eks:ListClusters` is
 denied, so "the pod has no eks:*" is wrong.
 
-So a pod reaches `helm install` and stops at the rbac verbs — see
-kd-l5LLfwzfxk / escalation kd-Y7RzIznJAw. Until that lands, a pod's route to a
-full verdict is the in-pod suite (~88 min vs ~103s sharded, roughly 50x, and
-it LOOKS like a hang — budget for it rather than concluding it wedged).
+So a pod now drives the full run path — install through uninstall — in
+crab-science. A pod STILL also has the in-pod suite route (~88 min vs ~103s
+sharded, roughly 50x, and it LOOKS like a hang — budget for it rather than
+concluding it wedged) for when cluster access is unavailable, but the cluster
+route is the fast verdict.
 
 ## Lessons with scars (do not relearn)
 
@@ -148,6 +158,17 @@ it LOOKS like a hang — budget for it rather than concluding it wedged).
    a failed check rather than a missing binary. Use node's `crypto`. Cost
    one armed mutation to find, in the very function meant to REMOVE a
    false negative.
+12. **`helm install --create-namespace` is a cluster-scope CREATE even when
+   the namespace exists** (the 4th lesson-#9 tool bug). helm 3 issues an
+   UNCONDITIONAL namespace CREATE and only tolerates AlreadyExists — but the
+   API server checks authz BEFORE existence, so a least-privilege caller
+   (get namespaces: yes, create namespaces: no) gets a cluster-scope
+   Forbidden and the whole install aborts, though crab-science was
+   operator-provisioned days ago. Fixed on main 0fc9e1b: gate the flag on
+   `kubectl get namespace`. Diagnose the class by hand: if `kubectl get
+   namespace <ns>` says it exists but helm says it can't create it, the
+   `--create-namespace` flag is the bug, not your grant — do NOT request
+   namespace-create.
 
 ## How a fork prepares a run
 
