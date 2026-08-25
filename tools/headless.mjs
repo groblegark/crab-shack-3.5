@@ -89,9 +89,17 @@ const REALM = opt("realm", null) || undefined;
 // against "raise everybody". Both go through the game's own setters.
 const WAGE = opt("wage", null) != null ? parseInt(opt("wage", null)) : null;
 const STAR = opt("star", null) != null ? parseInt(opt("star", null)) : null;
+// CORES, NOT HOST CORES. `os.cpus().length` reports the MACHINE's core count
+// even inside a container, so on a fleet pod the "cores - 1" default forks one
+// worker per HOST core and oversubscribes by the node:limit ratio - measured at
+// 15 workers on a 4-core pod (kd-ReUe4HDXaB). `availableParallelism()` is
+// cgroup-aware; the min of the two is honest on both a laptop and a pod, and
+// memory (N heaps against limits.memory) is the sharp edge, not CPU.
+const CORES = Math.max(1, Math.min(os.cpus().length,
+  typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length));
 const JOBS = opt("jobs", null) != null
   ? parseInt(opt("jobs", null))
-  : Math.min(SEEDS, Math.max(1, os.cpus().length - 1));
+  : Math.min(SEEDS, Math.max(1, CORES - 1));
 
 function mulberry32(a) {
   return function () {
