@@ -122,7 +122,10 @@ const sandbox = {
   document: { createElement: () => mkCanvas(), getElementById: () => mkCanvas(), addEventListener: noop, hidden: false },
   location: { search: "?fresh" },
   localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
-  Audio: class { constructor() { this.loop = false; this.volume = 0; } play() { return { catch: noop }; } pause() {} },
+  // A REAL PROMISE, and an addEventListener, for the same reason simlib's stub
+  // has them: the game writes `.play().then(...)` and attaches an 'ended'
+  // handler, so a stub missing either one throws rather than staying quiet.
+  Audio: class { constructor() { this.loop = false; this.volume = 0; } play() { return Promise.resolve(); } pause() {} addEventListener() {} },
   AudioContext: undefined,
   addEventListener: noop,
   console,

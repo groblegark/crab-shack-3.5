@@ -6988,26 +6988,55 @@ let musicOn = false, music = null, muted = false;   // opt-IN for new players (S
 let musNudges = 0, musNudged = false;               // invite, don't nag: gives up after 3 sessions
 function toggleMute() {
   muted = !muted;
-  if (muted) { if (music) music.pause(); }
+  if (muted) { if (music) music.pause(); if (musPreview) musPreview.pause(); }
+  else if (musPreview) musPreview.play().catch(() => {});   // the bench keeps the speakers it owns
   else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
 }
 let trackIdx = (srand() * PLAYLIST.length) | 0;
+// ONE TRACK AT A TIME, AND THE GENERATION IS WHY. Every play is asynchronous:
+// `play()` hands back a promise, and 'ended' fires from an element we may have
+// walked away from. Both closures used to write the GLOBAL `music` - so a
+// promise settling for a track we had already replaced nulled the handle to the
+// one now playing, and the next `startMusic()` saw an empty speaker and started
+// a SECOND track over the top of it. Matt: "should never play more than one
+// track at once". Each attempt now carries the generation it was started in and
+// a direct reference to its own element, and a stale closure returns without
+// touching anything. Bumping `musGen` is also how a caller says "whatever is
+// loading, it is not ours any more".
+//
+// BOTH COUNTERS ARE DECLARED HERE, beside the audio they guard, even though
+// `musPrevGen` belongs to the record box a thousand lines below. `playTrack`
+// calls `musStopPreview`, which writes `musPrevGen`, and a `let` is in its
+// temporal dead zone until its own line has run - so declaring it down there
+// makes the first track of a session throw a ReferenceError whenever anything
+// plays before the box's block is reached, which on the title screen is always.
+let musGen = 0, musPrevGen = 0;
 function playTrack(i) {
+  musStopPreview();          // the rotation and the bench never share the speakers
+  const gen = ++musGen;
   if (music) { music.pause(); music = null; }
   trackIdx = ((i % ROTATION.length) + ROTATION.length) % ROTATION.length;
   const t = ROTATION[trackIdx];
   // A KEPT CATALOG TRACK RESOLVES LIKE THE BOX RESOLVES IT - local mirror if
   // this machine has one, our release if it does not - rather than carrying a
   // baked src that would be wrong on the other kind of machine.
-  music = new Audio(t.cat ? musSrc(t.cat) : t.src);
-  music.volume = 0.55;
+  const a = new Audio(t.cat ? musSrc(t.cat) : t.src);
+  music = a;
+  a.volume = 0.55;
   // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
   // match what the town is doing when this one runs out - see pickTrack.
-  music.addEventListener("ended", () => { music = null; if (musicOn) playTrack(pickTrack()); });
-  music.play().then(() => { if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
-    .catch(() => { music = null; });
+  a.addEventListener("ended", () => {
+    if (musGen !== gen) return;   // superseded: someone else owns the speakers
+    music = null;
+    if (musicOn && !musicView) playTrack(pickTrack());
+  });
+  a.play().then(() => { if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
+    .catch(() => { if (musGen === gen) music = null; });
 }
-function startMusic() { if (!music && musicOn && !muted) playTrack(pickTrack()); }
+// THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
+// underneath a track you are auditioning - which is what the box's own MUSIC ON
+// button used to do.
+function startMusic() { if (!music && musicOn && !muted && !musicView) playTrack(pickTrack()); }
 // THE TWO MOMENTS THAT OWN THEIR OWN MUSIC. Called from the screens that mean
 // them; each one only interrupts if it is not already the thing playing, so a
 // 31-second sting is not restarted every frame of the ending it belongs to.
@@ -7019,7 +7048,60 @@ function playRole(role) {
 }
 function toggleMusic() {
   musicOn = !musicOn;
-  if (!musicOn && music) { music.pause(); music = null; } else if (musicOn) startMusic();
+  if (!musicOn) { musGen++; if (music) { music.pause(); music = null; } musStopPreview(); }
+  else startMusic();
+}
+// PREV/NEXT ARE A WALK ALONG THE ROTATION, not another shuffle. `b` already
+// skips to "another one that fits" - a chosen track - and that is a different
+// gesture from stepping to the neighbour, which is what an arrow means
+// everywhere else. Matt asked for shift+left/right to work "even when not in
+// playlist", so this is the one path both the keys and the box's arrows use.
+//
+// It turns the music ON rather than doing nothing when it is off: pressing
+// next-track is an unambiguous request to hear something, and a key that
+// silently no-ops is the interface bug this whole pass is about.
+function musStep(d) {
+  // THE TARGET IS READ BEFORE ANYTHING IS UNMUTED, and that ordering is the
+  // whole of this function's care: unmuting runs startMusic, which picks a
+  // random track and WRITES trackIdx - so stepping afterwards would step from
+  // a track nobody chose rather than from the one you were listening to.
+  const to = trackIdx + d;
+  musicOn = true;
+  if (muted) muted = false;              // a skip while muted means "let me hear it"
+  playTrack(to);
+}
+// WHAT IS AUDIBLE, as the box's own pool row - so KEEP from the main interface
+// writes exactly the judgement the box writes. Shipped tracks are "p<index>"
+// into PLAYLIST (musPool's ids), and a kept catalog track carries its row.
+//
+// The BENCH ANSWERS FIRST when it has the speakers, so shift+K in the box keeps
+// the track you are auditioning rather than the rotation track it interrupted -
+// "what is playing" has to mean what you can actually hear.
+function musNowRow() {
+  if (musPreviewId) {
+    const row = musPool().find(t => t.id === musPreviewId);
+    if (row) return row;
+  }
+  if (!musicOn) return null;
+  const t = ROTATION[trackIdx];
+  if (!t) return null;
+  if (t.cat) return t.cat;
+  const i = PLAYLIST.findIndex(x => x.name === t.name);
+  if (i < 0) return null;
+  return { id: "p" + i, name: t.name, file: t.src, shipped: 1 };
+}
+// SHIFT+K KEEPS THE TRACK YOU ARE HEARING. Matt: "ability to mark a track as
+// keep from the main interface". The judgement is the box's judgement - same
+// store, same rebuild - so a track kept from the promenade shows as KEPT in the
+// box, and one kept twice toggles back to unjudged rather than being a dead key.
+function keepNowPlaying() {
+  const row = musNowRow();
+  if (!row) { toast = { text: "NOTHING IS PLAYING", t: 3 }; return; }
+  const was = musState(row);
+  const next = was === 1 ? null : 1;
+  musJudge[row.id] = Object.assign({}, musJudge[row.id], { k: next });
+  musSave();
+  toast = { text: (next === 1 ? "KEPT: " : "UNKEPT: ") + row.name, t: 4 };
 }
 let AC = null;
 function beep(freq, dur, type, vol, when) {
@@ -15509,7 +15591,8 @@ function panelTap(p) {
       if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
       if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
       if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
-      if (p.x >= 168) { musOpen(); sfx.ding(); return; }                       // MUS -> the record box
+      if (p.x >= 181) { musOpen(); sfx.ding(); return; }                       // > -> the record box
+      if (p.x >= 166) { toggleMusic(); sfx.ding(); return; }                   // MUS -> music on/off
       if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
     }
     // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
@@ -16062,6 +16145,24 @@ cv.addEventListener("contextmenu", (ev) => {
   orderCrab(sel, p.x + camX, p.y);
 });
 addEventListener("keydown", (e) => {
+  // THE MUSIC KEYS ANSWER FIRST, and they are the only ones that work
+  // everywhere - in the box, on the title, over a card. Music is not a mode.
+  //
+  // SHIFT+LEFT/RIGHT step the rotation. Matt asked for them to work "even when
+  // not in playlist", and putting them above every other arrow case is what
+  // makes that true: the unshifted arrows pan the camera and turn help pages,
+  // and each of those cases would otherwise eat the shifted one first.
+  if (e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    e.preventDefault();
+    musStep(e.key === "ArrowRight" ? 1 : -1);
+    return;
+  }
+  // SHIFT+K keeps what you are hearing, from wherever you are hearing it.
+  if (e.key === "K" && e.shiftKey) { keepNowPlaying(); sfx.ding(); return; }
+  if (musicView) {   // the box owns the up/down arrows: they walk it and play as they go
+    if (e.key === "ArrowDown") { e.preventDefault(); musAdvance(1); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); musAdvance(-1); return; }
+  }
   if (e.key === "m") { toggleMute(); if (!muted) sfx.ding(); }
   if (e.key === "n") toggleMusic();
   if (e.key === "b" && musicOn) playTrack(pickTrack());    // skip: another one that fits
@@ -17934,13 +18035,25 @@ function drawPanel() {
   rect(ctx, 146, PANEL_Y + 1, 19, 11, muted ? [140, 50, 50] : [30, 20, 20]);
   rect(ctx, 147, PANEL_Y + 2, 17, 9, muted ? [90, 35, 35] : [90, 70, 60]);
   blit(ctx, muted ? SPEAKER_OFF : SPEAKER_ON, 150, PANEL_Y + 3);
+  // THE MUSIC CHIP IS TWO CHIPS NOW. Matt: "a button you can use to turn the
+  // music on and off without viewing the playlist" - so MUS is the SWITCH, and
+  // the chevron beside it is the door to the box. The switch keeps the pixels
+  // and the position the old chip had, because the frequent action deserves the
+  // big target and the muscle memory: turning the music off is something you do
+  // in the middle of a day, and opening a vetting bench is not.
+  //
+  // The bands are 166-180 and 181-188, taken from the 9px of daylight that sat
+  // between "MUS" and "SND" plus the 2px the label gives up moving to 167 -
+  // nothing else on this row moves. See the geometry note at the speed chips
+  // for why that matters.
   {
     const invite = !musicOn && !muted && musNudges < 3;
     const pulse = invite && (viewT % 2) < 1.2;
-    smallText(ctx, "MUS", 169, PANEL_Y + 3,
+    smallText(ctx, "MUS", 167, PANEL_Y + 3,
       !muted && musicOn ? [140, 220, 140] : pulse ? [255, 216, 96] : [140, 120, 110]);
+    smallText(ctx, ">", 183, PANEL_Y + 3, musicView ? [255, 230, 120] : [150, 132, 122]);
     if (invite && !musNudged && screen === "play" && tmin > 9.5 * 60 && !toast && reportT <= 0) {
-      toast = { text: "THE BAND IS WARMED UP - MUS TO LISTEN", t: 6 };
+      toast = { text: "THE BAND IS WARMED UP - TAP MUS TO LISTEN", t: 6 };
       musNudged = true;
     }
   }
@@ -20897,6 +21010,11 @@ const HELP_PAGES = [
     ["k", "ARROWS", "PAN THE TOWN"],
     ["k", "T", "A THINKER'S MIND (THE BRAIN PANEL)"],
     ["k", "M / N / B", "MUTE / MUSIC / NEXT TRACK"],
+    // THE MUSIC KEYS EARNED A SECOND ROW. Shift+arrows work anywhere, which is
+    // the whole point of them, and a key that works everywhere but is written
+    // down nowhere is not a feature - see the ruling on interface opacity.
+    ["k", "SHIFT ARROWS", "PREV / NEXT TRACK"],
+    ["k", "SHIFT K", "KEEP THE TRACK THAT IS PLAYING"],
     ["k", "ESC", "BACK OUT OF ANYTHING"],
     ["k", "H  OR  ?", "THIS CARD"],
     ["-"],
@@ -22084,32 +22202,67 @@ function musFiltered() {
   if (f === "DROPPED") return all.filter(t => musState(t) === 0);
   return all.filter(t => musState(t) === null);   // UNJUDGED
 }
-function musPlay(t) {
+// STOPPING THE BENCH IS ITS OWN VERB, because four callers need it and each one
+// that open-coded it was a chance to forget the generation bump - which is
+// exactly how a stopped preview came back to life over a rotation track.
+function musStopPreview() {
+  musPrevGen++;
   if (musPreview) { musPreview.pause(); musPreview = null; }
-  if (musPreviewId === t.id) { musPreviewId = ""; return; }   // tapping the playing row stops it
+  musPreviewId = "";
+}
+// `toggle` false forces a play (the arrow keys, which must never land on a row
+// and go silent); the default keeps the tap gesture, where the playing row
+// stops.
+function musPlay(t, toggle = true) {
+  const wasPlaying = musPreviewId === t.id;
+  musStopPreview();
+  if (toggle && wasPlaying) return;   // tapping the playing row stops it
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
+  musGen++;
   if (music) { music.pause(); music = null; }
-  musPreview = new Audio(musSrc(t));
-  musPreview.volume = 0.55;
+  const gen = musPrevGen;
+  const done = () => { if (musPrevGen === gen) { musPreview = null; musPreviewId = ""; } };
+  const a = new Audio(musSrc(t));
+  musPreview = a;
+  a.volume = 0.55;
   musPreviewId = t.id;
-  musPreview.addEventListener("ended", () => { musPreview = null; musPreviewId = ""; });
-  musPreview.addEventListener("playing", () => {
-    if (ARCHIVE_OK === null && musPreview && musPreview.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
+  a.addEventListener("ended", () => { if (musPrevGen === gen) musAdvance(1); });
+  a.addEventListener("playing", () => {
+    if (ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
   });
-  musPreview.play().catch(() => {
+  a.play().catch(() => {
+    if (musPrevGen !== gen) return;   // superseded while it was loading
     // The mirror was not there. Fall through to the CDN once, and remember, so
     // the next track goes straight to the network.
-    if (!t.shipped && t.url && musPreview && musPreview.src.indexOf("music/archive/") >= 0) {
+    if (!t.shipped && t.url && a.src.indexOf("music/archive/") >= 0) {
       ARCHIVE_OK = false;   // learned once; every later track goes straight to the CDN
-      musPreview = new Audio(t.url);
-      musPreview.volume = 0.55;
-      musPreview.addEventListener("ended", () => { musPreview = null; musPreviewId = ""; });
-      musPreview.play().catch(() => { musPreview = null; musPreviewId = ""; toast = { text: "NO AUDIO FOR " + t.name, t: 3 }; });
+      const b = new Audio(t.url);
+      musPreview = b;
+      b.volume = 0.55;
+      b.addEventListener("ended", () => { if (musPrevGen === gen) musAdvance(1); });
+      b.play().catch(() => { done(); toast = { text: "NO AUDIO FOR " + t.name, t: 3 }; });
       return;
     }
-    musPreview = null; musPreviewId = ""; toast = { text: "NO AUDIO FOR " + t.name, t: 3 };
+    done(); toast = { text: "NO AUDIO FOR " + t.name, t: 3 };
   });
+}
+// UP/DOWN IN THE BOX MOVE THE SELECTION AND PLAY IT. Matt: "the playlist needs
+// up/down [arrows] that auto-play the track". The row that plays is the row you
+// are looking at, so the window scrolls to keep it on screen - a selection that
+// walks off the top is how you lose your place in 1,201 rows.
+//
+// It walks the FILTERED list, because that is the list on the screen: stepping
+// into a row the filter is hiding would be a cursor that vanishes.
+function musAdvance(d) {
+  const list = musFiltered(), n = list.length;
+  if (!n) return;
+  let at = list.findIndex(t => t.id === musPreviewId);
+  if (at < 0) at = d > 0 ? -1 : 0;              // nothing playing: start at the top
+  const next = ((at + d) % n + n) % n;          // and it wraps, like the rotation does
+  musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS),
+    next < musTop ? next : next >= musTop + MUS_ROWS ? next - MUS_ROWS + 1 : musTop));
+  musPlay(list[next], false);
 }
 // THE JUDGEMENT LEAVES AS A FILE, because that is the only way it can reach a
 // build. Downloads a picks file naming every KEPT track with its energy; the
@@ -22142,12 +22295,13 @@ function musExport() {
   }
 }
 function musClose() {
-  if (musPreview) { musPreview.pause(); musPreview = null; musPreviewId = ""; }
+  musStopPreview();
   musicView = false;
   if (musicOn && !muted) startMusic();   // hand the speakers back to the rotation
 }
 function musOpen() {
   musicView = true; musTop = 0;
+  musGen++;
   if (music) { music.pause(); music = null; }   // the bench owns the speakers while it is up
 }
 function musBarIndex(p, n) {
@@ -22160,6 +22314,9 @@ function musTap(p) {
   const list = musFiltered(), n = list.length;
   if (hitRect(p, musBackRect())) { musClose(); sfx.ding(); return; }
   if (hitRect(p, musExportRect())) { musExport(); sfx.ding(); return; }
+  // TURNING IT ON FROM THE BENCH ARMS THE ROTATION, it does not start a track
+  // over the one you are auditioning - startMusic defers while the box is up,
+  // and musClose hands the speakers back on the way out.
   if (hitRect(p, musOnRect())) { toggleMusic(); sfx.ding(); return; }
   if (hitRect(p, musFilterRect())) {
     musFilter = (musFilter + 1) % MUS_FILTERS.length; musTop = 0; sfx.ding(); return;
