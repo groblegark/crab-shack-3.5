@@ -395,11 +395,29 @@ console.log(`(${results.reduce((s, r) => s + r.wall, 0)}ms total)`);
 // trace here). Also emit a per-seed eviction/poll summary line for pairing.
 if (CITDIVLOG || CITSCRIPT || CITKNOCK.length) {
   const DIVOUT = opt("divout", null);
-  const rows = results.map((r, i) => ({
-    seed: seedList[i], evict: r.over ? r.day : null,
-    polls: (JSON.parse(r.stats).polls || []).map(p => ({ day: p.day, turnout: p.turnout, roll: p.roll })),
-    div: r._div ? JSON.parse(r._div) : null,
-  }));
+  const rows = results.map((r, i) => {
+    const st = JSON.parse(r.stats);
+    return {
+      seed: seedList[i], evict: r.over ? r.day : null,
+      // OUTCOME METRICS for the better-vs-different question: the receipt has
+      // to carry what the town actually DID, not only where the minds parted.
+      // All draw-free reads of the finished sim; paired live/script arms on
+      // the same seed make these directly comparable.
+      out: {
+        coins: r.coins, rep: r.rep, day: r.day,
+        tourServes: st.tourServes || 0, crabServes: st.crabServes || 0,
+        tourRage: st.tourRage || 0, crabRage: st.crabRage || 0,
+        visSpend: st.visSpend || 0, visBuys: st.visBuys || 0,
+        visDepart: st.visDepart || 0, visQuits: st.visQuits || 0,
+        seated: st.seated || 0, unhoused: st.unhoused || 0,
+        roughNights: st.roughNights || 0, walkouts: Array.isArray(st.walkouts) ? st.walkouts.length : (st.walkouts || 0),
+        causes: st.causes || {}, infections: st.infections || 0,
+        tapDrinks: st.tapDrinks || 0, crabDrinks: st.crabDrinks || 0,
+      },
+      polls: (st.polls || []).map(p => ({ day: p.day, turnout: p.turnout, roll: p.roll })),
+      div: r._div ? JSON.parse(r._div) : null,
+    };
+  });
   if (DIVOUT) {
     const { writeFileSync, mkdirSync } = await import("fs");
     mkdirSync(DIVOUT, { recursive: true });
