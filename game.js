@@ -1180,6 +1180,31 @@ function isMayor(c) { return !!hall.mayor && c.p.name === hall.mayor; }
 // is the conflict of interest, in one predicate: the same hand sets the levy
 // and pays it.
 function playerMayor() { const m = mayorCrab(); return !!m && !m.p.npc; }
+// THE FRANCHISE (phase E4 slice 4d, family 2). Who may VOTE, and who may put
+// themselves forward to STAND, as two per-voter predicates dispatched on the
+// voter's culture - the same dispatch platValue uses for stakes. A resident of
+// a stranger people that declared an eligibility section runs ITS 0/1 program;
+// the crab's own (and any culture that declared none) runs CRABELIG, whose
+// programs are byte-equal to the engine's inlined gates: stand = c.p.npc (only
+// townsfolk self-nominate), vote = 1 (every resident votes). window._noeligprog
+// is the arm-off hatch (attribution + the staged-election A/B), mirroring
+// _nol1plat. NO hook, NO RNG, NO mutation on either path - pure reads - so
+// value-equality is behaviour-equality here (the E3 trap does not bite).
+function eligOf(c) {
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  if (typeof window !== "undefined" && window._noeligprog) return null;
+  return cul ? cul.eligR : CRABELIG;
+}
+function canStand(c) {
+  const e = eligOf(c);
+  if (e && e.stand) return l1Run(e.stand, eligReads(c)) !== 0;
+  return !!(c && c.p && c.p.npc);   // the engine default: only townsfolk self-nominate
+}
+function canVote(c) {
+  const e = eligOf(c);
+  if (e && e.vote) return l1Run(e.vote, eligReads(c)) !== 0;
+  return true;                      // the engine default: every resident votes
+}
 function purseOf(p) { return PURSES[p.mech] || PURSES.rents; }
 function purseRate(p) { const s = purseOf(p).steps; return s[Math.max(0, Math.min(s.length - 1, p.rate | 0))]; }
 function policyLine(p) {
@@ -1781,7 +1806,7 @@ function buildBallot() {
   // to them. Without this the hat lands on a crew crab the player never chose
   // and whose policy they cannot set, which reads as a bug rather than a
   // government.
-  const grid = allPlatforms(), town = allCrabs().filter(c => c.p.npc);
+  const grid = allPlatforms(), town = allCrabs().filter(c => canStand(c));   // family-2 self-nomination predicate (crab: c.p.npc)
   const byPlat = {};
   for (const c of town) {
     const p = idealPlatform(c, grid);
@@ -1798,7 +1823,7 @@ function buildBallot() {
   // squeezed them out; an election missing the crab currently doing the job
   // reads as a bug even when the arithmetic is right.
   const inc = mayorCrab();
-  if (inc && inc.p.npc && !cands.some(k => k.name === inc.p.name))
+  if (inc && canStand(inc) && !cands.some(k => k.name === inc.p.name))
     cands.unshift({ name: inc.p.name, plat: idealPlatform(inc, grid), votes: 0, inc: true });
   else for (const k of cands) if (inc && k.name === inc.p.name) k.inc = true;
   // ...AND THE PLAYER STANDS, if they said so (Matt: the player can stand and
@@ -2115,7 +2140,7 @@ function runTownHall() {
 // day 7 - the town needs a week's trading before it has anything to vote on.
 function seatFoundingMayor() {
   if (hall.mayor && mayorCrab()) return;
-  const town = allCrabs().filter(c => c.p.npc);
+  const town = allCrabs().filter(c => canStand(c));   // family-2 self-nomination predicate (crab: c.p.npc)
   if (!town.length) return;
   let best = town[0], bs = -Infinity;
   for (const c of town) {
@@ -7507,6 +7532,50 @@ function stakesCompile(civ) {
     out[st.id] = st.terms.map(t => ({ name: t.name, code: l1Assemble(t.prog, PLAT_BUNDLE).code }));
   return out;
 }
+// ELIGIBILITY (phase E4 slice 4c/4d, family 2: "who may"). The two franchise
+// PREDICATES a culture may re-express - who may VOTE, and who may put themselves
+// forward to STAND. Each is a bare Layer-1 program (NOT TERM-closed; the depart
+// weight/select shape) over the persona read bundle below, returning 0/1. The
+// engine's own gates are `stand(c) = c.p.npc` (buildBallot: only townsfolk
+// self-nominate; crew stand only by player nomination) and `vote(c) = 1` (every
+// resident votes; the visitor is excluded STRUCTURALLY, not by a persona
+// predicate). So the crab transcription is vote=[PUSHI 1], stand=[LD npc],
+// byte-equal to those inlined gates. Like stakes this is PER-VOTER, so it
+// dispatches on the voter's culture; a culture that declares none runs the
+// engine default. The read bundle is small, ranged 0/1 flags, APPEND-only (the
+// depart-bundle ABI): the crab reads only `npc`; owner/homeless are there so a
+// stranger culture can express a different franchise without a new read surface.
+const ELIG_BUNDLE = [
+  { name: "npc", min: 0, max: 1 },        // townsfolk (1) vs the player's crew (0)
+  { name: "owner", min: 0, max: 1 },      // keeps a till
+  { name: "homeless", min: 0, max: 1 },   // sleeps at the shelter
+];
+function eligReads(c) {
+  return [ c.p.npc ? 1 : 0, c.p.owner ? 1 : 0, c.p.homeless ? 1 : 0 ];
+}
+// A franchise predicate must be a program that provably returns 0/1 - a "weight"
+// that could land at 7 is not a predicate. l1Assemble's static bound proves it,
+// exactly as a depart line-select proves its index lands in the template list.
+function eligPredProblem(prog, which) {
+  if (!Array.isArray(prog) || !prog.length) return "AN ELIGIBILITY " + which + " WITH NO PROGRAM";
+  const a = l1Assemble(prog, ELIG_BUNDLE);
+  if (a.why) return "ELIGIBILITY " + which + ": " + a.why;
+  if (a.bound[0] < 0 || a.bound[1] > 1) return "ELIGIBILITY " + which + " IS NOT A 0/1 PREDICATE (CAN REACH " + (a.bound[1] > 1 ? a.bound[1] : a.bound[0]) + ")";
+  return null;
+}
+function eligProblem(elig) {
+  if (!elig || typeof elig !== "object" || Array.isArray(elig)) return "A BAD ELIGIBILITY SECTION";
+  // both keys are the engine's own consumers; a section that declares one and
+  // not the other would leave a voter half on a program and half on the default,
+  // a broken bundle - so both are required, exactly as stakes requires platform.
+  if (elig.vote == null) return "AN ELIGIBILITY SECTION MISSING THE VOTE PREDICATE";
+  if (elig.stand == null) return "AN ELIGIBILITY SECTION MISSING THE STAND PREDICATE";
+  return eligPredProblem(elig.vote, "VOTE") || eligPredProblem(elig.stand, "STAND");
+}
+// Compile a VALIDATED eligibility section to run form: { vote: code, stand: code }.
+function eligCompile(elig) {
+  return { vote: l1Assemble(elig.vote, ELIG_BUNDLE).code, stand: l1Assemble(elig.stand, ELIG_BUNDLE).code };
+}
 // ---------------------------------------------------------------------------
 // Returns null when the culture definition is sound, else a short reason.
 // Runs BEFORE any parseArt so a hand-made or generated file fails at import
@@ -7768,6 +7837,16 @@ function cultureProblem(d, ownId) {
         for (const k of ["rent", "float", "strikes", "shutNights"])
           if (R.shelter[k] != null && !civInt(R.shelter[k])) return "A SHELTER " + k.toUpperCase() + " THAT IS NOT A WHOLE COUNT";
       }
+    }
+    // ELIGIBILITY (slice 4d, family 2) - the two franchise predicates. Unlike
+    // the town-level tables above, this one IS consumed for a stranger's own
+    // residents (canStand/canVote dispatch on the voter's culture), so it is
+    // both validated AND live. eligProblem owns every check (both keys required,
+    // each a 0/1 program over ELIG_BUNDLE). A typo'd predicate fails HERE, at
+    // import, never in an election.
+    if (d.civics.eligibility != null) {
+      const why = eligProblem(d.civics.eligibility);
+      if (why) return why;
     }
   }
   // APPEAL is the one culture-owned table for what draws a people: the
@@ -8420,6 +8499,7 @@ function traitOfP(p) {
 function traitOf(c) { return traitOfP(c.p); }
 let CRABD = null;   // the crab default's depart TABLE, compiled - null = lambdas
 let CRABCIV = null; // the crab default's civics STAKES, compiled - null = lambda
+let CRABELIG = null; // the crab default's ELIGIBILITY predicates, compiled - null = engine gates
 function rebuildBrains() {
   BRAINS = {};
   const add = (id, ps) => {
@@ -8478,6 +8558,18 @@ function rebuildBrains() {
     const why = stakesProblem(BUNDLED_CRAB_CIVICS);
     if (why) console.error("crab civics stakes refused: " + why);
     else CRABCIV = stakesCompile(BUNDLED_CRAB_CIVICS);
+  }
+  // THE CRAB'S FRANCHISE PREDICATES, TRANSCRIBED (phase E4 slice 4d). Same
+  // bundle door, same validator as a stranger's, same lifecycle. Byte-equal to
+  // the engine gates (stand=c.p.npc, vote=1) by the staged-election A/B; the
+  // inlined defaults in canStand/canVote remain the fallback, so a broken or
+  // undeclared eligibility section costs a console error and a suite red, never
+  // a town's ability to hold an election.
+  CRABELIG = null;
+  if (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS && BUNDLED_CRAB_CIVICS.eligibility) {
+    const why = eligProblem(BUNDLED_CRAB_CIVICS.eligibility);
+    if (why) console.error("crab eligibility refused: " + why);
+    else CRABELIG = eligCompile(BUNDLED_CRAB_CIVICS.eligibility);
   }
   // THE E5 DATA PLANES AND UPDATE DRIVER (phase E5, families 4 & 5). Loader-
   // reset by construction: the planes clear here, and any prior e5.update hook
@@ -8561,6 +8653,11 @@ function buildCulture(def) {
   // undeclared - that culture's voters score platforms on the engine's own
   // lambda (platValue's CRABCIV/lambda fallback), byte-identical to today.
   const civicsR = (def.civics && def.civics.stakes) ? stakesCompile(def.civics) : null;
+  // A declared ELIGIBILITY section (phase E4 slice 4d) compiles once here,
+  // validated by cultureProblem (eligProblem), so eligCompile cannot fail. Null
+  // when undeclared - that culture's voters fall to the engine's own franchise
+  // gates (canStand/canVote's c.p.npc / constant-1 defaults), byte-identical.
+  const eligR = (def.civics && def.civics.eligibility) ? eligCompile(def.civics.eligibility) : null;
   // DECLARED BUSINESSES, built once into the runtime catalog's own shape
   // (author dollars cross the x100 boundary here, like every other section)
   // but PENDING: no plot, no door, not in BIZ or BIZ_KEYS. When placement
@@ -8626,7 +8723,7 @@ function buildCulture(def) {
   const drift = (def.appeal && def.appeal.drift) ? driftCompile(def.appeal.drift) : null;
   const accept = def.accept ? acceptCompile(def.accept) : null;
   return { def, arts, acc, accKeys: Object.keys(acc), items, colorways: a.colorways.length, body,
-    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, civicsR, businesses: biz, settlers, phys, rhythm, urge, drift, accept };
+    bather: Array.isArray(a.bather) ? a.bather : null, regs, idle, traits, nudge, mgmt, departW, departR, civicsR, eligR, businesses: biz, settlers, phys, rhythm, urge, drift, accept };
 }
 // Every business declared by an installed culture: built, inspectable
 // (MCP reads these), and PENDING until a plot exists. Nothing in the sim
@@ -11370,7 +11467,10 @@ registerErrand({ id: "soup", need: "food", kind: "post", gather: (c, take, X) =>
   // Both tables are offered and the detour score picks the near one - the
   // identical shape the two standpipes use, three blocks up.
 registerErrand({ id: "vote", need: "vote", kind: "post", gather: (c, take, X) => {
-  if (pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
+  // canVote is the family-2 franchise predicate (crab: constant 1 - every
+  // resident votes; the visitor is excluded structurally, not here). The rest
+  // is timing/state, unchanged: polls open, not already voted, off the clock.
+  if (canVote(c) && pollOpen() && !hasVoted(c) && !c.duty && c.dsC !== DS.working)
     for (let i = 0; i < POLL_PLACES.length; i++) take({ vote: true, poll: i, need: "vote" });
 } });
 registerErrand({ id: "fun.arcade", need: "fun", kind: "biz", gather: (c, take, X) => {

@@ -11536,6 +11536,20 @@ var BUNDLED_CRAB_CIVICS = {
    "strikes": 3,
    "shutNights": 4
   }
+ },
+ "eligibility": {
+  "vote": [
+   [
+    "PUSHI",
+    1
+   ]
+  ],
+  "stand": [
+   [
+    "LD",
+    "npc"
+   ]
+  ]
  }
 };
 if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }

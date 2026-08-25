@@ -95,7 +95,8 @@ bad.civics = { stakes: [{ id: "levy", terms: [{ name: "potStake", prog: [["PUSHI
   ballots: [{ id: "cap", steps: [4, 6, 8, 12] }],
   purses: [{ id: "levy", steps: [2, 4, 6] }],
   calendar: { pollWeekday: 9 },
-  relief: { shelter: { rent: -1 } } };   // no platform stake, a term that never closes with TERM, a ballot ladder that deletes step 0, a purse grid with no NO-TAKE rung, a weekday past the week, and a negative rent
+  relief: { shelter: { rent: -1 } },
+  eligibility: { vote: [["PUSHI", 1]] } };   // no platform stake, a term that never closes with TERM, a ballot ladder that deletes step 0, a purse grid with no NO-TAKE rung, a weekday past the week, a negative rent, and a franchise that declares who may vote but not who may stand
 bad.settlers = { apron: "yes", walkins: 20 };   // a string answer, and a flood share
 bad.people.names.push("A NAME MUCH TOO LONG");
 bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
@@ -126,6 +127,7 @@ check("error names the ballot ladder that deletes step 0", /civics\.ballots\[0\]
 check("error names the purse grid with no NO-TAKE rung", /civics\.purses\[0\]\.steps/.test(paths), paths);
 check("error names the calendar weekday past the week", /civics\.calendar\.pollWeekday/.test(paths), paths);
 check("error names the negative shelter rent", /civics\.relief\.shelter\.rent/.test(paths), paths);
+check("error names the franchise missing its stand predicate", /civics\.eligibility\.stand/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
 check("error names the unregistered card observable", /cards\[0\]\.rows\[0\]\.obs/.test(paths), paths);
 

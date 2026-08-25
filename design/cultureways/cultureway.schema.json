@@ -809,7 +809,7 @@
   "civics": {
    "type": "object",
    "additionalProperties": false,
-   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. purses: the four purses that fund the shelter (levy/dues/rents/tin) as rate grids - see the purses property. calendar: the polling clock (pollWeekday/pollOpen/pollShut) as scalars - see the calendar property. relief: the shelter and soup terms as scalars - see the relief property. eligibility (who may vote/stand) is the one family that lands in a later slice.",
+   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. purses: the four purses that fund the shelter (levy/dues/rents/tin) as rate grids - see the purses property. calendar: the polling clock (pollWeekday/pollOpen/pollShut) as scalars - see the calendar property. relief: the shelter and soup terms as scalars - see the relief property. eligibility: the two franchise predicates (who may vote/stand) as 0/1 Layer-1 programs, dispatched per voter like stakes - see the eligibility property. All five civics families (stakes, ballots, purses, calendar, relief) plus eligibility are now authorable.",
    "required": ["stakes"],
    "properties": {
     "ballots": {
@@ -892,6 +892,18 @@
          "description": "How many nights the door stays bolted (default 4)." }
        }
       }
+     }
+    },
+    "eligibility": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": ["vote", "stand"],
+     "description": "Phase E4 slice 4d - THE FRANCHISE (family 2: who may). Two 0/1 PREDICATE programs over the persona read bundle (npc/owner/homeless), NOT tables. vote: who may cast a ballot (the crab's is [[\"PUSHI\",1]] - every resident votes; the visitor is excluded structurally). stand: who may put themselves forward (the crab's is [[\"LD\",\"npc\"]] - only townsfolk self-nominate; the player's crew stand only by nomination). Each is a bare Layer-1 program (the depart weight/select shape, NOT TERM-closed) whose static bound must lie in [0,1] - a program that could return anything else is not a predicate and is refused. PER-VOTER, so it dispatches on the voter's culture like stakes; a culture that declares none leaves its residents on the engine's inlined gates, byte-identical. Both keys are required (the engine reads both).",
+     "properties": {
+      "vote": { "type": "array", "minItems": 1, "items": { "type": "array" },
+       "description": "A 0/1 Layer-1 predicate over the persona bundle: who may vote." },
+      "stand": { "type": "array", "minItems": 1, "items": { "type": "array" },
+       "description": "A 0/1 Layer-1 predicate over the persona bundle: who may self-nominate." }
      }
     },
     "stakes": {

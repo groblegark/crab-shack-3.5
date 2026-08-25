@@ -12532,6 +12532,132 @@ scenario("civics calendar/relief: a stranger's malformed calendar or relief is r
   return true;
 });
 
+scenario("civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates", () => {
+  // PHASE E4 SLICE 4d, family 2. The two franchise predicates (who may VOTE, who
+  // may STAND) leave their inlined game.js gates and ride the crab's own bundled
+  // civics document as civics.eligibility, dispatched per voter like stakes. The
+  // crab programs are vote=[PUSHI 1] (every resident votes) and stand=[LD npc]
+  // (only townsfolk self-nominate), byte-equal to the engine gates. This proves
+  // it two ways: (a) canStand(c) === c.p.npc and canVote(c) === true for every
+  // resident; (b) a STAGED ELECTION comes out byte-identical whether the wired
+  // predicates decide or the arm-off hatch (_noeligprog) falls to the inlined
+  // defaults - the A/B that proves the wiring changed nothing for the crab.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);
+  sim.runDays(11, { tickEvery: 200, onTick: (G) => { if (G("coins") < 40000) G("coins = 90000"); } });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABELIG || !CRABELIG.vote || !CRABELIG.stand) return { err: "the bundled crab eligibility did not install" };
+    const crabs = allCrabs();
+    // (a) the predicates equal the inlined gates, crab by crab
+    const standOK = crabs.every(c => canStand(c) === !!c.p.npc);
+    const voteOK = crabs.every(c => canVote(c) === true);
+    // (b) the staged election, built off the predicates vs off the inlined
+    // defaults, must be byte-identical. The election's whole observable surface.
+    const stage = () => {
+      const cands = buildBallot();
+      const rows = crabs.map(c => c.p.name + "->" + (canStand(c) ? "S" : "-") + (canVote(c) ? "V" : "-")).sort();
+      return JSON.stringify({ plats: cands.map(k => k.name + "@" + policyLine(k.plat)).sort(),
+        pool: crabs.filter(canStand).map(c => c.p.name).sort(), rows });
+    };
+    window._noeligprog = false; const wired = stage();
+    window._noeligprog = true;  const inlined = stage();   // fall to c.p.npc / constant-1
+    window._noeligprog = false;
+    return { standOK, voteOK, wired, inlined, n: crabs.length };
+  })())`));
+  if (got.err) return got.err;
+  if (!got.standOK) return "canStand(c) is not byte-equal to c.p.npc for every resident";
+  if (!got.voteOK) return "canVote(c) is not constant-true for every resident";
+  if (got.wired !== got.inlined) return "the wired predicates moved the election vs the inlined gates:\n wired   " + got.wired.slice(0, 200) + "\n inlined " + got.inlined.slice(0, 200);
+  return true;
+});
+
+scenario("civics eligibility: a people's own franchise decides its electorate (the dispatch)", () => {
+  // RULING 5's bar, honored: a declared eligibility option CAN be exercised, and
+  // the dispatch picks the right predicate - proven BY CONSTRUCTION, not by
+  // asserting any particular crab stands. A stranger culture declares
+  // stand = [PUSHI 1] (EVERYONE self-nominates, crew included) while its vote is
+  // the crab's. Tag a crew-shaped resident (npc:false) to that culture: the crab
+  // predicate would EXCLUDE them from the self-nomination pool (c.p.npc false),
+  // the stranger's INCLUDES them. That divergence on the SAME crab, changing only
+  // the culture tag, is the dispatch firing.
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);
+  sim.runDays(4);
+  const doc = (() => { const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    d.civics = { stakes: JSON.parse(sim.G(`JSON.stringify(BUNDLED_CRAB_CIVICS.stakes)`)),
+      eligibility: { vote: [["PUSHI", 1]], stand: [["PUSHI", 1]] } };   // everyone stands
+    return d; })();
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    installCultures({ boar: ${JSON.stringify(doc)} }, false);
+    if (!CULTURES.boar || !CULTURES.boar.eligR) return { err: "boar eligibility did not install" };
+    // a crew-shaped resident (not npc) - the crab predicate excludes them from
+    // the self-nomination pool; the boar's [PUSHI 1] includes them.
+    const crew = allCrabs().find(c => !c.p.npc);
+    if (!crew) return { err: "no crew-shaped resident to tag" };
+    const was = crew.p.culture;
+    crew.p.culture = null;   const asCrab = canStand(crew);   // -> CRABELIG (c.p.npc = false)
+    crew.p.culture = "boar"; const asBoar = canStand(crew);   // -> boar.eligR ([PUSHI 1] = true)
+    crew.p.culture = "gull"; const asGull = canStand(crew);   // undeclared -> engine default (false)
+    crew.p.culture = was;
+    loadCultures(null);
+    return { asCrab, asBoar, asGull };
+  })())`));
+  if (got.err) return got.err;
+  if (got.asCrab !== false) return "a crew crab on the crab franchise could self-nominate (should be townsfolk-only): " + got.asCrab;
+  if (got.asGull !== false) return "a crew crab on an undeclared franchise did not fall to the engine default: " + got.asGull;
+  if (got.asBoar !== true) return "the boar franchise declared everyone stands, but its crew resident could not - the dispatch never fired";
+  return true;
+});
+
+scenario("civics eligibility: a hostile franchise is refused by name at the door", () => {
+  // Every refusal eligProblem owns, through the real cultureProblem door. A
+  // franchise predicate is a bare 0/1 program (the depart weight/select shape,
+  // NOT TERM-closed), so the load-bearing check is the 0/1 BOUND: a "predicate"
+  // that could return 7 is not a predicate and is refused, exactly as a depart
+  // line-select that could index past its template list is.
+  const sim = createSim({ seed: 7 });
+  const goodStakes = JSON.parse(sim.G(`JSON.stringify(BUNDLED_CRAB_CIVICS.stakes)`));
+  const boar = (elig) => { const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    d.civics = { stakes: goodStakes }; if (elig !== undefined) d.civics.eligibility = elig; return d; };
+  const V = [["PUSHI", 1]];   // a good vote predicate, to isolate the stand checks
+  const docs = {
+    good: boar({ vote: V, stand: [["LD", "npc"]] }),
+    undeclared: boar(undefined),
+    notObj: boar(42),
+    noVote: boar({ stand: [["LD", "npc"]] }),
+    noStand: boar({ vote: V }),
+    emptyProg: boar({ vote: V, stand: [] }),
+    badLD: boar({ vote: V, stand: [["LD", "wealth"]] }),
+    badOp: boar({ vote: V, stand: [["FROB", 1]] }),
+    notPred: boar({ vote: V, stand: [["LD", "npc"], ["PUSHI", 7], ["ADD"]] }),   // can reach 8
+  };
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const docs = ${JSON.stringify(docs)};
+    const out = { verdict: {} };
+    for (const k in docs) out.verdict[k] = cultureProblem(docs[k], "boar");
+    installCultures({ boar: docs.good }, false);
+    out.installed = !!(CULTURES.boar && CULTURES.boar.eligR && CULTURES.boar.eligR.vote && CULTURES.boar.eligR.stand);
+    loadCultures(null);
+    return out;
+  })())`));
+  const v = got.verdict;
+  if (v.good !== null) return "a well-formed stranger eligibility was refused at the door: " + v.good;
+  if (v.undeclared !== null) return "an undeclared eligibility was refused: " + v.undeclared;
+  if (!got.installed) return "a good eligibility installed but compiled no eligR";
+  if (v.notObj !== "A BAD ELIGIBILITY SECTION") return "a non-object eligibility slid in: " + v.notObj;
+  if (v.noVote !== "AN ELIGIBILITY SECTION MISSING THE VOTE PREDICATE") return "a vote-less eligibility slid in: " + v.noVote;
+  if (v.noStand !== "AN ELIGIBILITY SECTION MISSING THE STAND PREDICATE") return "a stand-less eligibility slid in: " + v.noStand;
+  if (!/WITH NO PROGRAM/.test(String(v.emptyProg))) return "an empty predicate slid in: " + v.emptyProg;
+  if (!/NOT A BUNDLE ROW/.test(String(v.badLD))) return "a typo'd LD name slid in: " + v.badLD;
+  if (!/NOT AN L1 OP/.test(String(v.badOp))) return "an unknown op slid in: " + v.badOp;
+  if (!/NOT A 0\/1 PREDICATE/.test(String(v.notPred))) return "a program that can return 8 slid in as a predicate: " + v.notPred;
+  return true;
+});
+
 scenario("cultureways: a save without cultures changes nothing", () => {
   // Fingerprint measured on the UNMODIFIED tree at commit eda4584 (cs35,
   // 2026-08-21), seed 4242, runDays(2) - the registry code must not move a

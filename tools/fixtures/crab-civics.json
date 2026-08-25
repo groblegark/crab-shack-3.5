@@ -116,6 +116,26 @@
     "soup": { "potMax": 6, "margin": 200 },
     "shelter": { "rent": 1000, "float": 1, "strikes": 3, "shutNights": 4 }
   },
+  "_eligibility_comment": [
+    "THE FRANCHISE, TRANSCRIBED (cultureway phase E4 slice 4d, family 2: who may).",
+    "Two PREDICATE programs (0/1) over the persona read bundle (ELIG_BUNDLE,",
+    "game.js: npc/owner/homeless), NOT step-tables. Like stakes this is PER-VOTER",
+    "- it reads a crab's own attributes - so it dispatches on the voter's culture,",
+    "the crab's own (and any culture that declared none) running the engine's own",
+    "inlined gates as the byte-equal fallback.",
+    "",
+    "vote: EVERY resident votes (the engine offers the vote errand to every crab",
+    "in allCrabs(); the visitor is excluded STRUCTURALLY, not by a predicate), so",
+    "the crab program is the constant 1: [PUSHI 1].",
+    "stand: only TOWNSFOLK put themselves forward (buildBallot filters c.p.npc;",
+    "the player's crew stand only by nomination), so the crab program reads the",
+    "npc flag: [LD npc]. Byte-equal to the inlined gates by the staged-election",
+    "A/B; a predicate that could return anything but 0/1 is refused by name."
+  ],
+  "eligibility": {
+    "vote": [["PUSHI", 1]],
+    "stand": [["LD", "npc"]]
+  },
   "stakes": [
     { "id": "platform", "terms": [
       { "name": "potStake",

@@ -64,6 +64,7 @@ if (crabCivicsSrc.ballots) crabCivics.ballots = crabCivicsSrc.ballots;
 if (crabCivicsSrc.purses) crabCivics.purses = crabCivicsSrc.purses;
 if (crabCivicsSrc.calendar) crabCivics.calendar = crabCivicsSrc.calendar;   // slice 4c: the polling clock
 if (crabCivicsSrc.relief) crabCivics.relief = crabCivicsSrc.relief;         // slice 4c: the soup + shelter terms
+if (crabCivicsSrc.eligibility) crabCivics.eligibility = crabCivicsSrc.eligibility;   // slice 4d: the vote/stand predicates
 const crabCitBrain = JSON.parse(readFileSync(new URL("./neuro/receipts/brain-crab-cit-v1.json", import.meta.url), "utf8"));
 
 // The shipped crab policy: the LEVER-DIVERSE v3 artifact, 42->48->7, distilled

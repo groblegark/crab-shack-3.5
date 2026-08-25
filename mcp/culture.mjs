@@ -301,6 +301,19 @@ function localise(d, verdict) {
         }
       }
     }
+    // phase E4 slice 4d: civics.eligibility - the two franchise predicates. Shape
+    // checks here (both keys required, non-empty program); the deep checks (op
+    // allowlist, LD names, the 0/1 bound) are the game's eligProblem.
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.eligibility != null) {
+      const E = cv.eligibility;
+      if (typeof E !== "object" || Array.isArray(E)) say("civics.eligibility", "must be an object with vote and stand predicates (A BAD ELIGIBILITY SECTION)");
+      else {
+        if (E.vote == null) say("civics.eligibility.vote", "required: a 0/1 Layer-1 predicate (AN ELIGIBILITY SECTION MISSING THE VOTE PREDICATE)");
+        else if (!Array.isArray(E.vote) || !E.vote.length) say("civics.eligibility.vote", "must be a non-empty Layer-1 program returning 0/1 (AN ELIGIBILITY VOTE WITH NO PROGRAM)");
+        if (E.stand == null) say("civics.eligibility.stand", "required: a 0/1 Layer-1 predicate (AN ELIGIBILITY SECTION MISSING THE STAND PREDICATE)");
+        else if (!Array.isArray(E.stand) || !E.stand.length) say("civics.eligibility.stand", "must be a non-empty Layer-1 program returning 0/1 (AN ELIGIBILITY STAND WITH NO PROGRAM)");
+      }
+    }
   }
 
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");

@@ -180,7 +180,14 @@ A people, written as a document. Not code — data the engine reads:
             strikes (missed nights before the door bolts, default 3), shutNights
             (nights bolted, default 4) }. These sit on state/time paths, so a
             transcription is byte-equal AND wired; conservation and the strike
-            mechanism stay engine. Only eligibility (who may vote/stand) lands next.
+            mechanism stay engine. civics.eligibility (slice 4d) is the franchise
+            (family 2: who may) as two 0/1 predicate programs over the persona
+            bundle (npc/owner/homeless): vote (the crab's is [["PUSHI",1]], every
+            resident votes) and stand (the crab's is [["LD","npc"]], only townsfolk
+            self-nominate). Each is a bare Layer-1 program (the depart weight
+            shape, NOT TERM-closed) whose static bound must be 0/1; per-voter, so
+            it dispatches on culture like stakes. Both keys required. The player
+            nomination, the visitor exclusion, and the count stay engine.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in
