@@ -105,7 +105,14 @@ if (shards.length) {
 const openShard = () => {
   const tag = TAG + (shards.length + 1);
   console.log("creating release " + tag);
-  gh(["release", "create", tag, "--repo", REPO, "--title", "CRAB SHACK music " + (shards.length + 1),
+  // --prerelease so an ASSET STORE never becomes the repo's headline. GitHub
+  // auto-designates the newest ordinary release as "Latest", and a visitor
+  // reading "Latest release: CRAB SHACK music 2" would reasonably think that
+  // was the game. (--latest=false alone does NOT hold: with no release flagged,
+  // GitHub just recomputes it. Prerelease is the flag that actually sticks, and
+  // it does not affect asset downloads - verified 200 + accept-ranges after.)
+  gh(["release", "create", tag, "--repo", REPO, "--prerelease",
+      "--title", "CRAB SHACK music " + (shards.length + 1),
       "--notes", "Audio assets for the CRAB SHACK 3.5 soundtrack. Streamed by the game "
       + "on demand; the repo carries none of it. Sharded because a GitHub release "
       + "takes at most " + CAP + " assets."]);
