@@ -98,7 +98,10 @@ tree does not exist to it.**
   An unselected pod does not fail, it lands on whatever will take it, and
   every karpenter pool here is tainted (`gasboat.agent`,
   `fics.pihealth.ai/mr`, `gvisor`) — so the only nodes that accept it are the
-  SHARED managed nodegroup carrying fleet workloads. `crewux-focus.json` and
+  SHARED managed nodegroup carrying fleet workloads. Enumerated 2026-08-25:
+  exactly 6 of 30 nodes are untainted, and all 6 are **m5.large** (2 vCPU) —
+  so an unselected arm doesn't merely touch shared infra, it contends with
+  fleet work on the smallest nodes on the cluster. `crewux-focus.json` and
   `redbar-focus.json` shipped that way and would have put sim work on fleet
   infra, silently, while looking like clean runs (fixed 2026-08-25). Always
   pair the selector with the matching toleration. `--anywhere` is the
