@@ -12036,6 +12036,7 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
   // a fuel-bomb term: 257 ops (> L1_MAX_OPS 256), still closing with TERM
   const bomb = [["PUSHI", 0]]; for (let i = 0; i < 256; i++) bomb.push(["PUSHI", 0], ["ADD"]); bomb.push(["TERM"]);
   const withProg = (prog) => { const t = platTerms(); t[0].prog = prog; return { stakes: [{ id: "platform", terms: t }] }; };
+  const platTermsWrap = () => [{ id: "platform", terms: platTerms() }];   // a good stakes list, for the ballots-door cases
   // key -> the whole document to feed cultureProblem(doc, "boar")
   const docs = {
     good: boar(goodCivics),
@@ -12053,6 +12054,17 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
     fuel: boar(withProg(bomb)),
     // a legitimately-NEGATIVE term is ACCEPTED at the door (family-1 sign law)
     negAtDoor: boar(withProg([["PUSHI", -9200], ["LD", "fb"], ["MUL"], ["TERM"]])),
+    // BALLOTS DOOR (slice 4a): a good stakes with a ballots section attached. A
+    // well-formed ballots is ACCEPTED (validated-but-inert for a stranger); a
+    // malformed one is refused BY NAME, never silently dropped now the schema
+    // admits the key (the slice-3 no-silent-drop contract).
+    goodBallots: boar({ stakes: platTermsWrap(), ballots: [{ id: "floor", steps: [0, 1800, 2300] }] }),
+    ballotsNotArray: boar({ stakes: platTermsWrap(), ballots: 42 }),
+    ballotBad: boar({ stakes: platTermsWrap(), ballots: [null] }),
+    ballotNoId: boar({ stakes: platTermsWrap(), ballots: [{ steps: [0, 1, 2] }] }),
+    ballotTwice: boar({ stakes: platTermsWrap(), ballots: [{ id: "cap", steps: [0, 2] }, { id: "cap", steps: [0, 3] }] }),
+    ballotStep0: boar({ stakes: platTermsWrap(), ballots: [{ id: "cap", steps: [4, 6, 8, 12] }] }),
+    ballotFrac: boar({ stakes: platTermsWrap(), ballots: [{ id: "cap", steps: [0, 2.5] }] }),
   };
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
     const docs = ${JSON.stringify(docs)};
@@ -12087,6 +12099,14 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
   if (!/PAST 2\^52/.test(String(v.mag))) return "an overflowing term slid in: " + v.mag;
   if (!/MAX 256|OPS, MAX/.test(String(v.fuel))) return "a program past its fuel bound slid in: " + v.fuel;
   if (v.negAtDoor !== null) return "a legitimately-negative term was refused at the door: " + v.negAtDoor;
+  // the ballots door (slice 4a)
+  if (v.goodBallots !== null) return "a well-formed stranger ballots was refused at the door: " + v.goodBallots;
+  if (v.ballotsNotArray !== "A BAD BALLOTS SECTION") return "a non-array ballots slid in: " + v.ballotsNotArray;
+  if (v.ballotBad !== "A BAD BALLOT DIAL") return "a non-object ballot dial slid in: " + v.ballotBad;
+  if (v.ballotNoId !== "A BALLOT DIAL WITH NO ID") return "an id-less ballot dial slid in: " + v.ballotNoId;
+  if (v.ballotTwice !== "A BALLOT DIAL TWICE: cap") return "a doubled ballot dial slid in: " + v.ballotTwice;
+  if (!/STEP 0 IS NOT THE FOUNDING/.test(String(v.ballotStep0))) return "a step-0-deleting ballot ladder slid in: " + v.ballotStep0;
+  if (!/NOT A WHOLE COUNT/.test(String(v.ballotFrac))) return "a fractional ballot step slid in: " + v.ballotFrac;
   return true;
 });
 scenario("civics: a people's voters score a platform on THEIR OWN declared stakes", () => {
@@ -12142,6 +12162,148 @@ scenario("civics: a people's voters score a platform on THEIR OWN declared stake
   // ...and the culture that DECLARED its own (bent) stakes scores differently.
   // This is the dispatch firing: the ONLY thing changed was the culture tag.
   if (got.asBoar === got.lam) return "a culture's own declared stakes did not decide its voter - the dispatch never fired (boar " + got.asBoar + " == lambda " + got.lam + ")";
+  return true;
+});
+
+scenario("civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals", () => {
+  // PHASE E4 SLICE 4a. The two TOWN-LEVEL ballot dials (the wage floor and the
+  // house limit) leave their game.js object literals and ride the crab's own
+  // bundled civics document, adopted IN PLACE (the E6 crab-as-document idiom):
+  // the literals stay as the engine fallback, and every reader draws the same
+  // steps in the same order. This is the tabled==literal pin - the pinned copies
+  // below are the literals as they shipped, so ONE drifted step names the dial.
+  // The ladder-INDEX is what a save stores, so step 0 and its meaning (NO FLOOR
+  // / NO LIMIT, the founding no-policy) are load-bearing forever (ruling 4).
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify({
+    floor: WAGE_FLOOR.steps, cap: HEAD_CAP.steps,
+    fs: FLOOR_STEPS, cs: CAP_STEPS,
+    doc: !!(BUNDLED_CRAB_CIVICS && Array.isArray(BUNDLED_CRAB_CIVICS.ballots)),
+    ids: (BUNDLED_CRAB_CIVICS.ballots || []).map(b => b.id)
+  })`));
+  if (!got.doc) return "the bundled crab civics carries no ballots section - slice 4a did not install";
+  if (JSON.stringify(got.ids) !== JSON.stringify(["floor", "cap"])) return "the ballot ids are " + JSON.stringify(got.ids) + ", not [floor, cap]";
+  // the pinned literals, byte-for-byte as game.js shipped them
+  if (JSON.stringify(got.floor) !== JSON.stringify([0, 1800, 2300, 2700, 3200])) return "the wage floor ladder drifted: " + JSON.stringify(got.floor);
+  if (JSON.stringify(got.cap) !== JSON.stringify([0, 2, 3, 4, 6, 8, 12])) return "the house limit ladder drifted: " + JSON.stringify(got.cap);
+  if (got.floor[0] !== 0) return "the wage floor's step 0 is not the founding NO FLOOR (ruling 4 invariant)";
+  if (got.cap[0] !== 0) return "the house limit's step 0 is not the founding NO LIMIT (ruling 4 invariant)";
+  if (got.fs !== 4) return "FLOOR_STEPS is " + got.fs + ", not 4 (it must derive from the adopted ladder)";
+  if (got.cs !== 6) return "CAP_STEPS is " + got.cs + ", not 6 (it must derive from the adopted ladder)";
+  return true;
+});
+
+scenario("civics ballots: the adopted ladder preserves every save's index meaning (ruling 4)", () => {
+  // THE SAVE-COMPAT SCENARIO SLICE 4a OWES (ruling 4, kd-q5SOraybkW). A save
+  // stores the ladder INDEX (hall.policy.cap = 4 is the INDEX of the 6 rung, not
+  // six heads), so the moment the ladder comes from a document the danger is the
+  // one Matt named: a doc that DELETED step 0 (his literal preview [4,6,8,12])
+  // would silently reinterpret every existing save's cap:0 "no limit" as a
+  // four-head cap. Adoption must keep index->value byte-identical to the
+  // literal - which is what makes floorOf(wage=i)/capOf(cap=i) load the same
+  // policy the town went to sleep on. Checked across EVERY index, both dials.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const floorLit = [0, 1800, 2300, 2700, 3200], capLit = [0, 2, 3, 4, 6, 8, 12];
+    const out = { floor: [], cap: [], clamp: {} };
+    for (let i = 0; i < floorLit.length; i++) out.floor.push(floorOf({ wage: i }));
+    for (let i = 0; i < capLit.length; i++) out.cap.push(capOf({ cap: i }));
+    // the founding no-policy: an absent/zero index is NO FLOOR / NO LIMIT
+    out.foundFloor = floorOf({});      // no wage field (a pre-feature save)
+    out.foundCap = capOf({});          // no cap field
+    // out-of-range indices clamp to the top rung (an old save with junk, or a
+    // future shorter ladder) - never wrap, never crash
+    out.clamp.floorHigh = floorOf({ wage: 99 });
+    out.clamp.capHigh = capOf({ cap: 99 });
+    return out;
+  })())`));
+  if (JSON.stringify(got.floor) !== JSON.stringify([0, 1800, 2300, 2700, 3200])) return "floorOf does not map index->value like the literal ladder: " + JSON.stringify(got.floor);
+  if (JSON.stringify(got.cap) !== JSON.stringify([0, 2, 3, 4, 6, 8, 12])) return "capOf does not map index->value like the literal ladder: " + JSON.stringify(got.cap);
+  if (got.foundFloor !== 0) return "a save with no wage field did not load as NO FLOOR: " + got.foundFloor;
+  if (got.foundCap !== 0) return "a save with no cap field did not load as NO LIMIT: " + got.foundCap;
+  if (got.clamp.floorHigh !== 3200) return "an out-of-range wage index did not clamp to the top floor rung: " + got.clamp.floorHigh;
+  if (got.clamp.capHigh !== 12) return "an out-of-range cap index did not clamp to the top limit rung: " + got.clamp.capHigh;
+  return true;
+});
+
+scenario("civics ballots: a tampered dial is refused by name and falls back to the literal", () => {
+  // ballotLadderProblem is the runtime belt for a hand-tampered cultureways.js
+  // (build-time validation lives in mkcultureways.mjs). Every refusal named, and
+  // the load-bearing one is ruling 4's invariant: a ladder whose step 0 is not
+  // the founding no-policy is refused - because the index is what a save stores,
+  // so deleting step 0 would silently reinterpret every existing save's cap:0.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    out.good = ballotLadderProblem([0, 2, 3, 4, 6, 8, 12]);
+    out.noLadder = ballotLadderProblem([0]);
+    out.notArray = ballotLadderProblem(42);
+    out.step0 = ballotLadderProblem([4, 6, 8, 12]);      // Matt's literal preview - DELETES step 0
+    out.negStep = ballotLadderProblem([0, -100, 2300]);
+    out.fracStep = ballotLadderProblem([0, 1800.5]);
+    // and the FALLBACK: a bundle whose floor dial is malformed leaves the engine
+    // literal live, rather than wounding the town with a broken ladder.
+    const save = JSON.stringify(BUNDLED_CRAB_CIVICS.ballots);
+    BUNDLED_CRAB_CIVICS.ballots = [{ id: "floor", steps: [4, 6, 8] }, { id: "cap", steps: [0, 2, 3, 4, 6, 8, 12] }];
+    out.fallback = crabBallotSteps("floor", [0, 1800, 2300, 2700, 3200]);
+    // THE ADOPTION MECHANISM, proven the only honest way: a DISTINCT valid doc
+    // ladder must REACH the reader, so crabBallotSteps returns the DOCUMENT's
+    // array, not the fallback. (A byte-equal doc cannot prove this - it is
+    // identical whether adoption fired or not, the E3 return-value trap; so the
+    // probe ladder is deliberately different from both the literal and today's.)
+    BUNDLED_CRAB_CIVICS.ballots = [{ id: "floor", steps: [0, 111, 222] }, { id: "cap", steps: [0, 2, 3, 4, 6, 8, 12] }];
+    out.adopts = crabBallotSteps("floor", [0, 1800, 2300, 2700, 3200]);
+    BUNDLED_CRAB_CIVICS.ballots = JSON.parse(save);
+    return out;
+  })())`));
+  if (got.good !== null) return "a good ladder was refused: " + got.good;
+  if (got.noLadder !== "A BALLOT DIAL WITH NO LADDER") return "a one-step ladder slid by: " + got.noLadder;
+  if (got.notArray !== "A BALLOT DIAL WITH NO LADDER") return "a non-array ladder slid by: " + got.notArray;
+  if (got.step0 !== "A BALLOT DIAL WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY") return "a step-0-deleting ladder slid by: " + got.step0;
+  if (got.negStep !== "A BALLOT DIAL STEP THAT IS NOT A WHOLE COUNT") return "a negative step slid by: " + got.negStep;
+  if (got.fracStep !== "A BALLOT DIAL STEP THAT IS NOT A WHOLE COUNT") return "a fractional step slid by: " + got.fracStep;
+  if (JSON.stringify(got.fallback) !== JSON.stringify([0, 1800, 2300, 2700, 3200])) return "a tampered dial did not fall back to the literal: " + JSON.stringify(got.fallback);
+  if (JSON.stringify(got.adopts) !== JSON.stringify([0, 111, 222])) return "a distinct document ladder did not reach the reader - adoption is a no-op, the dial reads the literal path: " + JSON.stringify(got.adopts);
+  return true;
+});
+
+scenario("civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it", () => {
+  // THE E4 GATE for the dials: transcription-equality on the ELECTION itself,
+  // not just the ladder array. The dials feed floorOf/capOf -> allPlatforms and
+  // platValue, so a grown town's whole ballot (candidates, platforms, tallies,
+  // winner, every voteReason line) must come out identical whether the steps are
+  // read from the document or the literal - because they are the same steps. Then
+  // the MUTATION: bend one live step in the document and the same town's election
+  // MUST move, or the dial is not actually deciding anything (the vacuity guard).
+  const stage = (mutate) => {
+    const sim = createSim({ seed: 1337 });
+    sim.runDays(3);
+    sim.G(`while (crabs.length < 4) hireCrew();`);
+    sim.runDays(11, { tickEvery: 200, onTick: (G) => { if (G("coins") < 40000) G("coins = 90000"); } });
+    if (mutate) sim.G(mutate);
+    // rebuild the whole ballot off the current dials and score every candidate
+    // for every voter - the election's full observable surface, deterministic.
+    return sim.G(`JSON.stringify((() => {
+      const grid = allPlatforms();
+      const cands = buildBallot();
+      const rows = allCrabs().map(c => {
+        const pick = pickCandidate(c, cands);
+        return c.p.name + "->" + (pick ? pick.name : "-") + ":" + (pick ? voteReason(c, pick.plat) : "");
+      }).sort();
+      return { plats: cands.map(k => k.name + "@" + policyLine(k.plat)).sort(),
+        floor: WAGE_FLOOR.steps, cap: HEAD_CAP.steps, grid: grid.length, rows };
+    })())`);
+  };
+  const base = stage(null);
+  const again = stage(null);
+  if (base !== again) return "the election is not deterministic across two identical runs";
+  // bend the wage floor's top step in the LIVE document array WAGE_FLOOR reads
+  // (adopted in place, so this is the array the dials use). It must move the town.
+  const bent = stage(`WAGE_FLOOR.steps[4] = 9999;`);
+  if (bent === base) return "bending the wage floor's top step did not move the election - the dial is inert";
+  // and the cap dial, independently
+  const bentCap = stage(`HEAD_CAP.steps[6] = 3;`);
+  if (bentCap === base) return "bending the house limit's top step did not move the election - the dial is inert";
   return true;
 });
 

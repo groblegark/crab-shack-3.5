@@ -33,6 +33,30 @@
     "could not catch. The engine lambda remains the fallback; the grid sweep and",
     "the whole-town election run are the proof."
   ],
+  "_ballots_comment": [
+    "THE BALLOT DIALS, TRANSCRIBED (cultureway phase E4 slice 4a, plan section 2).",
+    "The two TOWN-LEVEL dials a mayor sets and a voter prices: WAGE_FLOOR and",
+    "HEAD_CAP (game.js). Unlike stakes (per-voter, dispatched on culture), these",
+    "are one-per-town facts, so they ride the crab's OWN bundle and adopt IN",
+    "PLACE - the WAGE_FLOOR/HEAD_CAP object literals stay as the engine fallback",
+    "and floorOf/capOf/allPlatforms read the same steps in the same order",
+    "(the E6 crab-as-document idiom, not the slice-3 dispatch).",
+    "",
+    "steps[] IS the ladder (the INDEX is what a save stores, so its meaning is",
+    "forever). STEP 0 IS THE FOUNDING POLICY - NO FLOOR / NO LIMIT - what every",
+    "pre-feature save loads as (wage:0 / cap:0), and Matt's ruling-4 invariant",
+    "(design/cs35-rulings-2026-08-24.md): the ladder EXTENDS, it never deletes",
+    "step 0. Byte-equal to the literals by the tabled==literal scenario and the",
+    "election A/B; a drifted step names the dial."
+  ],
+  "ballots": [
+    { "id": "floor", "name": "THE WAGE FLOOR", "short": "FLOOR",
+      "unit": "$ A DAY, LOWEST PAID", "who": "EVERY TILL THAT MEETS A PAYROLL",
+      "steps": [0, 1800, 2300, 2700, 3200] },
+    { "id": "cap", "name": "THE HOUSE LIMIT", "short": "STAFF",
+      "unit": "EMPLOYEES TO A BUSINESS", "who": "EVERY SHOP ON THE PROMENADE - YOURS FIRST",
+      "steps": [0, 2, 3, 4, 6, 8, 12] }
+  ],
   "stakes": [
     { "id": "platform", "terms": [
       { "name": "potStake",

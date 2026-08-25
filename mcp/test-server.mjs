@@ -91,7 +91,8 @@ bad.appeal.tastes.fish = 99;
 bad.appeal.nudge = { mul100: 9000 };
 bad.management = { tableTip: 900 };   // the cents habit - author units are whole dollars
 bad.depart = { weights: { wait: 9, nosuchrule: 4 } };
-bad.civics = { stakes: [{ id: "levy", terms: [{ name: "potStake", prog: [["PUSHI", 1], ["PUSHI", 2]] }] }] };   // no platform stake, and a term that never closes with TERM
+bad.civics = { stakes: [{ id: "levy", terms: [{ name: "potStake", prog: [["PUSHI", 1], ["PUSHI", 2]] }] }],
+  ballots: [{ id: "cap", steps: [4, 6, 8, 12] }] };   // no platform stake, a term that never closes with TERM, and a ballot ladder that deletes step 0
 bad.settlers = { apron: "yes", walkins: 20 };   // a string answer, and a flood share
 bad.people.names.push("A NAME MUCH TOO LONG");
 bad.foodways.ingredients = { fish_raw: 1 };   // re-pricing the pier
@@ -118,6 +119,7 @@ check("error names the flood walk-in share", /settlers\.walkins/.test(paths), pa
 check("error names the unknown depart rule", /depart\.weights\.nosuchrule/.test(paths), paths);
 check("error names the civics term that never closes with TERM", /civics\.stakes\[0\]\.terms\[0\]\.prog/.test(paths), paths);
 check("error names the civics stakes missing the platform stake", /civics\.stakes\b/.test(paths), paths);
+check("error names the ballot ladder that deletes step 0", /civics\.ballots\[0\]\.steps/.test(paths), paths);
 check("error catches the silently-skipped id", /meta\.id/.test(paths), paths);
 check("error names the unregistered card observable", /cards\[0\]\.rows\[0\]\.obs/.test(paths), paths);
 

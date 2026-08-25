@@ -845,6 +845,35 @@ const PURSES = {
     who: "WHOEVER CAN SPARE IT", steps: [0, 100, 200, 300, 400] },   // cents
 };
 const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
+// THE BALLOT DIALS, ADOPTED FROM THE DOCUMENT (phase E4 slice 4a). WAGE_FLOOR
+// and HEAD_CAP are TOWN-LEVEL facts - one town, one floor, one house limit -
+// so unlike the per-voter stakes (slice 3, dispatched on culture) they ride the
+// crab's OWN bundled civics document and adopt IN PLACE, the E6 crab-as-document
+// idiom: the object literals below stay as the engine fallback, and every reader
+// (floorOf/capOf, allPlatforms, the FLOOR_STEPS/CAP_STEPS ladder lengths, capAsk)
+// draws the same steps in the same order. A bundle that matches the literals is
+// byte-equal BY CONSTRUCTION; a drifted or hand-tampered dial falls back to the
+// literal, named. Build-time validation lives in mkcultureways.mjs (a bad
+// fixture fails the BUILD); ballotLadderProblem is the belt for a tampered
+// cultureways.js. STEP 0 is the founding NO-POLICY (NO FLOOR / NO LIMIT) - what
+// every pre-feature save loads as (wage:0 / cap:0) - and Matt's ruling 4
+// invariant (rulings 2026-08-24 §4): the ladder EXTENDS, never deletes step 0.
+function ballotLadderProblem(steps) {
+  if (!Array.isArray(steps) || steps.length < 2) return "A BALLOT DIAL WITH NO LADDER";
+  if (steps[0] !== 0) return "A BALLOT DIAL WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY";
+  for (const s of steps) if (!Number.isInteger(s) || s < 0) return "A BALLOT DIAL STEP THAT IS NOT A WHOLE COUNT";
+  return null;
+}
+function crabBallotSteps(id, fallback) {
+  const doc = (typeof BUNDLED_CRAB_CIVICS !== "undefined" && BUNDLED_CRAB_CIVICS
+    && Array.isArray(BUNDLED_CRAB_CIVICS.ballots)) ? BUNDLED_CRAB_CIVICS.ballots : null;
+  if (!doc) return fallback;
+  const b = doc.find(x => x && x.id === id);
+  if (!b) return fallback;
+  const why = ballotLadderProblem(b.steps);
+  if (why) { console.error("crab ballot dial " + id + " refused: " + why); return fallback; }
+  return b.steps.slice();
+}
 // THE FIFTH DIAL, and the only one on the ballot that is not about the
 // shelter. The four purses all answer "who pays for the pot"; the floor
 // answers a different question entirely - what the lowest day in town is
@@ -858,7 +887,8 @@ const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
 // 23, so the steps straddle it - two below, two above - which is what makes
 // the vote a real argument instead of a ratchet.
 const WAGE_FLOOR = { name: "THE WAGE FLOOR", short: "FLOOR", unit: "$ A DAY, LOWEST PAID",
-  who: "EVERY TILL THAT MEETS A PAYROLL", steps: [0, 1800, 2300, 2700, 3200] };   // cents
+  who: "EVERY TILL THAT MEETS A PAYROLL",
+  steps: crabBallotSteps("floor", [0, 1800, 2300, 2700, 3200]) };   // cents; document-adopted, literal fallback
 const FLOOR_STEPS = WAGE_FLOOR.steps.length - 1;
 // ...AND THE SIXTH (Matt, 2026-08-20: "another policy to vote on: maximum
 // employees per business"). The floor says what a day is worth; the house
@@ -884,7 +914,8 @@ const HEAD_CAP = { name: "THE HOUSE LIMIT", short: "STAFF", unit: "EMPLOYEES TO 
 // This is also the bug Matt reported from play - "i cant specify more than 6
 // staff for my campaign platform" - which was never a UI defect at all: six
 // was simply the top of the ladder.
-  who: "EVERY SHOP ON THE PROMENADE - YOURS FIRST", steps: [0, 2, 3, 4, 6, 8, 12] };
+  who: "EVERY SHOP ON THE PROMENADE - YOURS FIRST",
+  steps: crabBallotSteps("cap", [0, 2, 3, 4, 6, 8, 12]) };   // document-adopted, literal fallback
 const CAP_STEPS = HEAD_CAP.steps.length - 1;
 function capOf(p) {
   return HEAD_CAP.steps[Math.max(0, Math.min(CAP_STEPS, (p && p.cap) | 0))] || 0;
@@ -7638,6 +7669,24 @@ function cultureProblem(d, ownId) {
   if (d.civics != null) {
     const why = stakesProblem(d.civics);
     if (why) return why;
+    // BALLOTS (slice 4a) are validated at the door even though they are inert
+    // for a stranger - the town's ballot dials belong to the crab who founds it,
+    // so a stranger people's ballots are the E5 "declared, validated, inert"
+    // shape rather than a per-voter dispatch. But the no-silent-drop contract
+    // (slice 3) still holds: a malformed ladder in ANY document is refused BY
+    // NAME here, not quietly ignored now that the schema admits the key.
+    if (d.civics.ballots != null) {
+      if (!Array.isArray(d.civics.ballots)) return "A BAD BALLOTS SECTION";
+      const bseen = {};
+      for (const b of d.civics.ballots) {
+        if (!b || typeof b !== "object" || Array.isArray(b)) return "A BAD BALLOT DIAL";
+        if (typeof b.id !== "string" || !b.id.length) return "A BALLOT DIAL WITH NO ID";
+        if (bseen[b.id]) return "A BALLOT DIAL TWICE: " + b.id;
+        bseen[b.id] = 1;
+        const lw = ballotLadderProblem(b.steps);
+        if (lw) return "BALLOT DIAL " + b.id + ": " + lw;
+      }
+    }
   }
   // APPEAL is the one culture-owned table for what draws a people: the
   // standing taste weights AND the drop-nudge terms live together, because

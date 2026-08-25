@@ -238,6 +238,22 @@ function localise(d, verdict) {
       });
       if (!seen.platform) say("civics.stakes", "must include the \"platform\" stake - the engine reads it, and a section without it would silently fall back to the lambda (A CIVICS SECTION MISSING THE PLATFORM STAKE)");
     }
+    // phase E4 slice 4a: civics.ballots - the town-level dials as step-ladders.
+    // Mirrors the game's ballots-door checks (cultureProblem) and ballotLadderProblem.
+    if (cv && typeof cv === "object" && !Array.isArray(cv) && cv.ballots != null) {
+      if (!Array.isArray(cv.ballots)) say("civics.ballots", "must be a list of dials (A BAD BALLOTS SECTION)");
+      else {
+        const dseen = {};
+        cv.ballots.forEach((b, i) => {
+          if (!b || typeof b !== "object" || Array.isArray(b)) return say(`civics.ballots[${i}]`, "must be an object (A BAD BALLOT DIAL)");
+          if (typeof b.id !== "string" || !b.id.length) say(`civics.ballots[${i}].id`, "required: a non-empty string (A BALLOT DIAL WITH NO ID)");
+          else { if (dseen[b.id]) say(`civics.ballots[${i}].id`, `"${b.id}" is declared twice (A BALLOT DIAL TWICE)`); dseen[b.id] = 1; }
+          if (!Array.isArray(b.steps) || b.steps.length < 2) say(`civics.ballots[${i}].steps`, "must be a ladder of at least two steps (A BALLOT DIAL WITH NO LADDER)");
+          else if (b.steps[0] !== 0) say(`civics.ballots[${i}].steps`, "step 0 must be 0, the founding no-policy - the ladder extends, it never deletes step 0 (A BALLOT DIAL WHOSE STEP 0 IS NOT THE FOUNDING NO-POLICY)");
+          else if (b.steps.some(s => !Number.isInteger(s) || s < 0)) say(`civics.ballots[${i}].steps`, "every step is a whole count >= 0 (A BALLOT DIAL STEP THAT IS NOT A WHOLE COUNT)");
+        });
+      }
+    }
   }
 
   if (d.tastes) say("tastes", "moved: declare taste weights under appeal.tastes (the game rejects the old spot)");

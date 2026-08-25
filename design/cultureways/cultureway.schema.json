@@ -809,9 +809,28 @@
   "civics": {
    "type": "object",
    "additionalProperties": false,
-   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM. platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. Only the stake terms are authorable in this slice; ballots, purses, calendar and relief are transcription that lands later.",
+   "description": "Phase E4 - HOW THIS PEOPLE'S VOTERS SCORE A PLATFORM, and (slice 4a) THE BALLOT DIALS a mayor sets. stakes: platValue (the number an election ranks a policy by, for one voter) re-expressed as a list of NAMED Layer-1 term-programs, the platform's value the SUM (family 1). The engine owns the id space: the 'platform' stake is REQUIRED (a section that omits it is refused - it would silently fall back to the engine lambda), and a term reads the platform-value bundle by name (potStake20 pBowls roofWeight20 roof fr fb capStake100 purseCost100 pTake). Each term is a straight-line program (see the MCP op table) that CLOSES WITH TERM; a term is SIGNED (negative bounds are fine - floorBill and purseCost subtract), only the 2^52 magnitude rail applies. An undeclared civics section leaves this people's voters on the engine's own lambda, byte-identical to today. ballots: the two TOWN-LEVEL dials (the wage floor and the house limit) as step-ladders - see the ballots property. Purses, calendar and relief are transcription that lands in later slices.",
    "required": ["stakes"],
    "properties": {
+    "ballots": {
+     "type": "array",
+     "description": "Phase E4 slice 4a - THE BALLOT DIALS a mayor sets and a voter prices, as step-ladders. Two dials: 'floor' (the wage floor, cents a day) and 'cap' (the house limit, employees a shop). Each is { id, name, short, unit, who, steps[] }. steps IS the ladder and the INDEX is what a save stores (hall.policy.cap = 4 is the INDEX of the 6-head rung, not six heads), so STEP 0 IS THE FOUNDING NO-POLICY (NO FLOOR / NO LIMIT - what every pre-feature save loads as) and must stay index 0 forever: the ladder EXTENDS, it never deletes step 0 (Matt's ruling 4, 2026-08-24). Every step is a whole count >= 0. These are TOWN-LEVEL (one town, one floor, one limit), so unlike stakes they are not dispatched per voter; the crab's own bundle adopts them in place and the engine literal is the fallback for a culture that declares none.",
+     "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "steps"],
+      "properties": {
+       "id": { "type": "string", "minLength": 1,
+        "description": "The dial id. 'floor' (wage floor) and 'cap' (house limit) are the engine's own." },
+       "name": { "type": "string", "description": "The dial's full name on the campaign card." },
+       "short": { "type": "string", "description": "The dial's short label." },
+       "unit": { "type": "string", "description": "What a step counts (e.g. '$ A DAY, LOWEST PAID')." },
+       "who": { "type": "string", "description": "Who the dial falls on." },
+       "steps": { "type": "array", "minItems": 2, "items": { "type": "integer", "minimum": 0 },
+        "description": "The ladder, low to high. steps[0] MUST be 0 (the founding no-policy). A save stores the index, never the value." }
+      }
+     }
+    },
     "stakes": {
      "type": "array",
      "minItems": 1,

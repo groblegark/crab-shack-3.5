@@ -153,9 +153,17 @@ A people, written as a document. Not code — data the engine reads:
             leaves its voters on that same lambda. Every refusal is named
             (an unknown op, a typo'd LD name, a term that never closes with
             TERM, a program past 256 ops, a magnitude past 2^52, a missing
-            platform stake). Only the stake terms are authorable here;
-            ballots, purses, calendar and relief are transcription that lands
-            in a later slice.
+            platform stake). civics.ballots (slice 4a) declares the two
+            TOWN-LEVEL dials a mayor sets: 'floor' (the wage floor, cents a
+            day) and 'cap' (the house limit, employees a shop), each
+            { id, name, short, unit, who, steps[] }. steps IS the ladder low
+            to high, and a save stores the INDEX not the value — so steps[0]
+            MUST be 0, the founding NO-POLICY (NO FLOOR / NO LIMIT, what every
+            pre-feature save loads as). The ladder EXTENDS with higher rungs;
+            it never deletes step 0 (deleting it would silently reinterpret
+            every existing save's cap:0). Unlike stakes these are one-per-town,
+            so the crab's own bundle adopts them in place and the engine ladder
+            is the fallback. Purses, calendar and relief land in later slices.
   appeal    THE ONE TABLE for what draws this people. appeal.tastes holds
             per-food multipliers, 0.1-5 (1.0 neutral, below 1 dislike, 0.1
             effectively taboo). appeal.nudge holds the drop-nudge terms in
