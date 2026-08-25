@@ -36,6 +36,10 @@ const arg = (k, d) => {
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d;
 };
 const SEEDS = +arg("--seeds", 8), DAYS = +arg("--days", 24);
+// SECOND BLOCK, SAME RIG. PLAN's rule is that one 8-seed block is a coin and
+// sixteen is the honest number, so every claim off this probe wants
+// --seedbase 8 (or 16) run alongside the default block.
+const SEEDBASE = +arg("--seedbase", 0);
 const CREW = +arg("--crew", 6);
 const QUIET = process.argv.includes("--quiet");
 // THE IMPOSSIBLE HOURS. --hours 6-24 opens every player shop around the clock
@@ -110,7 +114,7 @@ function runSeed(seed) {
 const all = []; let deaths = 0, best = 0;
 const causes = {}, illness = [];
 for (let i = 0; i < SEEDS; i++) {
-  const r = runSeed(1337 + i * 337);
+  const r = runSeed(1337 + (SEEDBASE + i) * 337);
   all.push(...r.nights); deaths += r.deaths; best = Math.max(best, r.best);
   for (const k in r.causes) causes[k] = (causes[k] || 0) + r.causes[k];
   illness.push(...r.illness);
@@ -121,7 +125,8 @@ if (!QUIET) process.stdout.write("\n");
 const pct = (a, b) => b === 0 ? "  n/a " : (100 * a / b).toFixed(1).padStart(6);
 const mean = (a, f) => a.length ? a.reduce((s, x) => s + f(x), 0) / a.length : 0;
 
-const arm = (HOURS || "8-20") + (OT ? " +OT" : "") + ", crew " + CREW + (NODEBT ? "  [DEBT ARMED OFF]" : "");
+const arm = (HOURS || "8-20") + (OT ? " +OT" : "") + ", crew " + CREW
+  + (SEEDBASE ? "  seedbase " + SEEDBASE : "") + (NODEBT ? "  [DEBT ARMED OFF]" : "");
 console.log("\n== SLEEP DEBT   " + arm + "   ("
   + all.length + " crab-nights, " + SEEDS + " seeds x " + DAYS + "d)");
 console.log("who        nights   tired  woke  pinned%  rough%   home%   died");
