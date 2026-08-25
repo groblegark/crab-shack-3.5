@@ -58,6 +58,11 @@ const NOFLOOR = args.includes("--nofloor");
 // directly. A capped shack cannot take the hires `--buy` asks for, so a growth
 // matrix that moved needs to be able to ask whether the town did that.
 const NOCAP = args.includes("--nocap");
+// ...and `--nodebt` for the SLEEP DEBT ramp, so a matrix that moved can be
+// asked whether THIS is what moved it. Arms off the accumulating hazard only;
+// the flat tired >= 0.95 term the roll always had stays exactly as it was, so
+// the control arm is the pre-ramp build and not a town with no fatigue in it.
+const NODEBT = args.includes("--nodebt");
 // `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
 // body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
 // the same buildPhys conversion a document does, lands on ENG_BODY and the
@@ -159,6 +164,7 @@ if (NOVSEP) G(`window._novsep = true;`);
 if (NORETHINK) G(`window._norethink = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
+if (NODEBT) G(`window._noDebt = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
