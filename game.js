@@ -6907,6 +6907,53 @@ const PLAYLIST_LITERAL = [
 const PLAYLIST = (typeof BUNDLED_PLAYLIST !== "undefined" && Array.isArray(BUNDLED_PLAYLIST)
   && BUNDLED_PLAYLIST.length && BUNDLED_PLAYLIST.every(t => t && t.src && t.name))
   ? BUNDLED_PLAYLIST : PLAYLIST_LITERAL;
+
+// THE ROTATION IS WHAT THE BOX EDITS. Matt asked for a menu "so you can assign
+// songs to stuff and remove them from consideration" - and until this existed
+// the box could not do either: it recorded judgements that nothing read, so
+// dropping a track you were sick of did not stop it playing.
+//
+// The rotation is the shipped playlist MINUS what you dropped, PLUS every
+// catalog track you kept, at the energy you gave it. That is also the answer to
+// "we could have the whole playlist": all 1,201 candidates are auditionable in
+// the box, and the ones you keep join the music the town actually plays.
+//
+// It is INERT until you judge something - with no judgements it rebuilds to
+// exactly PLAYLIST - so a player who never opens the box hears what they always
+// heard.
+//
+// Roled tracks (title, ending) are never dropped: they are moments rather than
+// rotation, pickTrack already skips them, and losing the ending sting to a
+// stray tap on a vetting screen is not a trade anyone asked for.
+let ROTATION = PLAYLIST.slice();
+function rebuildRotation() {
+  const playing = ROTATION[trackIdx] ? ROTATION[trackIdx].name : null;
+  const rows = [];
+  for (let i = 0; i < PLAYLIST.length; i++) {
+    const t = PLAYLIST[i];
+    const j = musJudge["p" + i];                       // musPool ids shipped tracks "p<index>"
+    if (j && j.k === 0 && !t.role) continue;           // dropped, and not a moment
+    // A re-tagged energy is honoured here too, which is the other half of
+    // "assign songs to stuff" - it used to be recorded and ignored.
+    rows.push(j && j.e != null && j.e !== t.e ? Object.assign({}, t, { e: j.e }) : t);
+  }
+  if (MUSCAT && MUSCAT.tracks) {
+    for (const t of MUSCAT.tracks) {
+      const j = musJudge[t.id];
+      if (!j || j.k !== 1) continue;                   // only what you kept
+      // `cat` carries the catalog row so playTrack can resolve its source the
+      // same way the box does - local mirror if you have one, our release if
+      // you do not.
+      rows.push({ cat: t, name: t.name, e: j.e == null ? 1 : j.e });
+    }
+  }
+  ROTATION = rows.length ? rows : PLAYLIST.slice();
+  // Keep playing what was playing: trackIdx is an index, and the array it
+  // indexes just changed underneath it.
+  const at = playing ? ROTATION.findIndex(r => r.name === playing) : -1;
+  if (at >= 0) trackIdx = at;
+  else if (trackIdx >= ROTATION.length) trackIdx = 0;
+}
 // WHAT THE TOWN IS DOING, as one number the picker can match a track to.
 // Deliberately read off things a player can SEE - the clock, the light, and how
 // many people are on the promenade - so the music agreeing with the town is
@@ -6924,8 +6971,8 @@ function pickTrack() {
   const want = targetEnergy();
   for (const d of [0, 1, 2, 3]) {
     const pool = [];
-    for (let i = 0; i < PLAYLIST.length; i++) {
-      const t = PLAYLIST[i];
+    for (let i = 0; i < ROTATION.length; i++) {
+      const t = ROTATION[i];
       if (t.role || i === trackIdx) continue;
       if (Math.abs((t.e == null ? 1 : t.e) - want) === d) pool.push(i);
     }
@@ -6934,7 +6981,7 @@ function pickTrack() {
   return trackIdx;
 }
 function roleTrack(role) {
-  for (let i = 0; i < PLAYLIST.length; i++) if (PLAYLIST[i].role === role) return i;
+  for (let i = 0; i < ROTATION.length; i++) if (ROTATION[i].role === role) return i;
   return -1;
 }
 let musicOn = false, music = null, muted = false;   // opt-IN for new players (SFX stays on)
@@ -6947,9 +6994,12 @@ function toggleMute() {
 let trackIdx = (srand() * PLAYLIST.length) | 0;
 function playTrack(i) {
   if (music) { music.pause(); music = null; }
-  trackIdx = ((i % PLAYLIST.length) + PLAYLIST.length) % PLAYLIST.length;
-  const t = PLAYLIST[trackIdx];
-  music = new Audio(t.src);
+  trackIdx = ((i % ROTATION.length) + ROTATION.length) % ROTATION.length;
+  const t = ROTATION[trackIdx];
+  // A KEPT CATALOG TRACK RESOLVES LIKE THE BOX RESOLVES IT - local mirror if
+  // this machine has one, our release if it does not - rather than carrying a
+  // baked src that would be wrong on the other kind of machine.
+  music = new Audio(t.cat ? musSrc(t.cat) : t.src);
   music.volume = 0.55;
   // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
   // match what the town is doing when this one runs out - see pickTrack.
@@ -18239,7 +18289,7 @@ function drawTitle() {
   // 175px from x=14, ending at 189 on a 256px screen. (A report of 264px was
   // measured in the 5x7 font; this call site is 3x5.) fitSmall is still on it,
   // because the next track somebody adds does not get to break the title.
-  smallText(ctx, fitSmall("MUSIC: " + PLAYLIST[trackIdx].name + " - MATT CLANKER", W - 20),
+  smallText(ctx, fitSmall("MUSIC: " + (ROTATION[trackIdx] || ROTATION[0]).name + " - MATT CLANKER", W - 20),
     14, creditTop, [170, 150, 135]);
   smallText(ctx, "BUILT ON THE SNESCAT TOY PPU", 44, creditTop + 12, [140, 120, 105]);
   // THE STAMP NAMES THE BUILD. Remote play-testing needs to know which commit
@@ -21961,11 +22011,15 @@ let musTop = 0, musFilter = 0, musDrag = false, musPreview = null, musPreviewId 
 // judgements live beside the game rather than inside a run.
 let musJudge = {};
 const MUSIC_KEY = "cs35.music.v1";
+// Both of these rebuild the rotation, because a judgement that the music does
+// not act on is the bug this screen existed to have.
 function musLoad() {
   try { musJudge = JSON.parse(localStorage.getItem(MUSIC_KEY) || "{}") || {}; } catch (e) { musJudge = {}; }
+  rebuildRotation();
 }
 function musSave() {
   try { localStorage.setItem(MUSIC_KEY, JSON.stringify(musJudge)); } catch (e) {}
+  rebuildRotation();
 }
 // The candidate catalog is OPTIONAL and its absence is the normal case: a
 // player downloads a game with no archive behind it. A failed fetch is not an
@@ -21973,7 +22027,7 @@ function musSave() {
 function musLoadCatalog() {
   if (typeof fetch !== "function") return;
   fetch("music/catalog.json").then(r => (r.ok ? r.json() : null))
-    .then(j => { if (j && j.tracks) MUSCAT = j; }).catch(() => {});
+    .then(j => { if (j && j.tracks) { MUSCAT = j; rebuildRotation(); } }).catch(() => {});
 }
 function musRowRect(i) { return { x: 6, y: 34 + i * 20, w: W - 26, h: 18 }; }
 function musBarRect() { return { x: W - 16, y: 34, w: 10, h: MUS_ROWS * 20 - 2 }; }
