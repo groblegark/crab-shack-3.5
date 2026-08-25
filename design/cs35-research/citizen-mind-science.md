@@ -170,27 +170,76 @@ number about crab BEHAVIOR exists yet, and none is guessed here. What exists:
    Budget: pairs x 12 arms; cap concurrency with `--parallelism`.
 4. Fill the four sections below from receipts only.
 
+## RESULT (2026-08-25, in-pod, tree science-neural-crabs @ c35c0b6 rebase)
+
+Ran ENTIRELY in-pod — the crew pod is 16 cores / 62Gi, not the 4-core sliver
+the corpus was sized against, so the full 48-town ladder matrix (sb 0/16/32 x
+16 seeds, 30 days, `--buy chef,table`) fits in-pod at minutes per arm. The
+cluster escalation (kd-Y7RzIznJAw) was NOT needed for this question. Suite
+348/348 green on the rebased tree; the divergence log is trajectory-neutral
+(plain-live and citdivlog-live evict on identical days); a null-pair knockout
+reproduces the live eviction days exactly.
+
+**Headline: the brain's advantage is RESTRAINT, and a knockout convicts it.**
+
+| arm | escapes /48 | blocks sb0/16/32 |
+|---|---:|---|
+| LIVE (brain, holds ON) | **18** | 3/8/7 |
+| SCRIPT (holds OFF, A/B) | 15 | 4/4/7 |
+| KNOCK all holds (`none`) | **15** | 4/5/6 |
+
+Reverting every hold returns the town to *exactly* the script's 15/48 — the
+whole +3 is the holds and only the holds.
+
 ## The decomposition
 
-(pending phase 1 + 2 receipts; every row must cite
-kube-runs/<release>/summary-cit-science.json)
+97.8% of the 33,819 live-arm divergences are the brain HOLDING (`none>X`);
+2.2% are re-routes. Per-class knockouts (each a 16-town coin per block, so
+directional not additive):
 
-| pair | thinks | share | causal growth share (knockout) |
-|---|---|---|---|
-| — | — | — | — |
+| pair | thinks | share of divs | knockout escapes /48 (vs live 18) |
+|---|---:|---:|---:|
+| none>ball:fun | 12,480 | 36.9% | 16 (−2) |
+| none>shack:drink | 5,772 | 17.1% | **13 (−5)** — below script; the load-bearing hold |
+| none>showers:clean | 5,552 | 16.4% | 17 (−1) |
+| none>tap:drink | 3,774 | 11.2% | (not knocked individually) |
+| none>shack:food | 3,441 | 10.2% | (not knocked individually) |
+
+The brain never holds in a DIRE state (0% across every class): DIRE stays
+engine-owned. It governs the moderate 50–90% band — a bored, or moderately
+thirsty, crab that could deal with it now or stay on task.
 
 ## The turnout verdict
 
-(pending: live vs script papers/roll from the corpus arms, then the
-`vote:vote` knockout to separate cause from side-effect)
+Not the story here. Vote divergences are a rounding error (`vote:vote>*` totals
+~40 of 33,819, <0.15%), so no `vote:vote` knockout was run — the escape delta
+lives entirely in the errand holds, not the ballot. Turnout papers/roll are
+banked per arm in the receipts for anyone who wants to chase it later.
 
 ## Stories
 
-(pending: the corpus's banked story seeds — named crab, day, what the script
-would have done, what the brain did)
+- **seed 25403** — the script's town falls apart on **day 8**; the brain's
+  identical town reaches **day 31**, having held its crabs back from an errand
+  1,351 times. Same seed, same shop, opposite fate.
+- **seed 26740** — script evicted **day 7**, brain survives to 31 (1,271
+  holds). The five towns the brain saves are all early-collapse script seeds;
+  the two the script saves, the brain held only lightly (383, 599).
+- The pattern in one line: **escaped towns hold 43 errands/day, evicted towns
+  only 23.** Restraint and survival travel together, and the knockout says the
+  arrow runs restraint → survival.
 
 ## The honest residual
 
-(pending: the share of the escape delta no knockout claims — and note that
-the +4 itself must be re-established in THIS instrument before it can be
-decomposed)
++3/48 is real but thin and block-uneven (brain −1 / +4 / tie across
+sb0/16/32) — this project's "any 16-town block is a coin" rule applies to the
+headline number, and most of the visible edge is one block. What does NOT
+depend on the coin, and holds across all 48 towns plus a controlled knockout:
+restraint is 97.8% of what the brain does, it never fires in a dire state, it
+costs money on safe towns (script earns +36% coins on the 13 both-survived
+seeds) and buys survival on doomed ones, and knock-all-holds cleanly returns
+the brain to the script's 15. The unclaimed residual is the confidence
+interval on +3 itself — a wider-seed cluster corpus (kd-Y7RzIznJAw) would
+shrink it; it is not needed to answer *which behaviour* or *better-or-different*.
+
+Full write-up delivered as bundle kd-yKaPx1PTCQ; receipts under
+`design/cs35-research/kube-runs/cs-cit-science-inpod-318a746/`.
