@@ -1,0 +1,16 @@
+{
+  "name": "visstats-probe",
+  "note": "The arrival probe at the two house crossing seeds - run at the base ref and the branch ref; the diff names the first crossing.",
+  "resources": {
+    "requests": { "cpu": "2", "memory": "4Gi" },
+    "limits": { "cpu": "2", "memory": "6Gi" }
+  },
+  "arms": [
+    { "id": "probe-1337", "entry": "tools/probe-arrival.mjs", "args": ["1337"], "env": { "SIMLIB_REALM": "main" } },
+    { "id": "probe-4242", "entry": "tools/probe-arrival.mjs", "args": ["4242"], "env": { "SIMLIB_REALM": "main" } }
+  ],
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [
+    { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }
+  ]
+}

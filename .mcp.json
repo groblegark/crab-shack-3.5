@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "mezmo": {
+      "headers": {
+        "Authorization": "Bearer "
+      },
+      "type": "http",
+      "url": "https://mcp.mezmo.com/mcp"
+    },
+    "playwright": {
+      "args": [
+        "--browser",
+        "chromium",
+        "--headless",
+        "--no-sandbox",
+        "--viewport-size",
+        "1280,720"
+      ],
+      "command": "playwright-mcp",
+      "env": {
+        "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright"
+      }
+    }
+  }
+}
