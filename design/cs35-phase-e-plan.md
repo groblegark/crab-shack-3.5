@@ -208,10 +208,26 @@ the suite itself).
    validator's bound propagation is only as honest as those ranges. Mitigant:
    ranges asserted at capture (a stay record field outside its declared range
    is a loud error in dev gates).
-3. **D-coupling** — E4/E5 assume D's policy-slot and errand-registry shapes;
-   D is unmerged while this plan is written. Mitigant: E0–E2 are D-free and
-   can start the moment D merges (or before, in a fork rebased later); the
-   plan cites D by capability, not by symbol.
+3. **D-coupling — RETIRED 2026-08-25, D has landed.** This risk read "D is
+   unmerged while this plan is written", which was true when authored and is
+   false on main 24e0a81. Both shapes it hedged against are live named
+   registries, verified by symbol:
+   - the errand registry — `ERRANDS`/`registerErrand` (game.js:11345), with
+     `ERRAND_RANK` (game.js:10998), id/need/gather validation and a census cap,
+     each refusal throwing BY NAME; `registerBizErrand` is the biz-kind wrapper.
+   - the policy slot — `NEURO_SURFACES`/`registerSurface` (game.js:8347), the
+     decision-surface registry. `policyProblem` (game.js:8433) refuses any
+     surface not in that map by name (`POLICY FOR UNKNOWN SURFACE "<sid>"`),
+     and `policyOf` (game.js:8384) returns null for one, so registration is
+     the only door. The comment at game.js:8346 — "a registered surface is the
+     whole meaning of 'a policy slot exists'" — describes that registry, it is
+     not a substitute for one.
+   Both halves are therefore real registries in the same state. An earlier
+   triage pass (kd-B10srsW1Cm) suspected the policy slot was only a convention
+   over registered surfaces, having grepped for `policySlot`/`POLICY_SLOT` and
+   found nothing; the symbol is spelled `registerSurface`, and the convention
+   reading is withdrawn. E5 and later slices should treat both as landed
+   dependencies and cite them by these symbols.
 4. **Scope temptation** — civics invites new POLICY content (franchise
    levers for the turnout drop, new ballots). This plan transcribes ONLY;
    the citizen close-out's "phase E is where the franchise gets levers if
