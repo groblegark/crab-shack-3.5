@@ -11702,6 +11702,42 @@ scenario("bundled cultures: every shipped document is byte-equal to its source",
     if (!bundle[id]) return "source culture '" + id + "' is registered but the bundle does not ship it";
   return true;
 });
+scenario("the pigway worked example stays a valid document the MCP can serve", () => {
+  // design/cultureways/pigway.json is NOT a shipped source (the pig ships from
+  // tools/fixtures/cultures-pig.json — the byte-equal pin above holds THAT).
+  // It is the "copy this shape" worked example the MCP hands an author
+  // (mcp/docs.mjs crabshack://cultureway/pigway, the authoring walkthrough's
+  // step 1), authored richer than the fixture to illustrate the optional
+  // sections. Because nothing reads it into the bundle, no gate watched it, and
+  // it had already drifted 104 normalised-diff lines from the fixture while the
+  // docs still called it "a real, shipping people drawn from the live fixture's
+  // actual values" (kd-XajjGrh3us). That was a TRUTHFULNESS fault (the docs, now
+  // corrected) not a VALIDITY one: measured, the example still validates. So
+  // this is a RATCHET, not a repair — it PASSES the day it is written and has
+  // proven nothing yet; its job is to bite the day the example stops being a
+  // document the server can serve as gospel. It mirrors exactly the two checks
+  // mcp/culture.mjs's cultureValidate makes: the engine's own cultureProblem
+  // oracle, AND the meta.id pattern the oracle cannot see (installCultures skips
+  // a bad id SILENTLY). The proof-it-bites mutations are run inline below so the
+  // ratchet is never green-on-a-broken-oracle.
+  const doc = JSON.parse(readFileSync(new URL("../design/cultureways/pigway.json", import.meta.url), "utf8"));
+  const sim = createSim({ seed: 1337 });
+  const problem = sim.G(`cultureProblem(${JSON.stringify(doc)})`);
+  if (problem !== null && problem !== "null")
+    return "the served worked example no longer validates: cultureProblem = " + problem +
+           " — fix design/cultureways/pigway.json or the MCP is handing authors a document the game would reject";
+  // The silent-skip rule cultureProblem never sees (cultureValidate owns it):
+  // installCultures drops any id failing this pattern with no toast, no verdict.
+  const ID_RE = /^[a-z][a-z0-9_]{0,15}$/;
+  const id = doc.meta && doc.meta.id;
+  if (typeof id !== "string" || !ID_RE.test(id))
+    return "the worked example's meta.id " + JSON.stringify(id) + " would be SILENTLY skipped at install";
+  // Prove the oracle bites — a green here on a dead oracle would prove nothing.
+  const brokeName = sim.G(`cultureProblem(${JSON.stringify({ ...doc, people: { ...doc.people, names: [""] } })})`);
+  if (brokeName === null || brokeName === "null")
+    return "the validator waved through an empty name pool — the ratchet's oracle is dead";
+  return true;
+});
 scenario("idle quips: the island's table is the literal, key for key", () => {
   // E1's contract, the voice ceremony verbatim: the bundled idle table may
   // not drift one byte from the code arrays it shadows; the dispatch speaks
