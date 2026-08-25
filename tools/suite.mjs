@@ -13,7 +13,11 @@
 //   node tools/suite.mjs --jobs 12 --timings-out /tmp/t.json
 //   node tools/regen-timings.mjs /tmp/t.json
 import { createSim } from "./simlib.mjs";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "fs";
+import { execFileSync } from "child_process";
+import { fileURLToPath } from "url";
+import { tmpdir } from "os";
+import { join } from "path";
 
 // The Q20 need unit, mirrored HOST-side. Inside a sim.G() string the game's
 // own qn() is in scope; a fixture the suite builds in its own module scope
@@ -11836,6 +11840,60 @@ scenario("crab-as-document: a hostile document is refused by name", () => {
   if (got.longName !== "A NAME NO CARD CAN HOLD") return "long name: " + got.longName;
   if (got.goodArt !== null || got.goodPpl !== null) return "a good document was refused";
   if (got.badLog !== "A BAD VOICE LINE") return "overlong refuseHireLog: " + got.badLog;
+  return true;
+});
+scenario("crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD", () => {
+  // crab-art.founders is a CRAB-DOCUMENT field (mcp/docs.mjs teaches it): a
+  // map founder-key -> colorway id, resolved BY NAME so a founder's shell rides
+  // the id, never the colorway ORDER. It has TWO independent guards and this
+  // scenario proves BOTH bite when a founder names a colorway that does not
+  // exist. If the BUILD half ever stops throwing, that is the finding, not a
+  // shrug (kd-uHcEV6N0fc, discipline 3): it would mean the bundle can ship a
+  // founder with no shell and only the runtime belt catches it.
+  const sim = createSim({ seed: 7 });
+  const eng = JSON.parse(sim.G(`JSON.stringify((() => {
+    const armed = { colorways: [{ id: "red", hi: [1, 2, 3], lo: [0, 0, 0] }], founders: { sudsy: "nosuchshell" } };
+    return {
+      named: crabArtProblem(armed),
+      // the boot line's own decision: a dangling founder drops CRAB_ART_DOC to
+      // null (colours then revert to the sprites.js literals), while the real
+      // bundle is KEPT - the guard discriminates, it does not blanket-reject.
+      armedBoots: (armed && !crabArtProblem(armed)) ? "kept" : "null",
+      goodBoots: (BUNDLED_CRAB_ART && !crabArtProblem(BUNDLED_CRAB_ART)) ? "kept" : "null",
+      // resolution is BY NAME: a founder key the document does not name rides
+      // the fallback convention (the pushed teal is last), not a crash.
+      unnamedFounder: crabFounderColor("__nobody__") === CRAB_COLORS.length - 1,
+    };
+  })())`));
+  if (eng.named !== "A FOUNDER WITH NO SHELL") return "runtime belt did not refuse by name: " + eng.named;
+  if (eng.armedBoots !== "null") return "the boot guard KEPT a bundle with a dangling founder (colours would not revert): " + eng.armedBoots;
+  if (eng.goodBoots !== "kept") return "the boot guard rejected the real bundle - it is blanket-rejecting, not discriminating: " + eng.goodBoots;
+  if (eng.unnamedFounder !== true) return "an unnamed founder did not fall to the last-colorway convention";
+
+  // THE BUILD BELT. Run the REAL generator (tools/mkcultureways.mjs) against a
+  // poisoned crab-art fixture via its test seams - never reimplement the guard
+  // here. It must THROW by name and emit NO bundle. Both seams default to the
+  // shipped paths, so the merge-ritual regen stays byte-exact.
+  const gen = fileURLToPath(new URL("./mkcultureways.mjs", import.meta.url));
+  const dir = mkdtempSync(join(tmpdir(), "crabart-founder-"));
+  const fixture = join(dir, "bad-art.json");
+  const out = join(dir, "out.js");
+  writeFileSync(fixture, JSON.stringify({
+    colorways: [{ id: "red", hi: [1, 2, 3], lo: [0, 0, 0] }],
+    founders: { sudsy: "nosuchshell" },
+  }));
+  let threw = false, stderr = "";
+  try {
+    execFileSync(process.execPath, [gen], {
+      env: { ...process.env, CS_CRAB_ART_FIXTURE: fixture, CS_CULTUREWAYS_OUT: out },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+  } catch (e) { threw = true; stderr = (e.stderr || "").toString(); }
+  const wroteBundle = existsSync(out);
+  rmSync(dir, { recursive: true, force: true });
+  if (!threw) return "THE BUILD GUARD DID NOT THROW - a bundle can ship a founder with no shell (THE FINDING, kd-uHcEV6N0fc discipline 3)";
+  if (!/crab-art\.founders\.sudsy: names a colorway that does not exist/.test(stderr)) return "the build threw, but not by name: " + stderr.split("\n").slice(0, 3).join(" / ");
+  if (wroteBundle) return "the build threw yet still emitted a bundle - the throw does not gate the write";
   return true;
 });
 scenario("depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one", () => {

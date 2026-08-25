@@ -95,7 +95,15 @@ A people, written as a document. Not code — data the engine reads:
             moments (commute/work/home). Key order is the hire draw order.
             Undeclared = your settlers carry the island's six traits.
   art       palette, body (w/h 4-32, four poses a/b/w/s as pixel rows),
-            colorways (per-slot recolours), anchors, accessories, items
+            colorways (per-slot recolours), anchors, accessories, items.
+            founders is a CRAB-DOCUMENT field, not a foreign-culture one: a
+            map of founder key -> colorway id (e.g. { sudsy: "teal" }),
+            resolved BY NAME so a founder's shell rides the id, never the
+            colorway ORDER. A key naming a colorway that does not exist is
+            refused "A FOUNDER WITH NO SHELL" at runtime and fails the BUILD
+            ("crab-art.founders.<f>: names a colorway that does not exist").
+            A foreign people declares no founders — that asymmetry is the
+            design, not a gap; do not declare founders in a pig.
   voice     registers — a register is bound to an accessory, because THE HAT
             IS THE CLASS MARKER: what someone wears picks how they speak and
             how fat their purse is (purseMul, 0.1-5). The crab default's own

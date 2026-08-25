@@ -26,7 +26,9 @@ const crabTraits = { traits: crabTraitsSrc.traits };
 // authoring rule: "a typo'd name fails the build").
 const crabPeopleSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-people.json", import.meta.url), "utf8"));
 const crabPeople = { crew: crabPeopleSrc.crew, walkins: crabPeopleSrc.walkins, fallback: crabPeopleSrc.fallback };
-const crabArtSrc = JSON.parse(readFileSync(new URL("./fixtures/crab-art.json", import.meta.url), "utf8"));
+// CS_CRAB_ART_FIXTURE is a TEST SEAM (suite: "a founder with no shell fails the
+// BUILD"): unset it reads the real fixture, so the shipped build is unchanged.
+const crabArtSrc = JSON.parse(readFileSync(process.env.CS_CRAB_ART_FIXTURE || new URL("./fixtures/crab-art.json", import.meta.url), "utf8"));
 const crabArt = { colorways: crabArtSrc.colorways, founders: crabArtSrc.founders };
 {
   const badName = (n) => typeof n !== "string" || !n.length || n.length > 16;
@@ -124,7 +126,9 @@ const body = `var BUNDLED_CULTUREWAYS = ${JSON.stringify({ pig, gull }, null, 1)
   + `var BUNDLED_CRAB_CIVICS = ${JSON.stringify(crabCivics, null, 1)};\n`;
 const tail = `if (typeof window !== "undefined") { window.BUNDLED_CULTUREWAYS = BUNDLED_CULTUREWAYS; window.BUNDLED_POLICIES = BUNDLED_POLICIES; window.BUNDLED_CRAB_VOICE = BUNDLED_CRAB_VOICE; window.BUNDLED_CRAB_TRAITS = BUNDLED_CRAB_TRAITS; window.BUNDLED_CRAB_PEOPLE = BUNDLED_CRAB_PEOPLE; window.BUNDLED_CRAB_ART = BUNDLED_CRAB_ART; window.BUNDLED_CRAB_DEPART = BUNDLED_CRAB_DEPART; window.BUNDLED_CRAB_CIVICS = BUNDLED_CRAB_CIVICS; }\n`;
 
-writeFileSync(new URL("../cultureways.js", import.meta.url), header + body + tail);
+// CS_CULTUREWAYS_OUT is the matching test seam for the output path — unset it
+// writes the real bundle, so the merge ritual's byte-exact regen is untouched.
+writeFileSync(process.env.CS_CULTUREWAYS_OUT || new URL("../cultureways.js", import.meta.url), header + body + tail);
 console.log("wrote cultureways.js —", (header + body + tail).length, "bytes; cultures:",
   Object.keys({ pig, gull }).join(","), "; policies: crab ; crab voice:",
   crabVoice.registers.length, "register(s) ; crab people:",
