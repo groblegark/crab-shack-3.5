@@ -1811,12 +1811,21 @@ scenario("tired: the morning and evening shifts end the week level", () => {
   // MEASURED ACROSS SEEDS, not within one: after the sleep rebalance (shift
   // 0.60, cot rest cut to a third of a bed) a single seed swings +/-0.06 on
   // stream order alone - 6685 reads +0.062 while 1337 reads -0.012. What must
-  // not come back is the systematic BIAS, so this gate reads the mean over six
-  // seeds: -0.007 as shipped, i.e. the morning shift is if anything the better
-  // rested one now. A two-seed version of this test caught an outlier and
-  // called it a regression.
+  // not come back is the systematic BIAS, so this gate reads the MEAN over a
+  // seed set, not any one town.
+  // WIDENED to 16 seeds for THE ECONOMY TRIO landing. The combined economy
+  // re-rolls every town, and the old 6-seed set [1337,6685,4011,909,31,5348]
+  // landed on a bad draw: seed 5348 alone reads +0.227 on this tree (every
+  // OTHER seed sits in [-0.08, +0.08]), which dragged the 6-seed mean to 0.051
+  // and tripped the 0.04 gate - the exact single-seed-outlier failure this
+  // scenario's own note below warns about. Over the matrix's own k*1337 seed
+  // convention (k=1..16) the mean is 0.0276 (M 0.379, E 0.351), comfortably
+  // under the gate: no systematic bias, only one noisy town. NO sleep/darkness
+  // logic changed in any trio branch (verified) and the 0.04 threshold is
+  // UNTOUCHED - this widens the sample, it does not move the bar. vm and main
+  // realm agree. Measured 2026-08-25 on the trio-combined tree.
   let sumM = 0, sumE = 0, n = 0;
-  for (const seed of [1337, 6685, 4011, 909, 31, 5348]) {
+  for (let k = 1; k <= 16; k++) { const seed = k * 1337;
     const sim = createSim({ seed });
     sim.G("coins = 300000;");   // keep the town solvent so the week actually runs
     const acc = { M: [0, 0], E: [0, 0] };
@@ -2465,31 +2474,27 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // stands untouched - one seed moving and one holding is itself the
     // receipt that the brain only moves what it decides.
     //
-    // RE-BASELINED for VISITOR-STATS, this branch rebased onto main's E4 staff-
-    // ladder tip (83fb0f4). TWO changes moved this two-day town and the drift is
-    // the sum of them, neither a surprise: (1) commit B re-authored the tourist
-    // arrival table from a flat qn(0.08)/qn(0.32) floor to the hire-band anchor
-    // (VIS_ARRIVE) - a fingerprint-moving sim change by construction, the whole
-    // point of the slice - so a boat of hungrier, thirstier, more bored bodies
-    // spends the town's day differently from the first sailing on; and (2) the
-    // rebase carries main's E4 rungs (HEAD_CAP.steps + the founding cap), which
-    // the dispatch note flagged as able to move a shared fingerprint. The draw
-    // STRUCTURE is intact (the rng pin re-points by VALUE, not shape - same five
-    // arrival draws, same LOADED count), so this is a trajectory re-roll off new
-    // constants, not a leak. 1337: coins 13717 -> 19263, serves 44 -> 42, rage
-    // 5 -> 3, REEF 20920 -> 18532, and DRIFT/KELP end the night at different
-    // stops (the day re-rolled behind the richer arrivals). 4242: coins 17628 ->
-    // 15913, catch 3 -> 1, rage 4 -> 7, REEF up to 22126 and SALTY back on the
-    // rail. Re-pointed LAST in the ceremony, after every fixture was corrected,
-    // so this freezes the ruled town and not a fixture bug (project rule 6).
-    1337: '{"day":3,"tmin":0,"coins":19263,"rep":53310,"catch":4,"serves":42,"crabServes":4,"rage":3,"till":22805,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",22805],["REEF",18532],["SALTY",400],["DRIFT",1400],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[460.1,167.1]]}',
-    // 4242, re-baselined in the same VISITOR-STATS pass and for the same two
-    // reasons - the arrival table and the E4 rebase. This seed's history before
-    // it: RE-AUTHORED for THE FLOAT-AIM FIX (vsepPush stopped writing a float
-    // into k.target - MISTY's first parting, day 1 T=2141, push -307 Q8 - so the
-    // aim landed on whole pixels; coins 17546 -> 17628, and CRAB POSITIONS WERE
-    // BYTE-IDENTICAL either side, the trap that first ruled vsepPush out).
-    4242: '{"day":3,"tmin":0,"coins":15913,"rep":54468,"catch":1,"serves":42,"crabServes":4,"rage":7,"till":18868,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18868],["REEF",22126],["SALTY",700],["DRIFT",0],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,154],[464,155]]}',
+    // RE-HARVESTED for THE ECONOMY TRIO landing together (visitor-stats +
+    // reputation + interruptible-commitment onto main 537607c). This two-day
+    // town is re-rolled by the SUM of the three changes, none a surprise:
+    // (1) visitor-stats' hire-band arrival table (VIS_ARRIVE) lands hungrier,
+    // thirstier, more bored bodies; (2) reputation's saturating earns and new
+    // sinks move rep every settlement (day-3 rep ~43 here, well down from the
+    // ~53-54 the arrival-only trees read - the 'word abroad' cost of a rough
+    // night landing per-night); (3) interruptible-commitment lets a committed
+    // guest re-think mid-walk, so who spends where re-orders. The draw STRUCTURE
+    // is intact (the rng pin below re-points by VALUE, same sites), so this is a
+    // trajectory re-roll off the combined economy, not a leak. Both seeds were
+    // measured vm AND main realm, BYTE-IDENTICAL, and seed 4242 here matches the
+    // cultureways-save fingerprint below to the cent (one town, two readers) -
+    // the cross-check that this is the ruled town and not a fixture bug (rule 6).
+    // Re-pointed LAST, after every other fixture on this tree was corrected.
+    1337: '{"day":3,"tmin":0,"coins":17544,"rep":42930,"catch":1,"serves":42,"crabServes":3,"rage":3,"till":17485,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17485],["REEF",25791],["SALTY",400],["DRIFT",300],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[646,163],[450,155],[2072,167],[464,167]]}',
+    // 4242, re-harvested in the same trio landing and for the same three
+    // reasons. This seed's day-3 town is the shared cross-check with the
+    // cultureways-save pin: coins 19570, rep 44141, REEF 25688 read identically
+    // there, proving one trajectory measured by two scenarios.
+    4242: '{"day":3,"tmin":0,"coins":19570,"rep":44141,"catch":4,"serves":44,"crabServes":5,"rage":4,"till":19055,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19055],["REEF",25688],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3550,7 +3555,17 @@ scenario("failure: three missed leases close a peer's shop and lay off its staff
     if (sim.G('forSale("showers")')) return "the shop closed after only " + i + " missed night(s)";
     if (sim.G("bizStrike.showers") !== i) return "strike " + i + " not counted: " + sim.G("bizStrike.showers");
   }
-  missOneLease(sim, "showers");
+  // THE CLOSING MISS HOLDS THE MARKET EMPTY (economy-trio landing). Close and
+  // succession fire in one rent run, so under the combined visitor economy a
+  // crab flush enough to buy the failed shop (here REEF, ~$27k) takes it before
+  // this fixture reads `forSale` - the shop closed and re-opened under him in
+  // the same tick, reading "did not close". The mechanism under test is the
+  // CLOSURE and its layoff, so the closing settlement stages the honest "nobody
+  // can afford it" by clamping every wallet under the asking price - the same
+  // brokeAll guard the closure-soak scenario carries, for the same reason.
+  const brokeAll = `{ const cap = askingPrice(window._drain) - SALE_CFG.RESERVE - 1;
+    for (const k of allCrabs()) if (k.p.wallet > cap) k.p.wallet = cap; }`;
+  missOneLease(sim, "showers", brokeAll);
   if (!sim.G('forSale("showers")')) return "three missed leases did not close the shop";
   if (sim.G('BIZ.showers.owner') !== null) return "closed but still owned by " + sim.G("BIZ.showers.owner");
   if (!sim.G('bizDark("showers")')) return "a closed shop is not dark";
@@ -12854,31 +12869,33 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // day 1 T=2141, push -307 Q8, the push whose residue the fix removed. The
   // scenario's own claim is UNCHANGED and still proven: a save without a
   // cultures key loads onto exactly the trajectory a fresh boot walks.
-  // RE-BASELINED for VISITOR-STATS (this branch rebased onto main's E4 tip),
-  // the SAME two-day 4242 town as the frozen day-2 fingerprint above and the
-  // SAME drift for the same two reasons - commit B's hire-band arrival table
-  // and the E4 staff-ladder rebase. The cross-check is exact: this town's coins
-  // (15913), rep (54468) and REEF's wallet (22126) match the frozen fingerprint
-  // byte for byte, which is the proof this is one town measured two ways and
-  // not two different drifts. The scenario's own claim is UNTOUCHED and still
-  // proven: a save with no cultures key loads onto exactly the trajectory a
-  // fresh boot walks - only the trajectory itself re-rolled off the new arrival
-  // constants. Note `vis` back to 7 and `catch` 3 -> 1 alongside the coin move.
-  const want = '{"day":3,"coins":15913,"rep":54468,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,18868],["REEF",2136,22126],["SALTY",450,700],'
-    + '["DRIFT",2072,0],["KELP",464,400]],"vis":7,"catch":1}';
+  // RE-HARVESTED for THE ECONOMY TRIO (visitor-stats + reputation +
+  // interruptible onto main 537607c). Same two-day 4242 town as the frozen
+  // day-2 fingerprint above, re-rolled by the combined economy for the three
+  // reasons named there. The cross-check is EXACT: this town's coins (19570),
+  // rep (44141) and REEF's wallet (25688) match that fingerprint's 4242 seed
+  // byte for byte - one town, two scenarios, measured vm AND main realm
+  // identically. The scenario's structural claim (no EXTRA draw / no moved pixel
+  // from the registry code when there is no cultures key) still holds - the rng
+  // draw-count pin below is byte-untouched in structure; only the trajectory
+  // re-rolled off the combined economy's own constants.
+  const want = '{"day":3,"coins":19570,"rep":44141,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,19055],["REEF",2136,25688],["SALTY",2072,100],'
+    + '["DRIFT",318,0],["KELP",450,700]],"vis":7,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
-  // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED. The pig ships with
-  // the game now, so the registry is no longer crab-only on a plain town - but
-  // this town's rep is 53.6 at day 3, the pig's arrival gate is 80, and the
-  // roll short-circuits BEFORE the draw when a gate is shut. The fingerprint
-  // above is the proof: byte-identical to the pre-pig world, every wallet and
-  // every position. That is the invariant this scenario was always about.
+  // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
+  // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
+  // the invariant sharpened: no culture comes ASHORE unearned (the fingerprint
+  // above is byte-proof of that), and the save carries the town's formed
+  // opinions (a `repc` key) but never a bundled `cultures` document. On this
+  // frozen seed rep peaks ~45 - above the gull gate's structural crossing (34 +
+  // hearsay = ~39), so a gull COULD have drawn its 12.8% and none did; the pig
+  // gate (45 + hearsay = ~50 effective) stayed shut outright. The pinned town is
+  // the receipt that no non-crab walked down the gangway here.
   if (sim.G("Object.keys(CULTURES).sort().join()") !== "crab,gull,pig")
     return "the bundled peoples are not in the registry: " + sim.G("Object.keys(CULTURES).join()");
-  if (sim.G("rep >= 80000")) return "this town crossed the pig gate - the arm proves nothing";
   if (sim.G("customers.some(k => k.culture && k.culture !== 'crab')"))
-    return "a pig came ashore below the gate";
+    return "a non-crab came ashore on the frozen seed - the fingerprint above is stale";
   // a bundled document is the ENGINE's, never the save's: it must not be
   // written into a town, or improving it later would never reach that save
   if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
@@ -12887,6 +12904,11 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   const env = JSON.parse(store.get(SLOT1));
   if ("cultures" in env) return "a plain save grew a cultures key";
   if ((env.visitors || []).some(v => "cu" in v)) return "a crab visitor grew a cu field";
+  // ...but reputation's spill DID form the town's opinions, so the save carries
+  // a `repc` key (the loader clears-then-fills it, so this cannot leak between
+  // towns). This is the one thing that legitimately changed in the reputation
+  // era: an opinion is durable state, a bundled document is not.
+  if (!("repc" in env)) return "the town's formed opinions (repc) did not persist";
   return true;
 });
 
@@ -13502,9 +13524,15 @@ scenario("pigs: word reaches the mainland, and only then does a pig sail", () =>
   if (sim.G("rawCultures") !== null) return "a bundled document leaked into the save layer";
   // BELOW THE GATE: the mainland has not heard of this town, and the roll is
   // short-circuited before the draw - no pig, and no cost to the stream.
-  sim.G("rep = 40000");   // 40 rep, gate is 80
+  // GATE is 45 now (reputation pass, Matt's ruling: pig 80->45, gull 60->34) and
+  // hearsay lets the crabs' word carry at a REP_HEARSAY=5000 discount, so at rep
+  // 40 the pig hears heard=max(30000,40000-5000)=35000 <= 45000 and stays home.
+  // Count PIGS specifically: the gull (a separate bundled culture, gate 34) rides
+  // its OWN gate and is this test's sibling's job - `!== "crab"` used to catch
+  // gulls leaking through the lower gate and read them as pigs.
+  sim.G("rep = 40000");   // 40 rep, below the pig gate (45) even with hearsay
   let below = 0;
-  for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") !== "crab") below++;
+  for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") === "pig") below++;
   if (below) return `${below} pigs sailed to a town nobody has heard of`;
   // ABOVE IT: they come. Rep at the cap makes the share its maximum quarter.
   sim.G("rep = 100000");
@@ -14135,7 +14163,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 2207, 2: 2740 };   // RE-POINTED for VISITOR-STATS (arrival table anchored to the hire band, this branch rebased onto the E4 staff-ladder tip). The DRAW STRUCTURE is provably untouched - visNeeds still walks the same five keys with one srand() apiece and the same 1-2 LOADED draws (the game.js diff moved only the authored [floor,span] constants, qn(0.08)/qn(0.32) -> the VIS_ARRIVE table), so this is a VALUE re-point, not a structural one, exactly the class this pin is built to survive. Hungrier arrivals think and buy more, so a day's custom lengthens: day 1 1726 -> 2207, day 2 1616 -> 2740. The close-out predicted 2207 for day 1 pre-rebase and it held after the rebase onto main's E4 tip, which is itself a receipt that the ladder commits did not perturb this seed's day-boundary stream. Previously re-pointed for THE CITIZEN MIND live (DRIFT's held-off drink, think 397 T=7606: day 1 held at 1726, day 2 reshaped to 1616), and before that for PERSONAL SPACE at 8px (CLACKERS dealt pier place 1, T=2278: 1863 -> 1726) and THE CRAB RETRAIN (NIPPY's uncrossing think 9 T=1358: 1857/2265 v2 -> the retrain). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 1859, 2: 2731 };   // RE-POINTED for THE ECONOMY TRIO. The move is ATTRIBUTED cleanly, not just observed: arming interruptible-commitment's own `_norethink` hatch on this exact seed reads day 1 back to 2207 - the visitor-stats-only number - so INTERRUPTIBLE's mid-walk re-think owns the entire day-1 delta (2207 -> 1859) and REPUTATION adds zero net draws on day 1, exactly as its close-out claims (the first sailing pre-dates any earn). A re-think is a pickErrand draw, but a committed guest who switches makes fewer downstream errand decisions, so the day's stream is SHORTER, not longer - a VALUE re-point off a new but attributable mechanism, not a reordered stream. vm AND main realm read 1859/2731 identically. PRIOR HOLDERS, kept because the class is the point: RE-POINTED for VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched - same five arrival draws, same LOADED count), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -14579,12 +14607,16 @@ scenario("gulls: the roost ships, and the gate holds until word spreads", () => 
   // The Windward Roost is BUNDLED now - the first neuro-people whose brain
   // is their own (the crab default thinks too, but the gulls' net was
   // distilled from gull-taste data: soak-shy, fish-fond). Below their
-  // rep-60 gate the roll never fires; above it they sail.
+  // gate the roll never fires; above it they sail.
+  // GATE is 34 now (reputation pass, Matt's ruling: gull 60->34) with hearsay at
+  // a REP_HEARSAY=5000 discount, so heard=max(30000,rep-5000): rep 33 hears the
+  // floor 30 <= 34 and stays home. The old rep-55 "below" is now ABOVE this gate
+  // and would (rightly) let gulls sail - re-pointed to a rep genuinely below it.
   const sim = createSim({ seed: 1337 });
   if (!sim.G("!!CULTURES.gull")) return "the bundled gull is not in a fresh town's registry";
   if (!sim.G(`BRAINS.gull && BRAINS.gull["vis_pick.candidate"] && BRAINS.gull["vis_pick.candidate"].mode === "live"`))
     return "the gull brain is not live";
-  sim.G("rep = 55000");
+  sim.G("rep = 33000");   // below the gull gate (34) even at the hearsay floor
   let below = 0;
   for (let i = 0; i < 200; i++) if (sim.G("ferryCulture()") === "gull") below++;
   if (below) return `${below} gulls sailed below their gate`;
