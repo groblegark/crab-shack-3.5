@@ -72,10 +72,16 @@
       // and past it the card is growing padding again. What is left over
       // belongs to the page background, and always will: the town cannot use it.
       const PANEL_CAP = 376;                       // 176 world + 200 panel
-      const pad = () => (Math.min(innerWidth, innerHeight) < 620 ? 14 : 60);
+      const phone = () => Math.min(innerWidth, innerHeight) < 620;
+      const pad = () => (phone() ? 14 : 60);
       const wScale = () => (innerWidth - pad()) / 256;
       function modeH() {
         if (innerHeight <= innerWidth) return 240;             // landscape/desktop: unchanged
+        // A TALL WINDOW IS NOT A PHONE. The extra rows buy thumb-sized targets
+        // on a screen you HOLD; on a desktop they only stretch the aspect ratio
+        // for nobody, so a portrait-shaped desktop window keeps the classic
+        // 288. Ruled by Matt, 2026-08-24, on seeing it.
+        if (!phone()) return 288;
         const rows = Math.floor((innerHeight - pad()) / Math.min(wScale(), 4));
         // quantised to 8 rows: a URL bar sliding in must not read as a rotate
         return Math.max(288, Math.min(PANEL_CAP, rows - (rows % 8)));
