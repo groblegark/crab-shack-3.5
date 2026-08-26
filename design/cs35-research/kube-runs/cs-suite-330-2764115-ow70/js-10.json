@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-2764115-ow70",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "2764115b7ae62d372cc174055cc847624a890d41",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 180362,
+  "verdict": "33/33 passed in slice 10/12 (180.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2744ms)\n  PASS  housing: npcs sleep at the shelter, then move up (783ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (864ms)\n  PASS  credit: the town is warned before it goes under (47956ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (913ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (3082ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (57615ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (10ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (13752ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (8298ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (626ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (859ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2809ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2138ms)\n  PASS  the mayor wears the hat, and nobody else ever does (857ms)\n  PASS  departures: the card waits behind the day report, then pages itself (813ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (3942ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1398ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (7ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (10ms)\n  PASS  the whole session plays through one audio element (11ms)\n  PASS  missing payday costs the crew, not the lease (7298ms)\n  PASS  crab-as-document: a hostile document is refused by name (7ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (9311ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (42ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (458ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (602ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (499ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3187ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1491ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (4416ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1815ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1607ms)\n33/33 passed in slice 10/12 (180.2s)\n"
+}

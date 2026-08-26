@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-2764115-ow70",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "2764115b7ae62d372cc174055cc847624a890d41",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 61811,
+  "verdict": "33/33 passed in slice 4/12 (61.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3354ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1506ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (22ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (3927ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (3346ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (2095ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4530ms)\n  PASS  census: rows derive live state, and sort + filter actually move (970ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (3156ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (5250ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (112ms)\n  PASS  one reading surface owns the screen (1124ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1229ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (2151ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (5920ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (48ms)\n  PASS  departures: a display card moves nothing in the town (1908ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (3736ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (932ms)\n  PASS  the hire card runs on the wall clock, not the game clock (1397ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (577ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1852ms)\n  PASS  idle quips: the island's table is the literal, key for key (13ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (86ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (13ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (3056ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (26ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (48ms)\n  PASS  seam: the view is a reader - two renders move nothing (148ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (9ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (9088ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (64ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (30ms)\n33/33 passed in slice 4/12 (61.7s)\n"
+}

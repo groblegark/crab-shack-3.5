@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-2764115-ow70",
+  "armId": "wasm-0",
+  "index": 12,
+  "sha": "2764115b7ae62d372cc174055cc847624a890d41",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 103579,
+  "verdict": "34/34 passed in slice 0/12 (103.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (29926ms)\n  PASS  disease: sustained neglect breeds sickness (2305ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (351ms)\n  PASS  all crew dead: town survives, rehire recovers (604ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (750ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (474ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (15054ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (459ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (2824ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (15092ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (14737ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1190ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (385ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (34ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (2672ms)\n  PASS  the town hall survives a save and a reload, ledger and all (2427ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1539ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (1874ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (530ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  the title screen credits the track that is actually queued (10ms)\n  PASS  the record box scrolls without the drag thumb (9ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (4097ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (11ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (34ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (13ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (11ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (2318ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (2662ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (625ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (246ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (50ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (28ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (107ms)\n34/34 passed in slice 0/12 (103.5s)\n"
+}

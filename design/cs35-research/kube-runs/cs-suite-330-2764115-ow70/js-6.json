@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-2764115-ow70",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "2764115b7ae62d372cc174055cc847624a890d41",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 128115,
+  "verdict": "33/33 passed in slice 6/12 (128.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3900ms)\n  PASS  save guard: an empty slot still receives the first town (25ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1634ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (9997ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (189ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5396ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (212ms)\n  PASS  roster: the refactor preserves every census ordering (768ms)\n  PASS  sale: the player buys a failed business through the shopfront (3643ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7501ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (38471ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1215ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (16325ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2249ms)\n  PASS  the fund is struck to the bill and does not hoard (1004ms)\n  PASS  departures: three ways to be turned away are three different counters (189ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (601ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1893ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (876ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1021ms)\n  PASS  only one track is ever audible at once (12ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (2022ms)\n  PASS  crab voice: two whole days with the table off are the same town (2579ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (1516ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (36ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (20137ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (405ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (526ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2174ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (8ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1463ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (6ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (9ms)\n33/33 passed in slice 6/12 (128.0s)\n"
+}
