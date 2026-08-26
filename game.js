@@ -2235,8 +2235,26 @@ function declarePoll() {
       policy: policyLine(hall.policy), tally: "-" });
     return;
   }
-  let win = B.cands[0];
-  for (const k of B.cands)
+  // A CANDIDATE WHO IS NO LONGER IN TOWN CANNOT TAKE THE OFFICE. The ballot is
+  // PRINTED THE NIGHT BEFORE (see printBallots, called from runTownHall), and
+  // between the printing and the count a crab can die - this town has universal
+  // mortality - or quit for the pier. Nothing re-checked the field, so a dead
+  // crab could win outright: measured, SALTY died of illness on a day 6 and won
+  // the day-7 ballot with 2 votes, whereupon the never-vacant-office rule
+  // correctly re-seated somebody else and hall.mayor no longer matched
+  // hall.poll.winner - which is exactly what two election gates assert.
+  // The papers still COUNT (they were honestly cast, and the tally is what the
+  // town did); they simply cannot seat a crab who is not there to be seated.
+  // Nothing changes in a town where every candidate survives the night, which
+  // is why this sat latent - 60 seeds of main never caught a candidate out.
+  const standing = B.cands.filter(k => allCrabs().some(c => c.p.name === k.name));
+  if (!standing.length) {   // the whole field is gone: the incumbent stays
+    hall.poll = rec(hall.mayor, false, B.cands, B.cast.map(p => p.line).filter(Boolean));
+    today.moved.push("EVERY CANDIDATE HAS LEFT TOWN - " + (hall.mayor || "NOBODY") + " STAYS IN THE HAT");
+    return;
+  }
+  let win = standing[0];
+  for (const k of standing)
     if (k.votes > win.votes || (k.votes === win.votes && !win.inc && (k.inc || k.name < win.name))) win = k;
   hall.mayor = win.name;
   // FIELD BY FIELD, AND THAT IS THE HAZARD: a platform that grows a dial and
@@ -6062,10 +6080,60 @@ refreshHatches();
 const patOff = (k) => !!(_fOff && _fOff[k]);
 
 // ---- IDLE HANDS (the wander-off) -----------------------------------------
-const WANDER_AT = qn(0.6);        // restless enough to leave the post
+// RESTLESS ENOUGH TO LEAVE THE POST - and this bar is now the WANDER'S OWN,
+// separate from the one the mood ring and the quips read (RESTLESS_AT, below).
+// It was 0.6 for both, and 0.6 was half the bug.
+//
+// WHY THE BAR HAD TO MOVE AT ALL. Boredom arrives in +0.20 lumps at shift END,
+// so a save's first four days carry 0.0 / 0.2 / 0.4 / 0.6-minus-one-Q20-grain
+// into work against a bar of 0.6: the wander was ARITHMETICALLY IMPOSSIBLE
+// before day 5, and by day 5 hunger has pinned at 1.00 so boredYields (rightly)
+// slams the door. The two gates never blocked at once - they own DIFFERENT DAYS,
+// which is exactly why relaxing either alone left the freeze untouched in the
+// intervention table and only relaxing BOTH moved it. Measured, 16/16 seeds took
+// their worst freeze on DAY 1: 11.1 GAME-HOURS at one sub-pixel x in one kstate.
+// That is a new player's first look at the shower house.
+//
+// AND 0.6 CONTRADICTED ITS OWN DESIGN. The design doc (NEEDS THAT FAIL IN THEIR
+// OWN CHARACTER, below) makes idle hands the EARLY stage of boredom and the
+// walk-out its LATE stage - but 0.6 against WALKOUT_AT's 0.95 is a gap of 1.75
+// lumps. "Late" and "slightly later", not "early" and "late". A crab could not
+// be restless without being nearly ready to quit.
+//
+// 0.15 IS UNDER ONE SHIFT'S LUMP, which is what lets the trickle reach it on
+// day 1 (see BORED_IDLE: a zero-net advance can move at most one lump, 0.20, so
+// any bar above that leaves day 1 frozen no matter how fast the trickle runs -
+// measured, an advance trickle at 3.0/shift against the old 0.6 bar: worst
+// still-run 11.1 game-hours, UNCHANGED). Every later day clears it on the
+// settlement lump alone.
+//
+// WHAT THIS IS NOT: it is not a licence to roam. The wander is reachable only
+// when every dispatch above it has declined - no order, no dirty stall, no
+// table to bus - and WANDER_QUIET / WANDER_DWELL / WANDER_CD still bound the
+// share of a dead spell spent off-post to about half. Lowering the bar changes
+// WHEN a crab may drift, never how much of a busy shop's time it can eat.
+const WANDER_AT = qn(0.15);
+// ...and the DISPLAY bar stays where it was, deliberately. "RESTLESS" on the
+// mood ring and the SAME OLD SAME OLD / I'D KILL FOR AN ARCADE quips are how
+// the player reads deep boredom, and they are tuned against WALKOUT_AT - a crab
+// wearing RESTLESS is a crab heading for a walk-out, which is a warning the
+// player can act on. Splitting the two keeps that warning honest and leaves
+// every pixel of the UI exactly as it was. It also reads better, not worse: a
+// mild drift off-post comes with the wander's own quips (NOTHING DOING, JUST
+// STRETCHING MY LEGS), which is the right register for 0.15, while the ARCADE
+// lines stay for a crab who genuinely has had enough.
+const RESTLESS_AT = qn(0.6);
 const WANDER_PX = 340;        // how far off post a wander may take them
-const WANDER_QUIET = 3;       // real seconds the counter must be DEAD first - a
-                              // crab doesn't bolt the instant the queue empties
+const WANDER_QUIET = 3 * SEC; // real seconds the counter must be DEAD first - a
+                              // crab doesn't bolt the instant the queue empties.
+                              // The `* SEC` is NOT cosmetic and it was missing:
+                              // this is compared against c.idleT, which sums
+                              // TICKS, so a bare 3 was 3 ticks = 0.15s - twenty
+                              // times too short, and PLAN documented it as "3s".
+                              // Both siblings below carry the same conversion;
+                              // the bug was visible in the three lines of this
+                              // block. At 0.15s the "counter has to be DEAD
+                              // first" clause below was doing nothing at all.
 const WANDER_DWELL = 14 * SEC;  // ...then 14-24s stood there watching
 const WANDER_CD = 20 * SEC;   // real seconds back at the post before the next one
                               // (a six-hour shift is only 90 REAL seconds, so these
@@ -6091,6 +6159,170 @@ const WANDER_SPOTS = [
 // for the crab's behaviour - and the town sits near 0.7 dirt permanently, so
 // including it would switch the whole pattern off.
 const BORED_YIELD = qn(0.8);
+// A DEAD COUNTER IS THE BORING PART OF THE JOB, and until now the game did not
+// think so: boredom moved in ONE lump at shift END, so nothing about standing
+// at an empty counter for six hours was any more boring than a rush. That is
+// the other half of the freeze (the bar itself is WANDER_AT, above), and it is
+// why the fix needs both - the bar alone still leaves day 1 starting at a flat
+// 0.000 with no way to move until knock-off.
+//
+// THIS IS A RE-TIMING, NOT A NEW CHARGE, and that distinction is the whole
+// reason it is safe. It is an ADVANCE against the +0.20 the shift was going to
+// bill at knock-off anyway: p.boredAdv banks what idleness has already drawn,
+// the settlement pays only the REMAINDER, and a crab who idled a full shift has
+// paid in full and gets no lump. So a crab can never end a day more bored than
+// the old code left them - what changes is WHEN it arrives inside the day, which
+// is the entire bug. The precedent is exactly the tiredness trickle's (see the
+// shift settlement): same total, different timing, because a crab should be at
+// their most tired at the grill rather than the instant they clock off.
+//
+// MEASUREMENT FORCED THIS SHAPE - two wrong versions came first, and both looked
+// fine on the freeze number:
+//   1. AN ADDITIVE TRICKLE. Boredom has NO ambient decay and no free cure (that
+//      is the cure ledger below, and it is arithmetic rather than flavour), so
+//      any permanent addition raises the WHOLE later trajectory forever. At
+//      0.75/shift, 2 seeds x 8d: the freeze came 11.1 -> 8.0 game-hours while
+//      boredom pinned >= WALKOUT_AT on DAY 2 instead of day 5 and mean on-shift
+//      boredom went 0.571 -> 0.840. A fifth of the fix for a walk-out ladder
+//      pulled in by three days, town-wide, forever.
+//   2. CAPPING IT. Also no: the +0.20 lump stacks on top of any cap, so
+//      settlement boredom still read 0.82 / 1.00 / 1.00 against as-shipped's
+//      0.20 / 0.40 / 0.60, and the ladder still moved to day 2.
+// Only bounding it BY THE LUMP leaves the ladder where it was - which is the
+// version that survives, and the version that spends no pillar.
+//
+// AND IT IS STILL PAID FOR BY IDLENESS. It accrues only while a crab is on shift
+// with nothing to do - applied at the bottom of the idle branch, past every
+// dispatch - so a crab who is working pays nothing, and a SHACK THAT IS GROWING
+// is busy. The town the growth matrix measures pays this least, which is the
+// same argument the wander itself makes one screen down: "it lands hardest
+// exactly when the shop is quiet, which is when it costs the town least."
+//
+// THE CURE LEDGER IS THEREFORE EXACTLY AS AUTHORED: at most +0.20 a shift
+// against 0.12 of chat relief, so a gossiping crew still drifts upward across a
+// week and only the arcade buys the bar back.
+//
+// Read as "a whole standard shift spent idle would cost this much boredom" - the
+// units TIRED_SHIFT is quoted in. Above 1.0 is not a typo: the ADVANCE CAP, not
+// this number, sets how much a crab ends up with, so this only sets how FAST an
+// empty shop gets them off the wall. 3.0 spends the whole advance in about a
+// third of a shift. Measured against the freeze, cap fixed and only this moving:
+// 0.75 -> 8.0 game-hours; 3.0 -> 2.0; 6.0 -> 1.5 on day 1 but 6.6 overall,
+// because a crab who exhausts the advance in the first hour has nothing left to
+// draw and stands still through the rest of a dead day. 3.0 is the knee.
+const BORED_IDLE = qn(3.0);
+// ONE BOUND, AND IT IS THE LUMP ITSELF. An earlier version carried a second,
+// separate ceiling on the LEVEL as well; it was redundant once the advance is
+// bounded (the draw can never exceed what the settlement would have charged) and
+// two interacting caps on one quantity is how a balance number stops being
+// readable. Keep this equal to the shift-end lump - they are two halves of one
+// charge, and a drift between them would silently start adding or forgiving
+// boredom.
+//
+// p.boredAdv IS "HOW MUCH OF TODAY'S LUMP HAS ALREADY BEEN CHARGED", by either
+// half, and p.boredAdvDay STAMPS WHICH DAY "TODAY" MEANS. The stamp is what
+// makes the bound provable, and it took two measured bugs to arrive at:
+//
+//   1. CLEARING IT AT CLOCK-IN let a crab who breaks for an errand and clocks
+//      back in draw a SECOND full advance against a lump already paid - REEF,
+//      +0.40 in a day against everyone else's +0.20.
+//   2. CLEARING IT IN THE NIGHTLY BLOCK looked right and was worse, because
+//      that block fires at TMIN 20:00 while REEF's and SALTY's shifts run to
+//      20:30. The reset landed MID-SHIFT, re-opening the budget in time for the
+//      settlement half an hour later to charge a full second lump. Same +0.40,
+//      but now arriving through a path that reads like end-of-day tidy-up.
+//
+// A stamp has no such ordering to get wrong: the advance simply IS NOT VALID on
+// any day but the one it was drawn on, so it self-expires without anyone having
+// to remember to clear it, in any order, on any path - including the paths where
+// a shift never settles at all (a crab called sick mid-shift, a walk-out, a rota
+// reshuffle), which was the third bug in this same family.
+//
+// The lesson generalises past this constant: an expiry that depends on WHEN a
+// reset runs is only as correct as the reset's position relative to every other
+// event, and "the nightly block" is not the end of the night.
+const BORED_ADV_MAX = qn(0.2);
+// ...AND IT STOPS DEAD AT THE SPEED LINE. This is the fifth thing measurement
+// forced, and it is the one that makes the whole change economically inert.
+//
+// Re-timing boredom EARLIER in a day raises its TIME-AVERAGE even when the daily
+// total is identical - and above qn(0.5) every point of boredom is a movement
+// penalty (crabMoveQ8's `over`). Measured: mean on-shift boredom 0.571 -> 0.632,
+// and the consequences were two systems away and entirely in the wage bill -
+// slower crabs run errands worse, so sick-days went 8 -> 13 and 6 -> 13 on two
+// seeds, a sick day pays NO WAGE (crabDueTonight), and the always-open arm of
+// the anti-exploit gate reads takings-per-crew-day 1.06 -> 1.12 against a limit
+// of 1.10. A BOREDOM RE-TIMING RE-OPENED AN ECONOMIC EXPLOIT THROUGH PAYROLL.
+//
+// So the trickle may not cross qn(0.5). It does not need to: its whole job is to
+// get an EARLY-GAME crab (boredom 0.0-0.4, nowhere near the line) over
+// WANDER_AT. Once the settlement lumps have carried a crab past 0.5 the bar is
+// long since cleared and the trickle has nothing left to do - it simply stops.
+// Every crab above the line therefore moves at EXACTLY the speed it did before
+// this change existed, which is what keeps the growth pillar out of it.
+const BORED_IDLE_LEVEL = qn(0.5);
+// how much of TODAY's lump is already spent - 0 on any day we have not drawn on
+function boredAdvOf(c) { return c.p.boredAdvDay === day ? (c.p.boredAdv || 0) : 0; }
+// ...AND THE WALK-OUT LADDER MUST NOT SEE AN UNBILLED ADVANCE. This is the
+// fourth thing measurement forced, and it is a pure ORDERING fact that no
+// amount of "the totals match" reasoning would have caught.
+//
+// The nightly walk-out check runs at TMIN 20:00; a late shift knocks off at
+// 20:30. As-shipped, a lump that pushes a crab over WALKOUT_AT therefore lands
+// AFTER the check and is first counted the FOLLOWING night - one day of grace
+// that is baked into WALKOUT_DAYS' tuning. Re-time part of that same lump into
+// the afternoon and the crossing is counted the SAME night: the 4-settlement
+// ladder quietly becomes 3.
+//
+// MEASURED, seed 4242 x 10d, and it is not subtle: walk-outs 1 -> 3 on normal
+// hours and 2 -> 4 on always-open. A walk-out is a day with NO WAGE, so it
+// inflates takings-per-crew-day MOST in the arm with the most idle hours - which
+// is precisely the always-open arm, and it pushed the anti-exploit gate from
+// 1.06 to 1.12 against a limit of 1.10. A boredom re-timing reopened an
+// ECONOMIC exploit two systems away, through the wage bill.
+//
+// So the ladder reads the boredom the crab would have had at this point in the
+// day WITHOUT the UNBILLED part of the advance. Nothing else uses this: the bar,
+// the quips, the mood ring and the speed penalty all read the real, current
+// value, because for those the whole point is that the crab IS bored now.
+//
+// "UNBILLED" IS THE LOAD-BEARING WORD, and getting it wrong broke the walk-out
+// gate. Once the shift settles, that boredom HAS been charged the way the ladder
+// was tuned on - it must count in full. But the settlement also closes the day's
+// budget by setting boredAdv to the max, so a naive `bored - boredAdv` keeps
+// subtracting a lump that is already paid, and a crab pinned at 1.00 reads 0.80
+// forever: the walk-out never fires at all. p.boredBilled records that the
+// settlement has run, which separates "drawn early" from "drawn early and since
+// accounted for" - two different things that one counter cannot say.
+function boredSettled(c) {
+  if (c.p.boredBilled === day) return c.p.bored || 0;   // the shift settled: it all counts
+  return Math.max(0, (c.p.bored || 0) - boredAdvOf(c));
+}
+// ...and it accrues EXACTLY, by the otPremium remainder pattern the tiredness
+// trickle already uses: add the numerator, move floor(R/D) whole grains, keep
+// R % D for the next tick. Banking a float in a Q20 field would be a spec
+// violation the C port cannot reproduce even though it stays deterministic.
+// The remainder lives at p.boredRem so a mid-shift save carries it.
+function boredIdleTick(c) {
+  if (patOff("boredidle")) return;
+  if ((c.p.bored || 0) >= BORED_IDLE_LEVEL) return;   // never past the speed line
+  const spent = boredAdvOf(c);                        // 0 once the stamp is stale
+  let room = BORED_ADV_MAX - spent;                   // nothing beyond one shift's lump
+  const headroom = BORED_IDLE_LEVEL - (c.p.bored || 0);
+  if (headroom < room) room = headroom;               // ...and never over the line
+  if (room <= 0) return;
+  const den = Math.max(1, ownStdSpan(c)) * GMIN;
+  const R = (c.p.boredRem || 0) + BORED_IDLE * dtT;
+  let move = (R - R % den) / den;
+  c.p.boredRem = R % den;
+  if (move <= 0) return;
+  if (move > room) move = room;
+  const b1 = (c.p.bored || 0) + move;
+  if (b1 >= Q20) { move = Q20 - (c.p.bored || 0); c.p.bored = Q20; c.p.boredRem = 0; }
+  else c.p.bored = b1;
+  c.p.boredAdv = spent + move;                        // banked against today's lump
+  c.p.boredAdvDay = day;
+}
 function boredYields(c) {
   return (c.p.hunger || 0) >= BORED_YIELD || (c.p.thirst || 0) >= BORED_YIELD
     || (c.p.tired || 0) >= BORED_YIELD;
@@ -10955,7 +11187,7 @@ function maybeQuip(c, dt) {
       lines = ["DAY OFF!", "BEACH DAY", "THE SAND'S ALL MINE", "NOT COOKING TODAY"];
     if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["THEY'LL COPE", "I NEEDED THIS", "NOT TODAY", "SOMEONE ELSE'S TURN"];
-    if ((c.p.bored || 0) >= WANDER_AT && !isNight && !walkoutToday(c))
+    if ((c.p.bored || 0) >= RESTLESS_AT && !isNight && !walkoutToday(c))
       lines = ["SAME OLD SAME OLD", "IS IT HOME TIME", "NOTHING EVER HAPPENS", "I'D KILL FOR AN ARCADE"];
     if ((c.p.tired || 0) >= qn(0.8) && !isNight)
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
@@ -11283,6 +11515,13 @@ function arriveCommute(c, atWork) {
   if (atWork) {
     c.dsC = DS.working; c.duty = true; c.ksC = KS.idle; c.workBiz = c.p.job;
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
+    // NB: the boredom advance (BORED_IDLE) is deliberately NOT reset here. This
+    // is not the start of a DAY - a crab who breaks for an errand and comes back
+    // clocks in again, and an earlier version of this change did clear it here.
+    // MEASURED: that let one crab draw a second full advance after lunch and
+    // climb +0.40 in a day against everyone else's +0.20, which is the exact
+    // double-charge the advance is supposed to make impossible. The advance is
+    // per-DAY, so it expires at the day boundary and nowhere else.
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
     if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 * SEC + ((srand() * 6 * SEC) | 0); }
@@ -11667,7 +11906,20 @@ function updateSchedule(c, dt) {
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
     c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
-    c.p.bored = Math.min(Q20, (c.p.bored || 0) + qn(0.2));     // all work and no play...
+    // ...all work and no play. STILL +0.20 A SHIFT, but idleness may already
+    // have drawn some of it down during the day (BORED_IDLE): the settlement
+    // pays only what is left owing, so standing about re-times this charge
+    // without ever increasing it. A crab who idled the whole shift has paid in
+    // full already and gets nothing here. boredAdv is cleared either way, so
+    // tomorrow starts with the full lump available to draw against again.
+    c.p.bored = Math.min(Q20, (c.p.bored || 0) + Math.max(0, qn(0.2) - boredAdvOf(c)));
+    // ...and today's boredom budget is now CLOSED rather than cleared, stamped
+    // with today. A crab can clock off, run an errand and clock back in, so
+    // clearing it would let the afternoon draw a second full advance against a
+    // lump already paid (measured: +0.40 in a day). The stamp expires it at
+    // midnight on its own, on every path, including the ones that never settle.
+    c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
+    c.p.boredBilled = day;   // ...and the ladder may now count it in full
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
     // The staff meal counts too: refusing it here was the whole reason a crab
@@ -13537,6 +13789,14 @@ function updateKitchen(c, dt) {
     }
     if (c.wanderCd > 0) c.wanderCd -= dtT;
     c.idleT = (c.idleT || 0) + dtT;
+    // A DEAD COUNTER MAKES YOU RESTLESS (BORED_IDLE, and the reasoning is up
+    // there with the constant). Reaching this line means every dispatch above
+    // declined: no order to claim, no stall to scrub, no table to bus. This is
+    // the SAME clock c.idleT counts, so the charge and the "counter has been
+    // dead this long" test can never disagree about what idle means. Not levied
+    // on a crab already on their way out (pendingOff) or off sick, matching the
+    // wander's own gate - a shift that is over is not boring, it is finished.
+    if (!c.pendingOff && !c.p.sick) boredIdleTick(c);
     if (!c.pendingOff && !c.p.sick && !patOff("wander")
         && (c.p.bored || 0) >= WANDER_AT && !boredYields(c)
         && c.idleT >= WANDER_QUIET && c.wanderCd <= 0) {
@@ -14388,6 +14648,18 @@ const VIS_ARRIVE = {                       // [floor, span], Q20 at the boundary
   bored:  [qn(0.20), qn(0.30)],            // a ferry is a bench
   tired:  [qn(0.10), qn(0.25)],            // depends who slept aboard
 };
+// THE LOADED BAND, named because a gate has to be able to ASK. A fresh body
+// gets one or two needs pushed into this band so the pier is legible - somebody
+// visibly wants something. It was an anonymous pair of literals inside visNeeds,
+// which let a suite gate test for "loaded" with `v[key] > floor + span` instead
+// - and that OVERLAPS: thirst's floor+span is 0.60, ABOVE this band's own floor
+// of 0.55, so a loaded thirst that rolled low was invisible to the check and the
+// scenario read the body as having nothing pressing. Measured on main: 9 of 40
+// seeds fail that way, so the gate had been one stream-shift from red the whole
+// time. `visLoaded()` is now the single definition both the mint and the gate
+// read, which is the only way the two cannot drift apart.
+const VIS_LOADED = [qn(0.55), qn(0.40)];   // [floor, span], Q20
+const visLoaded = (v) => v >= VIS_LOADED[0];
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
@@ -14398,7 +14670,7 @@ function visNeeds() {
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
-    n[key] = qn(0.55) + Math.floor(srand() * qn(0.40));
+    n[key] = VIS_LOADED[0] + Math.floor(srand() * VIS_LOADED[1]);
   }
   return n;
 }
@@ -18467,7 +18739,7 @@ function crabMood(c) {
   if (darkness() > 0.7 && c.dsC !== DS.home) return ["UP LATE", [120, 120, 140]];
   if (darkness() > 0.7 && c.dsC === DS.home) return ["COZY", [180, 120, 60]];
   if (c.dsC === DS.working && c.ksC === KS.work) return ["BUSY", [40, 110, 190]];
-  if ((c.p.bored || 0) >= WANDER_AT) return ["RESTLESS", [125, 135, 180]];
+  if ((c.p.bored || 0) >= RESTLESS_AT) return ["RESTLESS", [125, 135, 180]];
   return ["SUNNY", [40, 150, 70]];
 }
 function custStatus(k) {
@@ -23298,7 +23570,14 @@ function simClock(dt, rawMs) {
         k.p.roughLast = 0;
       }
       if (walkoutToday(k)) today.moved.push(k.p.name + " NEVER CAME IN - NO WAGE");
-      k.p.boredDays = (k.p.bored || 0) >= WALKOUT_AT ? (k.p.boredDays || 0) + 1 : 0;
+      // (the boredom advance is NOT cleared here - see BORED_ADV_MAX. This block
+      // fires at tmin 20:00 and REEF's shift runs to 20:30, so a reset here
+      // lands mid-shift and hands the settlement a fresh budget to double-charge
+      // against. It carries a day stamp and expires on its own instead.)
+      // boredSettled, NOT k.p.bored: this check runs at tmin 20:00 and a late
+      // shift settles at 20:30, so counting an advance the shift has not billed
+      // yet turns the 4-settlement ladder into 3. See BORED_ADV_MAX.
+      k.p.boredDays = boredSettled(k) >= WALKOUT_AT ? (k.p.boredDays || 0) + 1 : 0;
       if ((k.p.boredDays || 0) < WALKOUT_DAYS || k.p.walkout === day + 1 || patOff("walkout")) continue;
       if (k.p.sick || dayOffIdx(k) === weekdayIdx(day + 1)) continue;   // already off - it'd prove nothing
       k.p.walkout = day + 1; k.p.walkoutWhy = "bored"; k.p.boredDays = 0;

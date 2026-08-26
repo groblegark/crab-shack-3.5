@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5bc7bc3-mloo",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "5bc7bc3eb29a1119ca79799a9771a498cb6d672b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 226041,
+  "verdict": "35/35 passed in slice 0/12 (225.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (51977ms)\n  PASS  disease: sustained neglect breeds sickness (516ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (678ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (1526ms)\n  PASS  credit: the town is warned before it goes under (44015ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (741ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (2418ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (49396ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (14ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (16000ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (1167ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (16ms)\n  PASS  the lease card: every term fits on the card it is printed on (12ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (14604ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1635ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (905ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (9ms)\n  PASS  departures: a stay survives a save and a reload (2870ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (3750ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (79ms)\n  PASS  a hire is something you can see happen (391ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1511ms)\n  PASS  a refusal waits for a tap where a 404 skips on (13ms)\n  PASS  missing payday costs the crew, not the lease (8222ms)\n  PASS  crab-as-document: a hostile document is refused by name (7ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (9762ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (66ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (512ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (797ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (563ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3548ms)\n  PASS  the kernel and the reference agree, byte for byte (2230ms)\n  PASS  load: the new town's desk is clear of the last town's books (4919ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (7ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1053ms)\n35/35 passed in slice 0/12 (225.9s)\n"
+}
