@@ -11939,6 +11939,13 @@ const AUDIO_SPY = `
   // THE ONE ELEMENT, for a scenario that wants to fire an event at it. Built
   // lazily on the first play, so this is null until something sounds.
   globalThis.theSpeaker = () => _live[_live.length - 1] || null;
+  // THE SOURCE CHILD, when the element has one. musSetSrc builds a <source> for
+  // an ABSOLUTE url (a catalog release asset) and leaves the element's own src
+  // empty; for our own relative paths there is no child and the url is on src.
+  // This reaches the child so a scenario can read its type and fire its 'error'
+  // - the element's own 'error' never fires for a source failure (game.js rule
+  // 5), so the child's listener is the only path to musFail.
+  globalThis.theSource = () => { const a = theSpeaker(); return a && a._kids && a._kids[0] || null; };
 `;
 scenario("only one track is ever audible at once", () => {
   // THE BUG THIS PINS, measured on the build before the fix: playTrack paused
@@ -12103,10 +12110,24 @@ scenario("a kept catalog track reaches the CDN, and a dead track does not kill t
     const at = ROTATION.findIndex(r => r.cat && r.cat.id === "z1");
     out.keptJoinedRotation = at >= 0 ? 1 : 0;
     playTrack(at);
+    // THE MIRROR IS OUR OWN RELATIVE PATH, so it is a plain \`src\` write with no
+    // \`<source>\` child - the archive 404 keeps its instant fallthrough (see the
+    // record-box fix: a source child would turn that expected miss into a ~20s
+    // stall). The element's own \`src\` carries it.
     out.triedMirrorFirst = theSpeaker().src.indexOf("music/archive/") === 0 ? 1 : 0;
-    // The mirror is not there. The element reports it the way a browser does.
+    out.mirrorHasNoSource = theSource() === null ? 1 : 0;
+    // The mirror is not there. The element reports it the way a browser does -
+    // and a plain \`src\` DOES fire the element's own 'error' (unlike a source
+    // child), which is why the expected-miss path deliberately stays on \`src\`.
     theSpeaker().fire("error");
-    out.fellThroughToCdn = theSpeaker().src === "https://example.invalid/zed.mp3" ? 1 : 0;
+    // THE FALLTHROUGH LANDS ON A \`<source>\` CHILD, because the release url is
+    // absolute - WebKit takes GitHub's octet-stream at its word unless we
+    // declare the type ourselves. So the url is on the CHILD and the element's
+    // own \`src\` is now empty (the crossing this DOM upgrade makes honest: the
+    // pre-upgrade stub had no children, so this read the url off \`.src\`).
+    out.fellThroughToCdn = theSource() && theSource().src === "https://example.invalid/zed.mp3" ? 1 : 0;
+    out.declaresType = theSource() && theSource().type === "audio/mpeg" ? 1 : 0;
+    out.elementSrcCleared = theSpeaker().src === "" ? 1 : 0;
     out.learned = ARCHIVE_OK === false ? 1 : 0;
     out.audible = liveCount();
 
@@ -12124,11 +12145,128 @@ scenario("a kept catalog track reaches the CDN, and a dead track does not kill t
   })()`));
   if (!got.keptJoinedRotation) return "a KEPT catalog track never reached the rotation";
   if (!got.triedMirrorFirst) return "the rotation did not try the local mirror first";
-  if (!got.fellThroughToCdn) return "a 404 on the mirror did not fall through to the hosted release";
+  if (!got.mirrorHasNoSource) return "the archive mirror path built a <source> child - a relative path must stay a plain src write or its 404 stalls ~20s";
+  if (!got.fellThroughToCdn) return "a 404 on the mirror did not fall through to the hosted release (url not on the <source> child)";
+  if (!got.declaresType) return "the release <source> did not declare type audio/mpeg - WebKit will refuse GitHub's octet-stream";
+  if (!got.elementSrcCleared) return "the element's own src was not cleared when the <source> took over - a leftover empty src attr is itself a failing candidate";
   if (!got.learned) return "the 404 did not latch ARCHIVE_OK, so every later track pays it again";
   if (got.audible !== 1) return `after the fallback ${got.audible} tracks are audible, want 1`;
   if (!got.skippedOn) return "an unplayable track did not skip on - the rotation died with it";
   if (got.stillAudible !== 1) return `after the skip ${got.stillAudible} tracks are audible, want 1`;
+  return true;
+});
+
+// THE RECORD BOX DECLARES ITS OWN CONTENT TYPE (Matt, merge d349ceb): Safari
+// played the town's music and refused every catalog audition, because the
+// catalog streams from GitHub release assets and GitHub serves every asset as
+// application/octet-stream - WebKit takes that at its word and refuses the
+// source. The fix routes an ABSOLUTE url through a <source> child carrying an
+// explicit type="audio/mpeg" so WebKit picks the decoder from the author's
+// declaration; OUR OWN relative paths keep the plain src write they always had.
+//
+// THIS SCENARIO EXISTS BECAUSE THAT BRANCH SHIPPED WITH ZERO COVERAGE. The old
+// headless Audio stub was inert - no ownerDocument, no appendChild, no load -
+// so musSetSrc's guard (`ours || !a.ownerDocument || typeof a.appendChild !==
+// "function" || typeof a.load !== "function"`) took the plain-src path for
+// EVERY url, and no scenario could enter the <source> branch. MEASURED before
+// this fix: arming a defect INSIDE it (a dropped s.type, a missing
+// removeAttribute) left every music scenario green. The stub now carries a
+// minimal DOM (simlib.mjs/headless.mjs mkAudioStub) so the branch is routed the
+// way a browser routes it, and this pins the four facts the browser depends on.
+scenario("an absolute catalog url plays through a typed <source>, our own paths stay a plain src", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musJudge = {}; musicOn = true; muted = false; musicView = false;
+    // ARCHIVE_OK false is the settled state on a stranger's machine (the mirror
+    // 404'd once and it learned), so musSrc resolves a candidate straight to its
+    // absolute release url - which is the input that must reach the <source>.
+    ARCHIVE_OK = false;
+
+    // (a) AN ABSOLUTE URL -> a <source> child with an explicit type, and the
+    // element's own src CLEARED. That empty src is deliberate: an empty src
+    // attribute is itself a (failing) candidate, so musSetSrc removes it before
+    // the child takes over.
+    musPlay({ id: "abs", name: "REMOTE", url: "https://example.invalid/remote.mp3", secs: 60, tags: "" }, false);
+    out.absBuiltSource = theSource() ? 1 : 0;
+    out.absSourceUrl = theSource() && theSource().src === "https://example.invalid/remote.mp3" ? 1 : 0;
+    out.absDeclaresType = theSource() && theSource().type === "audio/mpeg" ? 1 : 0;
+    out.absElementSrcEmpty = theSpeaker().src === "" ? 1 : 0;
+    out.absCurSrc = musCurSrc === "https://example.invalid/remote.mp3" ? 1 : 0;
+    out.absPlaying = liveCount();
+
+    // (b) OUR OWN RELATIVE PATH -> exactly ONE plain src write, NO children. A
+    // shipped, same-origin file is served by us with a real content type, so a
+    // <source> would only cost it: a source's 404 is silent for ~20s where a
+    // bare src fails instantly, and the archive mirror is the one path we EXPECT
+    // to miss. musSrc resolves a shipped row to its same-origin file.
+    _srcSets = 0;
+    musPlay({ id: "rel", name: "LOCAL", file: "music/local.mp3", shipped: 1, secs: 60, tags: "", url: "https://example.invalid/local.mp3" }, false);
+    out.relOnePlainWrite = _srcSets === 1 ? 1 : 0;
+    out.relNoSource = theSource() === null ? 1 : 0;
+    out.relSrcOnElement = theSpeaker().src === "music/local.mp3" ? 1 : 0;
+    out.relCurSrc = musCurSrc === "music/local.mp3" ? 1 : 0;
+    return JSON.stringify(out);
+  })()`));
+  if (!got.absBuiltSource) return "an absolute url did not build a <source> child - the WebKit fix cannot fire";
+  if (!got.absSourceUrl) return "the <source> child does not carry the absolute url";
+  if (!got.absDeclaresType) return "the <source> child does not declare type audio/mpeg - WebKit refuses GitHub's octet-stream without it";
+  if (!got.absElementSrcEmpty) return "the element's own src was not cleared - a leftover empty src attr is itself a failing candidate";
+  if (!got.absCurSrc) return "musCurSrc did not record the absolute url (a.src is empty now, so the archive readers depend on it)";
+  if (got.absPlaying !== 1) return `after an absolute play ${got.absPlaying} tracks audible, want 1`;
+  if (!got.relOnePlainWrite) return `our own path made ${got.relOnePlainWrite ? "" : "not "}exactly one plain src write - a relative path must stay a single src assignment`;
+  if (!got.relNoSource) return "our own relative path built a <source> child - its 404 would stall ~20s instead of falling through instantly";
+  if (!got.relSrcOnElement) return "our own path did not land its url on the element's own src";
+  if (!got.relCurSrc) return "musCurSrc did not record our own relative path";
+  return true;
+});
+
+// RULE 5, THE HOOK THAT STOPS FIRING: measured in Safari, the element-level
+// 'error' never fires for a <source> failure - the spec dispatches to the
+// source child, and only the play() rejection ever settles. So musSetSrc binds
+// its OWN listener on the child (`s.addEventListener("error", () =>
+// musFail(musSrcGen))`), and for an absolute url that is the ONLY path to
+// musFail besides the play() promise. A refactor that drops it leaves the
+// record box silent with no toast and no retry on the browser that needed the
+// fix, and a value-equality sweep goes blind because nothing on the ELEMENT
+// changed. This pins that a dead <source>'s own 'error' reaches musFail (a
+// catalog row with nowhere left to go must give up its handle, not hang).
+scenario("a dead <source> reaches musFail through the child's own listener", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // A KEPT CATALOG ROW whose mirror 404s, so the rotation falls through to the
+    // absolute release url - which builds the <source> we want to kill.
+    MUSCAT = { tracks: [{ id: "d1", name: "DEAD", file: "dead.mp3", secs: 60, tags: "",
+                          url: "https://example.invalid/dead.mp3" }] };
+    musJudge = { d1: { k: 1, e: 1 } };
+    rebuildRotation();
+    musicOn = true; muted = false; musicView = false; ARCHIVE_OK = null; musFails = 0;
+    const at = ROTATION.findIndex(r => r.cat && r.cat.id === "d1");
+    playTrack(at);
+    theSpeaker().fire("error");                 // mirror 404 -> falls through to the absolute release
+    out.builtSource = theSource() ? 1 : 0;
+    out.sourceGenMatches = theSource() && musSrcGen === musGen ? 1 : 0;   // the child's listener carries this stamp
+    // THE SOURCE'S OWN 'error' is the real signal, and firing it must reach
+    // musFail. The dead absolute release has nowhere left to go, so musFail
+    // skips the rotation on: the generation advances and the dead track is no
+    // longer the one selected. If the child listener were dropped (the refactor
+    // this guards against) firing the source would do NOTHING - stamp and index
+    // both frozen - and the record box would hang silent in Safari.
+    const genBefore = musGen, idxBefore = trackIdx;
+    theSource().fire("error");
+    out.genAdvanced = musGen > genBefore ? 1 : 0;
+    out.skippedDeadTrack = trackIdx !== idxBefore ? 1 : 0;
+    out.audible = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (!got.builtSource) return "the fallthrough did not build a <source> to fail";
+  if (!got.sourceGenMatches) return "the <source> was built under a stale generation - its error would be dropped as superseded";
+  if (!got.genAdvanced) return "a dead <source>'s own 'error' did not reach musFail - the generation never moved, so the child listener is the missing hook (Safari's only signal besides the play() rejection)";
+  if (!got.skippedDeadTrack) return "a dead <source> did not skip the rotation on - one dead release url hangs the record box";
+  if (got.audible > 1) return `after the source failure ${got.audible} tracks audible, want <=1`;
   return true;
 });
 
