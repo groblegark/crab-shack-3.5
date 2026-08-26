@@ -12344,6 +12344,63 @@ function pickErrand(c) {
   if (bp && bp.mode === "shadow") shadowCitObserve(c, cand, bp, best);
   return best;
 }
+// THE TRAY ASSEMBLER (feature B: one ticket, N plates). pickErrand chose the
+// best single stop; this asks the companion question - "what ELSE does this
+// crab want that THIS shop sells, that they can afford on top?" - so a crab who
+// walked to the shack for a taco and is also thirsty walks away with the juice
+// too, in ONE queue slot, instead of getting back in line (measured 53% of the
+// time into a line already full of guests - the whole case for B, plan
+// kd-NTQvKxSEkA). It reuses the SAME appetite thresholds pickErrand's gathers
+// use and the SAME errandScore, so the tray never assembles a stop the crab
+// would not have made anyway.
+//
+// DRAW-FREE on purpose: it takes the cheapest affordable plate for the addon
+// need (no flush recipe roll), so it consumes no RNG and the second plate is a
+// pure, attributable consequence of the first arrival. The affordability check
+// is against the SUM at full retail (the two traps, plan §"the two traps"):
+// every plate is afforded, debits its own ingredient, and costs its own station
+// time - the tray is never a free need-cure.
+//
+// SCOPE: only where a counter sells across needs - the shack (food + juice).
+// Visitors, rooms, showers, the arcade and self-cook never assemble a tray;
+// this is only ever reached from the local-customer mint below, and only a
+// second need at the SAME biz can qualify. Cap the tray at 2 (the second plate
+// is where nearly all the value is; three-item trays wait on the number).
+const TRAY_MAX = 2;
+function trayAddon(c, primaryRecipe, primaryNeed) {
+  if (window._notray) return null;                 // the arm-off hatch, attribution's friend
+  const b = c.errandBiz;
+  if (!b || !BIZ[b] || !bizStaffed(b)) return null;
+  // the needs a counter can answer, in the errand census's own rank order, each
+  // paired with its appetite gate (the exact bars pickErrand's gathers use) and
+  // the filter that says which of this shop's recipes serve it
+  const off = awayToday(c) && !c.p.sick;
+  const wants = [
+    { need: "food",  want: (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food"),
+      is: (r) => !DRINKS[r.id] },
+    { need: "drink", want: (c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink"),
+      is: (r) => !!DRINKS[r.id] },
+  ];
+  const rs = bizRecipes(b);
+  let best = null, bestN = 0, bestD = 1;
+  for (const w of wants) {
+    if (w.need === primaryNeed || !w.want) continue;
+    // the cheapest plate this shop sells for the addon need - draw-free, and the
+    // one a broke crab could clear; a flush crab's splurge is the primary's job
+    const aff = rs.filter(w.is).sort((a, b2) => a.pay - b2.pay);
+    if (!aff.length) continue;
+    const r = aff[0];
+    const s = errandScore(c, { biz: b, need: w.need, recipe: r });
+    if (s.n <= 0) continue;                         // a refused stop (morning-detour clamp) is not an addon
+    if (!best || ratGt(s.n, s.d, bestN, bestD)) { best = { recipe: r, need: w.need }; bestN = s.n; bestD = s.d; }
+  }
+  if (!best) return null;
+  // AFFORD THE SUM at full local retail, with the same $2 cushion the errand
+  // gathers keep - a crab whose wallet cannot clear both plates gets only the
+  // first (the tray trims), which is re-checked at pay time in payAndBenefit.
+  if (c.p.wallet < localPrice(b, primaryRecipe) + localPrice(b, best.recipe) + 200) return null;
+  return best;
+}
 function startSelfCook(c, e) {
   c.dsC = DS.selfCook; c.cookStep = 0; c.cookRecipe = e.recipe;
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
@@ -12592,14 +12649,26 @@ function updateErrand(c, dt) {
     if (c.tx !== tail) setT(c, tail, 166);
     if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
-      const q = customers.filter(k => k.biz === c.errandBiz && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
+      // (a crab already being served a BONUS plate holds no line slot - feature
+      // B, see inQueueLine; byte-identical while every tray is length 1)
+      const q = customers.filter(k => k.biz === c.errandBiz
+        && (k.stC === VS.waiting || k.stC === VS.arriving) && !(k.isCrab && (k.orderIdx || 0) > 0)).length;
       if (q >= QUEUE_MAX) {
         c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
         c.errandCd = 12 * SEC; c.dsC = DS.home;
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order: [c.errand.recipe], orderNeeds: [c.errand.need], orderIdx: 0, isCrab: true, crab: c,
+      // THE TRAY: the primary plate, plus a companion if this crab wants a
+      // second thing this shop sells and can afford it (feature B). One queue
+      // slot, N plates - see trayAddon. Capped at TRAY_MAX.
+      const order = [c.errand.recipe], orderNeeds = [c.errand.need];
+      if (order.length < TRAY_MAX) {
+        const add = trayAddon(c, c.errand.recipe, c.errand.need);
+        if (add) { order.push(add.recipe); orderNeeds.push(add.need);
+          if (window._stats) window._stats.trayAddon = (window._stats.trayAddon || 0) + 1; }
+      }
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order, orderNeeds, orderIdx: 0, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
@@ -13847,6 +13916,18 @@ function ringUpTray(c, cust) {
   for (let i = 0; i < n; i++) {
     cust.orderIdx = i;
     if (cust.orderNeeds && cust.orderNeeds[i] != null) cust.need = cust.orderNeeds[i];
+    // THE TRAY TRIMS AT PAY TIME (feature B, trap #1). An ADDON plate (i>0) a
+    // crab can no longer afford at full local retail is dropped whole - no
+    // charge, no cure, no serve count - so the till is never credited money the
+    // crab did not have (payAndBenefit floors the wallet at 0, which would MINT
+    // the shortfall) and the second helping is never a free need-cure. The
+    // PRIMARY plate (i=0) keeps its existing floor-at-0 contract untouched, so a
+    // length-1 tray is byte-identical to the pre-B serve.
+    if (i > 0 && cust.isCrab && cust.crab && cust.crab.p
+        && cust.crab.p.wallet < localPrice(cust.biz, cust.recipe)) {
+      if (window._stats) window._stats.trayTrim = (window._stats.trayTrim || 0) + 1;
+      continue;
+    }
     payAndBenefit(c, cust);   // reads cust.recipe (=order[i]) and cust.need
     if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
     if (window._stats && bizOwner(cust.biz) !== "player")
@@ -14744,11 +14825,25 @@ function visOpen(b) {
 }
 // the two line counts, shared verbatim by visRoomFor and the kernel marshal
 // so the compiled scorer and the reference count the same heads
+// A CRAB ON A BONUS PLATE IS NOT IN THE LINE (feature B). A tray-crab keeps its
+// VS.waiting state through the whole ticket - it flips out only at serve(), when
+// the LAST plate is done - so without this a two-plate tray would hold its queue
+// slot for ~2x the kitchen time and turn arriving tourists away (measured: the
+// exact crowding that sank A). But the crab is being SERVED their second plate
+// at the window, not standing in the waiting line: they took ONE slot for plate
+// one (baseline), and the bonus plate is served out of it. So once the kitchen
+// has bumped them onto the addon (orderIdx > 0), they no longer count against
+// the line - which is precisely B's thesis, "one queue slot for N plates,
+// never competing with the tourQ rush." Length-1 trays never reach orderIdx > 0,
+// so this is byte-identical to the pre-B line count.
+function inQueueLine(c) {
+  return (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)
+    && !(c.isCrab && (c.orderIdx || 0) > 0);
+}
 function lineCounts(k, b) {
   const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
-  const allQ = customers.filter(c => c.biz === b && c !== k
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
+    && inQueueLine(c)).length;
+  const allQ = customers.filter(c => c.biz === b && c !== k && inQueueLine(c)).length;
   return [tourQ, allQ];
 }
 function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
