@@ -19997,16 +19997,24 @@ function drawRoster(R) {
       : "NOBODY IN TOWN YET";
     smallText(ctx, why, x + 8, y + 56, [150, 140, 160]);
   }
-  smallText(ctx, "TAP A ROW", x + 6, y + h2 - 11, [150, 140, 160]);
-  smallText(ctx, B.legend, x + 52, y + h2 - 11, [150, 140, 160]);
   // THE MONEY LINE, visitors only: what is ashore unspent against what the
   // town has already taken today. This is the number PLAN's visitor pass
-  // measured and the player was never shown while it still mattered.
+  // measured (avg spend $29 of an ~$85 purse) and the player was never shown
+  // while it still mattered - the departure card says it on the way out.
+  //
+  // IT GETS ITS OWN ROW, above the footer. The first draft shared the footer
+  // line: the legend is 19 characters of 3x5 running to x143 and ASHORE began
+  // at x132, so the two printed through each other. The overlap sweep caught
+  // it by name ("ASHORE $579 lands on FED THR CLN FUN SPA") - the off-canvas
+  // sweep could not, because nothing left the card. Two guards, two faults.
   if (rosterBook === "VISITORS") {
     const t = visPurseTotals();
-    smallText(ctx, "ASHORE $" + fmt(t.held), x + 116, y + h2 - 11, [140, 110, 40]);
-    smallText(ctx, "TOOK $" + fmt(t.spent), x + 172, y + h2 - 11, [40, 150, 70]);
+    const my = y + h2 - 20;
+    smallText(ctx, "STILL ASHORE $" + fmt(t.held), x + 6, my, [140, 110, 40]);
+    smallText(ctx, "TAKEN TODAY $" + fmt(t.spent), x + 108, my, [40, 150, 70]);
   }
+  smallText(ctx, "TAP A ROW", x + 6, y + h2 - 11, [150, 140, 160]);
+  smallText(ctx, B.legend, x + 52, y + h2 - 11, [150, 140, 160]);
 }
 
 // The ledger used to spell every row out - "WATER  186 / 1864 GAL AT $1" - and
@@ -21092,28 +21100,26 @@ const HELP_PAGES = [
   { title: "FINDING THINGS", lines: [
     ["h", "THE STRIP ABOVE THE PANEL IS THE WHOLE TOWN"],
     ["t", "TO SCALE. THE BRIGHT SLICE IS WHAT YOU CAN SEE."],
-    ["t", "TAP IT TO GO THERE, DRAG IT TO SCRUB ALONG."],
-    ["t", "SHACK IS NAMED ON IT AND FLASHES WHEN IT TAKES MONEY."],
+    ["t", "TAP IT TO GO THERE, DRAG IT TO SCRUB ALONG. THE"],
+    ["t", "SHACK IS NAMED ON IT, AND FLASHES WHEN IT SELLS."],
     ["-"],
     ["h", "MANAGE"],
     ["t", "HOURS, PRICES, WAGES, THE ROTA, TIPS AND THE"],
-    ["t", "TOWN HALL. ONE CARD - TAP ALONG ITS TABS."],
+    ["t", "HALL. ONE CARD - TAP ALONG ITS TABS. THE TOWN"],
     // The election is a thing the TOWN does, so it belongs on the page about
     // where things are rather than on a page of its own. Worded to survive the
     // poll being rebuilt as a physical one (that work is somebody else's, and
     // "on Sundays, and the HALL tab is where you stand" is true either way).
-    ["t", "THE TOWN ELECTS A MAYOR ON SUNDAYS, AND THE"],
-    ["t", "HALL TAB IS WHERE YOU STAND IN IT."],
+    ["t", "ELECTS A MAYOR ON SUNDAYS, AND THE HALL TAB"],
+    ["t", "IS WHERE YOU STAND IN IT."],
     ["-"],
-    ["h", "TOWN"],
-    ["t", "EVERY CRAB IN TOWN. TAP A ROW TO READ ONE."],
-    ["-"],
-    // The guests are half of "who is here" and the money half at that, so the
-    // chip that opens them gets named on the same page as the one that opens
-    // the crabs - the two books are one card and the help says so.
-    ["h", "GUESTS"],
-    ["t", "EVERYBODY ASHORE OFF THE FERRY: WHAT THEY HAVE"],
-    ["t", "LEFT TO SPEND AND WHEN THEIR BOAT GOES HOME."],
+    // TOWN AND GUESTS ARE ONE CARD with two books, so they are ONE entry.
+    // This page had 3px of slack left; a GUESTS heading with two lines of its
+    // own ran it 13px under its own footer (caught by the help-card fit
+    // scenario, which measures in the real font against the real rect table).
+    // Naming both chips in one heading costs nothing and is truer anyway.
+    ["h", "TOWN / GUESTS"],
+    ["t", "EVERY CRAB IN TOWN, AND EVERYBODY OFF THE BOAT."],
     ["-"],
     ["h", "THE SHOP TAB"],
     ["t", "TAP A BUTTON ONCE TO SEE WHAT IT DOES AND WHAT"],

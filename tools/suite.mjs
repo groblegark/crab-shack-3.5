@@ -5773,15 +5773,22 @@ scenario("no card prints text on top of its own text", () => {
     run("manage-hours", () => { dossier = null; manage = "shack"; manageTab = "HOURS"; }, () => drawManage());
     run("manage-sched", () => { manage = "shack"; manageTab = "SCHEDULE"; }, () => drawManage());
     run("census", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("CREW"); }, () => drawManage());
-    // ...and its twin. Swept on EVERY sort and filter, because the chip row
-    // reflows with the label widths ("SLEEPING OUT" was the string that made
-    // the first draft of this card overflow its own chip).
-    run("visitors", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("VISITORS"); }, () => {
-      const B = roster();
-      for (let f = 0; f < B.filters.length; f++)
-        for (let s2 = 0; s2 < B.sorts.length; s2++) { rosterFilter = f; rosterSort = s2; drawManage(); }
-      rosterOpen("VISITORS");
-    });
+    // ...and its twin. ONE FRAME PER run() HERE, unlike the off-canvas sweep:
+    // BOXES resets per run(), so drawing every sort/filter combination inside
+    // a single run stacks 25 frames of text on top of itself and reports the
+    // whole card as overlapping (my own first draft did exactly that, and the
+    // 360-hit failure buried the two REAL faults it had found). The off-canvas
+    // sweep can loop safely because it measures against the canvas edge, which
+    // carries no state. Three states, three runs: the default, a filtered one,
+    // and an empty one - the money line, the legend and the "nobody matches"
+    // line are the three things that share this card's bottom band.
+    run("visitors", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("VISITORS"); },
+      () => drawManage());
+    run("visitors-filtered", () => { rosterFilter = roster().filters.indexOf("SPENDING");
+      rosterSort = roster().sorts.indexOf("LEAVING"); }, () => drawManage());
+    run("visitors-empty", () => { rosterFilter = roster().filters.indexOf("ROUGH"); rosterSort = 0;
+      for (const k of visitorsInTown()) { k.roughNights = 0; if (k.stC === VS.onSand) k.stC = VS.roam; } },
+      () => drawManage());
     // THE HALL WAS NEVER SWEPT - which is how five raw header lines survived
     // to scroll off the screen. Stuffed with worst-plausible content.
     const hallBounds = () => { const HR = manageRects(); BX = { x0: HR.x, x1: HR.x + HR.w + 2 }; };

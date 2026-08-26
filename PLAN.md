@@ -780,6 +780,24 @@ vm — never fork game logic into tools/) and perf expectations live there.
       column, so guests printed their legs through their own names. The row
       uses the census's 8x7 shell idiom instead, with a gold corner pixel
       marking a foreign guest.
+  - **...AND TWO MORE THE GATE CAUGHT, which is the part worth keeping.** The
+    photograph is not a substitute for the sweeps; it finds a different class.
+    - `no card prints text on top of its own text`: the footer money line
+      printed straight through the `FED THR CLN FUN SPA` legend (legend runs
+      to x143, `ASHORE` began at x132). The money line now owns its own row
+      above the footer. **The off-canvas sweep passed the whole time** —
+      nothing left the card, it just overlapped. Two guards, two fault classes.
+    - `the help card fits the card`: a GUESTS heading with two lines of its own
+      ran FINDING THINGS 13px under its footer, on a page with 3px of slack.
+      TOWN and GUESTS are one card, so they are now one entry.
+    - **And one that was the TEST being wrong, not the card.** The overlap
+      sweep's `BOXES` resets per `run()`, so drawing all 25 sort/filter
+      combinations inside ONE run stacked 25 frames of text on itself and
+      reported ~360 overlaps — which very nearly buried the two REAL hits in
+      the noise. Three separate runs now (default, filtered, empty). The
+      off-canvas sweep may still loop, because it measures against the canvas
+      edge and carries no state. **A sweep whose harness accumulates state is
+      measuring itself**, and a failure that reports everything reports nothing.
 - **THE FLICKERING HOTEL** (owner report, 2026-08-19, verbatim: *"some kind of
   crazy flashing happens at night at the hotel, where if I click on a crab the
   character panel and the crab flicker like crazy"*). `updateVisitor()` had a
