@@ -5985,10 +5985,36 @@ copy of them.
     not suno": a soundtrack must not be a third party's implementation detail.
     Tracks are matched to assets by the **8-char id**, never the name, because
     GitHub rewrites stored names (spaces → dots).
-  - **Streaming, measured:** release assets serve `application/octet-stream`
-    with `Content-Disposition: attachment` and `<audio>` plays them anyway —
-    8 cold tracks, all canplay, **median 362 ms, worst 553 ms**. So the repo
-    carries none of the audio and the catalog ships at 81 KB gzipped.
+  - **Streaming, measured — AND THE MEASUREMENT WAS ENGINE-SPECIFIC.** Release
+    assets serve `application/octet-stream` with `Content-Disposition:
+    attachment`, and `<audio>` plays them anyway — 8 cold tracks, all canplay,
+    **median 362 ms, worst 553 ms**. So the repo carries none of the audio and
+    the catalog ships at 81 KB gzipped. **That number was Chromium's, and it is
+    false on WebKit** (2026-08-26, one page, two URLs, control on both engines):
+
+    | | same-origin `audio/mp3` | release asset |
+    |---|---|---|
+    | Chromium | loadedmetadata 129.76s | loadedmetadata 43.52s |
+    | WebKit | loadedmetadata 129.79s | **ERROR 4** `SRC_NOT_SUPPORTED` |
+
+    The release CDN also sends **no `access-control-allow-origin`**, so the
+    `fetch`→blob workaround is dead too; range/206 works on both hosts and was
+    never the problem. A one-browser "it plays anyway" is a *per-engine* fact —
+    the very trap `mkmusichost.mjs`'s own header note warns about, caught one
+    layer up. Consequence: **only the 21 tracks we ship same-origin are
+    playable on iOS**; the other 1,180 are desktop-only until the audio is
+    rehosted somewhere that sends `audio/mpeg` + CORS (`raw.githubusercontent`
+    and jsDelivr both do — verified). Sizing and options: decision kd-9sH456dVsr.
+  - **The shipped rows must know they are shipped** (`music/shipmap.json`,
+    `tools/mkshipmap.mjs`) — and the join is **by audio, never by name**.
+    `mkmusic.mjs` numbers duplicate titles and the *first* keeps the bare name,
+    but the take a build copied in is usually not the first: **7 of the 20
+    name-equal pairs are a different recording** (PIXEL WAVE WALTZ 142s vs
+    123s; 14 rows named REGALIA WALTZ, 20 named TRAIN WHISTLE). Byte-exact
+    settles 12 of 21; the rest are 128kbps re-encodes matched on RMS-envelope
+    correlation, **controlled before use** (true pair 1.0000, unrelated
+    0.23–0.35, all accepted ≥ 0.9998). Stamping the name-match would have
+    pointed seven tracks at the wrong audio and failed *silently*.
   - **Judgements REACH THE MUSIC.** The rotation is the shipped playlist minus
     what you dropped, plus every catalog track you kept at the energy you gave
     it — inert until you judge something. Before this the box recorded keeps,
