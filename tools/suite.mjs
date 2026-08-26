@@ -13113,20 +13113,22 @@ scenario("civics purses: the document's rate grids are byte-equal to the PURSES 
   const sim = createSim({ seed: 7 });
   const got = JSON.parse(sim.G(`JSON.stringify({
     levy: PURSES.levy.steps, dues: PURSES.dues.steps, rents: PURSES.rents.steps, tin: PURSES.tin.steps,
+    tariff: PURSES.tariff.steps,
     doc: !!(BUNDLED_CRAB_CIVICS && Array.isArray(BUNDLED_CRAB_CIVICS.purses)),
     ids: (BUNDLED_CRAB_CIVICS.purses || []).map(p => p.id),
     // purseRate resolves the index through the adopted grid
     rateTop: PURSE_KEYS.map(k => purseRate({ mech: k, rate: 4 }))
   })`));
   if (!got.doc) return "the bundled crab civics carries no purses section - slice 4b did not install";
-  if (JSON.stringify(got.ids) !== JSON.stringify(["levy", "dues", "rents", "tin"])) return "the purse ids are " + JSON.stringify(got.ids) + ", not the four PURSE_KEYS";
+  if (JSON.stringify(got.ids) !== JSON.stringify(["levy", "dues", "rents", "tin", "tariff"])) return "the purse ids are " + JSON.stringify(got.ids) + ", not the five PURSE_KEYS";
   if (JSON.stringify(got.levy) !== JSON.stringify([0, 2, 4, 6, 8])) return "the levy rate grid drifted: " + JSON.stringify(got.levy);
   if (JSON.stringify(got.dues) !== JSON.stringify([0, 100, 200, 300, 400])) return "the dues rate grid drifted: " + JSON.stringify(got.dues);
   if (JSON.stringify(got.rents) !== JSON.stringify([0, 10, 20, 30, 40])) return "the rents rate grid drifted: " + JSON.stringify(got.rents);
   if (JSON.stringify(got.tin) !== JSON.stringify([0, 100, 200, 300, 400])) return "the tin rate grid drifted: " + JSON.stringify(got.tin);
-  for (const s of [got.levy, got.dues, got.rents, got.tin]) if (s[0] !== 0) return "a purse's step 0 is not NO TAKE (the founding grid): " + JSON.stringify(s);
+  if (JSON.stringify(got.tariff) !== JSON.stringify([0, 10, 25, 50, 100])) return "the tariff rate grid drifted: " + JSON.stringify(got.tariff);
+  for (const s of [got.levy, got.dues, got.rents, got.tin, got.tariff]) if (s[0] !== 0) return "a purse's step 0 is not NO TAKE (the founding grid): " + JSON.stringify(s);
   // purseRate({rate:4}) must read the adopted top step, not the literal path
-  if (JSON.stringify(got.rateTop) !== JSON.stringify([8, 400, 40, 400])) return "purseRate does not read the adopted top step: " + JSON.stringify(got.rateTop);
+  if (JSON.stringify(got.rateTop) !== JSON.stringify([8, 400, 40, 400, 100])) return "purseRate does not read the adopted top step: " + JSON.stringify(got.rateTop);
   return true;
 });
 
@@ -13169,6 +13171,142 @@ scenario("civics purses: a tampered grid is refused by name and falls back, and 
   if (JSON.stringify(got.fallback) !== JSON.stringify([0, 2, 4, 6, 8])) return "the fallback did not return the levy grid: " + JSON.stringify(got.fallback);
   if (got.adopts !== 22) return "a distinct document grid did not reach purseRate - adoption is a no-op, the purse reads the literal path: " + got.adopts;
   return true;
+});
+
+scenario("the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none", () => {
+  // THE FIFTH PURSE (Matt, 2026-08-25). A duty on the gangway, collected at
+  // consumeIngredient - the same chokepoint that books the import - so the
+  // charge and the ledger can never disagree about what landed. Direct-drive:
+  // policy set by hand, the chokepoint called by hand, every flow read back.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    hall.policy = { mech: "tariff", rate: 2, bowls: 0, wage: 0, cap: 0 };   // steps[2] = 25%
+    townFund.bal = 0; townFund.arrears = 0;
+    // an imported fish: the pier is dry, the world's $7 was charged upstream,
+    // and the duty rides the same crate - 25% of $7 is $1.75, off the shack
+    townCatch = 0;
+    const c0 = coins, w0 = worldMoney();
+    consumeIngredient("fish_raw", null, "shack");
+    out.fishDuty = townFund.bal;
+    out.tillPaid = c0 - coins;
+    out.conserved = worldMoney() === w0;
+    out.dutyLedger = [trade.duty, trade.dutyDay];
+    out.row = townFund.ledger[townFund.ledger.length - 1];
+    // the pier's own fish: no import, no duty - a tariff never taxes the catch
+    townCatch = 3;
+    const f1 = townFund.bal;
+    consumeIngredient("fish_raw", null, "shack");
+    out.pierDuty = townFund.bal - f1;
+    out.pierCatch = townCatch;
+    // corn is always an import: 25% of $3 is 75c
+    const f2 = townFund.bal;
+    consumeIngredient("corn", null, "shack");
+    out.cornDuty = townFund.bal - f2;
+    // the office's own pot passes no payer and pays no duty
+    townCatch = 0;
+    const f3 = townFund.bal;
+    consumeIngredient("fish_raw", null);
+    out.potDuty = townFund.bal - f3;
+    // ...and the duty never leaks into the import bill: spent stays the world price
+    out.spentClean = trade.spentBy.fish === trade.total.fish * 700;
+    return out;
+  })())`));
+  if (got.fishDuty !== 175) return "an imported $7 fish at 25% paid " + got.fishDuty + "c, expected 175c";
+  if (got.tillPaid !== 175) return "the shack's till paid " + got.tillPaid + "c, expected the 175c duty";
+  if (!got.conserved) return "the duty minted or destroyed money";
+  if (got.dutyLedger[0] !== 175 || got.dutyLedger[1] !== 175) return "the gangway counters read " + JSON.stringify(got.dutyLedger) + ", expected [175, 175]";
+  if (!got.row || got.row.kind !== "take" || got.row.why !== "TARIFF: FISH") return "the fund's last ledger row is " + JSON.stringify(got.row) + ", not a TARIFF: FISH take";
+  if (got.pierDuty !== 0) return "a pier fish paid " + got.pierDuty + "c duty - the tariff is taxing local catch";
+  if (got.pierCatch !== 2) return "the pier fish did not come off townCatch";
+  if (got.cornDuty !== 75) return "an imported $3 ear at 25% paid " + got.cornDuty + "c, expected 75c";
+  if (got.potDuty !== 0) return "the pot's own fish paid " + got.potDuty + "c - the office is tolling its own relief";
+  return got.spentClean ? true : "the duty leaked into the import bill (spentBy.fish != fish x $7)";
+});
+
+scenario("the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip", () => {
+  const sim = createSim({ seed: 11 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    townCatch = 0; townFund.arrears = 0;
+    // a covered fund charges nothing: the town does not charge tolls it has no use for
+    hall.policy = { mech: "tariff", rate: 4, bowls: 0, wage: 0, cap: 0 };   // 100%
+    townFund.bal = 9999999;
+    const f0 = townFund.bal;
+    consumeIngredient("fish_raw", null, "shack");
+    out.fullFund = townFund.bal - f0;
+    // a nearly-covered fund takes only what the night still needs, never the whole rate
+    townFund.bal = shelterRent() * (1 + SHELTER_FLOAT) + potWant() * bowlCost() + ballotBill() - 250;
+    out.need = fundNeed();
+    const f1 = townFund.bal;
+    consumeIngredient("fish_raw", null, "shack");
+    out.capTake = townFund.bal - f1;
+    // rate 0 is NO TAKE, the founding grid
+    hall.policy = { mech: "tariff", rate: 0, bowls: 0, wage: 0, cap: 0 };
+    townFund.bal = 0;
+    consumeIngredient("fish_raw", null, "shack");
+    out.rate0 = townFund.bal;
+    // ...and under any other purse the gangway is free
+    hall.policy = { mech: "levy", rate: 4, bowls: 0, wage: 0, cap: 0 };
+    consumeIngredient("fish_raw", null, "shack");
+    out.otherMech = townFund.bal;
+    return out;
+  })())`));
+  if (got.fullFund !== 0) return "a covered fund still took " + got.fullFund + "c - the tariff hoards";
+  if (got.need !== 250) return "the staged fund need reads " + got.need + "c, not the 250c the cap test stands on";
+  if (got.capTake !== 250) return "a 100% duty against a 250c need took " + got.capTake + "c, expected exactly the need";
+  if (got.rate0 !== 0) return "rate 0 still took " + got.rate0 + "c";
+  if (got.otherMech !== 0) return "the gangway charged under the levy - the duty ignores the elected mech";
+  // the books roundtrip: the elected tariff and the gangway counters survive a reload
+  const store = new Map();
+  const a = createSim({ seed: 9, storage: store, fresh: false });
+  a.G('hall.mayor = npcs[0].p.name; hall.policy = { mech: "tariff", rate: 3, bowls: 1, wage: 0, cap: 0 };'
+    + ' trade.duty = 1234; trade.dutyDay = 56; save()');
+  const b = createSim({ seed: 10, storage: store, fresh: false });
+  if (b.G("hall.policy.mech") !== "tariff" || b.G("hall.policy.rate") !== 3)
+    return "the elected tariff did not roundtrip: " + b.G("hall.policy.mech") + " rate " + b.G("hall.policy.rate");
+  if (b.G("trade.duty") !== 1234 || b.G("trade.dutyDay") !== 56)
+    return "the gangway counters did not roundtrip: " + b.G("trade.duty") + "/" + b.G("trade.dutyDay");
+  // ...and a pre-tariff save opens with a clean gangway column
+  const s = JSON.parse(store.get(SLOT1));
+  delete s.trade.duty; delete s.trade.dutyDay;
+  store.set(SLOT1, JSON.stringify(s));
+  const c = createSim({ seed: 12, storage: store, fresh: false });
+  if (c.G("trade.duty") !== 0 || c.G("trade.dutyDay") !== 0)
+    return "a pre-tariff save did not open clean: " + c.G("trade.duty") + "/" + c.G("trade.dutyDay");
+  return true;
+});
+
+scenario("the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing", () => {
+  // THE PROTECTION HALF (Matt: "this should increase the price paid for fish
+  // in high tariff scenarios"). $7 was only ever the ceiling because that is
+  // where the world supplies; a 50% duty moves the world's landed price to
+  // $10.50 and the pier may clear up to it - deterministic clearing math,
+  // same direct-drive as the glut scenario.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    hall.policy = { mech: "tariff", rate: 3, bowls: 0, wage: 0, cap: 0 };   // steps[3] = 50%
+    out.ceil = fishCeil();
+    // scarcity walks the price THROUGH the old $7 ceiling to tariffed parity
+    trade.price = 600; trade.landH = []; trade.useH = []; trade.series = []; trade.ceilDays = 0;
+    for (let i = 0; i < 6; i++) { trade.landedDay = 0; trade.useDay = 9; settleFishMarket(); }
+    out.walked = trade.series.slice();
+    out.ceilDays = trade.ceilDays;
+    // the repeal: the town votes the levy back in and the world undercuts
+    // anything above its own landed price in ONE clearing, not by $1 walks
+    hall.policy = { mech: "levy", rate: 2, bowls: 0, wage: 0, cap: 0 };
+    out.base = fishCeil();
+    trade.landedDay = 0; trade.useDay = 9; settleFishMarket();
+    out.reparity = trade.price;
+    return out;
+  })())`));
+  if (got.ceil !== 1050) return "a 50% tariff's ceiling is " + got.ceil + "c, expected 1050c import parity";
+  if (JSON.stringify(got.walked) !== JSON.stringify([700, 800, 900, 1000, 1050, 1050]))
+    return "scarcity walked " + JSON.stringify(got.walked) + ", expected [700,800,900,1000,1050,1050]";
+  if (got.ceilDays !== 2) return "ceilDays reads " + got.ceilDays + " against the tariffed ceiling, expected 2";
+  if (got.base !== 700) return "with the tariff out-voted the ceiling reads " + got.base + "c, not the $7 parity";
+  return got.reparity === 700 ? true : "the repeal left the pier at " + got.reparity + "c - the world is not undercutting it";
 });
 
 scenario("civics calendar/relief: the scalars are byte-equal to the engine constants", () => {
