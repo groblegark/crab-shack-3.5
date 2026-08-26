@@ -20,8 +20,15 @@ design/cs35-research/kube-runs/.
 
 Scope note: this policy protects the OPERATOR'S MAC. A gasboat fleet pod
 (project `cs`) IS cluster compute — it may run sim workloads in-pod within
-its own resource limits, and should, since it has no AWS identity to drive
-tools/kube.mjs. The hook only exists on the operator's machine.
+its own resource limits. The hook only exists on the operator's machine.
+
+But a pod DOES have an AWS identity now, so **gate on the cluster, not
+in-pod**: `node tools/kube.mjs run experiments/suite-330.json --ref <pushed-SHA>
+--wait`. Measured 2026-08-26 on the same tree — in-pod `node tools/suite.mjs`
+(which defaults to `--jobs 1`) ran 90 minutes and reached 148/379; the cluster
+returned **760/760 both backends in 7m35s** across 24 arms. kube.mjs clones the
+PUSHED SHA, so commit and push first. Do NOT `export AWS_PROFILE` in a pod —
+that breaks IRSA creds and reports a healthy session as expired (runbook).
 
 ## THE MERGE RITUAL (orchestrator, at every merge before push)
 Run `node tools/mkcultureways.mjs` (bundle regen must be byte-exact) AND

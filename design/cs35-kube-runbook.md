@@ -11,9 +11,23 @@ seed matrices, science sweeps, neuro collection — runs on the cluster.
 ## The one verb
 
 ```sh
-export AWS_PROFILE=gasboat-prod        # every shell; the env does not persist
+export AWS_PROFILE=gasboat-prod        # ON THE MAC ONLY — see below. Every shell; the env does not persist
 node tools/kube.mjs run experiments/<manifest>.json --wait
 ```
+
+**IN A FLEET POD, DO NOT SET `AWS_PROFILE`** — it breaks working credentials
+and the error blames the wrong thing. A pod authenticates by web identity
+(`AWS_ROLE_ARN` + `AWS_WEB_IDENTITY_TOKEN_FILE`, injected by IRSA), not by a
+`~/.aws/config` profile that does not exist there. Set it and the SDK fails the
+profile lookup before it ever tries the working path, so kube.mjs's preflight
+reports a healthy session as dead and tells you to run an interactive SSO login
+a pod can never complete (measured 2026-08-26):
+
+    kube: AWS session dead or expired. Run:  aws sso login --profile gasboat-prod
+
+Just omit it — `aws sts get-caller-identity` already answers in a pod. Confirm
+with `env | grep -E '^AWS_(PROFILE|ROLE_ARN|WEB_IDENTITY)'` before adopting any
+setup line out of this doc: the preamble is written for the Mac.
 
 **A gasboat `cs` fleet pod CAN now drive the cluster — PROVEN end to end
 2026-08-25** (kd-bk9jS2Yp3Q / kd-wbdYahwATd, both closed). `node tools/kube.mjs
