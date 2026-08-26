@@ -1800,30 +1800,76 @@ function idealPlatform(c, grid) {
   }
   return best || { mech: "rents", rate: 0, bowls: 0, wage: 0, cap: 0 };
 }
+// THE HOUSE-LIMIT CLAUSE, shared by both voteReason paths. It is a SITUATION,
+// not a valuation magnitude - who is pinned at the limit, who is out looking -
+// so it reads off the roster and the cap step, exactly as it always has, and is
+// byte-identical whether the receipt is derived from the terms or the lambda.
+function capClause(c, p) {
+  const cp = capOf(p);
+  if (cp <= 0) return null;
+  const mine = c.p.owner && Object.keys(BIZ).some(b => bizUnlocked(b)
+    && bizOwner(b) === c.p.owner && bizHeads(b) >= cp);
+  if (mine) return "AND CANNOT HIRE AGAIN";
+  if (!BIZ[c.p.job] && !c.p.owner) return "AND IS LOOKING FOR WORK";
+  return null;
+}
 // ONE LINE PER VOTER, in their own terms. This is the whole legibility bar for
 // the feature: a result has to be arguable from the roster, not just watched.
+// THE RECEIPT READS THE SAME TERMS THE VOTE SUMMED (substrate section 3's
+// legibility ruling: the formula and its explanation come from ONE definition).
+// We gather platReads ONCE and run this voter's compiled stake terms against it
+// - the identical list, dispatch and reads platValue sums - so the valuation
+// clauses gate on the TERM VALUES: a stranger culture that bends a coefficient
+// gives a DIFFERENT sentence, which the old hardcoded if-chain provably could
+// not. The dollar/bowl figures stay the engine facts platReads already gathered
+// (pBowls/fr/fb, PLAT_BUNDLE indices 1/4/5), so the crab's line is byte-equal;
+// WHETHER a clause appears, and how the purse is judged, is the term's own
+// verdict. When no civics is compiled (the lambda platform path, or _nol1plat)
+// the direct-helper body below is the byte-equal fallback, exactly as platValue
+// keeps its lambda - a broken bundle costs a suite red, never a town.
 function voteReason(c, p) {
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  const civ = (typeof window !== "undefined" && window._nol1plat) ? null
+    : (cul ? cul.civicsR : CRABCIV);
   const bits = [c.p.homeless ? "SLEEPS AT THE SHELTER"
     : c.p.owner ? "KEEPS A TILL"
     : !c.p.npc ? "ON YOUR PAYROLL"
     : c.p.fisher ? "FISHES FOR THEMSELF" : "HAS A WAGE AND A ROOF"];
   if (c.p.sick) bits.push("ILL");
+  if (civ && civ.platform) {
+    const read = platReads(c, p);
+    const tv = {};
+    for (const t of civ.platform) tv[t.name] = l1Run(t.code, read);
+    const b = read[1];   // pBowls: the bowls this pot funds
+    bits.push(b > 0 ? b + " BOWL" + (b === 1 ? "" : "S") : "NO POT");
+    // THE FLOOR, ONLY WHEN ITS TERM MOVES THIS CRAB. The dollar figure is the
+    // engine fact (what it puts in the day / takes off the payroll); WHETHER it
+    // is mentioned is the sign of the culture's own floorRaise/floorBill term,
+    // so a culture that zeroes or flips a floor coefficient stops crediting the
+    // raise (or the bill), and the sentence follows.
+    if (tv.floorRaise > 0) bits.push("$" + $d(read[4]) + " MORE A DAY");
+    if (tv.floorBill < 0) bits.push("$" + $d(Math.round(read[5])) + " MORE ON THE PAYROLL");
+    const cap = capClause(c, p);
+    if (cap) bits.push(cap);
+    // THE PURSE, JUDGED IN THIS CULTURE'S OWN UTILS. 82800 = the crab's -69
+    // purseCost coefficient x the 1200 raw-cost line the receipt always drew, so
+    // for the crab this is byte-equal to `purseCost100*pTake >= 1200`. In term
+    // space it reads "this policy costs me at least that many utils of purse",
+    // so a culture that weights the purse differently draws the line differently.
+    bits.push(tv.purseCost <= -82800 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");
+    return bits.join(", ");
+  }
+  // THE LAMBDA FALLBACK (no compiled civics): the receipt reads the engine
+  // helpers directly, byte-equal to the derived path above by the suite's
+  // transcription sweep. This is the pre-E4 body, unchanged.
   const b = pBowls(p);
   bits.push(b > 0 ? b + " BOWL" + (b === 1 ? "" : "S") : "NO POT");
-  // THE FLOOR, ONLY WHEN IT MOVES THIS CRAB. A wage earner says what it puts
-  // in their day; whoever signs the cheques says what it takes out. A floor
-  // that binds on nobody is not mentioned, because it did not decide anything.
   const f = floorOf(p), raise = floorRaise(c, f);
   const bill = Math.round(floorBill(c, f));
   if (raise > 0) bits.push("$" + $d(raise) + " MORE A DAY");
   if (bill > 0) bits.push("$" + $d(bill) + " MORE ON THE PAYROLL");
-  const cp = capOf(p);
-  if (cp > 0) {
-    const mine = c.p.owner && Object.keys(BIZ).some(b => bizUnlocked(b)
-      && bizOwner(b) === c.p.owner && bizHeads(b) >= cp);
-    if (mine) bits.push("AND CANNOT HIRE AGAIN");
-    else if (!BIZ[c.p.job] && !c.p.owner) bits.push("AND IS LOOKING FOR WORK");
-  }
+  const cap = capClause(c, p);
+  if (cap) bits.push(cap);
   bits.push(purseCost100(c, p.mech) * pTake(p) >= 1200 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");   // same line, x100 both sides
   return bits.join(", ");
 }
@@ -6988,26 +7034,55 @@ let musicOn = false, music = null, muted = false;   // opt-IN for new players (S
 let musNudges = 0, musNudged = false;               // invite, don't nag: gives up after 3 sessions
 function toggleMute() {
   muted = !muted;
-  if (muted) { if (music) music.pause(); }
+  if (muted) { if (music) music.pause(); if (musPreview) musPreview.pause(); }
+  else if (musPreview) musPreview.play().catch(() => {});   // the bench keeps the speakers it owns
   else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
 }
 let trackIdx = (srand() * PLAYLIST.length) | 0;
+// ONE TRACK AT A TIME, AND THE GENERATION IS WHY. Every play is asynchronous:
+// `play()` hands back a promise, and 'ended' fires from an element we may have
+// walked away from. Both closures used to write the GLOBAL `music` - so a
+// promise settling for a track we had already replaced nulled the handle to the
+// one now playing, and the next `startMusic()` saw an empty speaker and started
+// a SECOND track over the top of it. Matt: "should never play more than one
+// track at once". Each attempt now carries the generation it was started in and
+// a direct reference to its own element, and a stale closure returns without
+// touching anything. Bumping `musGen` is also how a caller says "whatever is
+// loading, it is not ours any more".
+//
+// BOTH COUNTERS ARE DECLARED HERE, beside the audio they guard, even though
+// `musPrevGen` belongs to the record box a thousand lines below. `playTrack`
+// calls `musStopPreview`, which writes `musPrevGen`, and a `let` is in its
+// temporal dead zone until its own line has run - so declaring it down there
+// makes the first track of a session throw a ReferenceError whenever anything
+// plays before the box's block is reached, which on the title screen is always.
+let musGen = 0, musPrevGen = 0;
 function playTrack(i) {
+  musStopPreview();          // the rotation and the bench never share the speakers
+  const gen = ++musGen;
   if (music) { music.pause(); music = null; }
   trackIdx = ((i % ROTATION.length) + ROTATION.length) % ROTATION.length;
   const t = ROTATION[trackIdx];
   // A KEPT CATALOG TRACK RESOLVES LIKE THE BOX RESOLVES IT - local mirror if
   // this machine has one, our release if it does not - rather than carrying a
   // baked src that would be wrong on the other kind of machine.
-  music = new Audio(t.cat ? musSrc(t.cat) : t.src);
-  music.volume = 0.55;
+  const a = new Audio(t.cat ? musSrc(t.cat) : t.src);
+  music = a;
+  a.volume = 0.55;
   // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
   // match what the town is doing when this one runs out - see pickTrack.
-  music.addEventListener("ended", () => { music = null; if (musicOn) playTrack(pickTrack()); });
-  music.play().then(() => { if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
-    .catch(() => { music = null; });
+  a.addEventListener("ended", () => {
+    if (musGen !== gen) return;   // superseded: someone else owns the speakers
+    music = null;
+    if (musicOn && !musicView) playTrack(pickTrack());
+  });
+  a.play().then(() => { if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
+    .catch(() => { if (musGen === gen) music = null; });
 }
-function startMusic() { if (!music && musicOn && !muted) playTrack(pickTrack()); }
+// THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
+// underneath a track you are auditioning - which is what the box's own MUSIC ON
+// button used to do.
+function startMusic() { if (!music && musicOn && !muted && !musicView) playTrack(pickTrack()); }
 // THE TWO MOMENTS THAT OWN THEIR OWN MUSIC. Called from the screens that mean
 // them; each one only interrupts if it is not already the thing playing, so a
 // 31-second sting is not restarted every frame of the ending it belongs to.
@@ -7019,7 +7094,60 @@ function playRole(role) {
 }
 function toggleMusic() {
   musicOn = !musicOn;
-  if (!musicOn && music) { music.pause(); music = null; } else if (musicOn) startMusic();
+  if (!musicOn) { musGen++; if (music) { music.pause(); music = null; } musStopPreview(); }
+  else startMusic();
+}
+// PREV/NEXT ARE A WALK ALONG THE ROTATION, not another shuffle. `b` already
+// skips to "another one that fits" - a chosen track - and that is a different
+// gesture from stepping to the neighbour, which is what an arrow means
+// everywhere else. Matt asked for shift+left/right to work "even when not in
+// playlist", so this is the one path both the keys and the box's arrows use.
+//
+// It turns the music ON rather than doing nothing when it is off: pressing
+// next-track is an unambiguous request to hear something, and a key that
+// silently no-ops is the interface bug this whole pass is about.
+function musStep(d) {
+  // THE TARGET IS READ BEFORE ANYTHING IS UNMUTED, and that ordering is the
+  // whole of this function's care: unmuting runs startMusic, which picks a
+  // random track and WRITES trackIdx - so stepping afterwards would step from
+  // a track nobody chose rather than from the one you were listening to.
+  const to = trackIdx + d;
+  musicOn = true;
+  if (muted) muted = false;              // a skip while muted means "let me hear it"
+  playTrack(to);
+}
+// WHAT IS AUDIBLE, as the box's own pool row - so KEEP from the main interface
+// writes exactly the judgement the box writes. Shipped tracks are "p<index>"
+// into PLAYLIST (musPool's ids), and a kept catalog track carries its row.
+//
+// The BENCH ANSWERS FIRST when it has the speakers, so shift+K in the box keeps
+// the track you are auditioning rather than the rotation track it interrupted -
+// "what is playing" has to mean what you can actually hear.
+function musNowRow() {
+  if (musPreviewId) {
+    const row = musPool().find(t => t.id === musPreviewId);
+    if (row) return row;
+  }
+  if (!musicOn) return null;
+  const t = ROTATION[trackIdx];
+  if (!t) return null;
+  if (t.cat) return t.cat;
+  const i = PLAYLIST.findIndex(x => x.name === t.name);
+  if (i < 0) return null;
+  return { id: "p" + i, name: t.name, file: t.src, shipped: 1 };
+}
+// SHIFT+K KEEPS THE TRACK YOU ARE HEARING. Matt: "ability to mark a track as
+// keep from the main interface". The judgement is the box's judgement - same
+// store, same rebuild - so a track kept from the promenade shows as KEPT in the
+// box, and one kept twice toggles back to unjudged rather than being a dead key.
+function keepNowPlaying() {
+  const row = musNowRow();
+  if (!row) { toast = { text: "NOTHING IS PLAYING", t: 3 }; return; }
+  const was = musState(row);
+  const next = was === 1 ? null : 1;
+  musJudge[row.id] = Object.assign({}, musJudge[row.id], { k: next });
+  musSave();
+  toast = { text: (next === 1 ? "KEPT: " : "UNKEPT: ") + row.name, t: 4 };
 }
 let AC = null;
 function beep(freq, dur, type, vol, when) {
@@ -7464,17 +7592,30 @@ const DEPART_BUNDLE = [
   { name: "thirst", min: 0, max: 1048576 }, { name: "dirt", min: 0, max: 1048576 },
   { name: "bored", min: 0, max: 1048576 },  { name: "tired", min: 0, max: 1048576 },
   { name: "sandwhy", min: 0, max: 4 },      { name: "topitem", min: 0, max: 1 },
+  // THE NEED-WEIGHT MATRIX (ruling 6 h2), appended per the ABI's rows-only-
+  // APPEND rule: the composed x1/4 effective weight for each of the five bars
+  // (0..8, 4 the identity). departReads writes needW(r) into these slots so the
+  // delight PROGRAM can weight each bar the way the delight LAMBDA does - one
+  // per-culture program stays correct for every class inside it, because the
+  // composed vector rides the read rather than folding into a per-culture
+  // constant. Identity for every undeclared culture, so the frozen fingerprints
+  // hold: an all-4s vector is the pre-matrix engine, byte for byte.
+  { name: "wFood", min: 0, max: 8 },        { name: "wDrink", min: 0, max: 8 },
+  { name: "wClean", min: 0, max: 8 },       { name: "wFun", min: 0, max: 8 },
+  { name: "wRest", min: 0, max: 8 },
 ];
 let departClamped = 0;   // dev tripwire: scenarios assert this stays 0
 function departReads(r) {
   const BLK = { shut: 1, full: 2, broke: 3 };
   const SWY = { broke: 1, shut: 2, unmade: 3, full: 4 };
+  const w = needW(r);   // the composed x1/4 need weights (ruling 6 h2), all-4s undeclared
   const raw = [
     r.days, r.nightsBed, r.rough, r.purse, r.left, r.buys, r.serves, r.tables,
     r.meals, r.drinks, r.washes, r.games, r.rooms, r.topPaid, r.dues,
     r.worstMin, r.quits, r.quitMin, BLK[r.blocked] || 0, r.mistMin, r.missed,
     r.foreign || 0, r.de || 0, r.hunger, r.thirst, r.dirt, r.bored, r.tired,
     SWY[r.sandWhy] || 0, r.topItem ? 1 : 0,
+    w[0], w[1], w[2], w[3], w[4],
   ];
   for (let i = 0; i < raw.length; i++) {
     let v = Math.round(raw[i] || 0);
@@ -7483,6 +7624,59 @@ function departReads(r) {
     raw[i] = v;
   }
   return raw;
+}
+// THE NEED-WEIGHT MATRIX (ruling 6, horizon 2). Matt: the glad card "should be
+// derived from a cultural/class/individual weight matrix that ALSO influences
+// their decisions". The atom is a per-need weight VECTOR over the five bars, in
+// the same x1/4-integer space as departW (0..8, 4 the identity = 1.0), composed
+// multiplicatively around all-4s. This slice ships the CARD consumer (the
+// delight readout); the DECISION consumer (visScoreOne + the wasm kernel) is
+// horizon 3 (kd-I9fjOBARav), which reads THIS same vector - one matrix, two
+// readers, so the two never diverge (the failure the bead names).
+// NEED_KEYS pins the order and is the validator's allowlist: hunger->food,
+// thirst->drink, dirt->clean, bored->fun, tired->rest (VIS_BAR's five).
+const NEED_KEYS = ["food", "drink", "clean", "fun", "rest"];
+const NEED_IDENT = 4;   // quarters: 4 = x1.0, the byte-neutral identity
+// A need-weight object's named refusals: a map of KNOWN needs to x1/4 ints 0..8,
+// nothing else. Shape-shared by the CULTURAL axis (appeal.needs) and the CLASS
+// axis (a register's needMul), so both refuse identically. Null/absent is legal
+// (identity) - a partial map inherits 4 on the needs it omits.
+function needWProblem(w) {
+  if (typeof w !== "object" || Array.isArray(w)) return "A BAD NEED WEIGHT";
+  for (const k in w) {
+    if (!NEED_KEYS.includes(k)) return "A NEED NOBODY FEELS: " + k;
+    const v = w[k];
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 8) return "A BAD NEED WEIGHT";
+  }
+  return null;
+}
+// The composed effective weight vector for a stay row, in quarters (4 = x1).
+// cultural (appeal.needs) x class (register needMul) x individual, each around
+// 4, divided back to quarters and clamped to 0..8. The individual axis is a
+// declared-but-identity slot (ruling 6 A1, decision kd-uQifN1xD5z): the matrix
+// carries room for a future per-guest temperament, all-4s today, so nothing
+// sources it yet and every current row composes to pure identity. A crab row
+// (no r.cu) and every undeclared culture return the all-4s vector, so the
+// arithmetic is byte-identical to the pre-matrix engine - the tasteW precedent.
+function needW(r) {
+  const out = [NEED_IDENT, NEED_IDENT, NEED_IDENT, NEED_IDENT, NEED_IDENT];
+  const cul = (r && r.cu) ? CULTURES[r.cu] : null;
+  if (!cul) return out;   // crab / undeclared: identity, floats never touched
+  const cw = cul.def && cul.def.appeal && cul.def.appeal.needs;
+  const reg = cul.regs && (cul.regs.find(g => g.acc === r.acc) || cul.regs[0]);
+  const clw = reg && reg.needMul;
+  if (!cw && !clw) return out;   // this culture declares no matrix: identity
+  for (let i = 0; i < NEED_KEYS.length; i++) {
+    const k = NEED_KEYS[i];
+    const c = cw && cw[k] != null ? cw[k] : NEED_IDENT;
+    const l = clw && clw[k] != null ? clw[k] : NEED_IDENT;
+    // c/4 * l/4 * ident/4, back to quarters: (c*l*4)/(4*4) = c*l/4. Integer
+    // truncation toward zero, the house grid idiom (departReads/l1Run DIVI).
+    let v = Math.floor((c * l) / NEED_IDENT);
+    if (v < 0) v = 0; else if (v > 8) v = 8;
+    out[i] = v;
+  }
+  return out;
 }
 // The depart transcription's clamps (phase E3). A depart table re-expresses
 // the ENGINE's rule table through Layer-1 programs, and it is all-or-nothing:
@@ -7695,6 +7889,12 @@ function voiceProblem(v) {
     if (typeof g.id !== "string" || !g.id.length || typeof g.acc !== "string") return "A BAD REGISTER";
     if (g.purseMul != null && !(typeof g.purseMul === "number" && isFinite(g.purseMul)
       && g.purseMul >= 0.1 && g.purseMul <= 5)) return "A BAD PURSE CLASS";
+    // THE NEED-WEIGHT MATRIX, class axis (ruling 6 h2): the register (the hat is
+    // the class) carries its own per-need weight, x1/4 ints 0..8. A strawhat
+    // farmhand and a bare-headed clerk can weight rest against fun differently,
+    // just as they already land with different purses. Null -> identity;
+    // needWProblem owns the named refusals.
+    if (g.needMul != null) { const p = needWProblem(g.needMul); if (p) return p; }
     for (const part of ["diary", "depart"]) if (g[part] != null) {
       if (typeof g[part] !== "object" || Array.isArray(g[part])) return "A BAD REGISTER";
       for (const k in g[part]) if (!line(g[part][k])) return "A BAD VOICE LINE";
@@ -7969,6 +8169,12 @@ function cultureProblem(d, ownId) {
         if (typeof w !== "number" || !isFinite(w) || w < 0.1 || w > 5) return "A BAD TASTE";
       }
     }
+    // THE NEED-WEIGHT MATRIX, cultural axis (ruling 6 h2): a people's per-need
+    // weight over the five bars, x1/4 ints 0..8 (4 the identity). Sibling of
+    // tastes - tastes weight the RECIPE, needs weight the NEED. Null -> identity;
+    // needWProblem owns the named refusals (an unknown need, an out-of-range or
+    // fractional weight).
+    if (A.needs != null) { const p = needWProblem(A.needs); if (p) return p; }
     // nudge terms are author-unit numbers converted ONCE at build (see
     // buildCulture): px, game-minutes, a Q20-quantized relax, and the
     // multiplier in appeal's own hundredths. Partial objects inherit the
@@ -15509,7 +15715,8 @@ function panelTap(p) {
       if (p.x >= 218) { ffMode = ffMode === 2 ? 0 : 2; sfx.ding(); return; }   // >>>
       if (p.x >= 204) { ffMode = ffMode === 1 ? 0 : 1; sfx.ding(); return; }   // >>
       if (p.x >= 189) { soundOn = !soundOn; if (soundOn) sfx.ding(); return; } // SND
-      if (p.x >= 168) { musOpen(); sfx.ding(); return; }                       // MUS -> the record box
+      if (p.x >= 181) { musOpen(); sfx.ding(); return; }                       // > -> the record box
+      if (p.x >= 166) { toggleMusic(); sfx.ding(); return; }                   // MUS -> music on/off
       if (p.x >= 145) { toggleMute(); if (!muted) sfx.ding(); return; }        // the speaker
     }
     // ONE READING SURFACE OWNS THE SCREEN: while a big card is up the tabs and
@@ -16067,6 +16274,24 @@ cv.addEventListener("contextmenu", (ev) => {
   orderCrab(sel, p.x + camX, p.y);
 });
 addEventListener("keydown", (e) => {
+  // THE MUSIC KEYS ANSWER FIRST, and they are the only ones that work
+  // everywhere - in the box, on the title, over a card. Music is not a mode.
+  //
+  // SHIFT+LEFT/RIGHT step the rotation. Matt asked for them to work "even when
+  // not in playlist", and putting them above every other arrow case is what
+  // makes that true: the unshifted arrows pan the camera and turn help pages,
+  // and each of those cases would otherwise eat the shifted one first.
+  if (e.shiftKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+    e.preventDefault();
+    musStep(e.key === "ArrowRight" ? 1 : -1);
+    return;
+  }
+  // SHIFT+K keeps what you are hearing, from wherever you are hearing it.
+  if (e.key === "K" && e.shiftKey) { keepNowPlaying(); sfx.ding(); return; }
+  if (musicView) {   // the box owns the up/down arrows: they walk it and play as they go
+    if (e.key === "ArrowDown") { e.preventDefault(); musAdvance(1); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); musAdvance(-1); return; }
+  }
   if (e.key === "m") { toggleMute(); if (!muted) sfx.ding(); }
   if (e.key === "n") toggleMusic();
   if (e.key === "b" && musicOn) playTrack(pickTrack());    // skip: another one that fits
@@ -17958,13 +18183,25 @@ function drawPanel() {
   rect(ctx, 146, PANEL_Y + 1, 19, 11, muted ? [140, 50, 50] : [30, 20, 20]);
   rect(ctx, 147, PANEL_Y + 2, 17, 9, muted ? [90, 35, 35] : [90, 70, 60]);
   blit(ctx, muted ? SPEAKER_OFF : SPEAKER_ON, 150, PANEL_Y + 3);
+  // THE MUSIC CHIP IS TWO CHIPS NOW. Matt: "a button you can use to turn the
+  // music on and off without viewing the playlist" - so MUS is the SWITCH, and
+  // the chevron beside it is the door to the box. The switch keeps the pixels
+  // and the position the old chip had, because the frequent action deserves the
+  // big target and the muscle memory: turning the music off is something you do
+  // in the middle of a day, and opening a vetting bench is not.
+  //
+  // The bands are 166-180 and 181-188, taken from the 9px of daylight that sat
+  // between "MUS" and "SND" plus the 2px the label gives up moving to 167 -
+  // nothing else on this row moves. See the geometry note at the speed chips
+  // for why that matters.
   {
     const invite = !musicOn && !muted && musNudges < 3;
     const pulse = invite && (viewT % 2) < 1.2;
-    smallText(ctx, "MUS", 169, PANEL_Y + 3,
+    smallText(ctx, "MUS", 167, PANEL_Y + 3,
       !muted && musicOn ? [140, 220, 140] : pulse ? [255, 216, 96] : [140, 120, 110]);
+    smallText(ctx, ">", 183, PANEL_Y + 3, musicView ? [255, 230, 120] : [150, 132, 122]);
     if (invite && !musNudged && screen === "play" && tmin > 9.5 * 60 && !toast && reportT <= 0) {
-      toast = { text: "THE BAND IS WARMED UP - MUS TO LISTEN", t: 6 };
+      toast = { text: "THE BAND IS WARMED UP - TAP MUS TO LISTEN", t: 6 };
       musNudged = true;
     }
   }
@@ -18226,6 +18463,36 @@ function drawLandlord() {
 // ONE RECT, TWO READERS - the title's HOW TO PLAY button is drawn and hit
 // tested off this, so the button and its tap target cannot drift apart.
 function titleHelpRect() { return { x: W / 2 - 50, y: 96, w: 100, h: 15 }; }
+// HOW OLD IS THIS BUILD, in words, counted from the stamp's commit time.
+// Matt's ask: "published n minutes m seconds ago ... so you can always see how
+// fresh your version is", days and hours included.
+//
+// TWO UNITS, NEVER THREE. The pair is chosen so the coarse one is the one you
+// care about and the fine one is the one that MOVES: seconds tick under
+// minutes, minutes tick under hours, hours tick under days. Past a day the
+// seconds are noise, so they go - but something is always ticking, which is
+// the whole point of the line. Under a minute there is no coarse unit yet, so
+// it is seconds alone.
+//
+// A CLOCK BEHIND THE BUILD CLOCK READS "JUST NOW". A browser whose clock is
+// slow (a laptop minutes behind, a machine that has not synced) computes a
+// NEGATIVE age, and "PUBLISHED -3M AGO" reads as a broken page rather than a
+// wrong clock. The under-a-second guard owns that case too - it is the same
+// answer, and one guard is harder to half-remove than two.
+function buildAgeText() {
+  if (typeof GAME_BUILD !== "object" || !GAME_BUILD || !GAME_BUILD.t) return "";   // no commit time: the plain stamp, no age
+  const now = nowMs();
+  if (!now) return "";                                    // headless: no clock, so no honest age
+  const s = Math.floor(now / 1000 - GAME_BUILD.t);
+  if (s < 1) return "PUBLISHED JUST NOW";                 // includes a skewed clock's negative
+  const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24,
+        m = Math.floor(s / 60) % 60, sec = s % 60;
+  const body = d ? d + "D " + h + "H"
+    : h ? h + "H " + m + "M"
+    : m ? m + "M " + sec + "S"
+    : sec + "S";
+  return "PUBLISHED " + body + " AGO";
+}
 function drawTitle() {
   ctx.fillStyle = "rgba(16,20,50,0.35)";
   ctx.fillRect(0, 0, W, H);
@@ -18322,6 +18589,19 @@ function drawTitle() {
   if (typeof GAME_BUILD === "object" && GAME_BUILD && GAME_BUILD.sha) {
     const s = "BUILD " + GAME_BUILD.sha + (GAME_BUILD.date ? " " + GAME_BUILD.date : "");
     smallText(ctx, s, W - smallTextWidth(s) - 4, creditTop + 24, [120, 105, 95]);
+    // ...AND THE AGE SAYS WHETHER IT IS THE ONE THAT JUST LANDED. The sha
+    // answers "which build", not "is my browser showing me a cached one" -
+    // and a stale Pages cache looks exactly like a fresh load. This counts up
+    // live (drawTitle runs every frame while the title is up), so a tester
+    // who just heard "pushed it" can watch it read seconds rather than hours.
+    //
+    // IT SHARES THE STAMP'S ROW rather than taking a new one, because there
+    // is no new one to take: with a save, the stamp already ends at y233 of a
+    // 240px screen. Left-aligned at the music credit's x against the
+    // right-aligned stamp - measured, the longest age (PUBLISHED 1000D 23H
+    // AGO, 91px from x=14) ends at 105 and the widest stamp starts at 157.
+    const age = buildAgeText();
+    if (age) smallText(ctx, age, 14, creditTop + 24, [150, 132, 118]);
   }
 }
 // THE THIRD ENDING. EVICTED and BANKRUPT are the landlord and the bank; this
@@ -20567,17 +20847,26 @@ const DEPART_RULES = [
   // condition is the SUM of the five bars against a tolerance - a weighted sum
   // whose coefficients are all 1 today (the identity matrix). Horizon 2's
   // cultural/class/individual weight matrix replaces those coefficients without
-  // re-litigating the gate: the shape is `sum(w_i * bar_i) <= tol`, and today
-  // every w_i is 1. The tolerance is five times the per-need want line
-  // (qn(0.45)): a guest whose bars average below what they would even start
-  // wanting is, by definition, wanting for nothing. It CANNOT collide with a
-  // real complaint - a need that actually failed (bar >= 0.85 and never bought)
-  // scores in the millions off its raw Q20 term, so a low-band glad rule like
-  // this only ever surfaces when nothing went wrong (measured: 0 sour cards
-  // displaced across 1,870 departures; design bundle kd-ICjpq0dCrb).
+  // re-litigating the gate: the shape is `sum(w_i * bar_i) <= qn(0.45)*sum(w_i)`,
+  // scale-invariant so a people who weights food twice as heavily is held twice
+  // as hard on food to earn the glad word. HORIZON 2 HAS LANDED THE COEFFICIENT
+  // SUPPLIER (ruling 6, decision kd-uQifN1xD5z=A1): needW(r) is the composed
+  // x1/4 vector (4 the identity), all-4s for every undeclared culture - so at
+  // identity this is `4*sum(bar) <= qn(0.45)*20` i.e. `sum(bar) <= 5*qn(0.45)`,
+  // byte-for-byte the horizon-1 gate. The tolerance is five times the per-need
+  // want line (qn(0.45)): a guest whose bars average below what they would even
+  // start wanting is, by definition, wanting for nothing. It CANNOT collide with
+  // a real complaint - a need that actually failed (bar >= 0.85 and never
+  // bought) scores in the millions off its raw Q20 term, so a low-band glad rule
+  // like this only ever surfaces when nothing went wrong (measured: 0 sour cards
+  // displaced across 1,870 departures; design bundle kd-ICjpq0dCrb). The L1 twin
+  // in crab-depart.json reads the same vector from the appended bundle slots, so
+  // the program and this lambda agree on every stay (E3's contract).
   { id: "delight", mood: "glad",
-    w: (r) => ((r.hunger || 0) + (r.thirst || 0) + (r.dirt || 0)
-      + (r.bored || 0) + (r.tired || 0)) <= 5 * qn(0.45) ? 66 : 0,
+    w: (r) => { const w = needW(r);
+      return (w[0] * (r.hunger || 0) + w[1] * (r.thirst || 0) + w[2] * (r.dirt || 0)
+        + w[3] * (r.bored || 0) + w[4] * (r.tired || 0))
+        <= qn(0.45) * (w[0] + w[1] + w[2] + w[3] + w[4]) ? 66 : 0; },
     line: () => "FED, WASHED AND RESTED - THIS TOWN LOOKED AFTER ME. I'LL SAY SO AT HOME." },
   // THE UNSPENT PURSE, WITH ITS REASON ATTACHED. Half of every purse has gone
   // home unspent since the visitor pass shipped, and the reason clause is what
@@ -21137,6 +21426,11 @@ const HELP_PAGES = [
     ["k", "ARROWS", "PAN THE TOWN"],
     ["k", "T", "A THINKER'S MIND (THE BRAIN PANEL)"],
     ["k", "M / N / B", "MUTE / MUSIC / NEXT TRACK"],
+    // THE MUSIC KEYS EARNED A SECOND ROW. Shift+arrows work anywhere, which is
+    // the whole point of them, and a key that works everywhere but is written
+    // down nowhere is not a feature - see the ruling on interface opacity.
+    ["k", "SHIFT ARROWS", "PREV / NEXT TRACK"],
+    ["k", "SHIFT K", "KEEP THE TRACK THAT IS PLAYING"],
     ["k", "ESC", "BACK OUT OF ANYTHING"],
     ["k", "H  OR  ?", "THIS CARD"],
     ["-"],
@@ -22324,32 +22618,67 @@ function musFiltered() {
   if (f === "DROPPED") return all.filter(t => musState(t) === 0);
   return all.filter(t => musState(t) === null);   // UNJUDGED
 }
-function musPlay(t) {
+// STOPPING THE BENCH IS ITS OWN VERB, because four callers need it and each one
+// that open-coded it was a chance to forget the generation bump - which is
+// exactly how a stopped preview came back to life over a rotation track.
+function musStopPreview() {
+  musPrevGen++;
   if (musPreview) { musPreview.pause(); musPreview = null; }
-  if (musPreviewId === t.id) { musPreviewId = ""; return; }   // tapping the playing row stops it
+  musPreviewId = "";
+}
+// `toggle` false forces a play (the arrow keys, which must never land on a row
+// and go silent); the default keeps the tap gesture, where the playing row
+// stops.
+function musPlay(t, toggle = true) {
+  const wasPlaying = musPreviewId === t.id;
+  musStopPreview();
+  if (toggle && wasPlaying) return;   // tapping the playing row stops it
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
+  musGen++;
   if (music) { music.pause(); music = null; }
-  musPreview = new Audio(musSrc(t));
-  musPreview.volume = 0.55;
+  const gen = musPrevGen;
+  const done = () => { if (musPrevGen === gen) { musPreview = null; musPreviewId = ""; } };
+  const a = new Audio(musSrc(t));
+  musPreview = a;
+  a.volume = 0.55;
   musPreviewId = t.id;
-  musPreview.addEventListener("ended", () => { musPreview = null; musPreviewId = ""; });
-  musPreview.addEventListener("playing", () => {
-    if (ARCHIVE_OK === null && musPreview && musPreview.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
+  a.addEventListener("ended", () => { if (musPrevGen === gen) musAdvance(1); });
+  a.addEventListener("playing", () => {
+    if (ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
   });
-  musPreview.play().catch(() => {
+  a.play().catch(() => {
+    if (musPrevGen !== gen) return;   // superseded while it was loading
     // The mirror was not there. Fall through to the CDN once, and remember, so
     // the next track goes straight to the network.
-    if (!t.shipped && t.url && musPreview && musPreview.src.indexOf("music/archive/") >= 0) {
+    if (!t.shipped && t.url && a.src.indexOf("music/archive/") >= 0) {
       ARCHIVE_OK = false;   // learned once; every later track goes straight to the CDN
-      musPreview = new Audio(t.url);
-      musPreview.volume = 0.55;
-      musPreview.addEventListener("ended", () => { musPreview = null; musPreviewId = ""; });
-      musPreview.play().catch(() => { musPreview = null; musPreviewId = ""; toast = { text: "NO AUDIO FOR " + t.name, t: 3 }; });
+      const b = new Audio(t.url);
+      musPreview = b;
+      b.volume = 0.55;
+      b.addEventListener("ended", () => { if (musPrevGen === gen) musAdvance(1); });
+      b.play().catch(() => { done(); toast = { text: "NO AUDIO FOR " + t.name, t: 3 }; });
       return;
     }
-    musPreview = null; musPreviewId = ""; toast = { text: "NO AUDIO FOR " + t.name, t: 3 };
+    done(); toast = { text: "NO AUDIO FOR " + t.name, t: 3 };
   });
+}
+// UP/DOWN IN THE BOX MOVE THE SELECTION AND PLAY IT. Matt: "the playlist needs
+// up/down [arrows] that auto-play the track". The row that plays is the row you
+// are looking at, so the window scrolls to keep it on screen - a selection that
+// walks off the top is how you lose your place in 1,201 rows.
+//
+// It walks the FILTERED list, because that is the list on the screen: stepping
+// into a row the filter is hiding would be a cursor that vanishes.
+function musAdvance(d) {
+  const list = musFiltered(), n = list.length;
+  if (!n) return;
+  let at = list.findIndex(t => t.id === musPreviewId);
+  if (at < 0) at = d > 0 ? -1 : 0;              // nothing playing: start at the top
+  const next = ((at + d) % n + n) % n;          // and it wraps, like the rotation does
+  musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS),
+    next < musTop ? next : next >= musTop + MUS_ROWS ? next - MUS_ROWS + 1 : musTop));
+  musPlay(list[next], false);
 }
 // THE JUDGEMENT LEAVES AS A FILE, because that is the only way it can reach a
 // build. Downloads a picks file naming every KEPT track with its energy; the
@@ -22382,12 +22711,13 @@ function musExport() {
   }
 }
 function musClose() {
-  if (musPreview) { musPreview.pause(); musPreview = null; musPreviewId = ""; }
+  musStopPreview();
   musicView = false;
   if (musicOn && !muted) startMusic();   // hand the speakers back to the rotation
 }
 function musOpen() {
   musicView = true; musTop = 0;
+  musGen++;
   if (music) { music.pause(); music = null; }   // the bench owns the speakers while it is up
 }
 function musBarIndex(p, n) {
@@ -22400,6 +22730,9 @@ function musTap(p) {
   const list = musFiltered(), n = list.length;
   if (hitRect(p, musBackRect())) { musClose(); sfx.ding(); return; }
   if (hitRect(p, musExportRect())) { musExport(); sfx.ding(); return; }
+  // TURNING IT ON FROM THE BENCH ARMS THE ROTATION, it does not start a track
+  // over the one you are auditioning - startMusic defers while the box is up,
+  // and musClose hands the speakers back on the way out.
   if (hitRect(p, musOnRect())) { toggleMusic(); sfx.ding(); return; }
   if (hitRect(p, musFilterRect())) {
     musFilter = (musFilter + 1) % MUS_FILTERS.length; musTop = 0; sfx.ding(); return;

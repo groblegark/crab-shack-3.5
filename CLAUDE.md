@@ -3,32 +3,58 @@
 **Read PLAN.md first.** It is the project brain: systems map, verified balance
 numbers, backlog, and conventions. Don't duplicate it — update it there.
 
-## KUBE POLICY (Matt, 2026-08-23 — ABSOLUTE)
+## KUBE POLICY (Matt, 2026-08-23; extended to ALL gates 2026-08-26 — ABSOLUTE)
+**EVERY gate runs on the cluster. No exceptions, Mac or pod.**
+
+```sh
+node tools/kube.mjs run experiments/suite-330.json --ref <pushed-SHA> --wait
+```
+
+That is the gate. It clones the PUSHED SHA, so commit and push the branch
+first — your uncommitted tree does not exist to it. Green means the MERGED
+VERDICT line, both backends. See design/cs35-kube-runbook.md.
+
 The Mac crashed five times running parallel sim workloads. **Never run
 sim/compute node scripts locally** — not the suite, not headless matrices,
 not batch/bench, not the MCP check battery, not neuro training/xcheck —
 not even "one quick check". A PreToolUse hook enforces this and denies any
 Bash command whose text so much as names those scripts (that includes
 heredocs and echo — write docs mentioning them with the Edit tool, not the
-shell). Everything runs on the gasboat-prod cluster via
-`node tools/kube.mjs run experiments/<manifest>.json --ref <pushed-SHA>
---wait` — see design/cs35-kube-runbook.md. Allowed locally: tools/kube.mjs
-itself, tools/mkcultureways.mjs, `node --check`, and other sub-second
-single-process commands. Gates = the suite-312 manifest; matrices and
-science sweeps = their own manifests. Receipts land under
-design/cs35-research/kube-runs/.
+shell). Allowed locally: tools/kube.mjs itself, tools/mkcultureways.mjs,
+tools/mkversion.mjs, `node --check`, and other sub-second single-process
+commands. Matrices and science sweeps = their own manifests. Receipts land
+under design/cs35-research/kube-runs/.
 
-Scope note: this policy protects the OPERATOR'S MAC. A gasboat fleet pod
-(project `cs`) IS cluster compute — it may run sim workloads in-pod within
-its own resource limits, and should, since it has no AWS identity to drive
-tools/kube.mjs. The hook only exists on the operator's machine.
+**A fleet pod is NOT an exception, and this is the part that keeps getting
+re-learned.** A pod may run sim work in-pod within its cgroup, so it is
+always *possible* to gate in-pod — it is just extremely slow, and nothing
+stops you. Measured 2026-08-26 on one tree: in-pod `tools/suite.mjs`
+(which defaults to **`--jobs 1`** — the trap) ran **90 minutes and reached
+148 of 379** before it was killed; the cluster returned **760/760 both
+backends in 7m35s** across 24 arms. A pod HAS an AWS identity (IRSA) and
+drives kube.mjs fine — proven twice that day. In-pod runs are for a single
+scenario you are iterating on (`node tools/suite.mjs "<filter>" --jobs 1`,
+seconds), never for a gate.
+
+Do NOT `export AWS_PROFILE` in a pod. IRSA already works, and setting it
+breaks the SDK's credential lookup so kube.mjs reports a healthy session
+as dead and tells you to run an SSO login a pod cannot do (runbook).
+
+**Keep the manifest current.** Gates use the newest `experiments/suite-*.json`
+— suite-330 as of 2026-08-26 (387 scenarios, 12 slices x 2 backends). When
+the scenario count outgrows it, add the next manifest rather than letting
+this line rot: it read "Gates = the suite-312 manifest" two generations after
+suite-312 was current.
 
 ## THE MERGE RITUAL (orchestrator, at every merge before push)
 Run `node tools/mkcultureways.mjs` (bundle regen must be byte-exact) AND
 `node tools/mkversion.mjs` (regenerates version.js — the title-screen build
 stamp; the stamp is the MERGE's identity, so a push whose stamp names the
 previous commit is a ritual miss). Both are sub-second generators, allowed
-locally.
+locally. The stamp now also carries the commit's epoch (`t`), which the title
+screen counts up from live — "PUBLISHED 2M 5S AGO" — so a missed regen is
+visible to a play-tester as an age that is wrong by a whole merge, not just a
+stale sha.
 
 ## The sim contract (load-bearing)
 - `tools/simlib.mjs` executes the REAL game files (font.js, ppu.js, sprites.js,
@@ -56,7 +82,11 @@ locally.
 - Don't run two sims concurrently when benchmarking, or timings lie.
 
 ## Suite discipline
-- `node tools/suite.mjs` (all scenarios) must be green before any commit.
+- The suite must be green before any commit — via the CLUSTER gate
+  (`node tools/kube.mjs run experiments/suite-330.json --ref <pushed-SHA>
+  --wait`), never a local or in-pod full run. See KUBE POLICY above. Filtering
+  to one scenario while you iterate (`node tools/suite.mjs "<filter>"`) is fine
+  in a pod and takes seconds; the full suite is not.
 - Balance changes need a headless matrix re-run. Measured 2026-08-24 in-pod at
   `83fb0f4` over 48 towns (`--seedbase 0,16,32`): baseline (buy nothing)
   **0/48**; growth (`--buy chef,table`) **15/48** — and the blocks were `sb0: 5`,

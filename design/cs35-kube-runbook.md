@@ -11,9 +11,23 @@ seed matrices, science sweeps, neuro collection — runs on the cluster.
 ## The one verb
 
 ```sh
-export AWS_PROFILE=gasboat-prod        # every shell; the env does not persist
+export AWS_PROFILE=gasboat-prod        # ON THE MAC ONLY — see below. Every shell; the env does not persist
 node tools/kube.mjs run experiments/<manifest>.json --wait
 ```
+
+**IN A FLEET POD, DO NOT SET `AWS_PROFILE`** — it breaks working credentials
+and the error blames the wrong thing. A pod authenticates by web identity
+(`AWS_ROLE_ARN` + `AWS_WEB_IDENTITY_TOKEN_FILE`, injected by IRSA), not by a
+`~/.aws/config` profile that does not exist there. Set it and the SDK fails the
+profile lookup before it ever tries the working path, so kube.mjs's preflight
+reports a healthy session as dead and tells you to run an interactive SSO login
+a pod can never complete (measured 2026-08-26):
+
+    kube: AWS session dead or expired. Run:  aws sso login --profile gasboat-prod
+
+Just omit it — `aws sts get-caller-identity` already answers in a pod. Confirm
+with `env | grep -E '^AWS_(PROFILE|ROLE_ARN|WEB_IDENTITY)'` before adopting any
+setup line out of this doc: the preamble is written for the Mac.
 
 **A gasboat `cs` fleet pod CAN now drive the cluster — PROVEN end to end
 2026-08-25** (kd-bk9jS2Yp3Q / kd-wbdYahwATd, both closed). `node tools/kube.mjs
@@ -30,13 +44,17 @@ lacks, though crab-science already exists. The earlier "OPERATOR-SIDE ONLY"
 reading was three tool bugs stacked (runbook lesson #9), not a substrate wall.
 The operator's Mac path is unchanged and still works.
 
-What a pod CAN do — and should, per CLAUDE.md's scope note, since the local ban
-protects the operator's Mac and a fleet pod IS cluster compute — is run sim
-workloads in-pod within its own limits: `node tools/suite.mjs --jobs N`,
-matrices, probes. That is enough to GATE. Cluster access buys back the wide
-fan-outs, not the ability to get a verdict at all. Leave headroom when peers
-are running, and per the perf note below, never read a timing from a box
-running two sims.
+A pod CAN run sim workloads in-pod within its own limits — `node
+tools/suite.mjs --jobs N`, matrices, probes — and that is right for a single
+scenario you are iterating on. **But it is NOT how you gate** (policy extended
+2026-08-26, CLAUDE.md). This paragraph used to read "that is enough to GATE",
+and it cost an agent 90 minutes: `suite.mjs` defaults to **`--jobs 1`**, so an
+in-pod full suite ran 90 minutes and reached **148 of 379** before it was
+killed, while the cluster returned **760/760 both backends in 7m35s** across
+24 arms on the same tree. Nothing errors when you gate in-pod; it just quietly
+takes forever, which is why the wrong instinct survives. Every gate goes to the
+cluster. Leave headroom when peers are running, and per the perf note below,
+never read a timing from a box running two sims.
 
 ### "within its own limits" means the CGROUP, not `nproc` (fixed 2026-08-25)
 

@@ -101,6 +101,24 @@ histogram's tail is not a zero — check the tool's cutoff before saying "never"
 So the honest finding is *the glad register is rare (1.5%) and one glad rule is
 structurally unreachable for crabs*, not *the card can only scold*.
 
+**RULING 6 (glad card = OVERALL CONDITION AT EXIT). Horizon 1 landed the readout
+(`delight` reads the five-bar condition sum, `36c2696`). Horizon 2 — the
+CULTURAL/CLASS/INDIVIDUAL WEIGHT MATRIX — landed its CARD SLICE
+(`cs-ruling6-h2-matrix-card`, decision `kd-uQifN1xD5z`=A1, task `kd-EKw124qi3Z`):
+one per-need weight vector (`needW(r)`, x1/4 ints, 4 the identity), composed
+cultural (`appeal.needs`) × class (register `needMul`) × individual around
+all-4s, read by BOTH the `delight` lambda AND its L1 twin — so the two card paths
+cannot diverge. The individual axis is declared-but-identity per A1 (room for a
+future per-guest temperament; nothing sources it yet). Byte-neutral for shipped
+content — no culture declares weights, so the departure census is byte-identical
+to the pre-change tree, and the delight gate becomes `sum(w·bar) ≤ qn(0.45)·sum(w)`,
+which at identity is exactly horizon 1's `sum(bar) ≤ 5·qn(0.45)`. The DECISION
+consumer (Matt's "ALSO influences their decisions" — `visScoreOne` + the wasm
+kernel `vis_pick` + `brainVisPick`) is HORIZON 3 (`kd-I9fjOBARav`, blocked on
+this bead): it reads the SAME `needW` vector, and it needs a pod with the wasm
+toolchain (`zig`), absent in cs pods — so the decision side is un-gateable
+in-pod and is correctly deferred, not a half-built passenger here.**
+
 **A NUMBER WITHOUT ITS TREE IS NOT QUOTABLE.** Every figure above names the SHA
 it was measured at and the receipt it came from, because that is the one rule
 this project does not bend. If you are about to cite a growth number, re-measure
@@ -5743,9 +5761,11 @@ copy of them.
   - ~~**RIGHT-CLICK to redirect a crab**~~ — **shipped 2026-08-20**: it is on
     the HELP card's controls page, with the rest of the keys.
   - **KEYS**: `m` mute, `n` music, `b` next track, `f` fast-forward, `[` / `]`
-    cycle crabs, arrows pan, `Escape` backs out. All undocumented in-game.
-    (Arrow-key panning is no longer the ONLY way around town — see the nav strip
-    entry — but the keys themselves are still unlisted anywhere.)
+    cycle crabs, arrows pan, `Escape` backs out, and (2026-08-25) `shift`+arrows
+    prev/next track, `shift`+`K` keep the playing track. ~~All undocumented
+    in-game.~~ — the controls page of the HELP card lists them, the music keys
+    included. (Arrow-key panning is no longer the ONLY way around town — see the
+    nav strip entry.)
   - **THE TRADE LEDGER LIVES INSIDE THE JOB BOARD.** A player looking for the
     town's imports has no reason to click a HELP WANTED board. ~~Likewise the
     **census is a tab inside the management card**~~ — **half-shipped
@@ -5946,6 +5966,40 @@ copy of them.
   - **Open:** no vetting pass has been made yet, so the rotation is still the
     original 22 tracks until someone sits down with the box. `tools/mkplaylist.mjs`
     turns an export into a shipped playlist when that happens.
+- **THE MUSIC CONTROLS LEFT THE BOX** — *shipped (branch `cs-music-controls`,
+  2026-08-25)*. Matt: a button "to turn the music on and off without viewing the
+  playlist"; up/down arrows in the playlist that "auto-play the track"; it
+  "should never play more than one track at once (current bug)"; shift+arrows
+  for prev/next "even when not in playlist"; and shift+K to "mark a track as
+  keep from the main interface".
+  - **MUS is a SWITCH now, and `>` beside it is the door.** The switch keeps the
+    old chip's pixels and position (the frequent action keeps the muscle
+    memory); the chevron takes the 9 px of daylight that already sat between
+    MUS and SND, so **nothing else on that row moves** — see the geometry note
+    at the speed chips for why that rule exists.
+  - **THE TWO-TRACKS BUG WAS A STALE CLOSURE, not a missing pause.** `playTrack`
+    paused the outgoing element but left its `ended` listener attached, and that
+    listener wrote the **global** `music` handle. A track ending a beat after you
+    skipped it therefore nulled the handle to the track now playing, and the next
+    `startMusic()` saw an empty speaker and started a second one over the top.
+    Every play now carries the generation it began in and a direct reference to
+    its own element; a superseded closure returns without touching anything.
+    Reproduced at **2 audible elements on the pre-fix build, 1 after** —
+    the scenario counts Audio objects rather than trusting the handles.
+  - **The bench and the rotation never share the speakers**: `startMusic` defers
+    while the box is up (the box's own MUSIC ON used to start a track *under* the
+    one you were auditioning), and `musClose` hands them back.
+  - **The keys work everywhere** — shift+arrows step the rotation, shift+K keeps
+    what you can hear (the bench answers first when it has the speakers), and
+    both are tested through the door a player uses. Both are on the help card:
+    a key that works everywhere and is written down nowhere is interface opacity.
+  - **The harness could not press a key before this.** `addEventListener` was a
+    no-op in `simlib.mjs`, so the game's keydown handler was built and dropped —
+    every bound key was untestable. It now retains `keydown` and exposes
+    `_key(k, shift)`. The `Audio` stub's `play()` also returned a bare
+    `{catch}` thenable where the browser returns a **Promise**, so any
+    `.play().then(...)` threw the moment a scenario reached it; fixed in both
+    `simlib.mjs` and `headless.mjs`.
 - **Music off by default, but sell it** (Matt): ship with music muted for
   new players (SFX stays on), and actively encourage flipping it on — e.g.
   a small pulse/glow on the MUS toggle early on, or a one-time toast at a

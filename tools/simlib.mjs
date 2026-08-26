@@ -113,9 +113,33 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
       setItem: (k, v) => store.set(k, String(v)),
       removeItem: (k) => store.delete(k),
     },
-    Audio: class { constructor() { this.loop = false; this.volume = 0; } play() { return { catch: noop }; } pause() {} addEventListener() {} },
-    AudioContext: undefined, addEventListener: noop, console,
+    // `play()` RETURNS A REAL PROMISE, because the browser's does. The old stub
+    // returned a bare `{catch}` thenable, so any caller that wrote
+    // `.play().then(...)` - which game.js does, to announce the track - threw
+    // "then is not a function" the moment a scenario reached it. That is the
+    // harness lying about the API, and the sim contract says the stubs stand in
+    // for the browser rather than for the subset we happened to call first.
+    // Resolved (not rejected): silence in a sandbox is a track that played.
+    Audio: class { constructor() { this.loop = false; this.volume = 0; } play() { return Promise.resolve(); } pause() {} addEventListener() {} },
+    AudioContext: undefined, console,
     Math: seededMath, JSON, rafCb: null, simNow: 0,
+  };
+  // THE KEYBOARD IS REACHABLE NOW. `addEventListener` was a no-op, so the
+  // game's keydown handler was constructed and then dropped on the floor -
+  // which meant every key the game binds was untestable, and the music keys
+  // (shift+arrows, shift+K) are an interface a scenario has to be able to
+  // press. Only "keydown" is retained; every other listener keeps the old
+  // no-op behaviour, so nothing else in the harness changes shape.
+  //
+  // `_key(k, shift)` delivers one event to whatever the game registered.
+  // preventDefault is a no-op here: the sandbox has no browser to defend
+  // against, and a handler calling it must not throw.
+  sandbox._keyHandlers = [];
+  sandbox.addEventListener = (type, fn) => { if (type === "keydown") sandbox._keyHandlers.push(fn); };
+  sandbox._key = (key, shiftKey = false) => {
+    const ev = { key, shiftKey, preventDefault: noop, stopPropagation: noop };
+    for (const fn of sandbox._keyHandlers) fn(ev);
+    return sandbox._keyHandlers.length;
   };
   sandbox.window = sandbox;
   // PORTRAIT PHONES get a 256x288 canvas: index.html sets window.SCREEN_H
