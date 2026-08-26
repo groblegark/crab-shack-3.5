@@ -23195,14 +23195,19 @@ function musTickName() {
   const t = ROTATION[trackIdx];
   return t ? t.name : "";
 }
+// THE SURFACE TEST AND THE NAME ARE SEPARATE, and deliberately so: this runs
+// every frame, and `musTickName` can walk the 1,201-row pool to resolve an
+// audition. The cheap screen predicates short-circuit first, and the draw asks
+// for the name ONCE rather than once here and once again on the way out.
 function musTickLive() {
   return screen === "play" && !gameOver && !helpView && !musicView
     && !(dossier || manage || boardView || saveView || departT > 0)
-    && !(window.MergeMode && MergeMode.active())
-    && !!musTickName();
+    && !(window.MergeMode && MergeMode.active());
 }
 function drawMusTicker() {
   if (!musTickLive()) return;
+  const name = musTickName();
+  if (!name) return;              // nothing playing: no strip at all, rather than an empty one
   const r = musTickRect();
   // THE PHASE IS WALL TIME, deliberately - `nowMs` rather than `viewT`. viewT is
   // sim seconds and scales with the speed chips, so at >>>> the name would crawl
@@ -23210,7 +23215,7 @@ function drawMusTicker() {
   // so does its label. (nowMs is the guarded reader: a headless sandbox with no
   // clock gets 0 and a ticker that holds still, which is correct for a surface
   // no headless run draws.)
-  const shown = musTickWindow(musTickName(), nowMs() / 1000);
+  const shown = musTickWindow(name, nowMs() / 1000);
   rect(ctx, r.x, r.y, r.w, r.h, [26, 18, 30]);
   rect(ctx, r.x + 1, r.y + 1, 2, r.h - 2, muted ? [120, 70, 70] : [140, 220, 140]);   // the speaker pip: green when it is sounding
   smallText(ctx, shown, r.x + 5, r.y + 2, muted ? [160, 140, 140] : [225, 215, 235]);

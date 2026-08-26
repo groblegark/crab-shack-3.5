@@ -12825,7 +12825,9 @@ scenario("the now-playing ticker names what is audible and scrolls only when it 
     out.loops = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", loopLen / 4) === w0 ? 1 : 0;
 
     // IT NAMES WHAT IS AUDIBLE: the rotation's track, then the bench's when the
-    // bench takes over, and NOTHING when nothing is playing.
+    // bench takes over, and NOTHING when nothing is playing. The empty name is
+    // what suppresses the strip (drawMusTicker returns on it), so it carries the
+    // same weight as the surface predicate below.
     musGen++; if (music) { music.pause(); music = null; }
     out.silentName = musTickName();
     playTrack(0);
@@ -12836,6 +12838,8 @@ scenario("the now-playing ticker names what is audible and scrolls only when it 
     // The box is a full-screen surface: the ticker under it would be painted
     // over anyway, and claiming otherwise is how HUD elements rot.
     out.hiddenBehindBox = musTickLive() ? 0 : 1;
+    musClose();
+    out.liveOnThePromenade = musTickLive() ? 1 : 0;   // ...and it comes back
     return JSON.stringify(out);
   })()`));
   if (!(got.fits >= 12 && got.fits <= 24)) return `the ticker window is ${got.fits} characters - too ${got.fits < 12 ? "narrow to read" : "wide for a corner"}`;
@@ -12849,6 +12853,7 @@ scenario("the now-playing ticker names what is audible and scrolls only when it 
   if (got.rotName !== "SHORT") return `the ticker named ${got.rotName} while the rotation played SHORT`;
   if (got.benchName !== "A VERY LONG SONG TITLE THAT CANNOT FIT") return `the ticker named ${got.benchName} while the bench auditioned another row`;
   if (!got.hiddenBehindBox) return "the ticker claims to be live under the record box, which paints over it";
+  if (!got.liveOnThePromenade) return "the ticker never came back after the box closed";
   return true;
 });
 
