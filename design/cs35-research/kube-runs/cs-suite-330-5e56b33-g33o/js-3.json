@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5e56b33-g33o",
+  "armId": "js-3",
+  "index": 3,
+  "sha": "5e56b33f6927755e7319baa76b31e88960c13aa7",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 138354,
+  "verdict": "33/33 passed in slice 3/12 (138.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (3195ms)\n  PASS  save/load roundtrip preserves state (1500ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1324ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1445ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (956ms)\n  PASS  days off: everyone rests their weekday and plays customer (6648ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (400ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1098ms)\n  PASS  sale: the player buys a failed business through the shopfront (3202ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7091ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (40126ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1139ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (17089ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2671ms)\n  PASS  the fund is struck to the bill and does not hoard (1392ms)\n  PASS  departures: three ways to be turned away are three different counters (259ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (574ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1660ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (954ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1002ms)\n  PASS  only one track is ever audible at once (10ms)\n  PASS  missing payday costs the crew, not the lease (8124ms)\n  PASS  crab-as-document: a hostile document is refused by name (10ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (10172ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (27ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4399ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (7ms)\n  PASS  seam: a headless day never enters the view (960ms)\n  PASS  brains: a town full of thinking heads round-trips its save (8658ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (10641ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (108ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (12ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1385ms)\n33/33 passed in slice 3/12 (138.2s)\n"
+}
