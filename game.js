@@ -16034,6 +16034,11 @@ function tipTrackHit(p) {
   return p.x >= tr.x - 4 && p.x < tr.x + tr.w + 4 && p.y >= tr.y - 3 && p.y < tr.y + tr.h + 3;
 }
 let dragging = false, dragStartX = 0, dragCamX = 0, dragMoved = false;
+// A FINGER ON A HALL LIST, mirroring the box's swipe state (musSwipeY and
+// friends). Declared here beside the other grabs rather than down with the
+// hall's own drawing code, because the touch listeners below are the only
+// readers and a grab belongs with the grabs.
+let hallSwipeY = null, hallSwipeTop = 0, hallSwiped = false;
 // SCRUBBING THE NAV STRIP is its own grab, exactly as the tip slider is: a
 // finger on the map must move the CAMERA, never pan the town underneath it.
 let navDrag = false, navDragX = 0;
@@ -16097,6 +16102,12 @@ cv.addEventListener("touchstart", (ev) => {
   if (window.MergeMode && MergeMode.touchStart(p)) return;
   if (tipTrackHit(p)) { tipDrag = true; return; }
   if (navTrackHit(p)) { navDrag = true; navDragX = p.x; return; }
+  // THE HALL CARD TAKES THE FINGER BEFORE THE TOWN DOES, the same collision
+  // the box had: without this a swipe on the ledger panned the promenade
+  // BEHIND the card, invisibly, while the ledger itself never moved. On a
+  // phone this is the only scroll gesture there is - there is no wheel and no
+  // keyboard - so it is the one that matters most.
+  if (hallListHit(p)) { hallSwipeY = p.y; hallSwipeTop = HALL_SCROLL[hallView] | 0; hallSwiped = false; return; }
   if (p.y < PANEL_Y) { dragging = true; dragStartX = p.x; dragCamX = camX; dragMoved = false; }
 }, { passive: true });
 cv.addEventListener("touchmove", (ev) => {
@@ -16120,6 +16131,20 @@ cv.addEventListener("touchmove", (ev) => {
     return;
   }
   if (tipDrag) { ev.preventDefault(); tipSliderTo(manage, evPos(ev.touches[0]).x); return; }
+  if (hallSwipeY != null) {
+    ev.preventDefault();
+    // A ROW IS 7px, so the content tracks the finger a row per row - the same
+    // rule the box uses at 20px, and the reason a hall list feels like a list
+    // rather than something moving at an invented gain. Past 3px it is a
+    // scroll and not a tap, which is what hallSwiped says to the click that
+    // follows - or a finger that drifted while resting on the card would poke
+    // whatever chip it came down on.
+    const dy = evPos(ev.touches[0]).y - hallSwipeY;
+    if (Math.abs(dy) > 3) hallSwiped = true;
+    const span = Math.max(0, _hallWin.len - _hallWin.rows);
+    HALL_SCROLL[hallView] = Math.max(0, Math.min(span, hallSwipeTop - Math.round(dy / 7)));
+    return;
+  }
   if (window.MergeMode && MergeMode.touchMove(evPos(ev.touches[0]))) { ev.preventDefault(); return; }
   if (navDrag) {
     ev.preventDefault();
@@ -16134,7 +16159,7 @@ cv.addEventListener("touchmove", (ev) => {
   if (dragMoved) camX = clampCam(dragCamX - (p.x - dragStartX));
 }, { passive: false });
 cv.addEventListener("touchcancel", () => {
-  tipDrag = false; navDrag = false;
+  tipDrag = false; navDrag = false; hallSwipeY = null; hallSwiped = false;
   dragging = false; dragMoved = false;
   if (window.MergeMode && MergeMode.touchCancel) MergeMode.touchCancel();
 }, { passive: true });
@@ -16145,6 +16170,14 @@ cv.addEventListener("touchend", (ev) => {
     // the flag is cleared on the same 50ms delay the camera pan uses for
     // exactly this - see dragMoved.
     if (musSwiped) setTimeout(() => { musSwiped = false; }, 50);
+    return;
+  }
+  if (hallSwipeY != null) {
+    hallSwipeY = null;
+    // A SCROLL MUST NOT ALSO POKE A CHIP. The click arrives after touchend, so
+    // the flag clears on the same 50ms delay the camera pan and the box both
+    // use for exactly this.
+    if (hallSwiped) setTimeout(() => { hallSwiped = false; }, 50);
     return;
   }
   // COMMIT ON RELEASE: one town materialized per gesture, not one per pixel
@@ -16167,6 +16200,15 @@ cv.addEventListener("wheel", (ev) => {
     if (!ev.deltaY) return;
     ev.preventDefault();
     musScroll(ev.deltaMode === 1 ? Math.sign(ev.deltaY) : Math.round(ev.deltaY / 20) || Math.sign(ev.deltaY));
+    return;
+  }
+  // THE HALL'S LISTS TAKE THE VERTICAL WHEEL over the card, for the same
+  // reason the box does: the town has no use for it, and a list you can see
+  // and cannot move is the bug this pass is about. A hall row is 7px, not 20 -
+  // one notch is about three rows, which is the right gain for a 7px line.
+  if (ev.deltaY && hallListHit(evPos(ev))) {
+    ev.preventDefault();
+    hallScroll(ev.deltaMode === 1 ? Math.sign(ev.deltaY) : Math.round(ev.deltaY / 7) || Math.sign(ev.deltaY));
     return;
   }
   if (screen !== "play") return;
@@ -16260,6 +16302,10 @@ cv.addEventListener("click", (ev) => {
   // last: it is reachable from the title screen, from play, and from game over,
   // so there is no screen it can be under.
   if (musicView) { if (!musSwiped) musTap(evPos(ev)); return; }   // the box swallows every click
+  // A HALL SCROLL IS NOT A TAP. Same guard the box has: the click follows the
+  // touchend, so without this a finger that scrolled the ledger and lifted
+  // over the view chip would also cycle the page out from under you.
+  if (hallSwiped) return;
   if (helpView) { tapHelp(evPos(ev)); return; }
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
   if (screen === "sci") { sciTap(evPos(ev)); return; }
@@ -16452,16 +16498,11 @@ cv.addEventListener("click", (ev) => {
       // and the platform you would stand on. While your crab holds the hat
       // the same three dials ARE the town's policy, and they bill you first.
       if (hit(R.hview)) {
-        // ONE CHIP, and on the ROLL it also turns the page - BOOKS, the BALLOT,
-        // then every page of the roll, then back to BOOKS. A card this full has
-        // no room for a pair of arrows, and the roll is a thing you read
-        // straight through rather than jump around in.
-        const pages = Math.max(1, Math.ceil(((hall.poll && hall.poll.lines.length) || 0) / ROLL_ROWS));
-        if (hallView === "ROLL" && hallRollPage + 1 < pages) hallRollPage++;
-        else {
-          hallRollPage = 0;
-          hallView = HALL_VIEWS[(HALL_VIEWS.indexOf(hallView) + 1) % HALL_VIEWS.length];
-        }
+        // ONE CHIP, ONE JOB: cycle the four reading surfaces. It used to ALSO
+        // be the roll's pager - so it was forward-only through pages you had
+        // already read, and BOOKS was three taps away from roll page one. The
+        // lists scroll now (see HALL_SCROLL), so the chip only picks a page.
+        hallView = HALL_VIEWS[(HALL_VIEWS.indexOf(hallView) + 1) % HALL_VIEWS.length];
         sfx.ding(); return;
       }
       if (hit(R.stand)) {
@@ -16789,6 +16830,21 @@ addEventListener("keydown", (e) => {
     if (e.key === "PageUp") { e.preventDefault(); musScroll(-MUS_ROWS); return; }
     if (e.key === "Home") { e.preventDefault(); musTop = 0; return; }
     if (e.key === "End") { e.preventDefault(); musScroll(musFiltered().length); return; }
+  }
+  // THE HALL CARD OWNS THE VERTICAL KEYS while it is up, which is the other
+  // half of "scrollable like the music player": the box answers the wheel, the
+  // finger AND the keys, and a card with eleven controls on it had not a single
+  // key of its own. Up/down only - the unshifted LEFT/RIGHT below pan the town
+  // behind the card and stay that way, because the hall has no horizontal axis
+  // to walk. Gated on a list long enough to move so a short book does not
+  // silently eat PageDown.
+  if (manage && manageTab === "HALL" && !dossier && !saveView && _hallWin.len > _hallWin.rows) {
+    if (e.key === "ArrowDown") { e.preventDefault(); hallScroll(1); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); hallScroll(-1); return; }
+    if (e.key === "PageDown") { e.preventDefault(); hallScroll(_hallWin.rows); return; }
+    if (e.key === "PageUp") { e.preventDefault(); hallScroll(-_hallWin.rows); return; }
+    if (e.key === "Home") { e.preventDefault(); HALL_SCROLL[hallView] = 0; return; }
+    if (e.key === "End") { e.preventDefault(); hallScroll(_hallWin.len); return; }
   }
   if (e.key === "m") { toggleMute(); if (!muted) sfx.ding(); }
   if (e.key === "n") toggleMusic();
@@ -19768,7 +19824,69 @@ let learnArm = null;   // foodways: the dish id armed on the manage card (view s
 const HALL_VIEWS = ["BOOKS", "TRADE", "BALLOT", "ROLL"];
 const HALL_VIEW_LABEL = { BOOKS: "BOOKS", TRADE: "TRADE", BALLOT: "LAST BALLOT", ROLL: "THE ROLL" };
 const ROLL_ROWS = 8;   // voter lines per page of the roll, at 7px in the card's body
-let hallView = "BOOKS", hallRollPage = 0;
+let hallView = "BOOKS";
+// THE HALL'S LISTS SCROLL (Matt, 2026-08-26: "the whole political UX has
+// displayed problems, maybe we need scrollable inner lists? Like we have in
+// the music player").
+//
+// FIVE OF THE SIX LISTS ON THIS CARD TRUNCATED, and only the roll was even
+// paged. The ledger kept 48 rows, drew 4, and printed "+44 EARLIER" - a label
+// with NO control behind it, so 44 rows were unreachable from anywhere in the
+// game. TRADE clipped at 5 of 6 goods with no indicator at all, so PAPER - the
+// one import the office itself buys, and the row a player weighing the TARIFF
+// dial most wants - simply was not there. And the live ballot drew 4 of up to 6
+// candidates while buildBallot pushes the PLAYER'S OWN nominee last, so on a
+// full ballot the one candidate clipped off the page was yours: you could not
+// see that you were standing, on the page that lists who is standing.
+//
+// The fix is the music box's, because that is the one list in this game that
+// already scrolls the way a hand expects - wheel, finger, and keys, with the
+// thumb as a convenience rather than the only way to move (see the note beside
+// musScroll). What it does NOT copy is the drag thumb: a 224px card has no
+// gutter to put one in that a full-width roll line would not print through.
+//
+// ONE OFFSET PER SURFACE, because they are four different readings and
+// scrolling back through the ledger must not also move your place in the roll.
+const HALL_SCROLL = { BOOKS: 0, TRADE: 0, BALLOT: 0, ROLL: 0 };
+// WHAT THE LAST DRAW ACTUALLY FIT. The wheel, the swipe and the page keys move
+// by the window the EYE is looking at, and only the draw knows how many rows
+// each surface's geometry left it - so the draw tells the input path, the same
+// way the brain inspector's pager hands its page count to the keydown handler
+// (_brainTvPager). drawManage runs every frame the card is up, so by the time a
+// gesture arrives these are this frame's numbers.
+let _hallWin = { rows: 0, len: 0 };
+function hallScroll(d) {
+  const span = Math.max(0, _hallWin.len - _hallWin.rows);
+  HALL_SCROLL[hallView] = Math.max(0, Math.min(span, (HALL_SCROLL[hallView] | 0) + d));
+}
+// THE WINDOW ONTO ONE SURFACE'S LIST, and it CLAMPS IN PLACE: a surface whose
+// list just got shorter (a smaller ballot, a filtered book) must not be left
+// holding an offset past the end of it, showing a blank card with rows above.
+// That was already a live bug in the thing this replaces - the suite carries a
+// scenario for a stale roll pager - and it is the first thing a shared window
+// can fix once, for all four of them, instead of four times.
+function hallWindow(len, rows) {
+  const span = Math.max(0, len - rows);
+  const top = Math.max(0, Math.min(span, HALL_SCROLL[hallView] | 0));
+  HALL_SCROLL[hallView] = top;
+  _hallWin = { rows, len };
+  return { top, rows, len, end: Math.min(len, top + rows), more: Math.max(0, len - top - rows) };
+}
+// WHERE YOU ARE IN IT, in the six characters a 3x5 font can spare on a header
+// row: "5-8 OF 48". This is what replaces "+44 EARLIER" - the same information,
+// except now it is true, because there is a gesture that reaches row 48.
+function hallWinLabel(w) { return w.len <= w.rows ? "" : (w.top + 1) + "-" + w.end + " OF " + w.len; }
+// IS A HALL LIST UNDER THE POINTER? The gate for the wheel and the swipe, which
+// both have to be refused everywhere else on this card or a finger on the HOURS
+// tab would scroll a list it cannot see. On the card, on the HALL tab, with no
+// overlay above it - and with something to scroll, so a short list falls
+// through to the camera pan rather than swallowing the gesture for nothing.
+function hallListHit(p) {
+  if (!manage || manageTab !== "HALL" || dossier || saveView || musicView || helpView) return false;
+  if (_hallWin.len <= _hallWin.rows) return false;
+  const R = manageRects();
+  return p.x >= R.x && p.x < R.x + R.w && p.y >= R.y && p.y < R.y + R.h - 68;   // above the candidacy strip
+}
 // ------------------------------------------------------------- THE ROSTERS
 // TWO BOOKS, ONE MECHANISM (Matt, 2026-08-25: "need a nice view of all tourists
 // like we have for other kinds of citizens" - then, on seeing the first draft,
@@ -20211,14 +20329,20 @@ function drawManage() {
 // their own words, so a result can be argued with rather than just watched.
 function drawHall(R, chip) {
   const { x, y } = R, w2 = R.w, h2 = R.h;
+  // NOTHING TO SCROLL UNTIL A LIST SAYS OTHERWISE. Cleared every frame so a
+  // surface that draws no list (the roll before anyone has voted, the ballot
+  // before one has been held) cannot inherit the previous surface's window and
+  // leave the wheel and the arrow keys grabbing at a list that is not there.
+  _hallWin = { rows: 0, len: 0 };
   const m = mayorCrab(), p = hall.policy, P = purseOf(p);
   const shut = shelterShut();
   smallText(ctx, "MAYOR", x + 8, y + 33, [58, 42, 38]);
   smallText(ctx, fitSmall((hall.mayor || "VACANT") + (m && !m.p.npc ? " (YOURS)" : ""), w2 - 50), x + 42, y + 33,
     m && !m.p.npc ? [190, 110, 40] : [40, 30, 40]);
-  const rollPages = Math.max(1, Math.ceil(((hall.poll && hall.poll.lines.length) || 0) / ROLL_ROWS));
-  chip(R.hview, (HALL_VIEW_LABEL[hallView] || "BOOKS")
-    + (hallView === "ROLL" && rollPages > 1 ? " " + (hallRollPage + 1) + "/" + rollPages : ""), null, false);
+  // ONE JOB AGAIN. The chip used to carry the roll's page counter too, because
+  // it was the roll's pager as well as the view cycler; the lists scroll now,
+  // so it cycles the four surfaces and nothing else.
+  chip(R.hview, HALL_VIEW_LABEL[hallView] || "BOOKS", null, false);
   const nextPoll = day + ((POLL_WEEKDAY - weekdayIdx(day) + 7) % 7 || 7);
   const mine0 = playerMayor();
   const nom0 = (hall.nominee && crabs.some(c => c.p.name === hall.nominee) ? hall.nominee
@@ -20269,11 +20393,18 @@ function drawHall(R, chip) {
     // FOUR ROWS AT 7px, ending two pixels clear of the candidacy strip below.
     // The card is 164 tall and the strip owns everything from y+130 down; an
     // earlier cut ran six 8px rows straight through both control rows.
+    //
+    // NEWEST FIRST NOW THAT IT SCROLLS. It used to take the LAST four rows in
+    // ledger order, which is the only way to show a fund's latest movements
+    // when four is all you get; a scrollable list wants its newest row where
+    // the eye lands and the older ones down the gesture, or scrolling walks
+    // you backwards through time towards the top of the list.
     let ly = y + 101;
     const LEDG = 4;
-    const rows = townFund.ledger.slice(-LEDG);
-    if (!rows.length) smallText(ctx, "NOTHING HAS MOVED YET", x + 8, ly, [150, 140, 160]);
-    for (const r of rows) {
+    const led = townFund.ledger.slice().reverse();
+    const wn = hallWindow(led.length, LEDG);
+    if (!led.length) smallText(ctx, "NOTHING HAS MOVED YET", x + 8, ly, [150, 140, 160]);
+    for (const r of led.slice(wn.top, wn.end)) {
       const col = r.kind === "take" ? [40, 150, 70] : r.kind === "pay" ? [190, 110, 40] : [190, 80, 80];
       smallText(ctx, "D" + r.day, x + 8, ly, [150, 140, 160]);
       smallText(ctx, r.kind === "take" ? "FROM" : "TO", x + 26, ly, [150, 140, 160]);
@@ -20283,9 +20414,10 @@ function drawHall(R, chip) {
       smallText(ctx, fitSmall(r.why, w2 - 132), x + 122, ly, [110, 100, 110]);
       ly += 7;
     }
-    if (townFund.ledger.length > LEDG)
-      smallText(ctx, "+" + (townFund.ledger.length - LEDG) + " EARLIER",
-        x + w2 - 6 - smallTextWidth("+" + (townFund.ledger.length - LEDG) + " EARLIER"), y + 93, [150, 140, 160]);
+    // ...AND WHERE IN 48 ROWS YOU ARE. This is what "+44 EARLIER" became: the
+    // same count, except the gesture that reaches those rows now exists.
+    const wl = hallWinLabel(wn);
+    if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 93, [150, 140, 160]);
   } else if (hallView === "TRADE") {
     // THE GANGWAY (Matt, 2026-08-25: the tariff wants "a bigger civics UX").
     // The office's own reading of the trade ledger: what the ferry lands,
@@ -20299,22 +20431,44 @@ function drawHall(R, chip) {
     { const v = "PIER $" + $d(trade.price);
       smallText(ctx, v, x + w2 - 8 - smallTextWidth(v), y + 66,
         trade.price >= fishCeil() ? [200, 110, 40] : [140, 110, 40]); }
+    // WHAT THE TOWN CHARGES, AND WHAT YOU ARE PROPOSING TO CHARGE. This line
+    // read the LIVE policy only, on a card whose dials 30px below write the
+    // PLATFORM - so a player who had just set TARIFF 50% as a candidate read
+    // "NO TARIFF - THE GANGWAY IS FREE" directly above their own tariff dial
+    // and could reasonably conclude the dial was broken. It is the same
+    // manifesto-versus-policy confusion the STAND note is about, in the one
+    // place on the card where the two numbers sit within an inch of each other,
+    // so the page now says both and names which is which.
+    const pl = purseRate(hall.plat), plT = hall.plat.mech === "tariff" ? pl : 0;
     smallText(ctx, fitSmall(tr > 0
       ? "TARIFF " + tr + "% - RAISED $" + fmt(trade.dutyDay) + " TODAY, $" + fmt(trade.duty) + " ALL TIME"
       : trade.duty > 0 ? "NO TARIFF TODAY - $" + fmt(trade.duty) + " RAISED ALL TIME"
       : "NO TARIFF - THE GANGWAY IS FREE", w2 - 16), x + 8, y + 75,
       tr > 0 ? [40, 150, 70] : [110, 100, 110]);
+    if (plT !== tr)
+      smallText(ctx, fitSmall(playerMayor() ? "YOUR DIAL SAYS " + plT + "% - IT BILLS FROM TONIGHT"
+        : plT > 0 ? "YOU WOULD CHARGE " + plT + "% - WIN THE BALLOT AND IT BITES"
+        : "YOUR PLATFORM WOULD REPEAL IT", w2 - 16), x + 8, y + 84, [190, 110, 40]);
+    const hdr = plT !== tr ? y + 93 : y + 84;
     const cDay = x + 128, cTot = x + 162, cSp = x + w2 - 8;
-    smallText(ctx, "GOOD", x + 8, y + 84, [150, 140, 160]);
-    smallText(ctx, "TODAY", cDay - smallTextWidth("TODAY"), y + 84, [150, 140, 160]);
-    smallText(ctx, "ALL", cTot - smallTextWidth("ALL"), y + 84, [150, 140, 160]);
-    smallText(ctx, "SPENT", cSp - smallTextWidth("SPENT"), y + 84, [150, 140, 160]);
-    let ly = y + 92;
-    // fish and corn lead the key order, and they are the two the duty rides -
-    // when the strip below squeezes a row off, it is the office's own paper
-    // that goes, same rule as the notice board ("stops at its own frame").
-    for (const kind of Object.keys(IMPORTS)) {
-      if (ly > y + h2 - 72) break;   // the candidacy strip owns the bottom of the card
+    smallText(ctx, "GOOD", x + 8, hdr, [150, 140, 160]);
+    smallText(ctx, "TODAY", cDay - smallTextWidth("TODAY"), hdr, [150, 140, 160]);
+    smallText(ctx, "ALL", cTot - smallTextWidth("ALL"), hdr, [150, 140, 160]);
+    smallText(ctx, "SPENT", cSp - smallTextWidth("SPENT"), hdr, [150, 140, 160]);
+    let ly = hdr + 8;
+    // ...AND IT SCROLLS, because it did not fit. Six goods, and the arithmetic
+    // left room for five: PAPER was dropped with no indicator at all, so the
+    // one import the OFFICE buys - the row that says what an election costs -
+    // was missing from the office's own page. The old comment here said a
+    // squeezed row would be paper "same rule as the notice board", which was
+    // true and was exactly the problem: this is the page you read to price the
+    // TARIFF dial, and a row you cannot reach is a row you cannot price.
+    const keys = Object.keys(IMPORTS);
+    const ROWS = Math.max(1, Math.floor((y + h2 - 64 - ly) / 7));
+    const wn = hallWindow(keys.length, ROWS);
+    const wl = hallWinLabel(wn);
+    if (wl) smallText(ctx, wl, x + 30, hdr, [150, 140, 160]);
+    for (const kind of keys.slice(wn.top, wn.end)) {
       const im = IMPORTS[kind];
       smallText(ctx, fitSmall(im.name + (tr > 0 && (kind === "fish" || kind === "corn") ? " +DUTY" : ""), 110),
         x + 8, ly, [90, 90, 105]);
@@ -20334,12 +20488,16 @@ function drawHall(R, chip) {
     if (!poll) smallText(ctx, "NOBODY HAS VOTED YET", x + 8, y + 68, [150, 140, 160]);
     else {
       smallText(ctx, fitSmall("HOW THE TOWN VOTED - DAY " + poll.day, w2 - 16), x + 8, y + 66, [58, 42, 38]);
-      if (rollPages > 1)
-        smallText(ctx, "TAP THE CHIP FOR THE REST", x + w2 - 6 - smallTextWidth("TAP THE CHIP FOR THE REST"),
-          y + 66, [150, 140, 160]);
+      // THE ROLL SCROLLS NOW INSTEAD OF PAGING OFF THE VIEW CHIP. That chip did
+      // two jobs - cycle the four surfaces AND turn the roll's pages - so it
+      // was forward-only in both, and getting from roll page 1 back to BOOKS
+      // cost three taps through pages you had already read. It is one job
+      // again; the roll is read with the same gesture as every other list here.
+      const wn = hallWindow(poll.lines.length, ROLL_ROWS);
+      const wl = hallWinLabel(wn);
+      if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 66, [150, 140, 160]);
       let ly = y + 76;
-      const p0 = Math.min(hallRollPage, rollPages - 1) * ROLL_ROWS;
-      for (const l of poll.lines.slice(p0, p0 + ROLL_ROWS)) {
+      for (const l of poll.lines.slice(wn.top, wn.end)) {
         smallText(ctx, fitSmall(l, w2 - 16), x + 8, ly, [110, 100, 110]);
         ly += 7;
       }
@@ -20351,8 +20509,16 @@ function drawHall(R, chip) {
     // who is on the paper, how many have voted, and how much paper is left.
     // A running total would quietly undo the whole point of counting by hand.
     smallText(ctx, fitSmall("TODAY'S BALLOT - " + B0.printed + " PAPERS PRINTED", w2 - 16), x + 8, y + 66, [58, 42, 38]);
+    // FOUR ROWS OF UP TO SIX, and it used to be a silent slice(0, 4) - on a
+    // full ballot the clipped candidate was YOUR OWN, every time, because
+    // buildBallot unshifts the incumbent and PUSHES your nominee last. The one
+    // page in the game that lists who is standing could not show you that you
+    // were standing. It scrolls now, and it says how many there are.
+    const wn = hallWindow(B0.cands.length, 4);
+    const wl = hallWinLabel(wn);
+    if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 66, [150, 140, 160]);
     let ly = y + 76;
-    for (const k of B0.cands.slice(0, 4)) {
+    for (const k of B0.cands.slice(wn.top, wn.end)) {
       const you = !!k.you;
       smallText(ctx, fitSmall((k.inc ? "* " : "  ") + k.name + (you ? " (YOURS)" : ""), 76), x + 8, ly,
         you ? [190, 110, 40] : [40, 30, 40]);
@@ -20377,16 +20543,24 @@ function drawHall(R, chip) {
     else {
       smallText(ctx, fitSmall("DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
         + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), w2 - 16), x + 8, y + 66, [58, 42, 38]);
+      // THE RESULT SCROLLS THE CANDIDATES, not the roll taster below it. Three
+      // rows of up to six, and the honest "+3 MORE ON THE BALLOT" it used to
+      // print was honest about a thing you could not then go and read - the
+      // fourth-placed candidate and their vote count existed in the save and
+      // appeared on no surface in the game. The taster keeps its own measured
+      // room and its own pointer at the ROLL, which is a different list on a
+      // different page and stays there.
+      const wn = hallWindow(poll.cands.length, 3);
+      const wl = hallWinLabel(wn);
+      if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 66, [150, 140, 160]);
       let ly = y + 76;
-      for (const k of poll.cands.slice(0, 3)) {
+      for (const k of poll.cands.slice(wn.top, wn.end)) {
         const won = k.name === poll.winner;
         smallText(ctx, fitSmall((won ? "* " : "  ") + k.name, 46), x + 8, ly, won ? [190, 110, 40] : [90, 80, 90]);
         smallText(ctx, fitSmall(k.line, 108), x + 56, ly, won ? [40, 30, 40] : [110, 100, 110]);
         smallText(ctx, "" + k.votes, x + 168, ly, won ? [190, 110, 40] : [110, 100, 110]);
         ly += 8;
       }
-      if (poll.cands.length > 3)
-        smallText(ctx, "+" + (poll.cands.length - 3) + " MORE ON THE BALLOT", x + 8, ly, [150, 140, 160]), ly += 8;
       ly += 2;
       // ...and a taste of the roll, with a pointer at the page that holds it
       // all. The BALLOT page is the RESULT; the ROLL page is the argument.
@@ -20414,7 +20588,15 @@ function drawHall(R, chip) {
   // note beside `apply` in the click handler.
   chip(R.pmech, EP.short + " " + purseRateTxt(ed), null, mine);
   chip(R.prm, "-", null, false); chip(R.prp, "+", null, false);
-  smallText(ctx, "RATE " + (ed.rate | 0), R.prm.x + 20, R.prm.y + 4, [40, 30, 40]);
+  // THE RATE READS IN ITS OWN UNIT, like the two dials below it. It used to
+  // print the raw STEP INDEX - "RATE 3" under a chip saying "TARIFF 50%" -
+  // which broke the rule the note under the floor and cap dials states out
+  // loud: a dial reads as the THING VOTED FOR, never as a step index, because
+  // the index is an implementation detail of the stepper and is not what is on
+  // the ballot. Nobody campaigns on rate 3. The tariff made it obvious because
+  // its ladder is not uniform (0/10/25/50/100), so the index carries no
+  // arithmetic relationship to the number it stands for at all.
+  smallText(ctx, purseRateTxt(ed), R.prm.x + 20, R.prm.y + 4, [40, 30, 40]);
   chip(R.pbm, "-", null, false); chip(R.pbp, "+", null, false);
   smallText(ctx, "BOWLS " + (ed.bowls | 0), R.pbm.x + 19, R.pbm.y + 4, [40, 30, 40]);
   // ...and the two dials that are not about the shelter at all. Both read as
@@ -21873,17 +22055,37 @@ const HELP_PAGES = [
     ["-"],
     ["t", "NOTHING HERE IS FREE. EVERY BOWL IN THAT POT"],
     ["t", "WAS BOUGHT FROM A REAL SHOP THE NIGHT BEFORE."],
+    // THE GESTURE, WRITTEN DOWN, and it is a HEADING with no body because that
+    // is all the room this page had - measured, not guessed. A scroll has no
+    // on-screen affordance the way a chip does (the record box's list has the
+    // same problem and the same answer) and this card is where a player looks a
+    // control up. It goes on the page ABOUT the hall; POLLING DAY, the other
+    // candidate, was already 28px past its own footer before this pass.
+    ["h", "ITS PAGES SCROLL - WHEEL, FINGER, UP/DOWN"],
   ] },
   // ...and the dials themselves get the page after it. The fund outgrew the
   // town-hall page the moment the floor joined it, and the floor is the one
   // policy on the ballot that bills a player directly - it does not belong in
   // the four lines left at the bottom of somebody else's page.
+  // FIVE PURSES, NOT FOUR. This page said FOUR and named four for a cycle
+  // after THE TARIFF landed as the fifth - so the one purse a player is most
+  // likely to come looking up (Matt asked for it by name) was the one the help
+  // card did not have. A count in prose is a thing that rots the moment the
+  // table under it grows; it is spelled out here because the page has the room.
   { title: "WHAT THE MAYOR SETS", lines: [
-    ["h", "THE TOWN FUND - FOUR PURSES, MAYOR'S PICK"],
+    ["h", "THE TOWN FUND - FIVE PURSES, MAYOR'S PICK"],
     ["t", "A LEVY ON TAKINGS. HARBOUR DUES PER HEAD"],
     ["t", "LANDED. A CUT OF THE HOUSE RENTS. A TIN."],
+    ["t", "AND A TARIFF ON EVERY IMPORTED GOOD."],
     ["t", "THEY FALL ON DIFFERENT CRABS, WHICH IS WHY"],
     ["t", "THE VOTE IS WORTH CASTING."],
+    ["-"],
+    ["h", "THE TARIFF, AND WHO IT IS FOR"],
+    ["t", "PAID BY THE TILL THAT BUYS THE CRATE, SO A"],
+    ["t", "TOWN LIVING OFF THE FERRY PAYS AND ONE FED"],
+    ["t", "BY ITS OWN PIER DOES NOT. IT ALSO LIFTS WHAT"],
+    ["t", "THE PIER MAY CHARGE - FISHERS GAIN, KITCHENS"],
+    ["t", "PAY - AND THE TRADE PAGE PRICES IT FOR YOU."],
     ["-"],
     ["h", "THE POT"],
     ["t", "HOW MANY BOWLS GO ON THE FIRE AT NIGHT, UP"],
