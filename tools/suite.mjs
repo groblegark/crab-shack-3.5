@@ -2598,12 +2598,22 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // to the cent (coins 19570, rep 44141, REEF 25688) - one town, two readers,
     // the cross-check that this is the real town and not a fixture bug (rule 6).
     // Arm-off: window._nodepart / --nodepart restores the spawn-fixed leaveT.
-    1337: '{"day":3,"tmin":0,"coins":24115,"rep":41045,"catch":4,"serves":43,"crabServes":3,"rage":5,"till":18077,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18077],["REEF",24599],["SALTY",100],["DRIFT",1000],["KELP",300]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,167],[425,167.2]]}',
-    // 4242 is UNMOVED - byte-identical to the pre-change tree - and still the
-    // shared cross-check with the cultureways-save pin: coins 19570, rep 44141,
-    // REEF 25688 read identically there, proving one trajectory measured by two
-    // scenarios. That this seed did not move is the proof the trigger is narrow.
-    4242: '{"day":3,"tmin":0,"coins":19570,"rep":44141,"catch":4,"serves":44,"crabServes":5,"rage":4,"till":19055,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19055],["REEF",25688],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[450,155]]}',
+    // RE-BASELINED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task
+    // kd-CC5yBIzjFt). This two-day town could not survive it: crabTick gives
+    // every crab a continuous hunger/thirst/dirt/bored drain (bodyOf(c).R at
+    // CIT_DECAY_MUL=7 of the tourist rate, paused while asleep or on duty), and
+    // the four discrete metabolic shift-end/NPC lumps it subsumes turn off - so
+    // who runs which errand when, and thus every wallet and position, re-rolls.
+    // Draw-free (crabTick takes no srand), so the stream STRUCTURE is intact
+    // (rng pin re-points by VALUE, kernel-agreement byte-identical) - a pure
+    // trajectory re-roll off the new demand, not a leak. Arm-off:
+    // window._noDecay / --nodecay restores the pre-U1 tree exactly. BOTH seeds
+    // moved this time (the drain touches every crab, unlike the narrow
+    // depart-when trigger), and seed 4242 STILL matches the cultureways-save pin
+    // below to the cent (coins 21966, rep 43845, REEF 28166) - the one-town-two-
+    // readers cross-check holds, re-pointed there in lockstep.
+    1337: '{"day":3,"tmin":0,"coins":19289,"rep":41122,"catch":4,"serves":41,"crabServes":0,"rage":3,"till":17683,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",17683],["REEF",22210],["SALTY",2600],["DRIFT",3200],["KELP",2500]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[256.1,167.6]]}',
+    4242: '{"day":3,"tmin":0,"coins":21966,"rep":43845,"catch":4,"serves":51,"crabServes":0,"rage":4,"till":21053,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",21053],["REEF",28166],["SALTY",2600],["DRIFT",2600],["KELP",2200]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -16212,7 +16222,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1863, 2: 2607 };   // RE-POINTED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav). The move is ATTRIBUTED CLEANLY, not just observed: arming the feature's OWN `_nodepart` hatch on this exact seed reads day 1 and day 2 back to EXACTLY 1859/2731 - the pre-change spec, to the draw - so visitor-chosen departure owns the ENTIRE delta and nothing else moved. The decision itself takes ZERO draws (needW/nearestSail/visLog are draw-free), so the stream STRUCTURE is untouched - the kernel-agreement scenario is byte-identical either side; what moves the count is BEHAVIOUR downstream, a guest who chooses to stay on at the dock keeps roaming (each stroll draws) while a guest who cuts short leaves sooner. Day 1 +4 (1859->1863), day 2 -124 (2731->2607). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. vm AND main realm read 1863/2607 identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 2090, 2: 2495 };   // RE-POINTED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task kd-CC5yBIzjFt). ATTRIBUTED CLEANLY: arming U1's OWN `_noDecay` hatch (--nodecay) on this exact seed reads day 1/2 back to EXACTLY 1863/2607 - the pre-U1 spec, to the draw - so the citizen drain owns the ENTIRE delta and nothing else moved. crabTick is DRAW-FREE (integer Q20, no srand), so the stream STRUCTURE is untouched (the kernel-agreement scenario is byte-identical either side); what moves the count is BEHAVIOUR downstream - a crab whose hunger/thirst/dirt/bored now decays continuously runs MORE errands (each pickErrand + walk draws), and the on-duty pause + re-timed shift lumps reshape WHO is where at 7am. Day 1 +227 (1863->2090), day 2 -112 (2607->2495). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. The mul is CIT_DECAY_MUL=7, calibrated on the re-taken pillar (receipt cs-u1-rebase-cal-3fc20a3). PRIOR HOLDER (kept, the class is the point): VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav). The move is ATTRIBUTED CLEANLY, not just observed: arming the feature's OWN `_nodepart` hatch on this exact seed reads day 1 and day 2 back to EXACTLY 1859/2731 - the pre-change spec, to the draw - so visitor-chosen departure owns the ENTIRE delta and nothing else moved. The decision itself takes ZERO draws (needW/nearestSail/visLog are draw-free), so the stream STRUCTURE is untouched - the kernel-agreement scenario is byte-identical either side; what moves the count is BEHAVIOUR downstream, a guest who chooses to stay on at the dock keeps roaming (each stroll draws) while a guest who cuts short leaves sooner. Day 1 +4 (1859->1863), day 2 -124 (2731->2607). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. vm AND main realm read 1863/2607 identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
