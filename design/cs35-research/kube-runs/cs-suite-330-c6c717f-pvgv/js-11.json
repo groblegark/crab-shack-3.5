@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-c6c717f-pvgv",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "c6c717fe57b808d38666ba2708dd25814a3474b3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 135191,
+  "verdict": "34/34 passed in slice 11/12 (135.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1900ms)\n  PASS  sick crabs can still wash (mobility + cure path) (1152ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (252ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1300ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (35ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (45ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (6115ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1421ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (34515ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (5578ms)\n  PASS  ferry: the arming tap times out, and an old save never won (79ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (9ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (10877ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (6772ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (22643ms)\n  PASS  departures: the money band prints the manifest's own dollars (605ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (735ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (3917ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (12ms)\n  PASS  a standing offer can be answered from the card that announces it (16ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (15ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1812ms)\n  PASS  crab voice: two whole days with the table off are the same town (2581ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (1374ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (7ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (22878ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (397ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (546ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2930ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (13ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1946ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (9ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (12ms)\n  PASS  the arcade floor survives a save and reload (2605ms)\n34/34 passed in slice 11/12 (135.1s)\n"
+}

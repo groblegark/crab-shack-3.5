@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-f475ee4-540c",
+  "armId": "js-5",
+  "index": 5,
+  "sha": "f475ee4a770ce61f600d79f275d5a0dbfea77b9a",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 81633,
+  "verdict": "34/34 passed in slice 5/12 (81.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (18047ms)\n  PASS  save guard: a town born from a rejected save does not bury it (1425ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (38ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1415ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (950ms)\n  PASS  days off: everyone rests their weekday and plays customer (6995ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (751ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1655ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (2966ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (997ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (19ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (944ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (8ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1278ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (1077ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1773ms)\n  PASS  departures: every character the card prints exists in the font (1047ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (4235ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (211ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (577ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (578ms)\n  PASS  the whole session plays through one audio element (10ms)\n  PASS  missing payday costs the crew, not the lease (9025ms)\n  PASS  crab-as-document: a hostile document is refused by name (10ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (10659ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (40ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (472ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (486ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (432ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3344ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1488ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (4457ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (2106ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1943ms)\n34/34 passed in slice 5/12 (81.5s)\n"
+}

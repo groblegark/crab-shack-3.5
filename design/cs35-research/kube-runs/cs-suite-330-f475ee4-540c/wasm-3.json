@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-f475ee4-540c",
+  "armId": "wasm-3",
+  "index": 15,
+  "sha": "f475ee4a770ce61f600d79f275d5a0dbfea77b9a",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 173584,
+  "verdict": "34/34 passed in slice 3/12 (173.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (2241ms)\n  PASS  save/load roundtrip preserves state (1058ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (912ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (22291ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (2651ms)\n  PASS  tired: fatigue scales with the hours actually worked (1414ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (944ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (596ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (11ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (4873ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1029ms)\n  PASS  the title's credit block never lands on the science button (14ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (52212ms)\n  PASS  visitors: the wallet is real money, and it runs out (694ms)\n  PASS  the town fund moves money and never mints it (13370ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (772ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (8ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (2569ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (931ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (243ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (45958ms)\n  PASS  the shipmap stamps shipped rows onto the catalog (16ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (5445ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (20ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (7961ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (15ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (489ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (111ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (589ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2068ms)\n  PASS  the title screen ages the build, and keeps ticking (10ms)\n  PASS  load: the same envelope lands the same way however often you land it (997ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (968ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (8ms)\n34/34 passed in slice 3/12 (173.5s)\n"
+}

@@ -6008,6 +6008,55 @@ copy of them.
     with `Content-Disposition: attachment` and `<audio>` plays them anyway —
     8 cold tracks, all canplay, **median 362 ms, worst 553 ms**. So the repo
     carries none of the audio and the catalog ships at 81 KB gzipped.
+    **Re-confirmed on WebKit too** (2026-08-26), same bytes and same origin with
+    only the headers varied, so nothing but the header is under test:
+
+    | | `audio/mpeg` | `octet-stream` + `attachment` |
+    |---|---|---|
+    | Chromium | loadedmetadata 43.52s | loadedmetadata 43.52s |
+    | WebKit | loadedmetadata 43.56s | loadedmetadata 43.56s |
+
+    So the header theory for the iOS silence is **dead** — and it nearly went
+    into this file as fact. A first pass "measured" WebKit rejecting the release
+    URL with `ERROR 4`; that browser was hand-built in-pod and had **no TLS**
+    (`TLS support is not available`), so *every* `https://` URL failed the same
+    way. The tell was that the proposed *remedy* (jsDelivr, raw.githubusercontent
+    — both `audio/mpeg` + CORS) failed identically. **A positive control must
+    exercise the same transport as the subject**: theirs was same-origin
+    plaintext HTTP against remote HTTPS subjects, so it could only ever prove
+    the codec worked, never the network stack. Note the release CDN does send
+    **no `access-control-allow-origin`**, so a `fetch`→blob path is genuinely
+    unavailable; range/206 works everywhere and was never the problem.
+  - **The shipped rows must know they are shipped** (`music/shipmap.json`,
+    `tools/mkshipmap.mjs`) — and the join is **by audio, never by name**.
+    `mkmusic.mjs` numbers duplicate titles and the *first* keeps the bare name,
+    but the take a build copied in is usually not the first: **7 of the 20
+    name-equal pairs are a different recording** (PIXEL WAVE WALTZ 142s vs
+    123s; 14 rows named REGALIA WALTZ, 20 named TRAIN WHISTLE). Byte-exact
+    settles 12 of 22; the rest are 128kbps re-encodes matched on RMS-envelope
+    correlation, **controlled before use** (true pair 1.0000, unrelated
+    0.23–0.35, all accepted ≥ 0.9998). Stamping the name-match would have
+    pointed seven tracks at the wrong audio and failed *silently*. **22 of 22**
+    shipped mp3s are mapped — the last one, `YOU WIN/GAME OVER`, was missed by a
+    hand pass that grouped by name family (`shout()` turns the slash into a
+    space) and found by the generator, which never groups by name at all. *A
+    generator you have not actually run is a comment, not a generator.*
+  - **THE TAP COSTS ONE `src` AND ONE `play()`, and that is the iOS fix**
+    (`musProbeArchive`, `musApplyShipmap`). Measured by simulating iOS's autoplay
+    **policy** — `play()` rejects `NotAllowedError` outside a gesture — rather
+    than chasing WebKit; see `design/cs35-research/ios-music/`:
+
+    | | `src` swaps | `play()` attempts | ends on |
+    |---|---|---|---|
+    | title, no tap | 0 | 0 | — (the latch holds) |
+    | shipped row, tapped | 1 | 1 | `music/<name>.mp3` |
+    | streaming row, tapped | 1 | 1 | the release URL |
+    | streaming row, **probe removed** | **2** | **2** | `music/archive/…` → 404 |
+
+    The last row is the control and the bug: the first tap of a session spent its
+    gesture on a 404 and reached the real URL only from an async `.catch()`, a
+    network round trip later — after iOS has withdrawn permission. Desktop
+    unlocks per origin and never noticed.
   - **Judgements REACH THE MUSIC.** The rotation is the shipped playlist minus
     what you dropped, plus every catalog track you kept at the energy you gave
     it — inert until you judge something. Before this the box recorded keeps,

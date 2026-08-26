@@ -23431,7 +23431,69 @@ function musSave() {
 function musLoadCatalog() {
   if (typeof fetch !== "function") return;
   fetch("music/catalog.json").then(r => (r.ok ? r.json() : null))
-    .then(j => { if (j && j.tracks) { MUSCAT = j; rebuildRotation(); } }).catch(() => {});
+    .then(j => {
+      if (!j || !j.tracks) return;
+      MUSCAT = j;
+      rebuildRotation();
+      // THE SHIPPED ROWS MUST KNOW THEY ARE SHIPPED, and this is the whole iOS
+      // fix. 22 of these 1,201 rows are tracks this build already carries in
+      // music/ - but nothing in the catalog says so, so musSrc sent every one
+      // of them to music/archive/ (absent from Pages -> 404) and only reached
+      // the release from an async .catch(). iOS honours play() only inside the
+      // gesture that started it, and that retry is a network round trip too
+      // late, so the box was silent on a phone while desktop shrugged it off.
+      //
+      // Stamped here rather than baked into catalog.json because it is a fact
+      // about THIS BUILD's music/ directory, not about the archive: a build
+      // that ships a different set gets a different shipmap, and the catalog
+      // stays the portable index of everything.
+      musLoadShipmap();
+      musProbeArchive();
+    }).catch(() => {});
+}
+// Optional, like the catalog: absent shipmap just means nothing is stamped and
+// every row streams, which is exactly the old behaviour.
+function musLoadShipmap() {
+  fetch("music/shipmap.json").then(r => (r.ok ? r.json() : null))
+    .then(j => { if (musApplyShipmap(j)) rebuildRotation(); }).catch(() => {});
+}
+// THE STAMP IS ITS OWN FUNCTION so the suite can drive it. Left inside the
+// fetch callback it was unreachable from a test - and a scenario that re-typed
+// this loop beside it passed happily with the real one deleted, which is the
+// only kind of test worse than none. Returns how many rows it stamped.
+function musApplyShipmap(j) {
+  if (!j || !j.ships || !MUSCAT || !MUSCAT.tracks) return 0;
+  let n = 0;
+  for (const t of MUSCAT.tracks) {
+    const s = j.ships[t.id];
+    if (!s || !s.file) continue;
+    t.shipped = 1;      // musSrc returns t.file verbatim for a shipped row
+    t.file = s.file;    // ...so it must be the same-origin path, not the archive name
+    n++;
+  }
+  return n;
+}
+// SETTLE THE ARCHIVE QUESTION BEFORE ANYONE TAPS, not on the first tap.
+//
+// ARCHIVE_OK is a tri-state that learns from a real playback failure, and that
+// is the right policy for a machine that HAS the 4.3 GB mirror. But the way it
+// learned cost the first track of every session a 404 - and on iOS that first
+// track is the one that matters, because the retry lands a network round trip
+// after the tap that authorised it and WebKit refuses to play outside the
+// gesture. A latch that is correct on the second tap is no use on a phone.
+//
+// So ask ONCE, at load, with a request that costs nothing and belongs to no
+// gesture. By the time a player opens the record box the answer is in, and
+// musSrc returns the streaming url SYNCHRONOUSLY - one src, one play(), inside
+// the tap. Same-origin relative path, so no CORS and no preflight.
+function musProbeArchive() {
+  if (typeof fetch !== "function" || ARCHIVE_OK !== null) return;
+  const t = MUSCAT && MUSCAT.tracks && MUSCAT.tracks.find(r => !r.shipped && r.file);
+  if (!t) return;
+  // HEAD, because we want the status and never the 3 MB body.
+  fetch("music/archive/" + t.file, { method: "HEAD" })
+    .then(r => { if (ARCHIVE_OK === null) ARCHIVE_OK = !!r.ok; })
+    .catch(() => { if (ARCHIVE_OK === null) ARCHIVE_OK = false; });
 }
 function musRowRect(i) { return { x: 6, y: 34 + i * 20, w: W - 26, h: 18 }; }
 function musBarRect() { return { x: W - 16, y: 34, w: 10, h: MUS_ROWS * 20 - 2 }; }
