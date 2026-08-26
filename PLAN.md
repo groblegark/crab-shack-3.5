@@ -6157,7 +6157,43 @@ copy of them.
     | Chromium | loadedmetadata 43.52s | loadedmetadata 43.52s |
     | WebKit | loadedmetadata 43.56s | loadedmetadata 43.56s |
 
-    So the header theory for the iOS silence is **dead** — and it nearly went
+    **RETRACTED 2026-08-26 (later, real Safari): the header theory is ALIVE,
+    and this table is the trap it hides in.** Matt: "the music player for cs3.5
+    is broken in safari". Measured in **Safari 26.6 on macOS**, driven through
+    the real `musPlay` path: a bare `a.src = <release url>` gives
+    `NotSupportedError` / `MEDIA_ERR_SRC_NOT_SUPPORTED`, and the same bytes
+    behind our own `audio/mp3` play — the exact difference this table reports
+    as absent. Every one of the box's 1,179 catalog auditions was silent in
+    Safari while the town's music played, which is precisely the shape
+    "`octet-stream` is fine" predicts you will never see.
+
+    **Playwright's WebKit is NOT Safari, for media.** The row above was a
+    `playwright.webkit` build; real Safari decodes through AVFoundation, which
+    honours the response content type, while playwright's WebKit ships a
+    permissive media backend that sniffs. Both cells reading an identical
+    43.5s should have been the tell — a positive control that cannot
+    distinguish the two arms is not a control. **The rule that keeps costing
+    us: a browser-family stand-in is a stand-in for layout, not for codecs,
+    DRM, or autoplay. Test WebKit media in Safari itself** (`safaridriver`,
+    or just `open -a Safari` a page that posts its own results back).
+
+    The remedy is in `musSetSrc`: a `<source>` child with an explicit
+    `type="audio/mpeg"`, used **only for absolute urls**, because WebKit takes
+    the author's declaration over the server's. It is deliberately NOT used for
+    our own relative paths — measured, a 404 behind a `<source>` reports
+    nothing at all in Safari for 30s (no source error, no element error, only a
+    late play() rejection), and the archive mirror's 404 is the EXPECTED miss
+    that must stay fast. It falls through in 250 ms on `src` and would stall
+    for twenty seconds on `<source>`.
+
+    What survives from the pass below: **there is no server-side fix.** Our
+    assets are already stored `content_type: audio/mpeg` (the API says so) and
+    GitHub rewrites the download to `octet-stream` + `attachment` in a signed
+    redirect regardless — cli/cli's `text/plain` checksums file downloads as
+    octet-stream too. And the CDN still sends no `access-control-allow-origin`,
+    so the `fetch`→blob re-wrap is genuinely unavailable as a fallback.
+
+    The original retraction below still stands on its own terms — and it nearly went
     into this file as fact. A first pass "measured" WebKit rejecting the release
     URL with `ERROR 4`; that browser was hand-built in-pod and had **no TLS**
     (`TLS support is not available`), so *every* `https://` URL failed the same

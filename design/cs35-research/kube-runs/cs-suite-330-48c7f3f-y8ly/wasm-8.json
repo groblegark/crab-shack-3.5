@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-48c7f3f-y8ly",
+  "armId": "wasm-8",
+  "index": 20,
+  "sha": "48c7f3f6a7107b7ab95a4d89a01b648fadb5ddd9",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 78856,
+  "verdict": "34/34 passed in slice 8/12 (78.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (532ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1083ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (7508ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (163ms)\n  PASS  fishers feed themselves: breaks + the beach roast (3863ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (182ms)\n  PASS  roster: the refactor preserves every census ordering (672ms)\n  PASS  sale: the player buys a failed business through the shopfront (2619ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (5139ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (25982ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (640ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (11274ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (1848ms)\n  PASS  the fund is struck to the bill and does not hoard (863ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (21ms)\n  PASS  departures: a display card moves nothing in the town (1340ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (2620ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (413ms)\n  PASS  the hire card runs on the wall clock, not the game clock (721ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (312ms)\n  PASS  BACK hands the town the track you were auditioning (12ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (2659ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (71ms)\n  PASS  civics stakes: a hostile table is refused by name (10ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (15ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (19ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (14ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (52ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1381ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (226ms)\n  PASS  science: one recipe lives the same town twice (6392ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (21ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (97ms)\n34/34 passed in slice 8/12 (78.8s)\n"
+}

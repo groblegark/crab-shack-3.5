@@ -7532,6 +7532,80 @@ let SPEAKER = null;
 // and both would otherwise start their own fallback. Stamping the attempt lets
 // the second one see it has been superseded and return.
 let musSrcGen = -1;
+// WHAT IS ON THE ELEMENT, as a string we kept - because after this change the
+// element's own `src` property is empty and `currentSrc` is the RESOLVED url,
+// which the archive test below cannot match against a relative path. Three
+// readers ask "did that attempt come from the local mirror?" to decide whether
+// a failure means "fall through to the release we host"; they read this.
+let musCurSrc = "";
+// THE TYPE HAS TO BE DECLARED WHERE WE ARE NOT THE SERVER, and on Safari that
+// is the whole record-box bug.
+//
+// The tracks this build ships are served by our own host as `audio/mp3`. The
+// 1,201 catalog tracks the box streams are GitHub RELEASE ASSETS, and GitHub
+// serves every release asset as `application/octet-stream` with an attachment
+// disposition NO MATTER WHAT - ours are stored as `audio/mpeg` (mkmusichost
+// uploads them that way and the API still reports it) and the download is
+// rewritten anyway, in a signed redirect we cannot alter. Verified against
+// other repos too: cli/cli's `text/plain` checksums file downloads as
+// octet-stream. So there is no server-side fix to reach for here.
+//
+// Chrome sniffs the bytes, finds an MP3 and plays it, which is why the bench
+// worked on every machine this was written on. WebKit does not sniff: it takes
+// the content type at its word and refuses the source. MEASURED in Safari 26.6,
+// a bare `a.src = <release url>` gives `NotSupportedError` /
+// MEDIA_ERR_SRC_NOT_SUPPORTED, while the same bytes behind our own `audio/mp3`
+// play fine. So in Safari the town's music worked and the record box was
+// silent - every audition, all 1,179 of them.
+//
+// A `<source>` child with an explicit `type` is the one lever that moves it:
+// WebKit picks the decoder from the AUTHOR-DECLARED type and stops consulting
+// the server's. Measured: same url, same element, PLAYING. The blob route -
+// fetch the bytes and re-wrap them - is not available even as a fallback,
+// because the release CDN sends no CORS headers (`TypeError: Load failed`).
+//
+// BUT IT IS NOT USED FOR OUR OWN PATHS, and that restraint is the interesting
+// half. A `<source>` child changes how FAILURE is reported: the spec hands an
+// exhausted candidate list to NETWORK_NO_SOURCE without firing 'error' at the
+// media element, and MEASURED in Safari 26.6 a 404 behind a `<source>` reports
+// NOTHING for at least 30 seconds - not on the source, not on the element -
+// and only the play() promise ever settles, somewhere past 6s. A relative path
+// is the one source we EXPECT to miss (the archive mirror is gitignored and
+// absent from every build but one, and its 404 is what teaches ARCHIVE_OK and
+// falls through to the release), so routing it through `<source>` would trade
+// an instant, well-tested fallthrough for a twenty-second stall. We serve
+// those ourselves with a real content type, so they have nothing to gain from
+// a declaration and everything to lose. Absolute url -> declare; our own
+// path -> the plain `src` this file has always used.
+function musSetSrc(a, url) {
+  musCurSrc = url;
+  // WHERE THERE IS NO DOM THERE IS NO DECODER EITHER. The headless sim's
+  // `Audio` is an inert stub - no children, no `removeAttribute`, no `load` -
+  // and the suite's spy counts `src` ASSIGNMENTS to prove the one-element,
+  // one-swap-per-track shape iOS needs. Off-browser this stays the single
+  // `src` write every one of those scenarios was written against.
+  const ours = !/^https?:/i.test(url);
+  if (ours || !a.ownerDocument || typeof a.appendChild !== "function" || typeof a.load !== "function") {
+    while (a.firstChild) a.removeChild(a.firstChild);   // a leftover <source> outranks the src attribute
+    a.src = url;
+    return;
+  }
+  a.removeAttribute("src");                       // an empty `src` attribute is itself a candidate, and a failing one
+  while (a.firstChild) a.removeChild(a.firstChild);
+  const s = a.ownerDocument.createElement("source");
+  s.src = url;
+  s.type = "audio/mpeg";
+  // THE FAILURE MOVES TO THE CHILD, so the handler moves with it. With a bare
+  // `src` a dead source reached us twice - the element's 'error' and the
+  // play() rejection - and `musSrcGen` existed to drop the duplicate. The
+  // element-level listener in `speaker` never fires for a `<source>`, so this
+  // carries the same stamp and the same `musFail`. (Chrome does fire it here;
+  // Safari, measured above, does not - the play() rejection is its only
+  // signal, and that is why the expected-miss path above stays on `src`.)
+  s.addEventListener("error", () => musFail(musSrcGen));
+  a.appendChild(s);
+  a.load();                                       // children are only re-read on an explicit load; setting .src used to do this for us
+}
 function speaker() {
   if (SPEAKER) return SPEAKER;
   const a = SPEAKER = new Audio();
@@ -7600,7 +7674,7 @@ function playTrack(i) {
   // baked src that would be wrong on the other kind of machine.
   const a = speaker();
   a.pause();
-  a.src = t.cat ? musSrc(t.cat) : t.src;
+  musSetSrc(a, t.cat ? musSrc(t.cat) : t.src);
   music = a;
   musMeta(t.name);
   a.play().then(() => { musFails = 0; musBlocked = false; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
@@ -7647,11 +7721,11 @@ function musFail(gen, e) {
   if (musPreview) return musPrevFail(gen);
   if (!music) return;
   const t = ROTATION[trackIdx], cat = t && t.cat;
-  if (cat && cat.url && a.src.indexOf("music/archive/") >= 0) {
+  if (cat && cat.url && musCurSrc.indexOf("music/archive/") >= 0) {
     ARCHIVE_OK = false;                  // learned once; later tracks go straight to the CDN
     const g = musSrcGen = ++musGen;
     a.pause();
-    a.src = cat.url;
+    musSetSrc(a, cat.url);
     a.play().then(() => { musFails = 0; musBlocked = false; }).catch(e2 => musFail(g, e2));
     return;
   }
@@ -24258,13 +24332,13 @@ function musPlay(t, toggle = true) {
   const gen = musSrcGen = ++musGen;
   const a = speaker();
   a.pause();
-  a.src = musSrc(t);
+  musSetSrc(a, musSrc(t));
   musPreview = a;
   musPreviewId = t.id;
   musMeta(t.name);
   a.play().then(() => {
     musBlocked = false;
-    if (musGen === gen && ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
+    if (musGen === gen && ARCHIVE_OK === null && musCurSrc.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
   }).catch(e => musFail(gen, e));
 }
 // THE BENCH'S HALF OF THE FALLBACK, reached through `musFail` so the rotation
@@ -24278,11 +24352,11 @@ function musPrevFail(gen) {
     musPreview = null; musPreviewId = "";
     toast = { text: "NO AUDIO FOR " + (t ? t.name : "THAT TRACK"), t: 3 };
   };
-  if (t && !t.shipped && t.url && a.src.indexOf("music/archive/") >= 0) {
+  if (t && !t.shipped && t.url && musCurSrc.indexOf("music/archive/") >= 0) {
     ARCHIVE_OK = false;   // learned once; every later track goes straight to the CDN
     const g = musSrcGen = ++musGen;
     a.pause();
-    a.src = t.url;
+    musSetSrc(a, t.url);
     a.play().catch(() => { if (musGen === g) giveUp(); });
     return;
   }

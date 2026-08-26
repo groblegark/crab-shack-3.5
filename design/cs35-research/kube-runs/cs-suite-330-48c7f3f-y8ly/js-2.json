@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-48c7f3f-y8ly",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "48c7f3f6a7107b7ab95a4d89a01b648fadb5ddd9",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 157248,
+  "verdict": "35/35 passed in slice 2/12 (157.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2721ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2047ms)\n  PASS  save/load: townsfolk keep wallets and houses (1485ms)\n  PASS  all crew dead: town survives, rehire recovers (1037ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (1158ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (902ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (24582ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (775ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4326ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (24126ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (24460ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1819ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (759ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (95ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4568ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (5646ms)\n  PASS  departures: the card waits behind the day report, then pages itself (1423ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (4946ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1673ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (7ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (12ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (9ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (3487ms)\n  PASS  traits: the island's table is the literal, value for value (14ms)\n  PASS  depart programs: a hostile table is refused by name (17ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (36441ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (26ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (21ms)\n  PASS  foodways: the validator names its refusals (11ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1344ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (22ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (2019ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (275ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (30ms)\n  PASS  the arcade: the chore is named for the shop it happens in (4871ms)\n35/35 passed in slice 2/12 (157.2s)\n"
+}
