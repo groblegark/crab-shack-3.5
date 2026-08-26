@@ -1,0 +1,90 @@
+{
+  "release": "cs-matrix-idle16-b8fca1e-t8uy",
+  "armId": "baseline-sb0-asbuilt",
+  "index": 0,
+  "sha": "b8fca1e40c1cc57e4d2b1e0509f6f327b0580f5b",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 39552,
+  "verdict": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"6\":1,\"8\":1,\"10\":6,\"11\":3,\"12\":2,\"13\":1,\"15\":1,\"17\":1},\"median\":11,\"min\":6,\"max\":17},\"lifetime\":{\"median\":3206,\"p10\":1970,\"p90\":4282,\"mean\":3101},\"throughput\":{\"livedSimDays\":176,\"wallSec\":39.51,\"simDaysPerSec\":4.5,\"loadavg\":[6.8,4,2.3]},\"rep\":{\"list\":[31,40,43,49,49,52,54,54,54,55,55,55,56,56,58,62],\"median\":54}}",
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 0,
+    "jobs": 7,
+    "cores": 8,
+    "workload": "--days 30 --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 0,
+    "evicted": 16,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "6": 1,
+        "8": 1,
+        "10": 6,
+        "11": 3,
+        "12": 2,
+        "13": 1,
+        "15": 1,
+        "17": 1
+      },
+      "median": 11,
+      "min": 6,
+      "max": 17
+    },
+    "lifetime": {
+      "median": 3206,
+      "p10": 1970,
+      "p90": 4282,
+      "mean": 3101
+    },
+    "throughput": {
+      "livedSimDays": 176,
+      "wallSec": 39.51,
+      "simDaysPerSec": 4.5,
+      "loadavg": [
+        6.8,
+        4,
+        2.3
+      ]
+    },
+    "rep": {
+      "list": [
+        31,
+        40,
+        43,
+        49,
+        49,
+        52,
+        54,
+        54,
+        54,
+        55,
+        55,
+        55,
+        56,
+        56,
+        58,
+        62
+      ],
+      "median": 54
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"6\":1,\"8\":1,\"10\":6,\"11\":3,\"12\":2,\"13\":1,\"15\":1,\"17\":1},\"median\":11,\"min\":6,\"max\":17},\"lifetime\":{\"median\":3206,\"p10\":1970,\"p90\":4282,\"mean\":3101},\"throughput\":{\"livedSimDays\":176,\"wallSec\":39.51,\"simDaysPerSec\":4.5,\"loadavg\":[6.8,4,2.3]},\"rep\":{\"list\":[31,40,43,49,49,52,54,54,54,55,55,55,56,56,58,62],\"median\":54}}\n"
+}
