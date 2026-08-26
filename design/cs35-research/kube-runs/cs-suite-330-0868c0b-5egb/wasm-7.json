@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-0868c0b-5egb",
+  "armId": "wasm-7",
+  "index": 19,
+  "sha": "0868c0b45bd02e3c9473ab72674745778747ecc6",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 108786,
+  "verdict": "35/35 passed in slice 7/12 (108.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (2815ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1073ms)\n  PASS  slots: two towns stay independent, switching never crosses them (832ms)\n  PASS  boat: ownership and berth roundtrip through save/load (1078ms)\n  PASS  the drop nudge: open sand nudges nothing (2091ms)\n  PASS  days off: wages skip exactly and the bill dips to match (1467ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (23ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (977ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1066ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (771ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (12ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (741ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (8ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2880ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2092ms)\n  PASS  the mayor wears the hat, and nobody else ever does (845ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (214ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (486ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (62478ms)\n  PASS  the shop tooltip promises what the button actually does (452ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (17ms)\n  PASS  every track in the playlist is a file that exists (22ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2165ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (9ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (55ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (68ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (6783ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4881ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (35ms)\n  PASS  seam: a headless day never enters the view (970ms)\n  PASS  brains: a town full of thinking heads round-trips its save (7028ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (92ms)\n  PASS  science: a scrub lands on the day the run recorded (4025ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (11ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (88ms)\n35/35 passed in slice 7/12 (108.7s)\n"
+}
