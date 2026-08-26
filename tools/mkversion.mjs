@@ -52,3 +52,29 @@ const GAME_BUILD = { sha: "${sha}", date: "${date}", t: ${t} };
 `;
 writeFileSync("version.js", out);
 console.log(`wrote version.js — build ${sha}${date ? " " + date : ""}${t ? " t=" + t : " (no commit time)"}`);
+
+// Self-install the pre-push receipt gate (task kd-GNL3o76EhB). A hook only in
+// .git/hooks is not version-controlled and not installed by cloning, so it would
+// protect one workstation and no fresh pod. tools/hooks/pre-push lives in the
+// repo; `core.hooksPath` points git at it. This generator runs at every merge
+// ritual immediately before the push to main, so wiring it here means any agent
+// about to push main has already crossed the install path — no separate step to
+// forget. Idempotent: only writes the config when it is unset or wrong, never
+// clobbering an operator who deliberately pointed hooksPath elsewhere.
+try {
+  const WANT = "tools/hooks";
+  let current = "";
+  try { current = sh("git config --get core.hooksPath"); } catch { /* unset */ }
+  if (current !== WANT) {
+    if (current) {
+      console.log(`mkversion: core.hooksPath is ${JSON.stringify(current)}, not ${JSON.stringify(WANT)} — leaving the receipt gate uninstalled (someone set this on purpose).`);
+    } else if (existsSync("tools/hooks/pre-push")) {
+      sh(`git config core.hooksPath ${WANT}`);
+      console.log(`mkversion: installed the pre-push receipt gate (core.hooksPath=${WANT}).`);
+    }
+  }
+} catch (e) {
+  // Never let a hook-install hiccup fail the stamp regen — the stamp is the
+  // load-bearing output; the hook is a convenience wired opportunistically.
+  console.log(`mkversion: could not install the pre-push gate (${e.message}); run 'git config core.hooksPath tools/hooks' by hand.`);
+}

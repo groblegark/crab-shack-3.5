@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-95f0ba0-wipe",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "95f0ba0d75b2f91f5edd15d37ef35287cd17e04d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 303586,
+  "verdict": "35/35 passed in slice 1/12 (303.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (145318ms)\n  PASS  disease: care cures, neglect can kill (25149ms)\n  PASS  job board: unpaid staff quit back to the pier (389ms)\n  PASS  crew never staff npc-owned shops (384ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (913ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (58791ms)\n  PASS  hours: shortened hours really close the shop (740ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (1490ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (4130ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (10357ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (27ms)\n  PASS  the beach ball is LIMITED fun (434ms)\n  PASS  a town saved mid-errand reloads and keeps running (578ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1124ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (5801ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (886ms)\n  PASS  departures: the money band prints the manifest's own dollars (306ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (390ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (2834ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (7ms)\n  PASS  a standing offer can be answered from the card that announces it (19ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (21ms)\n  PASS  the house limit stops a hire and never fires anybody (5927ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (12ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (12327ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (17ms)\n  PASS  cultureways: a save without cultures changes nothing (1253ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (18ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (545ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3584ms)\n  PASS  the build stamp is well-formed and wired (1ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (12469ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (50ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (10ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (7183ms)\n35/35 passed in slice 1/12 (303.5s)\n"
+}

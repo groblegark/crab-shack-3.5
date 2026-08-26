@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-0e5ba31-98d0",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "0e5ba31beec72c967bafd399fa4487c199ee6174",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 149520,
+  "verdict": "33/33 passed in slice 10/12 (149.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2678ms)\n  PASS  housing: npcs sleep at the shelter, then move up (808ms)\n  PASS  queue hard cap holds for locals too (3211ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (1017ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (826ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (161ms)\n  PASS  fish market: price + series roundtrip save/load (47ms)\n  PASS  labor policy: every new setting roundtrips save/load (1637ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (6001ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (1053ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (8ms)\n  PASS  the lease card: every term fits on the card it is printed on (7ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (3721ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (6628ms)\n  PASS  an election is held on the week, and every voter is accounted for (4769ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (699ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (903ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (87855ms)\n  PASS  the shop tooltip promises what the button actually does (345ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (8ms)\n  PASS  every track in the playlist is a file that exists (11ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (8070ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (8ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (11544ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (14ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (406ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (101ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (793ms)\n  PASS  brains: a live brain spends the script's own draws, no more (3133ms)\n  PASS  the title screen ages the build, and keeps ticking (9ms)\n  PASS  load: the same envelope lands the same way however often you land it (1530ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1427ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (7ms)\n33/33 passed in slice 10/12 (149.4s)\n"
+}

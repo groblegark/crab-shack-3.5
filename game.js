@@ -259,24 +259,65 @@ const BIZ = {
         steps: [["grill", 5.0, "plate_fish"]] },
     ],
   },
+  // ---------------------------------------------------------- the CLAWCADE
+  // THE MACHINES ARE `stalls`, NOT STATIONS, and that is the whole shop.
+  //
+  // WHAT WAS WRONG. The arcade was modelled as a KITCHEN: `clawgame` was
+  // [["claw", 3.5, "plush"]], so a STAFF crab stood at the claw machine,
+  // worked it for three and a half seconds like a grill, and handed a plush
+  // over the prize counter. The customer queued, was handed an item, had
+  // `bored` zeroed and walked out. NOBODY EVER PLAYED ANYTHING. Worse, the
+  // serve dispatch branches purely on whether a business declares `lodging`,
+  // `stalls` or `tables` - it names no business - and the arcade declared
+  // none of the three, so it fell through to `leaving`: a crab paid for a
+  // game and went straight back out the door.
+  //
+  // WHAT IT IS NOW. What the shop SELLS is a TOKEN, over the booth, in one
+  // step. What the crab DOES is PLAY, and the play is an OCCUPANCY: the
+  // machines are furniture a customer takes for `playT` seconds and leaves
+  // needing a wipe - the shower stalls' cycle, one furniture type over, which
+  // is the same argument the hotel's rooms are built on. Every queue guard,
+  // patience timeout, abort path and cleaning dispatch in the game already
+  // knows what to do with that, so four shipped systems switch on at once and
+  // `HIRE_DUTY.arcade` ("MINDS THE FLOOR AT") becomes TRUE for the first time.
+  //
+  // The machines leave the production graph entirely. A staff crab at the
+  // booth cannot starve the floor, which the old shape did by construction:
+  // `stationCap("arcade","claw")` is 1 until CADE GEAR+, so ONE customer at
+  // the claw would have blocked the only production slot the shop had.
   arcade: {
     name: "CLAWCADE", short: "CADE", sign: "THE CLAWCADE", kind: "shopfront", rent: 8000, owner: "player",
     x0: 1620, x1: 1800, door: 1636,
     stations: {
       booth: [{ x: 1630, y: 136 }],
-      claw:  [{ x: 1666, y: 136 }, { x: 1688, y: 136 }],
-      skee:  [{ x: 1718, y: 160 }, { x: 1740, y: 160 }],
       prize: [{ x: 1772, y: 160 }],
     },
+    // THE FLOOR. Two claw cabinets on the back row (y136, the stalls' own row
+    // - the two travel lanes keep their daylight by construction) and two
+    // skeeball lanes on the front row, on the coordinates the machines have
+    // always stood at. `machine` is which art the cabinet wears; everything
+    // else is the standard furniture record every stall reader already walks.
+    stalls: [
+      { x: 1666, y: 136, machine: "claw", occupant: null, dirty: false, cleaning: false },
+      { x: 1688, y: 136, machine: "claw", occupant: null, dirty: false, cleaning: false },
+      { x: 1718, y: 160, machine: "skee", occupant: null, dirty: false, cleaning: false },
+      { x: 1740, y: 160, machine: "skee", occupant: null, dirty: false, cleaning: false },
+    ],
     source: "booth", out: "prize", queueX: 1804,
     park: 1590, rack: 1604,
+    // ONE STEP, AT THE BOOTH. The showers prove the engine runs a zero-step
+    // recipe (SUDS is `steps: []` with the occupancy on the recipe), but the
+    // cultureway validator REFUSES an empty `steps` - so a zero-step arcade
+    // would be a shape the engine's own literals use and a document may never
+    // declare, which is exactly the drift the hostile-file posture exists to
+    // prevent. A token sale is a real step at a real station instead.
     recipes: [
-      { id: "clawgame", icon: "plush", pay: 13, raw: "token",
-        steps: [["claw", 3.5, "plush"]] },
-      { id: "skeerun", icon: "tickets", pay: 9, raw: "token",
-        steps: [["skee", 2.8, "tickets"]] },
-      { id: "gamenight", icon: "gold_plush", pay: 18, raw: "token",
-        steps: [["skee", 2.5, "tickets"], ["claw", 3.0, "gold_plush"]] },
+      { id: "clawgame", icon: "plush", pay: 13, raw: "token", playT: 6, machine: "claw",
+        steps: [["booth", 0.6, "token"]] },
+      { id: "skeerun", icon: "tickets", pay: 9, raw: "token", playT: 5, machine: "skee",
+        steps: [["booth", 0.6, "token"]] },
+      { id: "gamenight", icon: "gold_plush", pay: 18, raw: "token", playT: 9, machine: null,
+        steps: [["booth", 0.9, "token"]] },
     ],
   },
   juicebar: {
@@ -4242,6 +4283,36 @@ function setHotelRooms(n) {
   furnGen++;       // collide's furniture memo re-reads the stalls it just changed
   _bandsKey = "";   // the furniture cache keys on the room count; make it re-read anyway
 }
+// THE ARCADE FLOOR, and CADE GEAR+ as a FURNITURE upgrade rather than a
+// station cap. The machines used to be work stations, so "more machines" was
+// `stationCap("arcade","claw")` - a number only the staff recipe could feel.
+// Now a machine is a thing a CUSTOMER stands at, so the upgrade has to put
+// real cabinets on the floor, exactly the way the annexe puts huts on the
+// forecourt: rebuild from a count, so a load lands on the geometry a fresh
+// build of the same size has, to the pixel.
+const CADE_FLOOR_BASE = 4, CADE_GEAR_ADDS = 2;
+function arcadeFloor() { return BIZ.arcade.stalls || []; }
+// the two extra bays: the front row continues east at the skee lanes' pitch,
+// stopping clear of the prize counter at 1772
+function cadeSpot(i) { return { x: 1762 + i * 22, y: 136, machine: i % 2 ? "skee" : "claw" }; }
+function setArcadeFloor(n) {
+  const b = BIZ.arcade;
+  if (!b || !b.stalls) return;
+  const want = Math.max(CADE_FLOOR_BASE, Math.min(CADE_FLOOR_BASE + CADE_GEAR_ADDS, n | 0));
+  while (b.stalls.length > want) {
+    const st = b.stalls.pop();
+    // a machine pulled out from under a player is released the way the wedge
+    // rule demands: the occupant is let go FIRST, never left holding a fid
+    if (st && st.occupant) { const o = st.occupant; if (o.stall === st) o.stall = null; st.occupant = null; }
+    if (st) freeFurn(st);
+  }
+  while (b.stalls.length < want) {
+    const s = cadeSpot(b.stalls.length - CADE_FLOOR_BASE);
+    b.stalls.push(mkFurn({ x: s.x, y: s.y, machine: s.machine, occupant: null, dirty: false, cleaning: false }));
+  }
+  furnGen++;        // collide's furniture memo re-reads the floor it just changed
+  _bandsKey = "";   // ...and the band cache keys on the furniture, so make it re-read
+}
 function annexeFull() { return hotelRooms().length >= HOTEL_ROOMS_BASE + ROOM_CFG.EXTRA; }
 function roomBuildCost() { return ROOM_CFG.BUILD; }
 // the same predicate for whoever is holding the lease: the player's till IS
@@ -5467,7 +5538,10 @@ function upEffect(key) {
       const t = (bizTables("shack") || []).length;
       return "TABLES " + t + " -> " + (t + 1);
     }
-    case "cadegear": return "MACHINES " + cap("claw") + " -> " + (cap("claw") + 1);
+    case "cadegear": {
+      const m = arcadeFloor().length;
+      return "MACHINES " + m + " -> " + (m + CADE_GEAR_ADDS);
+    }
     case "juicebar": case "arcade":
       return "BUSINESSES " + ownedBizList().length + " -> " + (ownedBizList().length + 1);
   }
@@ -5486,7 +5560,6 @@ function upOngoing(key) {
 function stationCap(bizKey, kind) {
   if (bizKey === "shack" && kind === "grill") return 1 + UPS.grill.lvl;
   if (bizKey === "shack" && kind === "board") return 1 + UPS.board.lvl;
-  if (bizKey === "arcade" && (kind === "claw" || kind === "skee")) return 1 + UPS.cadegear.lvl;
   if (bizKey === "juicebar" && kind === "juicer") return 2;
   return 1;
 }
@@ -5630,7 +5703,7 @@ function loadSlot(i) {
   if (!slotCard(i)) return;
   if (i === activeSlot && hasSave) {
     saveView = false;
-    if (screen === "title") { screen = "play"; startMusic(); sfx.ding(); }
+    if (screen === "title") { screen = "play"; startMusicTapped(); sfx.ding(); }
     return;
   }
   save();
@@ -5672,7 +5745,7 @@ function nightlyDue() { return totalRent() + wagesOwedTonight(); }
 const busy = {
   shack: { board: [false, false, false], grill: [false, false, false] },
   juicebar: { juicer: [false, false] },
-  arcade: { claw: [false, false], skee: [false, false] },
+  arcade: { booth: [false] },   // the machines are furniture now, not work stations
   showers: {},
   hotel: { linen: [false] },
 };
@@ -6632,9 +6705,29 @@ const KS_NAMES = ["idle", "walk", "work", "toSlot", "waitSlot", "waitCash",
   "busingTable", "cleaningStall", "toStallClean", "toTableClean", "nap", "wander"];
 const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
   "walkToVehicle", "drive", "travel", "walkOff"];
+// APPEND-ONLY PAST `leaving`. The compiled kernel hard-codes four of these
+// codes and checks them at arm time (`abi_check`), so reordering this list
+// fails loudly rather than walking guests through the wrong doors.
+//
+// THE ARCADE'S THREE STATES ARE ITS OWN, AND THAT IS THE POINT. A machine is
+// occupiable furniture exactly like a shower stall, so the obvious move is to
+// reuse toStall/showering - and it is WRONG, because those four states are in
+// KCUST_STATES and therefore dispatched by the WASM unit, whose occupancy exit
+// hard-codes the shower: it subtracts a scrub from the visitor DIRT plane, and
+// both branches of that subtraction are nonzero, so there is no argument JS can
+// pass to mean "this was not a wash". A tourist would come out of a claw
+// machine CLEANER. Appending three states the kernel does not know about puts
+// the arcade's occupancy in the JS chain alone, on BOTH backends, by
+// construction - and the suite's referee compares VSTCP across the two, so if
+// that reasoning is wrong it fails loudly instead of drifting.
+//
+// Reusing `stalls` as the FURNITURE is untouched by this: the queue, the dirty
+// flag, the cleaning dispatch, patience and every abort path still come free.
+// It is only the customer's own state machine that is arcade-shaped.
 const VS_NAMES = ["", "ashore", "arriving", "waiting", "toSeat", "seatedWaiting",
   "dining", "toStall", "waitStall", "outStall", "toTable", "showering", "toBiz",
-  "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving"];
+  "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving",
+  "toMachine", "waitMachine", "playing"];
 const DS = {}, KS = {}, CS = {}, VS = {};
 DS_NAMES.forEach((n, i) => DS[n] = i); KS_NAMES.forEach((n, i) => KS[n] = i);
 CS_NAMES.forEach((n, i) => CS[n] = i); VS_NAMES.forEach((n, i) => VS[n] = i);
@@ -7348,7 +7441,10 @@ function toggleMute() {
   muted = !muted;
   if (muted) { if (music) music.pause(); if (musPreview) musPreview.pause(); }
   else if (musPreview) musPreview.play().catch(() => {});   // the bench keeps the speakers it owns
-  else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
+  // UNMUTING IS A GESTURE, so it clears the latches before it asks: the speaker
+  // icon is the one control a phone player is most likely to reach for after a
+  // silent start, and it must not be refused by a block it can itself lift.
+  else if (musicOn) { musArm(); if (music) music.play().catch(e => musFail(musSrcGen, e)); else startMusic(); }
 }
 // WHETHER THE ARCHIVE MIRROR IS THERE, and it is declared UP HERE with the
 // rotation rather than beside the record box that named it - the same hazard
@@ -7431,6 +7527,41 @@ function speaker() {
 // unreachable must not recurse forever through pickTrack, so it gives up and
 // goes quiet; any deliberate play - a tap, a skip, MUSIC ON - clears it.
 let musFails = 0;
+// ONE NUMBER, TWO READERS. `musSkip` counts up to it and `playRole` refuses
+// past it, and they have to agree: the frame-loop storm below existed partly
+// because the give-up threshold was written inline in the only place that
+// happened to check it.
+function musGiveUp() { return Math.min(4, ROTATION.length); }
+// A REFUSAL IS NOT A MISSING FILE, and treating them as one event is what
+// turned a single blocked track into a per-frame storm.
+//
+// They are opposites. A 404 means "this source is gone, try the next one" -
+// so the right answer is to skip on, which is what `musSkip` does. A
+// NotAllowedError means "you have not been given permission yet, and nothing
+// you do without a gesture will change that" - so the right answer is to STOP
+// and wait for a tap. Retrying is not merely useless, it is actively harmful.
+//
+// MEASURED on the deployed build b426ccd, in a browser with iOS's autoplay
+// policy simulated, sitting on the title screen with a save that restores
+// `musicOn` true: 636 play() attempts and 636 src assignments in 5 seconds -
+// about one per frame, 127/sec, `musGen` 0 -> 1272. `titleFrame` calls
+// `playRole("title")` every frame; `playRole`'s only guard is
+// `music && trackIdx === i`, and the refusal path nulled `music`, so the
+// guard fell open again on the very next frame. `musFails` did not save it
+// either: only `musSkip` ever read that counter, and `playRole` reaches
+// `playTrack` directly, straight past it. So on a phone this was never
+// silent-and-idle - it was a src-swap and aborted-load storm on the one
+// shared element, which on cellular is somebody's data and battery.
+//
+// Hence the latch. It is set by a refusal, checked by every AUTOMATIC play,
+// and cleared by any DELIBERATE one - the same division of labour the
+// `musFails` comment above already describes, now actually enforced.
+let musBlocked = false;
+// THE GESTURE IS THE PERMISSION, so every path a player can *ask* for music
+// through clears both latches before it tries. Called by the deliberate
+// entry points only (MUS, the arrow keys, a row in the box, a tap on the
+// title buttons) - never by the frame loop, which is the whole point.
+function musArm() { musBlocked = false; musFails = 0; }
 function playTrack(i) {
   musStopPreview();          // the rotation and the bench never share the speakers
   const gen = musSrcGen = ++musGen;
@@ -7444,8 +7575,8 @@ function playTrack(i) {
   a.src = t.cat ? musSrc(t.cat) : t.src;
   music = a;
   musMeta(t.name);
-  a.play().then(() => { musFails = 0; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
-    .catch(() => musFail(gen));
+  a.play().then(() => { musFails = 0; musBlocked = false; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
+    .catch(e => musFail(gen, e));
 }
 // A TRACK THAT WILL NOT PLAY MUST NOT TAKE THE ROTATION WITH IT. That is the
 // half of the deployed-build bug that turned one bad track into a silent town:
@@ -7457,9 +7588,34 @@ function playTrack(i) {
 // and the rotation, unlike the bench, never learned to fall through to the
 // release we host ourselves. Now it does, on the same ARCHIVE_OK latch the box
 // uses, so one 404 teaches the whole session.
-function musFail(gen) {
+// A BLOCKED PLAY, told apart from a broken one. The 'error' event carries no
+// exception - it IS the missing file - so only the play() rejection can be a
+// refusal, and it says so by name. `name` rather than `instanceof DOMException`:
+// the headless sim has no DOMException, and a check that throws on the way to
+// diagnosing a failure is worse than the failure.
+function musRefused(e) { return !!e && e.name === "NotAllowedError"; }
+function musFail(gen, e) {
   const a = SPEAKER;
   if (!a || gen !== musGen) return;      // superseded, or already handled
+  // THE REFUSAL IS ANSWERED FIRST, and it is answered for the bench too: an
+  // audition iOS would not start is still a refusal, and re-arming it every
+  // frame is the same bug wearing the box's clothes.
+  //
+  // THE HANDLES ARE CLEARED, and the latch is what stops the loop. Leaving
+  // `music` set would ALSO stop it - `playRole`'s trackIdx guard would hold -
+  // but by lying: nothing is playing, and every later reader (`startMusic`'s
+  // `!music`, the MUS button, `musNowRow`) would believe otherwise, so the tap
+  // that is supposed to rescue the phone would find the speaker already
+  // "occupied" and do nothing. That is the bug this fix would have shipped in
+  // exchange for the one it fixes. So the truth goes in the handles and the
+  // policy goes in the latch, which is the only arrangement where both the
+  // storm stops AND a tap still works.
+  if (musRefused(e)) {
+    musBlocked = true;
+    if (musPreview) { musPreview = null; musPreviewId = ""; }
+    music = null;
+    return;
+  }
   if (musPreview) return musPrevFail(gen);
   if (!music) return;
   const t = ROTATION[trackIdx], cat = t && t.cat;
@@ -7468,7 +7624,7 @@ function musFail(gen) {
     const g = musSrcGen = ++musGen;
     a.pause();
     a.src = cat.url;
-    a.play().then(() => { musFails = 0; }).catch(() => musSkip(g));
+    a.play().then(() => { musFails = 0; musBlocked = false; }).catch(e2 => musFail(g, e2));
     return;
   }
   musSkip(gen);
@@ -7477,7 +7633,7 @@ function musFail(gen) {
 function musSkip(gen) {
   if (gen !== musGen) return;
   music = null;
-  if (++musFails >= Math.min(4, ROTATION.length)) return;   // nothing is reachable: stop trying
+  if (++musFails >= musGiveUp()) return;   // nothing is reachable: stop trying
   if (musicOn && !musicView) playTrack(pickTrack());
 }
 // THE LOCK SCREEN, THE CAR, AND THE HEADPHONE BUTTON. Matt: "we should have
@@ -7502,29 +7658,56 @@ function musMeta(name) {
     ms.playbackState = "playing";
     // The transport maps onto the verbs the game already has, so a wheel
     // button and the keyboard's shift+arrow are the same gesture.
-    ms.setActionHandler("play", () => { if (!musicOn || muted) toggleMusic(); else startMusic(); });
+    // A LOCK-SCREEN OR STEERING-WHEEL PRESS IS A GESTURE TOO - the OS routes it
+    // to us as a deliberate "play", so it clears the latches like a tap does.
+    ms.setActionHandler("play", () => { if (!musicOn || muted) toggleMusic(); else startMusicTapped(); });
     ms.setActionHandler("pause", () => { if (SPEAKER) SPEAKER.pause(); ms.playbackState = "paused"; });
     ms.setActionHandler("nexttrack", () => musStep(1));
     ms.setActionHandler("previoustrack", () => musStep(-1));
   } catch (e) {}   // a browser with a partial implementation must not take the music down
 }
+// WHETHER AN *AUTOMATIC* PLAY MAY TRY AT ALL. The two latches say no for
+// opposite reasons - `musBlocked`: nobody has tapped yet, so ask again after a
+// gesture; `musFails`: everything we tried was unreachable, so stop asking.
+// Both are only consulted here, on the paths the game takes by itself. A
+// player's own gesture goes through `musArm` and is never refused: pressing MUS
+// must always mean "try, right now", even on the frame after a failure.
+function musMayAutoPlay() { return !musBlocked && musFails < musGiveUp(); }
 // THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
 // underneath a track you are auditioning - which is what the box's own MUSIC ON
 // button used to do.
-function startMusic() { if (!music && musicOn && !muted && !musicView) playTrack(pickTrack()); }
+function startMusic() { if (!music && musicOn && !muted && !musicView && musMayAutoPlay()) playTrack(pickTrack()); }
+// THE SAME START, ASKED FOR BY A FINGER. Every caller of this is inside a real
+// tap/click/key handler, and that matters twice over: iOS grants playback only
+// to a play() made SYNCHRONOUSLY inside the gesture, and a gesture is also the
+// one event that can lift `musBlocked`. So a tap clears the latches and tries,
+// where the frame loop must not.
+//
+// It is a separate NAME rather than a flag on `startMusic` so the distinction
+// is visible at every call site: reading `startMusicTapped()` tells you a human
+// asked for this, and a future frame-loop caller reaching for plain
+// `startMusic` gets the guarded one by default - which is the failure this whole
+// change is about. Same reason `playRole` keeps its own guard.
+function startMusicTapped() { musArm(); startMusic(); }
 // THE TWO MOMENTS THAT OWN THEIR OWN MUSIC. Called from the screens that mean
 // them; each one only interrupts if it is not already the thing playing, so a
 // 31-second sting is not restarted every frame of the ending it belongs to.
+//
+// AND IT IS CALLED FROM A FRAME LOOP, which is why `musMayAutoPlay` is load-
+// bearing rather than belt-and-braces. `titleFrame` calls this every frame:
+// without the latch, an iOS refusal nulled `music`, the `trackIdx` guard fell
+// open on the next frame, and the title screen spent 127 attempts a second
+// re-requesting a track the phone had already said no to.
 function playRole(role) {
   const i = roleTrack(role);
-  if (i < 0 || !musicOn || muted) return;
+  if (i < 0 || !musicOn || muted || !musMayAutoPlay()) return;
   if (music && trackIdx === i) return;
   playTrack(i);
 }
 function toggleMusic() {
   musicOn = !musicOn;
   if (!musicOn) { musGen++; if (music) { music.pause(); music = null; } musStopPreview(); }
-  else startMusic();
+  else { musArm(); startMusic(); }   // a tap on MUS is the gesture that unlocks the element
 }
 // PREV/NEXT ARE A WALK ALONG THE ROTATION, not another shuffle. `b` already
 // skips to "another one that fits" - a chosen track - and that is a different
@@ -7543,6 +7726,7 @@ function musStep(d) {
   const to = trackIdx + d;
   musicOn = true;
   if (muted) muted = false;              // a skip while muted means "let me hear it"
+  musArm();                              // a skip is a gesture: it may unlock what autoplay could not
   playTrack(to);
 }
 // WHAT IS AUDIBLE, as the box's own pool row - so KEEP from the main interface
@@ -10723,6 +10907,11 @@ function load(slot, envIn) {
     for (const cid in s.dw) if (typeof cid === "string" && cid.length <= 16 && s.dw[cid]) dishWord[cid] = true;
   loadDorm(s.dorm);
   loadAnnexe(s.annexe);
+  // ...and the arcade floor, for the same reason the annexe is rebuilt here:
+  // the machines are FURNITURE derived from an upgrade level, so a load has to
+  // re-deal them before anything can stand at one. No new save field - the
+  // level is already in the envelope and the floor is a function of it.
+  setArcadeFloor(CADE_FLOOR_BASE + CADE_GEAR_ADDS * (UPS.cadegear.lvl | 0));
   customers = customers.filter(k => !k.visitor);
   if (Array.isArray(s.visitors)) for (const v of s.visitors) {
     if (!v || typeof v.n !== "string") continue;
@@ -12659,6 +12848,11 @@ function updateErrand(c, dt) {
     else if (k.stC === VS.showering && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
     else if ((k.stC === VS.toStall || k.stC === VS.outStall) && k.climb)
       { c.hidden = false; c.x = k.x; c.y = (166 * Q8 - idiv(26 * Q8 * k.climb, 4096)) / Q8; }   // stepping up/down, on the grain
+    // AT A MACHINE, AND VISIBLE - the one place this deliberately parts from
+    // the shower. A bather is `hidden` because the stall draws them behind a
+    // curtain; a player is the whole point, so they stand at the cabinet in
+    // their own body, on the machine's own row.
+    else if (k.stC === VS.playing && k.stall) { c.hidden = false; c.x = k.stall.x + 3; c.y = k.stall.y + 7; }
     else { c.hidden = false; c.x = k.x; c.y = 166; }
   }
 }
@@ -13242,6 +13436,34 @@ function tableShunned(t, skip) {
     return 25 * dx * dx + 81 * dy * dy < 25 * SHUN_PX * SHUN_PX;
   });
 }
+// WHICH STALL. A shower stall is a shower stall, so the showers and the hotel
+// take the first free one and always have - `find` order IS semantics there,
+// and the kernel's own waitStall scan walks the same list in the same order.
+// An ARCADE machine has a KIND: a crab who paid for a claw game wants a claw
+// cabinet. Preference only, never a refusal - the fall-through to "any free
+// machine" is what stops a crab paying for a game and finding nowhere to play
+// it, which is the exact fall-through this whole change exists to fix.
+// WHAT THE CHORE IS CALLED, per shop. The cleaning cycle is shared furniture
+// code and its diary line used to be the literal "SCRUBBED OUT A SHOWER
+// STALL" - which the moment the arcade grew stalls put an attendant in the
+// CLAWCADE writing about shower stalls. Keyed on the BUSINESS, the same shape
+// HIRE_DUTY uses: a new lot adds a row here and nothing else changes.
+const STALL_CHORE = { showers: "SCRUBBED OUT A SHOWER STALL",
+  hotel: "MADE UP A ROOM", arcade: "WIPED DOWN A MACHINE" };
+const STALL_CHORE_POP = { showers: "SPARKLING", hotel: "MADE UP", arcade: "RESET" };
+function stallChoreLine(bizKey, st) {
+  // the arcade knows WHICH machine, because the cabinet does
+  if (bizKey === "arcade" && st && st.machine)
+    return st.machine === "skee" ? "RESET THE SKEEBALL LANE" : "WIPED DOWN A CLAW MACHINE";
+  return STALL_CHORE[bizKey] || "TIDIED UP";
+}
+function pickStall(stalls, cust) {
+  const free = (stalls || []).filter(t => !t.occupant && !t.dirty);
+  if (!free.length) return null;
+  const want = cust && cust.recipe && cust.recipe.machine;
+  if (want) { const m = free.find(t => t.machine === want); if (m) return m; }
+  return free[0];
+}
 function pickSeat(tables, cust) {
   // a DIRTY table is not a table: it seats nobody until a crab has cleared it
   const free = (tables || []).filter(t => !t.occupant && t.dishes === 0 && !t.dirty);
@@ -13479,11 +13701,12 @@ function updateKitchen(c, dt) {
   } else if (c.ksC === KS.cleaningStall) {
     c.workT -= dtT;
     if (c.workT <= 0) {
-      if (c.cleanStall) { c.cleanStall.dirty = false; c.cleanStall.cleaning = false; c.cleanStall = null; }
-      crabLogEvery(c, "stall", 90, "work", "SCRUBBED OUT A SHOWER STALL");   // DIARY
+      const wiped = c.cleanStall;
+      if (wiped) { wiped.dirty = false; wiped.cleaning = false; c.cleanStall = null; }
+      crabLogEvery(c, "stall", 90, "work", stallChoreLine(bizKey, wiped));   // DIARY
       c.ksC = KS.idle;
       if (window._stats) window._stats.stallsCleaned = (window._stats.stallsCleaned || 0) + 1;
-      popText("SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
+      popText(STALL_CHORE_POP[bizKey] || "SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
   } else if (c.ksC === KS.toTableClean) {
     if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.ksC = KS.busingTable; }
@@ -13863,15 +14086,29 @@ function serve(c) {
     if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
     const seat = tables ? pickSeat(tables, cust) : null;
-    const stall = stalls ? stalls.find(t => !t.occupant && !t.dirty) : null;
+    const stall = stalls ? pickStall(stalls, cust) : null;
     // LODGING: the key is handed over and the guest walks to their own door.
     // The room was reserved before they joined the line (nobody sells the last
     // room twice), so there is nothing to find here - `leaving` sends them
     // through visAfterCounter, which checks them in.
     if (BIZ[cust.biz].lodging) { cust.stC = VS.leaving; }
     else if (stalls) {
-      if (stall) { stall.occupant = cust; cust.stC = VS.toStall; cust.stall = stall; }
-      else { cust.stC = VS.waitStall; cust.waitT = 30 * SEC; }
+      // A WASH OR A GAME - the same furniture, two occupancies. `playT` on the
+      // recipe is what says which: a shop whose menu names a play time sends
+      // its customer to a MACHINE, and everything else is a shower. Data, not
+      // a business name, so a cultureway shop that declares playT gets the
+      // arcade's behaviour without this line learning its id.
+      // ARM-OFF HATCH (--noplay): the shop still sells, still takes the money
+      // and still zeroes boredom - only the occupancy goes away, so the matrix
+      // can attribute the floor's throughput cost on its own.
+      const play = !!(cust.recipe && cust.recipe.playT) && !window._noPlay;
+      if (stall) {
+        stall.occupant = cust; cust.stall = stall;
+        cust.stC = play ? VS.toMachine : VS.toStall;
+      } else {
+        cust.stC = play ? VS.waitMachine : VS.waitStall;
+        cust.waitT = 30 * SEC;
+      }
     }
     else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
     else cust.stC = VS.leaving;
@@ -15635,6 +15872,55 @@ function updateCustomers(dt) {
       const st = BIZ[k.biz].stalls.find(t => !t.occupant && !t.dirty);
       if (st) { st.occupant = k; k.stall = st; k.stC = VS.toStall; }
       else if (k.waitT <= 0) { k.stC = VS.leaving; k.happy = false; }
+    // ------------------------------------------------- THE ARCADE FLOOR
+    // The same three beats as the showers, on the same furniture, with the
+    // same integer geometry - a crab WALKS to the cabinet, PLAYS for playT,
+    // and leaves it needing a wipe. The one deliberate difference is that
+    // there is no climb and no curtain: you are meant to SEE them playing,
+    // which is the entire point of the feature.
+    } else if (k.stC === VS.toMachine) {
+      const m = k.stall;
+      if (!m) { k.stC = VS.leaving; }   // machine pulled out from under them (a load, a refit)
+      else {
+        const dxm = m.x + 3 - k.x;
+        if (Math.abs(dxm) > 2) k.x = (k.x * Q8 + Math.sign(dxm) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxm) * Q8))) / Q8;
+        else {
+          k.stC = VS.playing;
+          // the occupancy rides the SAME plane field the shower's does, so it
+          // survives save/load and crosses the js/wasm boundary for free
+          k.showerT = (k.recipe && k.recipe.playT ? k.recipe.playT : 5) * SEC;
+          k.face = -1;
+        }
+      }
+    } else if (k.stC === VS.playing) {
+      k.showerT -= dtT;
+      if (k.showerT <= 0) {
+        const m = k.stall;
+        if (m) { m.occupant = null; m.dirty = true; }
+        k.stall = null;
+        // BOREDOM WAS ALREADY PAID AT THE COUNTER. payAndBenefit zeroes it the
+        // moment the token is sold, for crabs and visitors alike, and that is
+        // deliberately left alone: the ruling was OCCUPANCY, not outcome, so
+        // the play draws nothing, decides nothing, and cannot fail. What the
+        // machine adds is the TIME and the FLOOR, not the relief.
+        if (k.isCrab) {
+          crabLog(k.crab, "need", "PLAYED THE " + (m && m.machine === "skee" ? "SKEEBALL" : "CLAW MACHINE")
+            + " AT THE " + BIZ[k.biz].name, 0);   // DIARY
+          k.crab.quip = { text: "BEST DAY EVER!", t: 2.4 * SEC };
+        }
+        if (window._stats) {
+          window._stats.gamesPlayed = (window._stats.gamesPlayed || 0) + 1;
+          const kk = k.crab ? "gamesPlayedCrab" : "gamesPlayedTour";
+          window._stats[kk] = (window._stats[kk] || 0) + 1;
+        }
+        popText("NICE!", k.x, 126, [255, 220, 120]);
+        k.stC = VS.leaving;
+      }
+    } else if (k.stC === VS.waitMachine) {
+      k.waitT -= dtT;
+      const m = pickStall(BIZ[k.biz].stalls, k);
+      if (m) { m.occupant = k; k.stall = m; k.stC = VS.toMachine; }
+      else if (k.waitT <= 0) { k.stC = VS.leaving; k.happy = false; }
     } else if (k.stC === VS.toSeat) {
       const t = k.table;
       const dxs2 = t.x + 10 - k.x;
@@ -15710,13 +15996,18 @@ function tapStatus(c) {
   return e.need === "clean" ? "RINSING OFF AT " + nm : "DRINKING AT " + nm;
 }
 const NAP_WHERE = { grill: "AT THE GRILL", board: "AT THE BOARD", juicer: "AT THE JUICER",
-  crate: "AT THE CRATE", pass: "AT THE PASS" };
+  crate: "AT THE CRATE", pass: "AT THE PASS",
+  booth: "AT THE TOKEN BOOTH", prize: "AT THE PRIZE COUNTER",
+  taps: "AT THE TAPS", towel: "AT THE TOWEL COUNTER",
+  fruitbin: "AT THE FRUIT BIN", bar: "AT THE JUICE BAR",
+  linen: "AT THE LINEN PRESS", desk: "AT THE FRONT DESK" };
 function crabStatus(c) {
   // THE TEN-SECOND TELLS come first: what the eyes just saw has to be what the
   // card says (design doc Rule 4). A nodding crab is not "ON SHIFT".
   if ((c.napT || 0) > 0)
     return "NODDED OFF " + (c.napFrom === "cleaningStall" || c.napFrom === "toStallClean"
-      ? "OVER A STALL" : NAP_WHERE[c.slotKind] || "ON THE JOB");
+      ? (c.workBiz === "arcade" ? "OVER A MACHINE" : "OVER A STALL")
+      : NAP_WHERE[c.slotKind] || "ON THE JOB");
   if (c.dsC === DS.chat)
     return "CHEWING THE FAT" + (c.chatWith ? " WITH " + c.chatWith.p.name : "");
   if (c.p.rough) return darkness() > 0.6 ? "ASLEEP WHERE THEY DROPPED" : "SLEPT ROUGH LAST NIGHT";
@@ -15978,6 +16269,10 @@ function tryBuy(key) {
     return;
   }
   coins -= upCost(u); u.lvl++; furnGen++;
+  // CADE GEAR+ puts the cabinets on the floor. Derived from the level rather
+  // than appended, so buying it twice (it cannot be, but a save can lie) and
+  // a load both land on the same geometry.
+  if (key === "cadegear") setArcadeFloor(CADE_FLOOR_BASE + CADE_GEAR_ADDS * UPS.cadegear.lvl);
   if (key === "arcade") {
     toast = { text: "THE CLAWCADE IS YOURS! CLICK A CRAB, THEN ITS CARD, TO STAFF IT", t: 8 };
     popText("GRAND OPENING!", BIZ.arcade.x0 + 40, 100, [140, 255, 160]);
@@ -16072,6 +16367,11 @@ function tipTrackHit(p) {
   return p.x >= tr.x - 4 && p.x < tr.x + tr.w + 4 && p.y >= tr.y - 3 && p.y < tr.y + tr.h + 3;
 }
 let dragging = false, dragStartX = 0, dragCamX = 0, dragMoved = false;
+// A FINGER ON A HALL LIST, mirroring the box's swipe state (musSwipeY and
+// friends). Declared here beside the other grabs rather than down with the
+// hall's own drawing code, because the touch listeners below are the only
+// readers and a grab belongs with the grabs.
+let hallSwipeY = null, hallSwipeTop = 0, hallSwiped = false;
 // SCRUBBING THE NAV STRIP is its own grab, exactly as the tip slider is: a
 // finger on the map must move the CAMERA, never pan the town underneath it.
 let navDrag = false, navDragX = 0;
@@ -16135,6 +16435,12 @@ cv.addEventListener("touchstart", (ev) => {
   if (window.MergeMode && MergeMode.touchStart(p)) return;
   if (tipTrackHit(p)) { tipDrag = true; return; }
   if (navTrackHit(p)) { navDrag = true; navDragX = p.x; return; }
+  // THE HALL CARD TAKES THE FINGER BEFORE THE TOWN DOES, the same collision
+  // the box had: without this a swipe on the ledger panned the promenade
+  // BEHIND the card, invisibly, while the ledger itself never moved. On a
+  // phone this is the only scroll gesture there is - there is no wheel and no
+  // keyboard - so it is the one that matters most.
+  if (hallListHit(p)) { hallSwipeY = p.y; hallSwipeTop = HALL_SCROLL[hallView] | 0; hallSwiped = false; return; }
   if (p.y < PANEL_Y) { dragging = true; dragStartX = p.x; dragCamX = camX; dragMoved = false; }
 }, { passive: true });
 cv.addEventListener("touchmove", (ev) => {
@@ -16158,6 +16464,20 @@ cv.addEventListener("touchmove", (ev) => {
     return;
   }
   if (tipDrag) { ev.preventDefault(); tipSliderTo(manage, evPos(ev.touches[0]).x); return; }
+  if (hallSwipeY != null) {
+    ev.preventDefault();
+    // A ROW IS 7px, so the content tracks the finger a row per row - the same
+    // rule the box uses at 20px, and the reason a hall list feels like a list
+    // rather than something moving at an invented gain. Past 3px it is a
+    // scroll and not a tap, which is what hallSwiped says to the click that
+    // follows - or a finger that drifted while resting on the card would poke
+    // whatever chip it came down on.
+    const dy = evPos(ev.touches[0]).y - hallSwipeY;
+    if (Math.abs(dy) > 3) hallSwiped = true;
+    const span = Math.max(0, _hallWin.len - _hallWin.rows);
+    HALL_SCROLL[hallView] = Math.max(0, Math.min(span, hallSwipeTop - Math.round(dy / 7)));
+    return;
+  }
   if (window.MergeMode && MergeMode.touchMove(evPos(ev.touches[0]))) { ev.preventDefault(); return; }
   if (navDrag) {
     ev.preventDefault();
@@ -16172,7 +16492,7 @@ cv.addEventListener("touchmove", (ev) => {
   if (dragMoved) camX = clampCam(dragCamX - (p.x - dragStartX));
 }, { passive: false });
 cv.addEventListener("touchcancel", () => {
-  tipDrag = false; navDrag = false;
+  tipDrag = false; navDrag = false; hallSwipeY = null; hallSwiped = false;
   dragging = false; dragMoved = false;
   if (window.MergeMode && MergeMode.touchCancel) MergeMode.touchCancel();
 }, { passive: true });
@@ -16183,6 +16503,14 @@ cv.addEventListener("touchend", (ev) => {
     // the flag is cleared on the same 50ms delay the camera pan uses for
     // exactly this - see dragMoved.
     if (musSwiped) setTimeout(() => { musSwiped = false; }, 50);
+    return;
+  }
+  if (hallSwipeY != null) {
+    hallSwipeY = null;
+    // A SCROLL MUST NOT ALSO POKE A CHIP. The click arrives after touchend, so
+    // the flag clears on the same 50ms delay the camera pan and the box both
+    // use for exactly this.
+    if (hallSwiped) setTimeout(() => { hallSwiped = false; }, 50);
     return;
   }
   // COMMIT ON RELEASE: one town materialized per gesture, not one per pixel
@@ -16205,6 +16533,15 @@ cv.addEventListener("wheel", (ev) => {
     if (!ev.deltaY) return;
     ev.preventDefault();
     musScroll(ev.deltaMode === 1 ? Math.sign(ev.deltaY) : Math.round(ev.deltaY / 20) || Math.sign(ev.deltaY));
+    return;
+  }
+  // THE HALL'S LISTS TAKE THE VERTICAL WHEEL over the card, for the same
+  // reason the box does: the town has no use for it, and a list you can see
+  // and cannot move is the bug this pass is about. A hall row is 7px, not 20 -
+  // one notch is about three rows, which is the right gain for a 7px line.
+  if (ev.deltaY && hallListHit(evPos(ev))) {
+    ev.preventDefault();
+    hallScroll(ev.deltaMode === 1 ? Math.sign(ev.deltaY) : Math.round(ev.deltaY / 7) || Math.sign(ev.deltaY));
     return;
   }
   if (screen !== "play") return;
@@ -16298,6 +16635,10 @@ cv.addEventListener("click", (ev) => {
   // last: it is reachable from the title screen, from play, and from game over,
   // so there is no screen it can be under.
   if (musicView) { if (!musSwiped) musTap(evPos(ev)); return; }   // the box swallows every click
+  // A HALL SCROLL IS NOT A TAP. Same guard the box has: the click follows the
+  // touchend, so without this a finger that scrolled the ledger and lifted
+  // over the view chip would also cycle the page out from under you.
+  if (hallSwiped) return;
   if (helpView) { tapHelp(evPos(ev)); return; }
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
   if (screen === "sci") { sciTap(evPos(ev)); return; }
@@ -16309,10 +16650,10 @@ cv.addEventListener("click", (ev) => {
       if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { toggleHelp(); return; }
     }
     if (p.x >= bx && p.x < bx + 100) {
-      if (hasSave && p.y >= 118 && p.y < 134) { screen = "play"; startMusic(); sfx.ding(); return; }
+      if (hasSave && p.y >= 118 && p.y < 134) { screen = "play"; startMusicTapped(); sfx.ding(); return; }
       const ny = hasSave ? 138 : 122;
       if (p.y >= ny && p.y < ny + 16) {
-        if (!hasSave || newConfirmT > 0) { hasSave ? newGame() : (screen = "intro", startMusic(), sfx.ding()); }
+        if (!hasSave || newConfirmT > 0) { hasSave ? newGame() : (screen = "intro", startMusicTapped(), sfx.ding()); }
         else { newConfirmT = 3; sfx.buy(); }
         return;
       }
@@ -16490,16 +16831,11 @@ cv.addEventListener("click", (ev) => {
       // and the platform you would stand on. While your crab holds the hat
       // the same three dials ARE the town's policy, and they bill you first.
       if (hit(R.hview)) {
-        // ONE CHIP, and on the ROLL it also turns the page - BOOKS, the BALLOT,
-        // then every page of the roll, then back to BOOKS. A card this full has
-        // no room for a pair of arrows, and the roll is a thing you read
-        // straight through rather than jump around in.
-        const pages = Math.max(1, Math.ceil(((hall.poll && hall.poll.lines.length) || 0) / ROLL_ROWS));
-        if (hallView === "ROLL" && hallRollPage + 1 < pages) hallRollPage++;
-        else {
-          hallRollPage = 0;
-          hallView = HALL_VIEWS[(HALL_VIEWS.indexOf(hallView) + 1) % HALL_VIEWS.length];
-        }
+        // ONE CHIP, ONE JOB: cycle the four reading surfaces. It used to ALSO
+        // be the roll's pager - so it was forward-only through pages you had
+        // already read, and BOOKS was three taps away from roll page one. The
+        // lists scroll now (see HALL_SCROLL), so the chip only picks a page.
+        hallView = HALL_VIEWS[(HALL_VIEWS.indexOf(hallView) + 1) % HALL_VIEWS.length];
         sfx.ding(); return;
       }
       if (hit(R.stand)) {
@@ -16622,7 +16958,11 @@ cv.addEventListener("click", (ev) => {
     reportT = 0; return;
   }
   if (departT > 0) { departTapped(); return; }   // ...and the day's second page pages, then closes
-  startMusic();
+  // A TAP ON THE TOWN IS STILL A GESTURE, and it is the widest recovery net a
+  // phone player has: if they never touched the title buttons, this is the one
+  // that unlocks the element. Bounded by the hand - one attempt per tap, which
+  // is the whole difference from the frame loop.
+  startMusicTapped();
   const p = evPos(ev);
   if (dragMoved) return;
   {  // the hire card: a tap on it puts it away and gives the town back
@@ -16827,6 +17167,21 @@ addEventListener("keydown", (e) => {
     if (e.key === "PageUp") { e.preventDefault(); musScroll(-MUS_ROWS); return; }
     if (e.key === "Home") { e.preventDefault(); musTop = 0; return; }
     if (e.key === "End") { e.preventDefault(); musScroll(musFiltered().length); return; }
+  }
+  // THE HALL CARD OWNS THE VERTICAL KEYS while it is up, which is the other
+  // half of "scrollable like the music player": the box answers the wheel, the
+  // finger AND the keys, and a card with eleven controls on it had not a single
+  // key of its own. Up/down only - the unshifted LEFT/RIGHT below pan the town
+  // behind the card and stay that way, because the hall has no horizontal axis
+  // to walk. Gated on a list long enough to move so a short book does not
+  // silently eat PageDown.
+  if (manage && manageTab === "HALL" && !dossier && !saveView && _hallWin.len > _hallWin.rows) {
+    if (e.key === "ArrowDown") { e.preventDefault(); hallScroll(1); return; }
+    if (e.key === "ArrowUp") { e.preventDefault(); hallScroll(-1); return; }
+    if (e.key === "PageDown") { e.preventDefault(); hallScroll(_hallWin.rows); return; }
+    if (e.key === "PageUp") { e.preventDefault(); hallScroll(-_hallWin.rows); return; }
+    if (e.key === "Home") { e.preventDefault(); HALL_SCROLL[hallView] = 0; return; }
+    if (e.key === "End") { e.preventDefault(); hallScroll(_hallWin.len); return; }
   }
   if (e.key === "m") { toggleMute(); if (!muted) sfx.ding(); }
   if (e.key === "n") toggleMusic();
@@ -17977,6 +18332,9 @@ function custStatus(k) {
   if (k.stC === VS.seatedWaiting) return "WAITING ON THEIR ORDER";
   if (k.stC === VS.dining) return "EATING " + (ITEM_NAMES[k.recipe.icon] || "LUNCH");
   if (k.stC === VS.waitStall || k.stC === VS.toStall || k.stC === VS.outStall) return "AT THE SHOWERS";
+  if (k.stC === VS.playing) return "PLAYING THE " + (k.stall && k.stall.machine === "skee" ? "SKEEBALL" : "CLAW MACHINE");
+  if (k.stC === VS.toMachine) return "PICKING A MACHINE";
+  if (k.stC === VS.waitMachine) return "WAITING FOR A MACHINE";
   if (k.stC === VS.leaving) return k.happy ? "HEADING HOME HAPPY" : k.served ? "HEADING HOME" : "LEAVING IN A HUFF";
   return "ENJOYING THE BEACH";
 }
@@ -19803,7 +20161,69 @@ let learnArm = null;   // foodways: the dish id armed on the manage card (view s
 const HALL_VIEWS = ["BOOKS", "TRADE", "BALLOT", "ROLL"];
 const HALL_VIEW_LABEL = { BOOKS: "BOOKS", TRADE: "TRADE", BALLOT: "LAST BALLOT", ROLL: "THE ROLL" };
 const ROLL_ROWS = 8;   // voter lines per page of the roll, at 7px in the card's body
-let hallView = "BOOKS", hallRollPage = 0;
+let hallView = "BOOKS";
+// THE HALL'S LISTS SCROLL (Matt, 2026-08-26: "the whole political UX has
+// displayed problems, maybe we need scrollable inner lists? Like we have in
+// the music player").
+//
+// FIVE OF THE SIX LISTS ON THIS CARD TRUNCATED, and only the roll was even
+// paged. The ledger kept 48 rows, drew 4, and printed "+44 EARLIER" - a label
+// with NO control behind it, so 44 rows were unreachable from anywhere in the
+// game. TRADE clipped at 5 of 6 goods with no indicator at all, so PAPER - the
+// one import the office itself buys, and the row a player weighing the TARIFF
+// dial most wants - simply was not there. And the live ballot drew 4 of up to 6
+// candidates while buildBallot pushes the PLAYER'S OWN nominee last, so on a
+// full ballot the one candidate clipped off the page was yours: you could not
+// see that you were standing, on the page that lists who is standing.
+//
+// The fix is the music box's, because that is the one list in this game that
+// already scrolls the way a hand expects - wheel, finger, and keys, with the
+// thumb as a convenience rather than the only way to move (see the note beside
+// musScroll). What it does NOT copy is the drag thumb: a 224px card has no
+// gutter to put one in that a full-width roll line would not print through.
+//
+// ONE OFFSET PER SURFACE, because they are four different readings and
+// scrolling back through the ledger must not also move your place in the roll.
+const HALL_SCROLL = { BOOKS: 0, TRADE: 0, BALLOT: 0, ROLL: 0 };
+// WHAT THE LAST DRAW ACTUALLY FIT. The wheel, the swipe and the page keys move
+// by the window the EYE is looking at, and only the draw knows how many rows
+// each surface's geometry left it - so the draw tells the input path, the same
+// way the brain inspector's pager hands its page count to the keydown handler
+// (_brainTvPager). drawManage runs every frame the card is up, so by the time a
+// gesture arrives these are this frame's numbers.
+let _hallWin = { rows: 0, len: 0 };
+function hallScroll(d) {
+  const span = Math.max(0, _hallWin.len - _hallWin.rows);
+  HALL_SCROLL[hallView] = Math.max(0, Math.min(span, (HALL_SCROLL[hallView] | 0) + d));
+}
+// THE WINDOW ONTO ONE SURFACE'S LIST, and it CLAMPS IN PLACE: a surface whose
+// list just got shorter (a smaller ballot, a filtered book) must not be left
+// holding an offset past the end of it, showing a blank card with rows above.
+// That was already a live bug in the thing this replaces - the suite carries a
+// scenario for a stale roll pager - and it is the first thing a shared window
+// can fix once, for all four of them, instead of four times.
+function hallWindow(len, rows) {
+  const span = Math.max(0, len - rows);
+  const top = Math.max(0, Math.min(span, HALL_SCROLL[hallView] | 0));
+  HALL_SCROLL[hallView] = top;
+  _hallWin = { rows, len };
+  return { top, rows, len, end: Math.min(len, top + rows), more: Math.max(0, len - top - rows) };
+}
+// WHERE YOU ARE IN IT, in the six characters a 3x5 font can spare on a header
+// row: "5-8 OF 48". This is what replaces "+44 EARLIER" - the same information,
+// except now it is true, because there is a gesture that reaches row 48.
+function hallWinLabel(w) { return w.len <= w.rows ? "" : (w.top + 1) + "-" + w.end + " OF " + w.len; }
+// IS A HALL LIST UNDER THE POINTER? The gate for the wheel and the swipe, which
+// both have to be refused everywhere else on this card or a finger on the HOURS
+// tab would scroll a list it cannot see. On the card, on the HALL tab, with no
+// overlay above it - and with something to scroll, so a short list falls
+// through to the camera pan rather than swallowing the gesture for nothing.
+function hallListHit(p) {
+  if (!manage || manageTab !== "HALL" || dossier || saveView || musicView || helpView) return false;
+  if (_hallWin.len <= _hallWin.rows) return false;
+  const R = manageRects();
+  return p.x >= R.x && p.x < R.x + R.w && p.y >= R.y && p.y < R.y + R.h - 68;   // above the candidacy strip
+}
 // ------------------------------------------------------------- THE ROSTERS
 // TWO BOOKS, ONE MECHANISM (Matt, 2026-08-25: "need a nice view of all tourists
 // like we have for other kinds of citizens" - then, on seeing the first draft,
@@ -20246,14 +20666,20 @@ function drawManage() {
 // their own words, so a result can be argued with rather than just watched.
 function drawHall(R, chip) {
   const { x, y } = R, w2 = R.w, h2 = R.h;
+  // NOTHING TO SCROLL UNTIL A LIST SAYS OTHERWISE. Cleared every frame so a
+  // surface that draws no list (the roll before anyone has voted, the ballot
+  // before one has been held) cannot inherit the previous surface's window and
+  // leave the wheel and the arrow keys grabbing at a list that is not there.
+  _hallWin = { rows: 0, len: 0 };
   const m = mayorCrab(), p = hall.policy, P = purseOf(p);
   const shut = shelterShut();
   smallText(ctx, "MAYOR", x + 8, y + 33, [58, 42, 38]);
   smallText(ctx, fitSmall((hall.mayor || "VACANT") + (m && !m.p.npc ? " (YOURS)" : ""), w2 - 50), x + 42, y + 33,
     m && !m.p.npc ? [190, 110, 40] : [40, 30, 40]);
-  const rollPages = Math.max(1, Math.ceil(((hall.poll && hall.poll.lines.length) || 0) / ROLL_ROWS));
-  chip(R.hview, (HALL_VIEW_LABEL[hallView] || "BOOKS")
-    + (hallView === "ROLL" && rollPages > 1 ? " " + (hallRollPage + 1) + "/" + rollPages : ""), null, false);
+  // ONE JOB AGAIN. The chip used to carry the roll's page counter too, because
+  // it was the roll's pager as well as the view cycler; the lists scroll now,
+  // so it cycles the four surfaces and nothing else.
+  chip(R.hview, HALL_VIEW_LABEL[hallView] || "BOOKS", null, false);
   const nextPoll = day + ((POLL_WEEKDAY - weekdayIdx(day) + 7) % 7 || 7);
   const mine0 = playerMayor();
   const nom0 = (hall.nominee && crabs.some(c => c.p.name === hall.nominee) ? hall.nominee
@@ -20304,11 +20730,18 @@ function drawHall(R, chip) {
     // FOUR ROWS AT 7px, ending two pixels clear of the candidacy strip below.
     // The card is 164 tall and the strip owns everything from y+130 down; an
     // earlier cut ran six 8px rows straight through both control rows.
+    //
+    // NEWEST FIRST NOW THAT IT SCROLLS. It used to take the LAST four rows in
+    // ledger order, which is the only way to show a fund's latest movements
+    // when four is all you get; a scrollable list wants its newest row where
+    // the eye lands and the older ones down the gesture, or scrolling walks
+    // you backwards through time towards the top of the list.
     let ly = y + 101;
     const LEDG = 4;
-    const rows = townFund.ledger.slice(-LEDG);
-    if (!rows.length) smallText(ctx, "NOTHING HAS MOVED YET", x + 8, ly, [150, 140, 160]);
-    for (const r of rows) {
+    const led = townFund.ledger.slice().reverse();
+    const wn = hallWindow(led.length, LEDG);
+    if (!led.length) smallText(ctx, "NOTHING HAS MOVED YET", x + 8, ly, [150, 140, 160]);
+    for (const r of led.slice(wn.top, wn.end)) {
       const col = r.kind === "take" ? [40, 150, 70] : r.kind === "pay" ? [190, 110, 40] : [190, 80, 80];
       smallText(ctx, "D" + r.day, x + 8, ly, [150, 140, 160]);
       smallText(ctx, r.kind === "take" ? "FROM" : "TO", x + 26, ly, [150, 140, 160]);
@@ -20318,9 +20751,10 @@ function drawHall(R, chip) {
       smallText(ctx, fitSmall(r.why, w2 - 132), x + 122, ly, [110, 100, 110]);
       ly += 7;
     }
-    if (townFund.ledger.length > LEDG)
-      smallText(ctx, "+" + (townFund.ledger.length - LEDG) + " EARLIER",
-        x + w2 - 6 - smallTextWidth("+" + (townFund.ledger.length - LEDG) + " EARLIER"), y + 93, [150, 140, 160]);
+    // ...AND WHERE IN 48 ROWS YOU ARE. This is what "+44 EARLIER" became: the
+    // same count, except the gesture that reaches those rows now exists.
+    const wl = hallWinLabel(wn);
+    if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 93, [150, 140, 160]);
   } else if (hallView === "TRADE") {
     // THE GANGWAY (Matt, 2026-08-25: the tariff wants "a bigger civics UX").
     // The office's own reading of the trade ledger: what the ferry lands,
@@ -20334,22 +20768,44 @@ function drawHall(R, chip) {
     { const v = "PIER $" + $d(trade.price);
       smallText(ctx, v, x + w2 - 8 - smallTextWidth(v), y + 66,
         trade.price >= fishCeil() ? [200, 110, 40] : [140, 110, 40]); }
+    // WHAT THE TOWN CHARGES, AND WHAT YOU ARE PROPOSING TO CHARGE. This line
+    // read the LIVE policy only, on a card whose dials 30px below write the
+    // PLATFORM - so a player who had just set TARIFF 50% as a candidate read
+    // "NO TARIFF - THE GANGWAY IS FREE" directly above their own tariff dial
+    // and could reasonably conclude the dial was broken. It is the same
+    // manifesto-versus-policy confusion the STAND note is about, in the one
+    // place on the card where the two numbers sit within an inch of each other,
+    // so the page now says both and names which is which.
+    const pl = purseRate(hall.plat), plT = hall.plat.mech === "tariff" ? pl : 0;
     smallText(ctx, fitSmall(tr > 0
       ? "TARIFF " + tr + "% - RAISED $" + fmt(trade.dutyDay) + " TODAY, $" + fmt(trade.duty) + " ALL TIME"
       : trade.duty > 0 ? "NO TARIFF TODAY - $" + fmt(trade.duty) + " RAISED ALL TIME"
       : "NO TARIFF - THE GANGWAY IS FREE", w2 - 16), x + 8, y + 75,
       tr > 0 ? [40, 150, 70] : [110, 100, 110]);
+    if (plT !== tr)
+      smallText(ctx, fitSmall(playerMayor() ? "YOUR DIAL SAYS " + plT + "% - IT BILLS FROM TONIGHT"
+        : plT > 0 ? "YOU WOULD CHARGE " + plT + "% - WIN THE BALLOT AND IT BITES"
+        : "YOUR PLATFORM WOULD REPEAL IT", w2 - 16), x + 8, y + 84, [190, 110, 40]);
+    const hdr = plT !== tr ? y + 93 : y + 84;
     const cDay = x + 128, cTot = x + 162, cSp = x + w2 - 8;
-    smallText(ctx, "GOOD", x + 8, y + 84, [150, 140, 160]);
-    smallText(ctx, "TODAY", cDay - smallTextWidth("TODAY"), y + 84, [150, 140, 160]);
-    smallText(ctx, "ALL", cTot - smallTextWidth("ALL"), y + 84, [150, 140, 160]);
-    smallText(ctx, "SPENT", cSp - smallTextWidth("SPENT"), y + 84, [150, 140, 160]);
-    let ly = y + 92;
-    // fish and corn lead the key order, and they are the two the duty rides -
-    // when the strip below squeezes a row off, it is the office's own paper
-    // that goes, same rule as the notice board ("stops at its own frame").
-    for (const kind of Object.keys(IMPORTS)) {
-      if (ly > y + h2 - 72) break;   // the candidacy strip owns the bottom of the card
+    smallText(ctx, "GOOD", x + 8, hdr, [150, 140, 160]);
+    smallText(ctx, "TODAY", cDay - smallTextWidth("TODAY"), hdr, [150, 140, 160]);
+    smallText(ctx, "ALL", cTot - smallTextWidth("ALL"), hdr, [150, 140, 160]);
+    smallText(ctx, "SPENT", cSp - smallTextWidth("SPENT"), hdr, [150, 140, 160]);
+    let ly = hdr + 8;
+    // ...AND IT SCROLLS, because it did not fit. Six goods, and the arithmetic
+    // left room for five: PAPER was dropped with no indicator at all, so the
+    // one import the OFFICE buys - the row that says what an election costs -
+    // was missing from the office's own page. The old comment here said a
+    // squeezed row would be paper "same rule as the notice board", which was
+    // true and was exactly the problem: this is the page you read to price the
+    // TARIFF dial, and a row you cannot reach is a row you cannot price.
+    const keys = Object.keys(IMPORTS);
+    const ROWS = Math.max(1, Math.floor((y + h2 - 64 - ly) / 7));
+    const wn = hallWindow(keys.length, ROWS);
+    const wl = hallWinLabel(wn);
+    if (wl) smallText(ctx, wl, x + 30, hdr, [150, 140, 160]);
+    for (const kind of keys.slice(wn.top, wn.end)) {
       const im = IMPORTS[kind];
       smallText(ctx, fitSmall(im.name + (tr > 0 && (kind === "fish" || kind === "corn") ? " +DUTY" : ""), 110),
         x + 8, ly, [90, 90, 105]);
@@ -20369,12 +20825,16 @@ function drawHall(R, chip) {
     if (!poll) smallText(ctx, "NOBODY HAS VOTED YET", x + 8, y + 68, [150, 140, 160]);
     else {
       smallText(ctx, fitSmall("HOW THE TOWN VOTED - DAY " + poll.day, w2 - 16), x + 8, y + 66, [58, 42, 38]);
-      if (rollPages > 1)
-        smallText(ctx, "TAP THE CHIP FOR THE REST", x + w2 - 6 - smallTextWidth("TAP THE CHIP FOR THE REST"),
-          y + 66, [150, 140, 160]);
+      // THE ROLL SCROLLS NOW INSTEAD OF PAGING OFF THE VIEW CHIP. That chip did
+      // two jobs - cycle the four surfaces AND turn the roll's pages - so it
+      // was forward-only in both, and getting from roll page 1 back to BOOKS
+      // cost three taps through pages you had already read. It is one job
+      // again; the roll is read with the same gesture as every other list here.
+      const wn = hallWindow(poll.lines.length, ROLL_ROWS);
+      const wl = hallWinLabel(wn);
+      if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 66, [150, 140, 160]);
       let ly = y + 76;
-      const p0 = Math.min(hallRollPage, rollPages - 1) * ROLL_ROWS;
-      for (const l of poll.lines.slice(p0, p0 + ROLL_ROWS)) {
+      for (const l of poll.lines.slice(wn.top, wn.end)) {
         smallText(ctx, fitSmall(l, w2 - 16), x + 8, ly, [110, 100, 110]);
         ly += 7;
       }
@@ -20386,8 +20846,16 @@ function drawHall(R, chip) {
     // who is on the paper, how many have voted, and how much paper is left.
     // A running total would quietly undo the whole point of counting by hand.
     smallText(ctx, fitSmall("TODAY'S BALLOT - " + B0.printed + " PAPERS PRINTED", w2 - 16), x + 8, y + 66, [58, 42, 38]);
+    // FOUR ROWS OF UP TO SIX, and it used to be a silent slice(0, 4) - on a
+    // full ballot the clipped candidate was YOUR OWN, every time, because
+    // buildBallot unshifts the incumbent and PUSHES your nominee last. The one
+    // page in the game that lists who is standing could not show you that you
+    // were standing. It scrolls now, and it says how many there are.
+    const wn = hallWindow(B0.cands.length, 4);
+    const wl = hallWinLabel(wn);
+    if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 66, [150, 140, 160]);
     let ly = y + 76;
-    for (const k of B0.cands.slice(0, 4)) {
+    for (const k of B0.cands.slice(wn.top, wn.end)) {
       const you = !!k.you;
       smallText(ctx, fitSmall((k.inc ? "* " : "  ") + k.name + (you ? " (YOURS)" : ""), 76), x + 8, ly,
         you ? [190, 110, 40] : [40, 30, 40]);
@@ -20412,16 +20880,24 @@ function drawHall(R, chip) {
     else {
       smallText(ctx, fitSmall("DAY " + poll.day + " - " + poll.turnout + " OF " + (poll.roll || poll.turnout) + " VOTED"
         + (poll.away ? ", " + poll.away + " FOUND NO PAPER" : ""), w2 - 16), x + 8, y + 66, [58, 42, 38]);
+      // THE RESULT SCROLLS THE CANDIDATES, not the roll taster below it. Three
+      // rows of up to six, and the honest "+3 MORE ON THE BALLOT" it used to
+      // print was honest about a thing you could not then go and read - the
+      // fourth-placed candidate and their vote count existed in the save and
+      // appeared on no surface in the game. The taster keeps its own measured
+      // room and its own pointer at the ROLL, which is a different list on a
+      // different page and stays there.
+      const wn = hallWindow(poll.cands.length, 3);
+      const wl = hallWinLabel(wn);
+      if (wl) smallText(ctx, wl, x + w2 - 6 - smallTextWidth(wl), y + 66, [150, 140, 160]);
       let ly = y + 76;
-      for (const k of poll.cands.slice(0, 3)) {
+      for (const k of poll.cands.slice(wn.top, wn.end)) {
         const won = k.name === poll.winner;
         smallText(ctx, fitSmall((won ? "* " : "  ") + k.name, 46), x + 8, ly, won ? [190, 110, 40] : [90, 80, 90]);
         smallText(ctx, fitSmall(k.line, 108), x + 56, ly, won ? [40, 30, 40] : [110, 100, 110]);
         smallText(ctx, "" + k.votes, x + 168, ly, won ? [190, 110, 40] : [110, 100, 110]);
         ly += 8;
       }
-      if (poll.cands.length > 3)
-        smallText(ctx, "+" + (poll.cands.length - 3) + " MORE ON THE BALLOT", x + 8, ly, [150, 140, 160]), ly += 8;
       ly += 2;
       // ...and a taste of the roll, with a pointer at the page that holds it
       // all. The BALLOT page is the RESULT; the ROLL page is the argument.
@@ -20449,7 +20925,15 @@ function drawHall(R, chip) {
   // note beside `apply` in the click handler.
   chip(R.pmech, EP.short + " " + purseRateTxt(ed), null, mine);
   chip(R.prm, "-", null, false); chip(R.prp, "+", null, false);
-  smallText(ctx, "RATE " + (ed.rate | 0), R.prm.x + 20, R.prm.y + 4, [40, 30, 40]);
+  // THE RATE READS IN ITS OWN UNIT, like the two dials below it. It used to
+  // print the raw STEP INDEX - "RATE 3" under a chip saying "TARIFF 50%" -
+  // which broke the rule the note under the floor and cap dials states out
+  // loud: a dial reads as the THING VOTED FOR, never as a step index, because
+  // the index is an implementation detail of the stepper and is not what is on
+  // the ballot. Nobody campaigns on rate 3. The tariff made it obvious because
+  // its ladder is not uniform (0/10/25/50/100), so the index carries no
+  // arithmetic relationship to the number it stands for at all.
+  smallText(ctx, purseRateTxt(ed), R.prm.x + 20, R.prm.y + 4, [40, 30, 40]);
   chip(R.pbm, "-", null, false); chip(R.pbp, "+", null, false);
   smallText(ctx, "BOWLS " + (ed.bowls | 0), R.pbm.x + 19, R.pbm.y + 4, [40, 30, 40]);
   // ...and the two dials that are not about the shelter at all. Both read as
@@ -21908,17 +22392,37 @@ const HELP_PAGES = [
     ["-"],
     ["t", "NOTHING HERE IS FREE. EVERY BOWL IN THAT POT"],
     ["t", "WAS BOUGHT FROM A REAL SHOP THE NIGHT BEFORE."],
+    // THE GESTURE, WRITTEN DOWN, and it is a HEADING with no body because that
+    // is all the room this page had - measured, not guessed. A scroll has no
+    // on-screen affordance the way a chip does (the record box's list has the
+    // same problem and the same answer) and this card is where a player looks a
+    // control up. It goes on the page ABOUT the hall; POLLING DAY, the other
+    // candidate, was already 28px past its own footer before this pass.
+    ["h", "ITS PAGES SCROLL - WHEEL, FINGER, UP/DOWN"],
   ] },
   // ...and the dials themselves get the page after it. The fund outgrew the
   // town-hall page the moment the floor joined it, and the floor is the one
   // policy on the ballot that bills a player directly - it does not belong in
   // the four lines left at the bottom of somebody else's page.
+  // FIVE PURSES, NOT FOUR. This page said FOUR and named four for a cycle
+  // after THE TARIFF landed as the fifth - so the one purse a player is most
+  // likely to come looking up (Matt asked for it by name) was the one the help
+  // card did not have. A count in prose is a thing that rots the moment the
+  // table under it grows; it is spelled out here because the page has the room.
   { title: "WHAT THE MAYOR SETS", lines: [
-    ["h", "THE TOWN FUND - FOUR PURSES, MAYOR'S PICK"],
+    ["h", "THE TOWN FUND - FIVE PURSES, MAYOR'S PICK"],
     ["t", "A LEVY ON TAKINGS. HARBOUR DUES PER HEAD"],
     ["t", "LANDED. A CUT OF THE HOUSE RENTS. A TIN."],
+    ["t", "AND A TARIFF ON EVERY IMPORTED GOOD."],
     ["t", "THEY FALL ON DIFFERENT CRABS, WHICH IS WHY"],
     ["t", "THE VOTE IS WORTH CASTING."],
+    ["-"],
+    ["h", "THE TARIFF, AND WHO IT IS FOR"],
+    ["t", "PAID BY THE TILL THAT BUYS THE CRATE, SO A"],
+    ["t", "TOWN LIVING OFF THE FERRY PAYS AND ONE FED"],
+    ["t", "BY ITS OWN PIER DOES NOT. IT ALSO LIFTS WHAT"],
+    ["t", "THE PIER MAY CHARGE - FISHERS GAIN, KITCHENS"],
+    ["t", "PAY - AND THE TRADE PAGE PRICES IT FOR YOU."],
     ["-"],
     ["h", "THE POT"],
     ["t", "HOW MANY BOWLS GO ON THE FIRE AT NIGHT, UP"],
@@ -22876,6 +23380,19 @@ function viewFrame(dt) {
         px(ctx, t.x + 12 - camX, t.y - 2, [220, 190, 130]);
       }
     } }); continue; }
+    // ARCADE MACHINES are stalls too, but they read as CABINETS a crab stands
+    // in front of rather than a curtain they hide behind. The claw's two-frame
+    // art was always a win animation - frame 2 has the gold '+' in the
+    // cabinet - and it used to play while an EMPLOYEE worked the machine as a
+    // production step. It now plays for the crab who actually paid.
+    if (stalls && key === "arcade") { for (const t of stalls) paint.push({ base: t.y, f: () => {
+      const live = t.occupant && t.occupant.stC === VS.playing;
+      const art = t.machine === "skee" ? SKEEBALL : CLAW_MACHINE[live ? ((viewT * 4) | 0) % 2 : 0];
+      wblit(art, t.x, t.y - art.h);
+      // a machine nobody has reset: the attendant's job, and the same green
+      // flecks the shower stalls wear so the player only learns one signal
+      if (t.dirty) { px(ctx, t.x + 3 - camX, t.y - 2, [130, 220, 110]); px(ctx, t.x + 7 - camX, t.y - 1, [110, 190, 110]); px(ctx, t.x + 11 - camX, t.y - 2, [130, 220, 110]); }
+    } }); continue; }
     if (stalls) for (const t of stalls) paint.push({ base: t.y, f: () => {
       const bathing = t.occupant && t.occupant.stC === VS.showering;
       wblit(STALL[bathing ? 1 : 0], t.x, t.y - STALL[0].h);
@@ -23241,6 +23758,7 @@ function musPlay(t, toggle = true) {
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
   music = null;
+  musArm();                           // choosing a row is a gesture, and the box is where a blocked phone recovers
   const gen = musSrcGen = ++musGen;
   const a = speaker();
   a.pause();
@@ -23249,8 +23767,9 @@ function musPlay(t, toggle = true) {
   musPreviewId = t.id;
   musMeta(t.name);
   a.play().then(() => {
+    musBlocked = false;
     if (musGen === gen && ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
-  }).catch(() => musFail(gen));
+  }).catch(e => musFail(gen, e));
 }
 // THE BENCH'S HALF OF THE FALLBACK, reached through `musFail` so the rotation
 // and the bench share one policy: try the mirror, learn from the 404, take the
@@ -23344,7 +23863,7 @@ function musClose() {
     return;
   }
   musStopPreview();
-  if (musicOn && !muted) startMusic();     // nothing was playing: hand the speakers back
+  if (musicOn && !muted) startMusicTapped();   // nothing was playing: hand the speakers back (BACK is a tap)
 }
 // WHERE A CHOSEN TRACK SITS IN THE ROTATION, making room for it if it is not
 // there yet. A shipped track is already a row. A catalog track you have not
@@ -23643,7 +24162,7 @@ function sciPlay() {
   SCI.run = true; sciShuttle(SCI.days[SCI.at].env); SCI.run = false;
   screen = "play";
   SCI.days = []; SCI.at = -1;
-  startMusic(); sfx.buy();
+  startMusicTapped(); sfx.buy();
   toast = { text: "DAY " + d + " OF THAT TOWN IS YOURS NOW", t: 8 };
   slotOwned = true;                      // "YOURS NOW" is the deliberate act - the lab earns the slot only here
   save();                                // it becomes an ordinary town, in the ordinary slot

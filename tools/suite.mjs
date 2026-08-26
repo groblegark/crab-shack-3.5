@@ -8390,11 +8390,12 @@ scenario("the HALL tab draws, and nothing lands under anything else", () => {
     for (const tab of MANAGE_TABS) { manageTab = tab; t("draw " + tab, () => drawManage()); }
     manageTab = "HALL";
     for (const v of HALL_VIEWS) { hallView = v; t("HALL " + v, () => drawManage()); }
-    // ...and every page of the roll, including one past the end (the chip is
-    // the pager, so a stale hallRollPage after a smaller ballot is reachable)
+    // ...and the roll scrolled to every offset, INCLUDING one past the end: a
+    // smaller ballot after a big one leaves the stored offset beyond the new
+    // list, and hallWindow has to clamp it rather than draw a blank card.
     hallView = "ROLL";
-    for (hallRollPage = 0; hallRollPage < 4; hallRollPage++) t("HALL roll p" + hallRollPage, () => drawManage());
-    hallRollPage = 0;
+    for (let o = 0; o < 4; o++) { HALL_SCROLL.ROLL = o * 8; t("HALL roll @" + HALL_SCROLL.ROLL, () => drawManage()); }
+    HALL_SCROLL.ROLL = 0;
     hall.poll = null;
     for (const v of HALL_VIEWS) { hallView = v; t("HALL " + v + ", no ballot yet", () => drawManage()); }
     hallView = "BOOKS";
@@ -8441,6 +8442,148 @@ scenario("the HALL tab draws, and nothing lands under anything else", () => {
     return JSON.stringify(e);
   })()`));
   return errs.length ? errs.join(" / ") : true;
+});
+
+scenario("the hall's lists scroll: every row of every one of them is reachable", () => {
+  // THE BUG THIS EXISTS FOR (Matt, 2026-08-26: "the whole political UX has
+  // displayed problems, maybe we need scrollable inner lists? Like we have in
+  // the music player"). Five of the six lists on the hall card truncated, and
+  // the worst of them lied about it: the ledger kept 48 rows, drew 4, and
+  // printed "+44 EARLIER" beside a control that did not exist. TRADE clipped
+  // PAPER with no indicator at all. The live ballot drew 4 of up to 6 while
+  // buildBallot PUSHES the player's own nominee last - so on a full ballot the
+  // clipped candidate was always yours.
+  //
+  // THE QUESTION A DRAW TEST CANNOT ASK: not "does it fit" but "can a player
+  // GET there". So this captures the actual strings each surface prints, walks
+  // the scroll the way a wheel does, and demands that the union of what was
+  // drawn covers every row the data holds. A `slice(0, 4)` passes every bounds
+  // sweep in this file and fails this.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(8, { tickEvery: 200, onTick: (G) => { if (G("coins") < 40000) G("coins = 90000"); } });
+  const out = JSON.parse(sim.G(`(() => {
+    const e = [];
+    const S = smallText;
+    let seen = [];
+    smallText = (c, str, x, y, col, sz) => { seen.push(String(str)); return S(c, str, x, y, col, sz); };
+    // WALK THE WHOLE LIST the way the wheel does - draw, collect, scroll one,
+    // repeat - and stop when the offset stops moving, which is how a real
+    // gesture finds the bottom. A cap of 200 so a clamp bug is a failure and
+    // not a hang.
+    const sweep = (view) => {
+      hallView = view; HALL_SCROLL[view] = 0; seen = [];
+      let last = -1, guard = 0;
+      while (HALL_SCROLL[view] !== last && guard++ < 200) {
+        last = HALL_SCROLL[view];
+        drawManage();
+        hallScroll(1);
+      }
+      return seen.join(" | ");
+    };
+    manage = "shack"; manageTab = "HALL";
+    // EVERY MARKER NAME BELOW IS MEASURED TO FIT ITS COLUMN, because the card
+    // trims by width (fitSmall) and a marker wider than its budget comes back
+    // truncated - which reads exactly like the row was never drawn. The first
+    // cut of this scenario used "THE VERY FIRST PAYER" in a 57px column and
+    // reported six phantom failures against a working scroll.
+    const fits = (s, w, where) => { if (smallTextWidth(s) > w) e.push("MARKER " + s + " overruns " + where); return s; };
+    // ---- 1. THE LEDGER. 48 rows kept; a distinctive payer in the OLDEST one,
+    // which is the row that was 44 deep and unreachable from anywhere. The who
+    // column is 116-44 minus the amount and a gap = 57px at these amounts.
+    townFund.ledger.length = 0;
+    fundRow("take", 3, fits("FIRST PAYER", 57, "the ledger"), "OLDEST ROW");
+    for (let i = 0; i < 30; i++) fundRow("take", 3, "FILLER " + i, "PADDING");
+    fundRow("pay", 3, fits("LAST PAYER", 57, "the ledger"), "NEWEST ROW");
+    const books = sweep("BOOKS");
+    if (books.indexOf("LAST PAYER") < 0) e.push("the ledger never showed its NEWEST row");
+    if (books.indexOf("FIRST PAYER") < 0) e.push("the ledger never reached its OLDEST row");
+    // ...and the newest row is on the FIRST page, not down a 32-row scroll:
+    // a fund's latest movement is what you open the books to see.
+    HALL_SCROLL.BOOKS = 0; hallView = "BOOKS"; seen = []; drawManage();
+    if (seen.join(" | ").indexOf("LAST PAYER") < 0)
+      e.push("the ledger's newest row was not on the first page");
+    // ---- 2. TRADE. Six goods, and PAPER was the one silently dropped.
+    const trades = sweep("TRADE");
+    for (const k of Object.keys(IMPORTS))
+      if (trades.indexOf(IMPORTS[k].name) < 0) e.push("TRADE never showed " + k);
+    // ---- 3. THE LIVE BALLOT, with the player's nominee pushed last exactly as
+    // buildBallot does it. SIX candidates: four drawn, and it used to be the
+    // player's own that fell off.
+    // The live rows carry a "* " or "  " prefix and the player's also " (YOURS)",
+    // inside a 76px budget - so the markers are short and the prefix is measured.
+    const names = ["CAND1", "CAND2", "CAND3", "CAND4", "CAND5", "MYCRAB"];
+    for (const n of names) fits("* " + n + " (YOURS)", 76, "the live ballot");
+    ballotBox = { day, want: 9, roll: 9, counted: 0, countT: 0, declared: false, shut: false,
+      cands: names.map((n, i) => ({ name: n, plat: hall.plat, inc: i === 0, you: i === 5 })),
+      papers: 9, printed: 9, cast: [], voters: {}, lines: [], turnedAway: [], late: [] };
+    const live = sweep("BALLOT");
+    for (const n of names) if (live.indexOf(n) < 0) e.push("the live ballot never showed " + n);
+    ballotBox = null;
+    // ---- 4. THE RESULT, six candidates deep, and 24 roll lines behind it. Its
+    // name column is 46px and also carries the "* " winner mark.
+    const won = ["WIN1", "WIN2", "WIN3", "WIN4", "WIN5", "WIN6"];
+    for (const n of won) fits("* " + n, 46, "the result");
+    hall.poll = { day: 9, turnout: 6, roll: 6, away: 0, winner: "WIN1",
+      cands: won.map((n, i) => ({ name: n, votes: 9 - i, line: "RAN ON SOMETHING" })),
+      lines: Array.from({ length: 24 }, (_, i) => "VOTER " + i + " HAD A REASON") };
+    const res = sweep("BALLOT");
+    for (const k of hall.poll.cands) if (res.indexOf(k.name) < 0) e.push("the result never showed " + k.name);
+    // ---- 5. THE ROLL. 24 lines, 8 to a window.
+    const roll = sweep("ROLL");
+    for (const l of hall.poll.lines) if (roll.indexOf(l) < 0) e.push("the roll never reached " + l);
+    // ---- 6. AND IT CLAMPS. A stale offset from a big ballot must not blank a
+    // small one - the previous chip-pager left exactly this state reachable.
+    hall.poll.lines = ["THE ONLY LINE"];
+    HALL_SCROLL.ROLL = 99; hallView = "ROLL"; seen = []; drawManage();
+    if (seen.join(" | ").indexOf("THE ONLY LINE") < 0) e.push("a stale offset blanked a shortened roll");
+    if (HALL_SCROLL.ROLL !== 0) e.push("hallWindow did not clamp the stale offset, left " + HALL_SCROLL.ROLL);
+    // ---- 7. ...AND SCROLLING ONE SURFACE DOES NOT MOVE ANOTHER. Four
+    // readings, four places in them; the ledger must not walk when you read
+    // the roll.
+    HALL_SCROLL.BOOKS = 5; HALL_SCROLL.ROLL = 0;
+    hallView = "ROLL"; drawManage(); hallScroll(1);
+    if (HALL_SCROLL.BOOKS !== 5) e.push("scrolling the roll moved the ledger to " + HALL_SCROLL.BOOKS);
+    smallText = S; manage = null;
+    return JSON.stringify(e);
+  })()`));
+  return out.length ? out.join(" / ") : true;
+});
+
+scenario("the hall's rate dial reads in its unit, never as a step index", () => {
+  // A dial reads as the THING VOTED FOR, never as a step index - the card's own
+  // rule, stated beside the floor and cap dials and broken by the rate dial
+  // next to them, which printed "RATE 3" under a chip saying "TARIFF 50%".
+  // The tariff is where it shows: its ladder is 0/10/25/50/100, so the index
+  // bears no arithmetic relation at all to the number it stands for.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    const e = [], S = smallText;
+    let seen = [];
+    smallText = (c, str, x, y, col, sz) => { seen.push(String(str)); return S(c, str, x, y, col, sz); };
+    manage = "shack"; manageTab = "HALL"; hallView = "BOOKS";
+    for (const mech of PURSE_KEYS) {
+      for (let r = 0; r <= rateSteps(mech); r++) {
+        hall.plat = { mech: mech, rate: r, bowls: 2, wage: 0, cap: 0 };
+        seen = []; drawManage();
+        const want = purseRateTxt(hall.plat);
+        if (seen.indexOf(want) < 0) e.push(mech + " rate " + r + " never printed " + want);
+        if (seen.indexOf("RATE " + r) >= 0) e.push(mech + " rate " + r + " printed a raw step index");
+      }
+    }
+    // ...and the TRADE page names BOTH numbers when they differ, because the
+    // dials write the PLATFORM and that page used to read only the live POLICY:
+    // a candidate who had just set TARIFF 50% read "NO TARIFF" above their own
+    // tariff dial and could only conclude the dial was broken.
+    hall.policy = { mech: "levy", rate: 2, bowls: 2, wage: 0, cap: 0 };
+    hall.plat = { mech: "tariff", rate: 3, bowls: 2, wage: 0, cap: 0 };
+    hallView = "TRADE"; seen = []; drawManage();
+    const t = seen.join(" | ");
+    if (t.indexOf("50%") < 0) e.push("TRADE never named the platform's own tariff rate");
+    smallText = S; manage = null;
+    return JSON.stringify(e);
+  })()`));
+  return out.length ? out.join(" / ") : true;
 });
 
 scenario("the town hall survives a save and a reload, ledger and all", () => {
@@ -10323,10 +10466,15 @@ scenario("the HALL tab's text is measured, in every state it has", () => {
     run("as-played", () => {});
     run("no-ballot-yet", () => { hall.poll = null; });
     run("full-ledger", () => { for (let i = 0; i < 16; i++) fundRow("take", 3, "PLANKTON PETE", "RENT CUT"); });
-    // A STALE PAGER is reachable: the chip pages the roll, and a later, smaller
-    // ballot leaves hallRollPage past the end of it.
-    run("roll-page-past-end", () => { hallRollPage = 3; });
-    hallRollPage = 0;
+    // A STALE OFFSET is reachable: a later, smaller ballot leaves the stored
+    // scroll past the end of the new list, on every surface at once.
+    run("scrolled-past-end", () => { for (const v of HALL_VIEWS) HALL_SCROLL[v] = 99; });
+    for (const v of HALL_VIEWS) HALL_SCROLL[v] = 0;
+    // ...AND SCROLLED HALFWAY, which is the state a player is actually in and
+    // the one no bounds pass had ever drawn: a window with rows above AND below
+    // it, so every list's LAST drawn row has to stop clear of the strip below.
+    run("scrolled-mid", () => { for (const v of HALL_VIEWS) HALL_SCROLL[v] = 2; });
+    for (const v of HALL_VIEWS) HALL_SCROLL[v] = 0;
     run("standing", () => { hall.stand = true; hall.nominee = crabs[0].p.name; });
     // IN OFFICE is a different card: the purse chip lights, the STAND chip
     // reads IN OFFICE, and the status line gains a clause about billing you.
@@ -10366,7 +10514,13 @@ scenario("the shop tooltip promises what the button actually does", () => {
     table: 'bizTables("shack").length',
     juicebar: "ownedBizList().length",
     arcade: "ownedBizList().length",
-    cadegear: 'stationCap("arcade", "claw")',
+    // CADE GEAR+ counts MACHINES ON THE FLOOR, not a station cap. The arcade's
+    // claw and skee used to be work STATIONS a staff crab stood at, so "more
+    // machines" was stationCap("arcade","claw") - a number only the production
+    // recipe could feel. They are `stalls` now: furniture a CUSTOMER occupies,
+    // so the upgrade has to put real cabinets down, and this counter follows
+    // the mechanic rather than the other way round.
+    cadegear: "arcadeFloor().length",
   };
   // the arcade has to be standing before CADE GEAR+'s counter means anything,
   // which is why the order below is the shop grid's own order
@@ -11449,12 +11603,34 @@ const AUDIO_SPY = `
       _live.push(this);
     }
     get src() { return this._src; }
-    set src(v) { this._src = v; }
-    play() { this._playing = true; return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} }; }
+    set src(v) { this._src = v; _srcSets++; }
+    play() {
+      // A PHONE THAT HAS NOT BEEN TAPPED YET, when the scenario asks for one.
+      // iOS rejects play() with a NotAllowedError until a gesture unlocks the
+      // ELEMENT, and the rejection is the only thing that tells the game the
+      // difference between "no permission" and "no file" - so a spy that always
+      // resolves cannot see the bug at all. Off by default: every other
+      // scenario keeps the resolve-immediately behaviour it was written against.
+      _playCalls++;
+      if (globalThis._iosLocked) {
+        const err = { name: "NotAllowedError", message: "gesture required" };
+        const rej = { then: () => rej, catch: (g) => { g && g(err); return rej; } };
+        return rej;
+      }
+      this._playing = true;
+      return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} };
+    }
     pause() { this._playing = false; }
     addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
     fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
   };
+  // THE TWO COSTS THE FRAME-LOOP STORM ACTUALLY SPENT on a phone, counted
+  // rather than argued about: play() attempts, and src assignments (each one an
+  // aborted load on cellular data). A latch that works keeps both O(1) across
+  // any number of frames.
+  globalThis._playCalls = 0;
+  globalThis._srcSets = 0;
+  globalThis._iosLocked = false;
   // CUMULATIVE, NEVER RESET, and that is the point of it now. The list used to
   // be cleared between blocks because each track built its own element and the
   // old ones were noise. With one shared element that idiom counts to zero
@@ -11689,6 +11865,130 @@ scenario("the whole session plays through one audio element", () => {
   if (got.afterRotation !== 1) return `the rotation built ${got.afterRotation} audio elements, want exactly 1 (iOS blocks every one after the first)`;
   if (got.total !== 1) return `the session built ${got.total} audio elements, want exactly 1 - the bench must share the rotation's speaker`;
   if (got.audible !== 1) return `${got.audible} tracks audible, want 1`;
+  return true;
+});
+
+// THE FRAME-LOOP STORM (Matt, 2026-08-26): "music still not working on iOS".
+// The single-element fix was correct and shipped, and the music STILL did not
+// play - because the title screen spent every frame re-asking a phone that had
+// already said no.
+//
+// MEASURED on the deployed build b426ccd, in a real browser with iOS's autoplay
+// policy simulated, sitting on the title screen with a save that restores
+// musicOn true: 636 play() attempts and 636 src assignments in 5.0 seconds -
+// ~127/sec, one per frame, musGen 0 -> 1272. Not silence: a src-swap and
+// aborted-load storm on the one shared element, which on a phone is battery and
+// somebody's cellular data.
+//
+// Two independent holes made it possible, and this scenario pins both:
+//   1. `playRole`'s only guard was `music && trackIdx === i`, and the refusal
+//      path nulls `music` - so the guard fell open on the very next frame.
+//   2. `musFails` could not save it either: only `musSkip` ever read that
+//      counter, and `playRole` calls `playTrack` directly, straight past it.
+scenario("an iOS refusal latches instead of re-arming every frame", () => {
+  const sim = createSim({ seed: 13 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musJudge = {}; MUSCAT = null; rebuildRotation();
+    // THE RETURNING PLAYER'S STATE, which is the one that hurts: the save
+    // restores musicOn true, and the title screen is where they land.
+    musicOn = true; muted = false; musicView = false;
+    musArm();
+    _iosLocked = true;                       // nothing has been tapped yet
+    _playCalls = 0; _srcSets = 0;
+    // THE FRAME LOOP, 120 frames of it - about two seconds of staring at the
+    // title screen. On the pre-fix build this is 120 attempts.
+    for (let i = 0; i < 120; i++) playRole("title");
+    out.attempts = _playCalls;
+    out.srcSets = _srcSets;
+    out.latched = musBlocked ? 1 : 0;
+    out.audible = liveCount();
+
+    // AND THE TAP STILL WORKS, which is the half that must not be broken in
+    // exchange: a gesture clears the latch and the music starts. (Verified in a
+    // real browser too - the tap's play() was allowed and the track sounded.)
+    _iosLocked = false;                      // the finger arrives
+    _playCalls = 0; _srcSets = 0;
+    startMusicTapped();
+    out.afterTapAttempts = _playCalls;
+    out.recovered = liveCount();
+    out.clearedLatch = musBlocked ? 0 : 1;
+
+    // ...and once the TITLE track is playing, the frame loop must not restart it
+    // either - the trackIdx guard that was already there, still holding. It is
+    // started through playRole here on purpose: startMusicTapped picks a random
+    // track, and playRole switching off that to the title track is correct
+    // behaviour, not a restart. What must not happen is a second attempt once
+    // the title track itself is the thing playing.
+    _playCalls = 0;
+    playRole("title");
+    out.titleStarted = _playCalls;           // exactly one: the switch to the title track
+    _playCalls = 0;
+    for (let i = 0; i < 60; i++) playRole("title");
+    out.restartsWhilePlaying = _playCalls;
+    return JSON.stringify(out);
+  })()`));
+  // ONE ATTEMPT PER REFUSAL, not one per frame. The exact number is 1: the
+  // first frame tries, the refusal latches, and every frame after it returns.
+  if (got.attempts !== 1) return `120 title frames made ${got.attempts} play() attempts, want 1 - the refusal did not latch (measured 127/sec on the deployed build)`;
+  if (got.srcSets > 1) return `120 title frames pushed ${got.srcSets} srcs onto the element, want <=1 - that is an aborted load per frame on cellular`;
+  if (!got.latched) return "a NotAllowedError did not set musBlocked, so nothing stops the next frame";
+  if (got.audible !== 0) return `a refused play left ${got.audible} tracks audible`;
+  if (got.afterTapAttempts !== 1) return `a tap made ${got.afterTapAttempts} play() attempts, want exactly 1`;
+  if (got.recovered !== 1) return "a tap after the block did not start the music - the latch is now the bug";
+  if (!got.clearedLatch) return "a successful play left musBlocked set, so the next automatic play is refused forever";
+  if (got.titleStarted !== 1) return `switching to the title track took ${got.titleStarted} attempts, want 1`;
+  if (got.restartsWhilePlaying !== 0) return `the frame loop restarted a PLAYING title track ${got.restartsWhilePlaying} times`;
+  return true;
+});
+
+// A 404 AND A REFUSAL ARE OPPOSITE EVENTS, and the storm existed partly because
+// one function treated them as the same one. 404 means "this source is gone,
+// try the next" - skip on. NotAllowedError means "you have no permission yet,
+// and nothing without a gesture will change that" - stop and wait. Conflating
+// them turns one refusal into a walk through the whole rotation, at frame rate.
+scenario("a refusal waits for a tap where a 404 skips on", () => {
+  const sim = createSim({ seed: 17 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musJudge = {}; MUSCAT = null; rebuildRotation();
+    musicOn = true; muted = false; musicView = false;
+
+    // A MISSING FILE still skips to the next track - the deployed-build fix
+    // above, which must survive this change.
+    musArm(); _iosLocked = false;
+    playTrack(0);
+    const wasAt = trackIdx;
+    theSpeaker().fire("error");
+    out.a404Skipped = trackIdx !== wasAt ? 1 : 0;
+    out.a404StillAudible = liveCount();
+
+    // A REFUSAL does not move the rotation at all: the track is fine, the
+    // permission is not, and stepping to a neighbour would refuse identically.
+    musArm(); _iosLocked = true;
+    playTrack(0);
+    const at = trackIdx;
+    _playCalls = 0;
+    startMusic();                            // the automatic path, asked twice
+    startMusic();
+    out.refusalHeldStill = trackIdx === at ? 1 : 0;
+    out.refusalRetries = _playCalls;
+    out.blocked = musBlocked ? 1 : 0;
+
+    // THE GIVE-UP COUNTER IS NOT WHAT DID THIS. A refusal must not burn the
+    // "nothing is reachable" budget: those are different diagnoses, and a phone
+    // waiting for a tap has a perfectly reachable rotation.
+    out.failsAfterRefusal = musFails;
+    return JSON.stringify(out);
+  })()`));
+  if (!got.a404Skipped) return "a 404 no longer skips to the next track - the rotation dies with one bad file";
+  if (got.a404StillAudible !== 1) return `after a 404 skip ${got.a404StillAudible} tracks audible, want 1`;
+  if (!got.refusalHeldStill) return "a refusal walked the rotation - it should hold still and wait for a gesture";
+  if (got.refusalRetries !== 0) return `after latching, two startMusic calls made ${got.refusalRetries} attempts, want 0`;
+  if (!got.blocked) return "the refusal did not latch";
+  if (got.failsAfterRefusal !== 0) return `a refusal spent ${got.failsAfterRefusal} of the give-up budget, want 0 - a blocked phone is not an unreachable rotation`;
   return true;
 });
 
@@ -17752,6 +18052,144 @@ scenario("rethink: two town days of switches stay countable - inertia is the def
   const n = sim.G("window._stats.rethinkSwitch || 0");
   if (!(n > 0)) return "two full days and nobody ever changed her mind: the mechanism is dead";
   if (!(n < 300)) return "the town is dithering: " + n + " switches in two days (want < 300)";
+  return true;
+});
+
+scenario("the arcade: a crab pays for a game and actually plays it", () => {
+  // THE FALL-THROUGH THIS FEATURE EXISTS TO FIX. The serve dispatch branches
+  // on whether a business declares `lodging`, `stalls` or `tables` and names
+  // no business anywhere; the arcade used to declare NONE of the three, so a
+  // paying customer hit `else cust.stC = VS.leaving` and walked straight back
+  // out the door. The pin is the whole cycle, end to end: somebody reaches a
+  // machine, the machine is OCCUPIED while they play, and it is left DIRTY.
+  const sim = createSim({ seed: 1337 });
+  sim.G(`coins = 500000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; crabs[3].p.job = "arcade"; rosterGen++;`);
+  const reached = sim.runUntil(
+    'customers.some(k => k.biz === "arcade" && k.stC === VS.playing)', { maxSteps: 600000 });
+  if (!reached) return "nobody ever reached a machine - the arcade is a shop again";
+  // ...and while they play they are ON the machine, holding it against the
+  // next customer. An occupancy that does not occupy is a costume.
+  const held = sim.G(`(() => { const k = customers.find(k => k.biz === "arcade" && k.stC === VS.playing);
+    return !!(k && k.stall && k.stall.occupant === k); })()`);
+  if (!held) return "a crab is 'playing' but holds no machine";
+  sim.G("window._stats = window._stats || {};");
+  sim.runDays(4);
+  const st = JSON.parse(sim.G(`JSON.stringify({ games: window._stats.gamesPlayed || 0,
+    cleaned: window._stats.stallsCleaned || 0,
+    floor: (BIZ.arcade.stalls || []).length })`));
+  if (!(st.games > 0)) return "four days and no game was ever finished";
+  if (st.floor !== 4) return "the arcade floor should open with 4 machines, found " + st.floor;
+  // the machines go dirty, so the attendant has something to do - which is
+  // what makes HIRE_DUTY.arcade ("MINDS THE FLOOR AT") true at all
+  if (!(st.cleaned > 0)) return "machines never needed resetting: the floor duty is still a lie";
+  return true;
+});
+
+scenario("the arcade: the chore is named for the shop it happens in", () => {
+  // The cleaning cycle is SHARED furniture code and its diary line used to be
+  // the literal "SCRUBBED OUT A SHOWER STALL" - so the moment the arcade grew
+  // stalls, an attendant in the CLAWCADE started writing about shower stalls.
+  // Observed before it was fixed; pinned so it cannot come back.
+  const sim = createSim({ seed: 1337 });
+  sim.G(`coins = 900000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; crabs[3].p.job = "showers"; rosterGen++;`);
+  sim.runDays(5);
+  const lines = JSON.parse(sim.G(`JSON.stringify(crabs.flatMap(c =>
+    (c.p.log || []).filter(e => e[2] === "work").map(e => (c.p.job || "-") + "|" + e[3])))`));
+  const bad = lines.find(t => t.startsWith("arcade|") && /SHOWER|STALL/.test(t));
+  if (bad) return "an arcade worker wrote a shower line: " + bad;
+  if (!lines.some(t => t.startsWith("arcade|") && /MACHINE|SKEEBALL/.test(t)))
+    return "no arcade worker ever recorded resetting a machine";
+  // ...and the showers must still say their own thing: a phrase table that
+  // fixes one shop by breaking another is not a fix
+  const shw = JSON.parse(sim.G(`JSON.stringify(crabs.flatMap(c =>
+    (c.p.log || []).map(e => e[3])).filter(t => /SHOWER|SOAK/.test(t)))`));
+  if (!shw.length) return "the showers stopped saying anything about showers";
+  return true;
+});
+
+scenario("the arcade floor survives a save and reload", () => {
+  // The machines are FURNITURE derived from an upgrade level, not a saved list
+  // - the same contract the hotel annexe has ("THE ROOMS ARE THE TRUTH, not a
+  // counter beside them"), so no new save field. That means the load path has
+  // to RE-DEAL the floor before anything can stand at one, and a reloaded town
+  // that silently drops back to four machines would be invisible: the shop
+  // still works, it is just quietly smaller than what the player bought.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store });
+  a.G(`coins = 900000; tryBuy("arcade"); tryBuy("cadegear"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; rosterGen++;`);
+  a.runDays(2);
+  const shape = `JSON.stringify({ lvl: UPS.cadegear.lvl, floor: arcadeFloor().length,
+    xs: arcadeFloor().map(t => t.x), machines: arcadeFloor().map(t => t.machine) })`;
+  const pre = a.G(shape);
+  if (JSON.parse(pre).floor !== 6) return "CADE GEAR+ did not put 6 machines down: " + pre;
+  // save(hold) RETURNS the envelope rather than writing it (a fresh session
+  // never writes a slot), so the slot write is explicit here
+  a.G("writeSlotEnv(activeSlot, save(true));");
+  const b = createSim({ seed: 77, storage: store, fresh: false });
+  const post = b.G(shape);
+  if (pre !== post) return "the floor changed shape across a reload:\n  pre  " + pre + "\n  post " + post;
+  // ...and every fid must still be unique ACROSS the whole town: the arcade
+  // draws from the same registry as the shack's tables and the hotel's rooms,
+  // and two pieces of furniture sharing a fid would share their flags
+  const uniq = b.G(`(() => { const all = [].concat(...Object.values(BIZ)
+    .map(z => (z.stalls || []).concat(z.tables || []))).map(t => t.fid);
+    return new Set(all).size === all.length; })()`);
+  if (!uniq) return "a reloaded town has two pieces of furniture on one fid";
+  // and the reloaded town must still be PLAYABLE, not merely shaped right
+  if (!b.runUntil('customers.some(k => k.biz === "arcade" && k.stC === VS.playing)',
+      { maxSteps: 400000 })) return "nobody could play a machine after the reload";
+  return true;
+});
+
+scenario("the arcade's occupancy is the JS chain's alone, on both backends", () => {
+  // WHY THIS PIN EXISTS, and it is the sharpest hazard in the feature. The
+  // compiled kernel (tools/kernel/kernel.c) reimplements the counter machine,
+  // and its occupancy exit HARD-CODES the shower: it subtracts a scrub from
+  // the visitor DIRT plane, with both branches nonzero, so no argument JS can
+  // pass means "this was not a wash". Had the arcade reused `showering`, a
+  // tourist would have walked out of a claw machine CLEANER.
+  //
+  // The defence is structural: the arcade's three states are appended past
+  // `leaving` and are absent from KCUST_STATES, so the wasm unit never
+  // dispatches them. Two pins, because the structure and the result can fail
+  // apart: the states must stay out of KCUST_STATES, AND the two backends must
+  // still agree on a town that actually plays games.
+  const oob = createSim({ seed: 1337 });
+  const inTable = JSON.parse(oob.G(
+    `JSON.stringify(["toMachine", "waitMachine", "playing"].map(s => !!KCUST_STATES[VS[s]]))`));
+  if (inTable.some(Boolean))
+    return "an arcade state entered KCUST_STATES: the kernel would dispatch it into the shower's exit";
+  // ...and the four codes the C file hard-codes must not have moved under it
+  if (!oob.G("VS.toBiz === 12 && VS.inRoom === 15 && VS.onSand === 16 && VS.roam === 17"))
+    return "the VS codes the kernel pins have moved - abi_check should have thrown";
+
+  const stage = `coins = 900000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; crabs[3].p.job = "showers"; rosterGen++;`;
+  const ref = createSim({ seed: 4242, kernel: "off" });
+  let kern;
+  try { kern = createSim({ seed: 4242, kernel: "wasm" }); }
+  catch (e) { return "kernel failed to arm: " + e.message; }
+  ref.G(stage); kern.G(stage);
+  ref.runDays(5); kern.runDays(5);
+  const read = (s) => s.G(`JSON.stringify([window._stats.gamesPlayed || 0,
+    window._stats.showersDone || 0, window._stats.stallsCleaned || 0, coins, lifetime,
+    customers.map(k => [k.si, VSTCP[k.si], C_SHW[k.si]]),
+    (BIZ.arcade.stalls || []).map(t => [t.fid, FT_X[t.fid], FT_FLG[t.fid]])])`);
+  const a = read(ref), b = read(kern);
+  if (a !== b) {
+    const A = JSON.parse(a), B = JSON.parse(b);
+    const F = ["games", "showers", "cleaned", "coins", "lifetime"];
+    for (let i = 0; i < F.length; i++)
+      if (JSON.stringify(A[i]) !== JSON.stringify(B[i]))
+        return `backends diverged on ${F[i]}: ref ${A[i]} vs kernel ${B[i]}`;
+    return "backends diverged on the customer/furniture planes";
+  }
+  // ...and the run has to have actually PLAYED something, or this pin is
+  // green on a town where the hazard never arose
+  if (!(JSON.parse(a)[0] > 0)) return "no games were played: the agreement is vacuous";
   return true;
 });
 

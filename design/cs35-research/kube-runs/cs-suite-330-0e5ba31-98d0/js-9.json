@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-0e5ba31-98d0",
+  "armId": "js-9",
+  "index": 9,
+  "sha": "0e5ba31beec72c967bafd399fa4487c199ee6174",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 315919,
+  "verdict": "33/33 passed in slice 9/12 (315.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (590ms)\n  PASS  npc: SUDSY dines at the player shack (4077ms)\n  PASS  slots: the preview card reflects the town it came from (3178ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (36ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (132ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (212ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (12481ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1448ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (17875ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (7735ms)\n  PASS  tip sharing + the table cap roundtrip save/load (690ms)\n  PASS  no surface prints off the canvas (1828ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (213404ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (5728ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1442ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2026ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1338ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1487ms)\n  PASS  the HALL tab's text is measured, in every state it has (4539ms)\n  PASS  the shack says where the money comes from, and only your shops do (688ms)\n  PASS  the music controls answer from outside the record box (16ms)\n  PASS  the house limit stops a hire and never fires anybody (6547ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (7ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (12254ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (10ms)\n  PASS  cultureways: a save without cultures changes nothing (933ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (11ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (427ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3225ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (11366ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (85ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (14ms)\n33/33 passed in slice 9/12 (315.8s)\n"
+}

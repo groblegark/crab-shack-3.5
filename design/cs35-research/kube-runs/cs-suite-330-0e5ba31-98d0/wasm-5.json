@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-0e5ba31-98d0",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "0e5ba31beec72c967bafd399fa4487c199ee6174",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 59110,
+  "verdict": "34/34 passed in slice 5/12 (59.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (11830ms)\n  PASS  save guard: a town born from a rejected save does not bury it (1070ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (44ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (928ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (725ms)\n  PASS  days off: everyone rests their weekday and plays customer (3968ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (304ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (777ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (1664ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (589ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (8ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (547ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (8ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (777ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (637ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (9ms)\n  PASS  departures: a stay survives a save and a reload (1794ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (2871ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (102ms)\n  PASS  a hire is something you can see happen (431ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1373ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (1954ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (20ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (36ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (7ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (6531ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4620ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (14ms)\n  PASS  seam: a headless day never enters the view (925ms)\n  PASS  brains: a town full of thinking heads round-trips its save (6244ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (7575ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (44ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (7ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (575ms)\n34/34 passed in slice 5/12 (59.0s)\n"
+}

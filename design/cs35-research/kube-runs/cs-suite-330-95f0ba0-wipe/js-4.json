@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-95f0ba0-wipe",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "95f0ba0d75b2f91f5edd15d37ef35287cd17e04d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 142730,
+  "verdict": "34/34 passed in slice 4/12 (142.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3067ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1311ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (22ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1556ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1429ms)\n  PASS  tired: the morning and evening shifts end the week level (68404ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (523ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (13139ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (74ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (77ms)\n  PASS  tips: the counter gets a token, the table gets the lot (10ms)\n  PASS  no card prints text on top of its own text (1949ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (5338ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1266ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (961ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3976ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2225ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3092ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (879ms)\n  PASS  the help card fits the card, in the font the card is printed in (11ms)\n  PASS  the title screen credits the track that is actually queued (12ms)\n  PASS  a refusal waits for a tap where a 404 skips on (14ms)\n  PASS  missing payday costs the crew, not the lease (8040ms)\n  PASS  crab-as-document: a hostile document is refused by name (7ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (9991ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (42ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (445ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (705ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (582ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3731ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1717ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (4965ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1502ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1557ms)\n34/34 passed in slice 4/12 (142.6s)\n"
+}

@@ -1,13 +1,32 @@
 # CRAB SHACK — project state & roadmap
 
-Three games, all live on GitHub Pages, all built on the snescat toy PPU
+Four deploys, all live on GitHub Pages, all built on the snescat toy PPU
 (character-map sprites, 5x7 + 3x5 fonts, 256x240 canvas, no build step).
+**Only 3.5 is under development** — this repo.
 
 | game | repo | live | status |
 |---|---|---|---|
 | CRAB SHACK | groblegark/crab-shack | groblegark.github.io/crab-shack | done, in the can |
 | CRAB SHACK 2 | groblegark/crab-shack-2 | groblegark.github.io/crab-shack-2 | done + refined |
-| CRAB SHACK 3 | groblegark/crab-shack-3 | groblegark.github.io/crab-shack-3 | active |
+| CRAB SHACK 3 | groblegark/crab-shack-3 | groblegark.github.io/crab-shack-3 | **NOT under development** — frozen, last deploy 2026-08-22 |
+| CRAB SHACK 3.5 | groblegark/crab-shack-3.5 | **groblegark.github.io/crab-shack-3.5** | **ACTIVE — this repo, the only one being worked on** |
+
+### CS3 IS NOT UNDER DEVELOPMENT (Matt, 2026-08-26) — only 3.5 is
+
+That row said "CRAB SHACK 3 … active" for long enough to cost a real
+debugging cycle, and this note is here because the mistake is cheap to make
+and expensive to find. `crab-shack-3` and `crab-shack-3.5` are **separate
+repos with separate Pages deploys**, and the old one never stopped serving.
+On 2026-08-26 its `game.js` was still the 2026-08-22 build — 82 merges and
+184 `game.js` commits behind, no record box, no science lab, no visitors
+book, `version.js` a 404, and the pre-fix `music = new Audio(t.src)` still
+in it.
+
+The consequence, measured: Matt reported "music still not working on iOS"
+against a build where the iOS fix **did not exist**, because `README.md`
+pointed at the 3 deploy. Both the report and the fix were correct; the URL
+was not. Every landing goes to **3.5**, and a bug report should always name
+the URL and the title-screen build stamp before anyone reads code.
 
 ## THE PRIORITY (Matt, 2026-08-22): THE CULTUREWAY MIGRATION, CONTENT-FIRST
 
@@ -311,6 +330,36 @@ compounds or collapses → the landlord collects at 20:00 either way.
   shopfront — see the visitor entry). (SUDS N BUBBLES, the $400 laundromat,
   was removed 2026-08-18 — see the shipped note below.) Each: stations,
   recipes, queue, rent, owner.
+- **THE ARCADE IS AN OCCUPANCY, NOT A KITCHEN** (2026-08-26): the CLAWCADE
+  used to be modelled as a shack — `clawgame` was `[["claw", 3.5, "plush"]]`,
+  so a STAFF crab worked the claw machine like a grill and handed a plush over
+  the prize counter while the customer queued, was handed an item, and left.
+  **Nobody ever played anything.** The defect was a fall-through: the serve
+  dispatch branches on whether a business declares `lodging`, `stalls` or
+  `tables` and names no business, and the arcade declared none of the three,
+  so a crab paid for a game and walked straight back out the door. Now the
+  machines are **`stalls`** — furniture a CUSTOMER occupies for `playT`
+  seconds and leaves DIRTY — which is the shower stalls' cycle one furniture
+  type over, the same argument the hotel's rooms are built on. What the shop
+  SELLS is a token, one step, at the booth. The queue, patience, every abort
+  path and the whole housekeeping dispatch came free, and
+  `HIRE_DUTY.arcade` ("MINDS THE FLOOR AT") is true for the first time.
+  CADE GEAR+ became a FURNITURE upgrade (`setArcadeFloor`, rebuilt from a
+  count like the hotel annexe) because "more machines" now has to mean
+  cabinets a customer can stand at. Arm-off hatch: **`--noplay`** (counter
+  service, no occupancy) for attributing the floor's throughput cost.
+  **THE TRAP, and it is worth knowing before touching any occupancy:** the
+  arcade has its OWN three states (`toMachine`/`waitMachine`/`playing`)
+  rather than reusing `toStall`/`showering`, because those four ARE in
+  `KCUST_STATES` and therefore dispatched by the **compiled wasm kernel**,
+  whose occupancy exit hard-codes the shower — it subtracts a scrub from the
+  visitor DIRT plane with *both* branches nonzero, so no argument JS can pass
+  means "this was not a wash", and a tourist would have walked out of a claw
+  machine cleaner. `VS_NAMES` is append-only (`abi_check` pins the four codes
+  `kernel.c` hard-codes and throws if they move); the arcade's states are
+  appended past `leaving` and absent from `KCUST_STATES`, so its occupancy is
+  the JS chain's alone on both backends **by construction**. Pinned by a
+  mutation-tested scenario that fails the moment they enter the table.
 - **VISITORS, and the ferry that brings them** (2026-08-19): tourist demand is
   a POPULATION, not a timer. Named visitors land in ferry batches (four
   sailings a day, batch size off reputation), walk down the pier into town,
@@ -7553,6 +7602,88 @@ is the gangway's page: per-good today/all-time/spent columns, the posted
 rate, what the duty raised today and all time, the pier price against its
 (possibly tariffed) ceiling. Rendered even with no tariff on: a player
 weighing the TARIFF dial reads this page to see what it would fall on.
+
+## THE HALL'S LISTS SCROLL (Matt, 2026-08-26) — "the whole political UX has displayed problems, maybe we need scrollable inner lists? Like we have in the music player"
+
+His instinct was right and the audit was worse than "displayed problems":
+**five of the six lists on the hall card truncated, and only the roll was even
+paged.** Landed on trunk `d3587b6`, stamp `580d88b`, receipt `8927f76`.
+
+### What was actually broken
+
+| List | Kept | Drew | How it failed |
+| --- | --- | --- | --- |
+| BOOKS ledger | 48 | 4 | printed `+44 EARLIER` beside a control that **did not exist** |
+| TRADE goods | 6 | 5 | **silent** clip — PAPER, the one import the office itself buys |
+| live BALLOT | ≤6 | 4 | silent, and `buildBallot` **pushes your own nominee last** |
+| LAST BALLOT | ≤6 | 3 | honest `+3 MORE` about rows no surface could reach |
+| THE ROLL | ≤24 | 8 | paged off the **view chip**, forward-only |
+
+The live-ballot one is the sharpest: the single page in the game that lists who
+is standing could not show you **that you were standing**. And nothing in the
+political UX scrolled at all — no wheel handler, no swipe, and not one key on
+the busiest card in the game (eleven controls in 224×196).
+
+### The mechanism, lifted from the record box
+
+`HALL_SCROLL` — **one offset per surface**, so reading the roll does not move
+your place in the ledger — plus one `hallWindow(len, rows)` that **clamps in
+place**, which fixes for all four at once the stale-offset bug the old chip
+pager had its own scenario for. Wheel, finger-swipe and Up/Down/PgUp/PgDn/
+Home/End, gated on `hallListHit` so a short list falls through to the camera
+pan instead of swallowing the gesture. `_hallWin` carries the last draw's row
+count to the input path (the `_brainTvPager` idiom) and is cleared every frame,
+so a surface that draws no list cannot inherit the previous one's window.
+
+Deliberately NOT copied from the box: the **drag thumb** (a 224px card has no
+gutter a full-width roll line would not print through) and the horizontal keys
+(unshifted ←/→ keep panning the town; the hall has no horizontal axis). The
+gain is **7px a row** because a hall row is 7px — the same rule the box applies
+at 20. The ledger is **newest-first** now that it scrolls: taking the last four
+in ledger order is right when four is all you get and backwards the moment
+scrolling walks you towards the top.
+
+### Three tariff legibility fixes, no new mechanism
+
+The tariff was settable already (cycle `pmech`, raise the rate, as mayor) and
+buried:
+
+1. The rate dial printed the **raw step index** — `RATE 3` under a chip reading
+   `TARIFF 50%` — breaking the rule stated eight lines below it, that a dial
+   reads as the THING VOTED FOR and never as a step index. The tariff is where
+   it shows: its ladder is `0/10/25/50/100`, so the index bears **no arithmetic
+   relation** to the number it stands for. Nobody campaigns on rate 3.
+2. TRADE read the **live policy** while the dials 30px below write the
+   **platform**, so a candidate who had just set TARIFF 50% read "NO TARIFF —
+   THE GANGWAY IS FREE" above their own tariff dial. It names both now.
+3. The help card said **"FOUR PURSES"** and named four, a cycle after the
+   tariff landed as the fifth — so the one purse Matt asked for by name was the
+   one the help card did not have.
+
+### Gated
+
+**816/816** both backends at the merged tree `580d88b` (js 408/408, wasm
+408/408), 24 arms exit 0 — receipt
+`design/cs35-research/kube-runs/cs-suite-330-580d88b-rw27/`. Gated **twice**:
+main moved 9 commits (cs-arcade-stalls) between the branch-tip gate (808/808 at
+`a268a91`) and the merge, and a verdict belongs to one tree.
+
+Two new scenarios. The first asks the question **a bounds sweep cannot** — not
+"does it fit" but *"can a player GET there"* — by capturing what each surface
+prints while walking the scroll, then demanding the union cover every row the
+data holds. A `slice(0, 4)` passes every bounds sweep in the file and fails
+this. Four mutations, four reds, each naming its own defect: TRADE reverted to
+`slice(0,5)` → *"TRADE never showed paper"*; the ballot to `slice(0,4)` →
+*"never showed MYCRAB"* (the player's own); the rate dial to the index → 50
+raw-index failures; `hallWindow`'s clamp removed → *"a stale offset blanked a
+shortened roll"*.
+
+**One lesson worth keeping.** The first cut of that scenario reported **six
+phantom failures against a working scroll**: its marker names were wider than
+the columns they land in, so `fitSmall` trimmed them — and a trimmed marker
+reads exactly like a row that was never drawn. On a card that trims by width,
+**a test's own fixtures are subject to the same measured budgets as the copy**.
+The markers are measured now, by a helper that fails loudly if one overruns.
 
 ### LANDED ON TRUNK 2026-08-26 (merge `92ec9a6`, stamp `b1ad72a`, receipt `45eb6a2`)
 
