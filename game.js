@@ -14624,6 +14624,11 @@ const DEPART_SPEND_MIN = 1500;   // cents a guest wants left ABOVE a night's boa
                                  // before choosing to stay on - roughly a meal
                                  // and a drink, so an extra night is an evening
                                  // in town, not a night idle in a paid room.
+const DEPART_SOON = 300;         // game-minutes: a guest weighs STAYING ON only
+                                 // when the boat they hold is this close - the
+                                 // choice is made at the dock, not the instant
+                                 // their bars top up after a meal (see the note
+                                 // on visDepartPick's "longer" gate).
 // THE LIVE CONDITION, in needW's weighted-sum space and to the delight gate's
 // own tolerance. delight (game.js:21410) reads a FROZEN departRecord; this reads
 // the LIVE guest for an in-stay decision, but the arithmetic is identical -
@@ -14646,17 +14651,27 @@ function visDelighted(k) {
   const { cond, wsum } = visDepartCond(k);
   return cond <= qn(0.45) * wsum;
 }
-// FAILING: the town is losing this guest - they slept rough, OR their weighted
-// condition is over the high want line (qn(0.85), the sour-rule threshold) with
-// a want the town actually turned away (a blocked counter this stay). A guest
-// who is merely a bit hungry is NOT failing - that is the clock, not the town
-// (the departure card's own lesson, 21441): the blocked-want pairing is what
-// makes it a grievance rather than a fact about the hour.
+// FAILING: the town is genuinely losing this guest. The bar is deliberately
+// narrow, and which of the three blocked counters counts is the whole point -
+// the departure card already taught this distinction and the decision must not
+// unlearn it (21232-21237): only a SHUT door is the town failing a guest. FULL
+// is the town being POPULAR (a BUILD signal, not a grievance) and BROKE is the
+// guest's own empty wallet (a guest who spent their money is a SUCCESS, and one
+// who arrived skint was never the town's to lose) - counting either as "failing"
+// makes half a busy growth town bolt in a huff and talk the place down, which
+// measured as a reputation crash that suppressed pig arrival (the mistake this
+// comment exists to not repeat). So:
+//   - slept ROUGH -> failing outright (no bed is the loudest failure, and it
+//     has already docked reputation on its own);
+//   - a SHUT-door want that clearly dominates (shut >= 3, and shut over full and
+//     broke - the card's own dominance rule) AND a real over-the-line unmet
+//     condition -> failing. Hours and staffing are the fix, which the player owns.
 function visFailing(k) {
   if (k.roughNights > 0) return true;
   const s = k.stay;
-  const turnedAway = s && ((s.shut || 0) + (s.full || 0) + (s.broke || 0)) >= 3;
-  if (!turnedAway) return false;
+  if (!s) return false;
+  const shut = s.shut || 0;
+  if (!(shut >= 3 && shut > (s.full || 0) && shut > (s.broke || 0))) return false;
   const { cond, wsum } = visDepartCond(k);
   return cond >= qn(0.85) * wsum;
 }
@@ -14669,11 +14684,23 @@ function visDepartPick(k) {
   if (window._nodepart) return "hold";              // the arm-off hatch (--nodepart)
   if (k.nights > 0 && k.nightsHad >= k.nights) return "hold";  // last morning: they are already going
   if (visFailing(k)) return "sooner";
-  // EXTENDING COSTS MONEY: a guest only chooses another night if they can still
-  // afford it - a night's board (they will want a room once nights>0) plus a
-  // little left to spend. Both in CENTS, like the wallet. A skint guest who
-  // loved the place still sails - wanting to stay is not being able to.
-  if (visDelighted(k) && k.nights < DEPART_CAP_NIGHTS
+  // EXTENDING IS A DECISION MADE AT THE DOCK, NOT MID-STAY. A guest weighs
+  // another night only when the boat they booked is genuinely near - "I'm about
+  // to sail and I'm having too good a time" - not the instant their bars top up
+  // after a meal. Without this the choice fired every think a guest was content,
+  // and a dozen guests each stretching their stay by a night manufactured a bed
+  // shortage a 7-room hotel could not meet: rough nights climbed and the town's
+  // word FELL (measured, seed 1337 growth - MORE homeless tourists, the opposite
+  // of the intent). Gating on "the sailing they hold is within DEPART_SOON"
+  // makes it the occasional considered choice it should be.
+  const soonToSail = k.leaveT - gnow() <= DEPART_SOON;
+  // EXTENDING NEEDS A BED AND THE MONEY FOR IT. Even at the dock, a guest only
+  // stays on if the town can actually PUT THEM UP - a free room, the hotel open,
+  // the board price plus a little left in the wallet - so a "stay on" never
+  // strands somebody on the sand. A FULL house is a BUILD signal, not an
+  // invitation to sleep rough. roomPrice is cents, like the wallet.
+  if (soonToSail && visDelighted(k) && k.nights < DEPART_CAP_NIGHTS
+      && visOpen("hotel") && freeRoom()
       && k.wallet >= roomPrice() + DEPART_SPEND_MIN) return "longer";
   return "hold";
 }

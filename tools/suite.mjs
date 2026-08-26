@@ -2581,27 +2581,29 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // RE-BASELINED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
     // kd-I9fjOBARav). Departure time stopped being fixed at spawn: on the same
     // free thought a guest weighs whether the trip is worth prolonging, reading
-    // the SAME needW-weighted condition the delight card reads. So a day-1/2
-    // guest the town is delighting stays on and one it is failing cuts short,
-    // and a two-day town could not survive that - it is the whole point. The
-    // drift reads exactly like the change: on 1337 coins 17544 -> 23300 and
-    // serves 42 -> 46 (guests who were leaving stay on and spend), rep 42930 ->
-    // 38695 and rage 3 -> 6 (guests the town is failing cut the trip short and
-    // say so on the way out); on 4242 coins 19570 -> 22231, REEF 25688 -> 26869.
-    // DRAW-FREE by construction (needW, nearestSail, visLog take no srand()), so
-    // the kernel-vs-JS agreement scenario is byte-untouched and this is a pure
-    // trajectory re-roll off leaveT moving, not a leak. Both seeds measured vm
-    // AND main realm BYTE-IDENTICAL, and seed 4242 still matches the
-    // cultureways-save pin below to the cent (coins 22231, rep 41388, REEF
-    // 26869) - one town, two readers, the cross-check that this is the real town
-    // and not a fixture bug (rule 6). Arm-off: window._nodepart / --nodepart
-    // restores the spawn-fixed leaveT and, with it, the pre-change numbers.
-    1337: '{"day":3,"tmin":0,"coins":23300,"rep":38695,"catch":4,"serves":46,"crabServes":3,"rage":6,"till":20045,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",20045],["REEF",25787],["SALTY",800],["DRIFT",1300],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[646,163],[450,155],[2072,167],[419.8,167.3]]}',
-    // 4242, re-harvested in the same landing and for the same reason. This
-    // seed's day-3 town is the shared cross-check with the cultureways-save pin:
-    // coins 22231, rep 41388, REEF 26869 read identically there, proving one
-    // trajectory measured by two scenarios.
-    4242: '{"day":3,"tmin":0,"coins":22231,"rep":41388,"catch":4,"serves":44,"crabServes":5,"rage":2,"till":17485,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17485],["REEF",26869],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[647.2,168],[2136,154],[2072,154],[657.9,166.5],[450,155]]}',
+    // the SAME needW-weighted condition the delight card reads - it stays on at
+    // the dock when the town has delighted it and a bed is free, cuts short when
+    // the town is failing it (a shut door it wanted, or a night on the sand).
+    // ONLY SEED 1337 MOVES here, and that is itself the receipt for how narrow
+    // the trigger is: seed 4242's first two days make no departure choice that
+    // changes anything (no dock-time delight-with-a-bed, no shut-door failure),
+    // so its town is BYTE-IDENTICAL to the pre-change tree - coins 19570, rep
+    // 44141, REEF 25688, unmoved. On 1337 the drift reads as the change: coins
+    // 17544 -> 24115, serves 42 -> 43, rage 3 -> 5 (a guest stays on and spends,
+    // another cuts short and says so). DRAW-FREE by construction (needW /
+    // nearestSail / visLog take no srand()), so the kernel-vs-JS agreement
+    // scenario is byte-untouched and this is a pure trajectory re-roll off
+    // leaveT moving, not a leak. Both seeds measured vm AND main realm
+    // BYTE-IDENTICAL, and seed 4242 still matches the cultureways-save pin below
+    // to the cent (coins 19570, rep 44141, REEF 25688) - one town, two readers,
+    // the cross-check that this is the real town and not a fixture bug (rule 6).
+    // Arm-off: window._nodepart / --nodepart restores the spawn-fixed leaveT.
+    1337: '{"day":3,"tmin":0,"coins":24115,"rep":41045,"catch":4,"serves":43,"crabServes":3,"rage":5,"till":18077,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18077],["REEF",24599],["SALTY",100],["DRIFT",1000],["KELP",300]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,167],[425,167.2]]}',
+    // 4242 is UNMOVED - byte-identical to the pre-change tree - and still the
+    // shared cross-check with the cultureways-save pin: coins 19570, rep 44141,
+    // REEF 25688 read identically there, proving one trajectory measured by two
+    // scenarios. That this seed did not move is the proof the trigger is narrow.
+    4242: '{"day":3,"tmin":0,"coins":19570,"rep":44141,"catch":4,"serves":44,"crabServes":5,"rage":4,"till":19055,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19055],["REEF",25688],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -14584,17 +14586,32 @@ scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coef
       if (asPig !== lam) { dispPair = { lam, asPig }; break outer; }
     }
 
-    // (2) CHARACTERFUL, NOT A CRAB CLONE: a pot-heavy platform vs a roof-only one.
-    // The crab ranks roof above pot (roof term dominates); the pig ranks pot
-    // above roof. So sign(val(POT) - val(ROOF)) must FLIP between the two
-    // cultures on a homeless voter (the one the pot most serves). Pure ordering.
-    const c = crabs.find(x => !x.p.npc && x.p.homeless) || crabs.find(x => !x.p.npc) || crabs[0];
+    // (2) CHARACTERFUL, NOT A CRAB CLONE: a pot-heavy platform vs a roof-only
+    // one, scored by a HOMELESS voter (the one the pot most serves). The pig
+    // over-weights its slop pot; the crab over-weights the roof. So the pig
+    // tilts toward the pot MORE than the crab does - prefPig > prefCrab - and
+    // for a homeless voter the pig lands the pot outright over the roof
+    // (prefPig > 0).
+    //
+    // THE VOTER IS FORCED HOMELESS, not sampled, and that is a robustness fix
+    // this landing paid for: the old form took find(homeless) OR-ELSE any crew,
+    // and when a town happened to house all its crew the subject silently
+    // became a HOUSED voter, changing what was tested. It also asserted the
+    // ABSOLUTE sign prefCrab < 0, which depends on the exact levy rate the town
+    // grew a pot-heavy platform at - measured across two town states and both
+    // homeless settings, prefCrab flips sign with a rate-2 vs rate-3 pot while
+    // prefPig > prefCrab holds by MILLIONS in every cell. The relative tilt IS
+    // the characterful claim ("the pig ranks the pot higher than the crab"),
+    // and unlike the sign it is town-independent - so it is what we assert.
+    const c = crabs.find(x => !x.p.npc) || crabs[0];
+    const wasHomeless = c.p.homeless; c.p.homeless = true;
     const potHeavy = grid.filter(p => p.bowls >= 3 && p._bowls >= 1).sort((a, b) => a.rate - b.rate)[0];
     const roofOnly = grid.filter(p => p.bowls === 0 && p._y >= shelterRent()).sort((a, b) => a.rate - b.rate)[0];
-    if (!potHeavy || !roofOnly) return { err: "this town has no pot-heavy or roof-only platform to rank" };
+    if (!potHeavy || !roofOnly) { c.p.homeless = wasHomeless; return { err: "this town has no pot-heavy or roof-only platform to rank" }; }
     const pref = (cult) => { const was = c.p.culture; c.p.culture = cult;
       const d = platValue(c, potHeavy) - platValue(c, roofOnly); c.p.culture = was; return d; };
     const prefCrab = pref(null), prefPig = pref("pig"), prefFlat = pref("flatpig");
+    c.p.homeless = wasHomeless;
 
     // (3) THE FRANCHISE DECIDES A DIFFERENT ELECTORATE. The pig's "no pigtators"
     // lets a crew-shaped resident (npc:false, no till) STAND where the crab
@@ -14615,9 +14632,12 @@ scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coef
   if (got.err) return got.err;
   // (1) the pig's own stakes decided its voter somewhere - the dispatch fired
   if (!got.dispPair) return "the shipped pig's stakes never diverged from the engine lambda - the dispatch never fired (a civics that decides nothing)";
-  // (2) the ranking INVERTS: crab prefers the roof, pig prefers the pot
-  if (!(got.prefCrab < 0)) return "the crab did not rank the roof above the pot as expected (prefCrab " + got.prefCrab + ") - fixture/engine drift";
-  if (!(got.prefPig > 0)) return "the SHIPPED pig did not rank its own slop pot above the roof (prefPig " + got.prefPig + ") - the pig votes the crab's priorities, not its own";
+  // (2) the pig TILTS TOWARD THE POT MORE THAN THE CRAB (prefPig > prefCrab,
+  // town-independent), and for a homeless voter it lands the pot over the roof
+  // outright (prefPig > 0). The crab-side absolute sign is deliberately NOT
+  // asserted - it flips with the levy rate the town grew (see the comment above).
+  if (!(got.prefPig > got.prefCrab)) return "the SHIPPED pig did not tilt toward its slop pot more than the crab (prefPig " + got.prefPig + " <= prefCrab " + got.prefCrab + ") - the pig votes the crab's priorities, not its own";
+  if (!(got.prefPig > 0)) return "the SHIPPED pig did not rank its own slop pot above the roof for a homeless voter (prefPig " + got.prefPig + ")";
   // (3) THE BITE (substrate 5.2): the pot-over-roof margin is largely the pig's
   // potStake coefficient. Revert it to the crab's (1725000 -> 345000) and the
   // margin must SHRINK hard - the pig's OWN coefficient is what tilted it. A
@@ -14688,19 +14708,20 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // from the registry code when there is no cultures key) still holds - the rng
   // draw-count pin below is byte-untouched in structure; only the trajectory
   // re-rolled off the combined economy's own constants.
-  // RE-HARVESTED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
-  // kd-I9fjOBARav). Same two-day 4242 town as the frozen day-2 fingerprint
-  // above, re-rolled by the same change: leaveT is no longer fixed at spawn, so
-  // day-1/2 guests re-decide their departure boat off the needW condition. The
-  // structural claim is UNCHANGED and still proven - a save without a cultures
-  // key loads onto exactly the trajectory a fresh boot walks, no EXTRA draw
-  // (the departure decision is draw-free), no moved pixel from the registry
-  // code. The cross-check stays EXACT: this town's coins (22231), rep (41388)
-  // and REEF's wallet (26869) match that fingerprint's 4242 seed byte for byte -
-  // one town, two scenarios, measured vm AND main realm identically.
-  const want = '{"day":3,"coins":22231,"rep":41388,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",647,17485],["REEF",2136,26869],["SALTY",2072,100],'
-    + '["DRIFT",658,0],["KELP",450,700]],"vis":9,"catch":4}';
+  // UNMOVED by VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
+  // kd-I9fjOBARav), and that is the point worth recording. That change makes
+  // leaveT a decision rather than a spawn constant, but on THIS seed's first two
+  // days no guest makes a departure choice that moves anything - no dock-time
+  // delight with a free bed, no shut-door failure - so this town is byte-for-
+  // byte the pre-change tree, coins 19570 / rep 44141 / REEF 25688 exactly. The
+  // structural claim still holds - a save without a cultures key loads onto the
+  // trajectory a fresh boot walks, no EXTRA draw (the decision is draw-free), no
+  // moved pixel. The cross-check with the frozen day-2 fingerprint's 4242 seed
+  // is EXACT and unchanged (coins 19570, rep 44141, REEF 25688) - one town, two
+  // scenarios, and both agree it did not move.
+  const want = '{"day":3,"coins":19570,"rep":44141,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,19055],["REEF",2136,25688],["SALTY",2072,100],'
+    + '["DRIFT",318,0],["KELP",450,700]],"vis":7,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
   // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
@@ -16081,7 +16102,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1859, 2: 2731 };   // RE-POINTED for THE ECONOMY TRIO. The move is ATTRIBUTED cleanly, not just observed: arming interruptible-commitment's own `_norethink` hatch on this exact seed reads day 1 back to 2207 - the visitor-stats-only number - so INTERRUPTIBLE's mid-walk re-think owns the entire day-1 delta (2207 -> 1859) and REPUTATION adds zero net draws on day 1, exactly as its close-out claims (the first sailing pre-dates any earn). A re-think is a pickErrand draw, but a committed guest who switches makes fewer downstream errand decisions, so the day's stream is SHORTER, not longer - a VALUE re-point off a new but attributable mechanism, not a reordered stream. vm AND main realm read 1859/2731 identically. PRIOR HOLDERS, kept because the class is the point: RE-POINTED for VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched - same five arrival draws, same LOADED count), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 1863, 2: 2607 };   // RE-POINTED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav). The move is ATTRIBUTED CLEANLY, not just observed: arming the feature's OWN `_nodepart` hatch on this exact seed reads day 1 and day 2 back to EXACTLY 1859/2731 - the pre-change spec, to the draw - so visitor-chosen departure owns the ENTIRE delta and nothing else moved. The decision itself takes ZERO draws (needW/nearestSail/visLog are draw-free), so the stream STRUCTURE is untouched - the kernel-agreement scenario is byte-identical either side; what moves the count is BEHAVIOUR downstream, a guest who chooses to stay on at the dock keeps roaming (each stroll draws) while a guest who cuts short leaves sooner. Day 1 +4 (1859->1863), day 2 -124 (2731->2607). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. vm AND main realm read 1863/2607 identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
