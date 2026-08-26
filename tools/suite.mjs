@@ -10289,7 +10289,13 @@ scenario("the shop tooltip promises what the button actually does", () => {
     table: 'bizTables("shack").length',
     juicebar: "ownedBizList().length",
     arcade: "ownedBizList().length",
-    cadegear: 'stationCap("arcade", "claw")',
+    // CADE GEAR+ counts MACHINES ON THE FLOOR, not a station cap. The arcade's
+    // claw and skee used to be work STATIONS a staff crab stood at, so "more
+    // machines" was stationCap("arcade","claw") - a number only the production
+    // recipe could feel. They are `stalls` now: furniture a CUSTOMER occupies,
+    // so the upgrade has to put real cabinets down, and this counter follows
+    // the mechanic rather than the other way round.
+    cadegear: "arcadeFloor().length",
   };
   // the arcade has to be standing before CADE GEAR+'s counter means anything,
   // which is why the order below is the shop grid's own order
