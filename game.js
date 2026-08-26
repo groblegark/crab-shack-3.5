@@ -18439,6 +18439,36 @@ function drawLandlord() {
 // ONE RECT, TWO READERS - the title's HOW TO PLAY button is drawn and hit
 // tested off this, so the button and its tap target cannot drift apart.
 function titleHelpRect() { return { x: W / 2 - 50, y: 96, w: 100, h: 15 }; }
+// HOW OLD IS THIS BUILD, in words, counted from the stamp's commit time.
+// Matt's ask: "published n minutes m seconds ago ... so you can always see how
+// fresh your version is", days and hours included.
+//
+// TWO UNITS, NEVER THREE. The pair is chosen so the coarse one is the one you
+// care about and the fine one is the one that MOVES: seconds tick under
+// minutes, minutes tick under hours, hours tick under days. Past a day the
+// seconds are noise, so they go - but something is always ticking, which is
+// the whole point of the line. Under a minute there is no coarse unit yet, so
+// it is seconds alone.
+//
+// A CLOCK BEHIND THE BUILD CLOCK READS "JUST NOW". A browser whose clock is
+// slow (a laptop minutes behind, a machine that has not synced) computes a
+// NEGATIVE age, and "PUBLISHED -3M AGO" reads as a broken page rather than a
+// wrong clock. The under-a-second guard owns that case too - it is the same
+// answer, and one guard is harder to half-remove than two.
+function buildAgeText() {
+  if (typeof GAME_BUILD !== "object" || !GAME_BUILD || !GAME_BUILD.t) return "";   // no commit time: the plain stamp, no age
+  const now = nowMs();
+  if (!now) return "";                                    // headless: no clock, so no honest age
+  const s = Math.floor(now / 1000 - GAME_BUILD.t);
+  if (s < 1) return "PUBLISHED JUST NOW";                 // includes a skewed clock's negative
+  const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24,
+        m = Math.floor(s / 60) % 60, sec = s % 60;
+  const body = d ? d + "D " + h + "H"
+    : h ? h + "H " + m + "M"
+    : m ? m + "M " + sec + "S"
+    : sec + "S";
+  return "PUBLISHED " + body + " AGO";
+}
 function drawTitle() {
   ctx.fillStyle = "rgba(16,20,50,0.35)";
   ctx.fillRect(0, 0, W, H);
@@ -18535,6 +18565,19 @@ function drawTitle() {
   if (typeof GAME_BUILD === "object" && GAME_BUILD && GAME_BUILD.sha) {
     const s = "BUILD " + GAME_BUILD.sha + (GAME_BUILD.date ? " " + GAME_BUILD.date : "");
     smallText(ctx, s, W - smallTextWidth(s) - 4, creditTop + 24, [120, 105, 95]);
+    // ...AND THE AGE SAYS WHETHER IT IS THE ONE THAT JUST LANDED. The sha
+    // answers "which build", not "is my browser showing me a cached one" -
+    // and a stale Pages cache looks exactly like a fresh load. This counts up
+    // live (drawTitle runs every frame while the title is up), so a tester
+    // who just heard "pushed it" can watch it read seconds rather than hours.
+    //
+    // IT SHARES THE STAMP'S ROW rather than taking a new one, because there
+    // is no new one to take: with a save, the stamp already ends at y233 of a
+    // 240px screen. Left-aligned at the music credit's x against the
+    // right-aligned stamp - measured, the longest age (PUBLISHED 1000D 23H
+    // AGO, 91px from x=14) ends at 105 and the widest stamp starts at 157.
+    const age = buildAgeText();
+    if (age) smallText(ctx, age, 14, creditTop + 24, [150, 132, 118]);
   }
 }
 // THE THIRD ENDING. EVICTED and BANKRUPT are the landlord and the bank; this

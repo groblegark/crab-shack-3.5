@@ -15305,7 +15305,7 @@ scenario("the build stamp is well-formed and wired", () => {
   // and this scenario checks SHAPE and WIRING, not identity. The game guards
   // on typeof GAME_BUILD, so a missing file is a missing stamp, not a crash.
   const src = readFileSync(new URL("../version.js", import.meta.url), "utf8");
-  const m = src.match(/const GAME_BUILD = \{ sha: "([0-9a-f]{7})", date: "(\d{4}-\d{2}-\d{2})" \};/);
+  const m = src.match(/const GAME_BUILD = \{ sha: "([0-9a-f]{7})", date: "(\d{4}-\d{2}-\d{2})", t: (\d+) \};/);
   if (!m) return "version.js does not carry a well-formed GAME_BUILD";
   const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
   const vAt = html.indexOf('src="version.js"'), gAt = html.indexOf('src="game.js"');
@@ -15313,6 +15313,114 @@ scenario("the build stamp is well-formed and wired", () => {
   if (gAt >= 0 && vAt > gAt) return "version.js loads after game.js - the stamp misses the title";
   const stamp = "BUILD " + m[1] + " " + m[2];
   if (stamp.length > 24) return "the stamp outgrew its corner: " + stamp;
+  // `t` ANCHORS THE TICKING AGE, and it must be the stamped commit's own time
+  // or the title screen counts up from the wrong zero. The failure this pins
+  // is a silent one: a `t` left at some earlier commit's epoch still renders a
+  // plausible-looking age, just a wrong one. Checked against the DATE the same
+  // file carries, which is derived independently (%cs vs %ct), so the two
+  // fields have to agree about which commit this is.
+  //
+  // A DAY OF SLACK, BECAUSE %cs IS LOCAL AND EPOCH MATH IS UTC. %cs is the
+  // committer's LOCAL date; anything derived from %ct is UTC. A commit made at
+  // 8pm Pacific stamps date 08-25 and epoch 08-26 - a real, ordinary case on
+  // the operator's Mac that an exact date-equality check turns spuriously red
+  // (reproduced, not theorised). No real timezone is more than 26h from UTC,
+  // so a stamp that lands within a day of its date IS its commit, and one that
+  // is weeks off - the failure actually worth catching - still fails.
+  const t = Number(m[3]);
+  if (!t) return "version.js carries no commit time - the title screen cannot age the build";
+  const skewH = Math.abs(t * 1000 - Date.parse(m[2] + "T12:00:00Z")) / 3600e3;
+  if (skewH > 36)
+    return `the stamp's t (${new Date(t * 1000).toISOString()}) is ${Math.round(skewH)}h from its date (${m[2]})`;
+  return true;
+});
+
+scenario("the title screen ages the build, and keeps ticking", () => {
+  // Matt's ask: a "published n minutes m seconds ago" readout that actively
+  // ticks, "so you can always see how fresh your version is" - days and hours
+  // included. What makes it worth pinning is that EVERY failure mode here is
+  // silent: a frozen counter, a wrong unit pair, and a negative age all render
+  // a line that looks fine in a screenshot. So this drives the real formatter
+  // at real clock offsets and reads what comes back.
+  const sim = createSim({ seed: 11 });
+  // The formatter reads GAME_BUILD.t against the wall clock. Pin the clock by
+  // moving the BUILD, not by stubbing Date: the arithmetic under test is
+  // exactly "now minus stamp", so a fixed now and a moving stamp exercises it
+  // without the test owning a clock the game does not have.
+  const at = (secsAgo) => sim.G(`(() => {
+    globalThis.GAME_BUILD = { sha: "abc1234", date: "2026-08-25", t: Math.floor(Date.now() / 1000) - (${secsAgo}) };
+    return buildAgeText();
+  })()`);
+  const cases = [
+    [0, "PUBLISHED JUST NOW"],
+    [5, "PUBLISHED 5S AGO"],
+    [59, "PUBLISHED 59S AGO"],
+    [60, "PUBLISHED 1M 0S AGO"],          // the ask's own shape: minutes AND seconds
+    [125, "PUBLISHED 2M 5S AGO"],
+    [3599, "PUBLISHED 59M 59S AGO"],
+    [3600, "PUBLISHED 1H 0M AGO"],        // seconds retire under hours
+    [7 * 3600 + 42 * 60, "PUBLISHED 7H 42M AGO"],
+    [86400, "PUBLISHED 1D 0H AGO"],       // ...and minutes under days
+    [3 * 86400 + 5 * 3600, "PUBLISHED 3D 5H AGO"],
+  ];
+  for (const [secs, want] of cases) {
+    const got = at(secs);
+    if (got !== want) return `at ${secs}s old the title reads ${JSON.stringify(got)}, want ${JSON.stringify(want)}`;
+  }
+  // A CLOCK BEHIND THE BUILD CLOCK READS "JUST NOW", NEVER A NEGATIVE AGE.
+  // A tester whose laptop is a few minutes slow is the normal case, not the
+  // exotic one, and "PUBLISHED -3M AGO" reads as a broken page.
+  const ahead = at(-600);
+  if (ahead !== "PUBLISHED JUST NOW") return `a build 10 minutes in the future reads ${JSON.stringify(ahead)}`;
+  // NO COMMIT TIME, NO AGE - the git-less fallback stamps t:0, and the title
+  // shows the plain sha rather than counting up from 1970.
+  const none = sim.G(`(() => { globalThis.GAME_BUILD = { sha: "abc1234", date: "2026-08-25", t: 0 }; return buildAgeText(); })()`);
+  if (none !== "") return `a stamp with no commit time still drew an age: ${JSON.stringify(none)}`;
+  // IT ACTUALLY TICKS. The line is only worth having if it MOVES - a value
+  // computed once at load and cached would satisfy every case above and still
+  // be the exact bug this feature exists to avoid. So: same build, two reads a
+  // second apart on the game's own clock, and they must differ.
+  const ticks = sim.G(`(() => {
+    globalThis.GAME_BUILD = { sha: "abc1234", date: "2026-08-25", t: Math.floor(Date.now() / 1000) - 30 };
+    const first = buildAgeText();
+    const N = nowMs; nowMs = () => N() + 1000;      // one second later, same build
+    try { return [first, buildAgeText()]; } finally { nowMs = N; }
+  })()`);
+  if (ticks[0] === ticks[1]) return `the age did not tick: still ${JSON.stringify(ticks[0])} a second later`;
+  // AND IT LANDS ON THE TITLE SCREEN, drawn, at both hasSave states - the
+  // formatter being right is worth nothing if drawTitle never calls it. Reads
+  // the real draw calls the way the credit-block scenario does.
+  for (const save of [false, true]) {
+    const drawn = JSON.parse(sim.G(`JSON.stringify((() => {
+      hasSave = ${save};
+      globalThis.GAME_BUILD = { sha: "abc1234", date: "2026-08-25", t: Math.floor(Date.now() / 1000) - 125 };
+      const S = smallText, boxes = [];
+      smallText = (c, s2, x, y, col) => { boxes.push({ s: String(s2), x, y, w: smallTextWidth(String(s2)) }); return S(c, s2, x, y, col); };
+      try { drawTitle(); } finally { smallText = S; }
+      return { boxes, W };
+    })())`));
+    const age = drawn.boxes.find(b => b.s.startsWith("PUBLISHED"));
+    if (!age) return `hasSave=${save}: the title screen drew no published-ago line`;
+    if (age.s !== "PUBLISHED 2M 5S AGO") return `hasSave=${save}: the drawn age reads ${JSON.stringify(age.s)}`;
+    // IT SHARES THE STAMP'S ROW AND MUST NOT REACH IT. They are drawn from
+    // opposite edges into one line, which is a collision waiting for the first
+    // longer string - so pin the gap, not the coordinates.
+    const stamp = drawn.boxes.find(b => b.s.startsWith("BUILD "));
+    if (!stamp) return `hasSave=${save}: the build stamp vanished from the title`;
+    if (age.y !== stamp.y) return `hasSave=${save}: the age (y${age.y}) left the stamp's row (y${stamp.y})`;
+    if (age.x + age.w > stamp.x) return `hasSave=${save}: the age runs into the stamp (${age.x + age.w} > ${stamp.x})`;
+    if (age.x < 0 || stamp.x + stamp.w > drawn.W) return `hasSave=${save}: the stamp row leaves the screen`;
+  }
+  // THE LONGEST AGE THE LINE CAN EVER SHOW still clears the stamp. The cases
+  // above are all short; the string grows with the day count, and a four-digit
+  // one is the widest this can get before the sha is long since irrelevant.
+  const longest = "PUBLISHED 1000D 23H AGO";
+  const wide = JSON.parse(sim.G(`JSON.stringify((() => {
+    const s = ${JSON.stringify(longest)};
+    return [smallTextWidth(s), smallTextWidth("BUILD abc1234 2026-08-25"), W];
+  })())`));
+  if (14 + wide[0] > wide[2] - wide[1] - 4)
+    return `the longest age (${longest}, ${wide[0]}px) collides with the widest stamp`;
   return true;
 });
 

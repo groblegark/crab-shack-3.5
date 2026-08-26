@@ -20,15 +20,25 @@ design/cs35-research/kube-runs/.
 
 Scope note: this policy protects the OPERATOR'S MAC. A gasboat fleet pod
 (project `cs`) IS cluster compute — it may run sim workloads in-pod within
-its own resource limits, and should, since it has no AWS identity to drive
-tools/kube.mjs. The hook only exists on the operator's machine.
+its own resource limits. The hook only exists on the operator's machine.
+
+But a pod DOES have an AWS identity now, so **gate on the cluster, not
+in-pod**: `node tools/kube.mjs run experiments/suite-330.json --ref <pushed-SHA>
+--wait`. Measured 2026-08-26 on the same tree — in-pod `node tools/suite.mjs`
+(which defaults to `--jobs 1`) ran 90 minutes and reached 148/379; the cluster
+returned **760/760 both backends in 7m35s** across 24 arms. kube.mjs clones the
+PUSHED SHA, so commit and push first. Do NOT `export AWS_PROFILE` in a pod —
+that breaks IRSA creds and reports a healthy session as expired (runbook).
 
 ## THE MERGE RITUAL (orchestrator, at every merge before push)
 Run `node tools/mkcultureways.mjs` (bundle regen must be byte-exact) AND
 `node tools/mkversion.mjs` (regenerates version.js — the title-screen build
 stamp; the stamp is the MERGE's identity, so a push whose stamp names the
 previous commit is a ritual miss). Both are sub-second generators, allowed
-locally.
+locally. The stamp now also carries the commit's epoch (`t`), which the title
+screen counts up from live — "PUBLISHED 2M 5S AGO" — so a missed regen is
+visible to a play-tester as an age that is wrong by a whole merge, not just a
+stale sha.
 
 ## The sim contract (load-bearing)
 - `tools/simlib.mjs` executes the REAL game files (font.js, ppu.js, sprites.js,
