@@ -1,0 +1,72 @@
+{
+  "name": "matrix-depart16",
+  "note": "The house growth matrix (baseline+growth x seedbase 0,16,32, 16 towns x 30 days) PLUS the visitors-choose-when-they-depart mutation arms: growth x3 with --nodepart, which pins leaveT at spawn like the pre-ruling-6-h3 tree. The nodepart-vs-growth delta IS the attribution demo the landing owes (kd-I9fjOBARav). batch.mjs --json receipts.",
+  "resources": {
+    "requests": {
+      "cpu": "7",
+      "memory": "2Gi"
+    },
+    "limits": {
+      "cpu": "8",
+      "memory": "4Gi"
+    }
+  },
+  "arms": [
+    {
+      "id": "baseline-sb0",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--json"]
+    },
+    {
+      "id": "baseline-sb16",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--json"]
+    },
+    {
+      "id": "baseline-sb32",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--json"]
+    },
+    {
+      "id": "growth-sb0",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"]
+    },
+    {
+      "id": "growth-sb16",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"]
+    },
+    {
+      "id": "growth-sb32",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"]
+    },
+    {
+      "id": "nodepart-sb0",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--nodepart", "--json"]
+    },
+    {
+      "id": "nodepart-sb16",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--nodepart", "--json"]
+    },
+    {
+      "id": "nodepart-sb32",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "32", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--nodepart", "--json"]
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}
