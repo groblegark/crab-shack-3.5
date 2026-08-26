@@ -162,6 +162,13 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
   }
   sandbox.performance = { now: () => sandbox.simNow };
   const { G, mkFn, mkExpr, C } = loadGame(sandbox, realm);
+  // THE TOWN'S OCEAN is the run's seed, symmetric with the RNG stream above:
+  // the almanac's per-town channels (swell, wind) fold it in, so a seed matrix
+  // samples one ocean per seed rather than running the day-only default 48
+  // times. Set AFTER loadGame (the fresh-boot block sets an entropy default we
+  // must overwrite) and BEFORE any tick. The mist ignores it and stays
+  // byte-identical; a save carries its own ocean and load() overrides this.
+  G(`_almanacSeed = ${seed >>> 0};`);
   G(`soundOn = false; musicOn = false; screen = "play"; window._headless = true;
      window._stats = { tourServes: 0, crabServes: 0, tourRage: 0, crabRage: 0, bused: 0 };`);
   const stepFns = new Map();
