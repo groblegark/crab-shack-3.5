@@ -1,13 +1,32 @@
 # CRAB SHACK — project state & roadmap
 
-Three games, all live on GitHub Pages, all built on the snescat toy PPU
+Four deploys, all live on GitHub Pages, all built on the snescat toy PPU
 (character-map sprites, 5x7 + 3x5 fonts, 256x240 canvas, no build step).
+**Only 3.5 is under development** — this repo.
 
 | game | repo | live | status |
 |---|---|---|---|
 | CRAB SHACK | groblegark/crab-shack | groblegark.github.io/crab-shack | done, in the can |
 | CRAB SHACK 2 | groblegark/crab-shack-2 | groblegark.github.io/crab-shack-2 | done + refined |
-| CRAB SHACK 3 | groblegark/crab-shack-3 | groblegark.github.io/crab-shack-3 | active |
+| CRAB SHACK 3 | groblegark/crab-shack-3 | groblegark.github.io/crab-shack-3 | **NOT under development** — frozen, last deploy 2026-08-22 |
+| CRAB SHACK 3.5 | groblegark/crab-shack-3.5 | **groblegark.github.io/crab-shack-3.5** | **ACTIVE — this repo, the only one being worked on** |
+
+### CS3 IS NOT UNDER DEVELOPMENT (Matt, 2026-08-26) — only 3.5 is
+
+That row said "CRAB SHACK 3 … active" for long enough to cost a real
+debugging cycle, and this note is here because the mistake is cheap to make
+and expensive to find. `crab-shack-3` and `crab-shack-3.5` are **separate
+repos with separate Pages deploys**, and the old one never stopped serving.
+On 2026-08-26 its `game.js` was still the 2026-08-22 build — 82 merges and
+184 `game.js` commits behind, no record box, no science lab, no visitors
+book, `version.js` a 404, and the pre-fix `music = new Audio(t.src)` still
+in it.
+
+The consequence, measured: Matt reported "music still not working on iOS"
+against a build where the iOS fix **did not exist**, because `README.md`
+pointed at the 3 deploy. Both the report and the fix were correct; the URL
+was not. Every landing goes to **3.5**, and a bug report should always name
+the URL and the title-screen build stamp before anyone reads code.
 
 ## THE PRIORITY (Matt, 2026-08-22): THE CULTUREWAY MIGRATION, CONTENT-FIRST
 

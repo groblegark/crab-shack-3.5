@@ -5630,7 +5630,7 @@ function loadSlot(i) {
   if (!slotCard(i)) return;
   if (i === activeSlot && hasSave) {
     saveView = false;
-    if (screen === "title") { screen = "play"; startMusic(); sfx.ding(); }
+    if (screen === "title") { screen = "play"; startMusicTapped(); sfx.ding(); }
     return;
   }
   save();
@@ -7134,7 +7134,10 @@ function toggleMute() {
   muted = !muted;
   if (muted) { if (music) music.pause(); if (musPreview) musPreview.pause(); }
   else if (musPreview) musPreview.play().catch(() => {});   // the bench keeps the speakers it owns
-  else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
+  // UNMUTING IS A GESTURE, so it clears the latches before it asks: the speaker
+  // icon is the one control a phone player is most likely to reach for after a
+  // silent start, and it must not be refused by a block it can itself lift.
+  else if (musicOn) { musArm(); if (music) music.play().catch(e => musFail(musSrcGen, e)); else startMusic(); }
 }
 // WHETHER THE ARCHIVE MIRROR IS THERE, and it is declared UP HERE with the
 // rotation rather than beside the record box that named it - the same hazard
@@ -7217,6 +7220,41 @@ function speaker() {
 // unreachable must not recurse forever through pickTrack, so it gives up and
 // goes quiet; any deliberate play - a tap, a skip, MUSIC ON - clears it.
 let musFails = 0;
+// ONE NUMBER, TWO READERS. `musSkip` counts up to it and `playRole` refuses
+// past it, and they have to agree: the frame-loop storm below existed partly
+// because the give-up threshold was written inline in the only place that
+// happened to check it.
+function musGiveUp() { return Math.min(4, ROTATION.length); }
+// A REFUSAL IS NOT A MISSING FILE, and treating them as one event is what
+// turned a single blocked track into a per-frame storm.
+//
+// They are opposites. A 404 means "this source is gone, try the next one" -
+// so the right answer is to skip on, which is what `musSkip` does. A
+// NotAllowedError means "you have not been given permission yet, and nothing
+// you do without a gesture will change that" - so the right answer is to STOP
+// and wait for a tap. Retrying is not merely useless, it is actively harmful.
+//
+// MEASURED on the deployed build b426ccd, in a browser with iOS's autoplay
+// policy simulated, sitting on the title screen with a save that restores
+// `musicOn` true: 636 play() attempts and 636 src assignments in 5 seconds -
+// about one per frame, 127/sec, `musGen` 0 -> 1272. `titleFrame` calls
+// `playRole("title")` every frame; `playRole`'s only guard is
+// `music && trackIdx === i`, and the refusal path nulled `music`, so the
+// guard fell open again on the very next frame. `musFails` did not save it
+// either: only `musSkip` ever read that counter, and `playRole` reaches
+// `playTrack` directly, straight past it. So on a phone this was never
+// silent-and-idle - it was a src-swap and aborted-load storm on the one
+// shared element, which on cellular is somebody's data and battery.
+//
+// Hence the latch. It is set by a refusal, checked by every AUTOMATIC play,
+// and cleared by any DELIBERATE one - the same division of labour the
+// `musFails` comment above already describes, now actually enforced.
+let musBlocked = false;
+// THE GESTURE IS THE PERMISSION, so every path a player can *ask* for music
+// through clears both latches before it tries. Called by the deliberate
+// entry points only (MUS, the arrow keys, a row in the box, a tap on the
+// title buttons) - never by the frame loop, which is the whole point.
+function musArm() { musBlocked = false; musFails = 0; }
 function playTrack(i) {
   musStopPreview();          // the rotation and the bench never share the speakers
   const gen = musSrcGen = ++musGen;
@@ -7230,8 +7268,8 @@ function playTrack(i) {
   a.src = t.cat ? musSrc(t.cat) : t.src;
   music = a;
   musMeta(t.name);
-  a.play().then(() => { musFails = 0; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
-    .catch(() => musFail(gen));
+  a.play().then(() => { musFails = 0; musBlocked = false; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
+    .catch(e => musFail(gen, e));
 }
 // A TRACK THAT WILL NOT PLAY MUST NOT TAKE THE ROTATION WITH IT. That is the
 // half of the deployed-build bug that turned one bad track into a silent town:
@@ -7243,9 +7281,34 @@ function playTrack(i) {
 // and the rotation, unlike the bench, never learned to fall through to the
 // release we host ourselves. Now it does, on the same ARCHIVE_OK latch the box
 // uses, so one 404 teaches the whole session.
-function musFail(gen) {
+// A BLOCKED PLAY, told apart from a broken one. The 'error' event carries no
+// exception - it IS the missing file - so only the play() rejection can be a
+// refusal, and it says so by name. `name` rather than `instanceof DOMException`:
+// the headless sim has no DOMException, and a check that throws on the way to
+// diagnosing a failure is worse than the failure.
+function musRefused(e) { return !!e && e.name === "NotAllowedError"; }
+function musFail(gen, e) {
   const a = SPEAKER;
   if (!a || gen !== musGen) return;      // superseded, or already handled
+  // THE REFUSAL IS ANSWERED FIRST, and it is answered for the bench too: an
+  // audition iOS would not start is still a refusal, and re-arming it every
+  // frame is the same bug wearing the box's clothes.
+  //
+  // THE HANDLES ARE CLEARED, and the latch is what stops the loop. Leaving
+  // `music` set would ALSO stop it - `playRole`'s trackIdx guard would hold -
+  // but by lying: nothing is playing, and every later reader (`startMusic`'s
+  // `!music`, the MUS button, `musNowRow`) would believe otherwise, so the tap
+  // that is supposed to rescue the phone would find the speaker already
+  // "occupied" and do nothing. That is the bug this fix would have shipped in
+  // exchange for the one it fixes. So the truth goes in the handles and the
+  // policy goes in the latch, which is the only arrangement where both the
+  // storm stops AND a tap still works.
+  if (musRefused(e)) {
+    musBlocked = true;
+    if (musPreview) { musPreview = null; musPreviewId = ""; }
+    music = null;
+    return;
+  }
   if (musPreview) return musPrevFail(gen);
   if (!music) return;
   const t = ROTATION[trackIdx], cat = t && t.cat;
@@ -7254,7 +7317,7 @@ function musFail(gen) {
     const g = musSrcGen = ++musGen;
     a.pause();
     a.src = cat.url;
-    a.play().then(() => { musFails = 0; }).catch(() => musSkip(g));
+    a.play().then(() => { musFails = 0; musBlocked = false; }).catch(e2 => musFail(g, e2));
     return;
   }
   musSkip(gen);
@@ -7263,7 +7326,7 @@ function musFail(gen) {
 function musSkip(gen) {
   if (gen !== musGen) return;
   music = null;
-  if (++musFails >= Math.min(4, ROTATION.length)) return;   // nothing is reachable: stop trying
+  if (++musFails >= musGiveUp()) return;   // nothing is reachable: stop trying
   if (musicOn && !musicView) playTrack(pickTrack());
 }
 // THE LOCK SCREEN, THE CAR, AND THE HEADPHONE BUTTON. Matt: "we should have
@@ -7288,29 +7351,56 @@ function musMeta(name) {
     ms.playbackState = "playing";
     // The transport maps onto the verbs the game already has, so a wheel
     // button and the keyboard's shift+arrow are the same gesture.
-    ms.setActionHandler("play", () => { if (!musicOn || muted) toggleMusic(); else startMusic(); });
+    // A LOCK-SCREEN OR STEERING-WHEEL PRESS IS A GESTURE TOO - the OS routes it
+    // to us as a deliberate "play", so it clears the latches like a tap does.
+    ms.setActionHandler("play", () => { if (!musicOn || muted) toggleMusic(); else startMusicTapped(); });
     ms.setActionHandler("pause", () => { if (SPEAKER) SPEAKER.pause(); ms.playbackState = "paused"; });
     ms.setActionHandler("nexttrack", () => musStep(1));
     ms.setActionHandler("previoustrack", () => musStep(-1));
   } catch (e) {}   // a browser with a partial implementation must not take the music down
 }
+// WHETHER AN *AUTOMATIC* PLAY MAY TRY AT ALL. The two latches say no for
+// opposite reasons - `musBlocked`: nobody has tapped yet, so ask again after a
+// gesture; `musFails`: everything we tried was unreachable, so stop asking.
+// Both are only consulted here, on the paths the game takes by itself. A
+// player's own gesture goes through `musArm` and is never refused: pressing MUS
+// must always mean "try, right now", even on the frame after a failure.
+function musMayAutoPlay() { return !musBlocked && musFails < musGiveUp(); }
 // THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
 // underneath a track you are auditioning - which is what the box's own MUSIC ON
 // button used to do.
-function startMusic() { if (!music && musicOn && !muted && !musicView) playTrack(pickTrack()); }
+function startMusic() { if (!music && musicOn && !muted && !musicView && musMayAutoPlay()) playTrack(pickTrack()); }
+// THE SAME START, ASKED FOR BY A FINGER. Every caller of this is inside a real
+// tap/click/key handler, and that matters twice over: iOS grants playback only
+// to a play() made SYNCHRONOUSLY inside the gesture, and a gesture is also the
+// one event that can lift `musBlocked`. So a tap clears the latches and tries,
+// where the frame loop must not.
+//
+// It is a separate NAME rather than a flag on `startMusic` so the distinction
+// is visible at every call site: reading `startMusicTapped()` tells you a human
+// asked for this, and a future frame-loop caller reaching for plain
+// `startMusic` gets the guarded one by default - which is the failure this whole
+// change is about. Same reason `playRole` keeps its own guard.
+function startMusicTapped() { musArm(); startMusic(); }
 // THE TWO MOMENTS THAT OWN THEIR OWN MUSIC. Called from the screens that mean
 // them; each one only interrupts if it is not already the thing playing, so a
 // 31-second sting is not restarted every frame of the ending it belongs to.
+//
+// AND IT IS CALLED FROM A FRAME LOOP, which is why `musMayAutoPlay` is load-
+// bearing rather than belt-and-braces. `titleFrame` calls this every frame:
+// without the latch, an iOS refusal nulled `music`, the `trackIdx` guard fell
+// open on the next frame, and the title screen spent 127 attempts a second
+// re-requesting a track the phone had already said no to.
 function playRole(role) {
   const i = roleTrack(role);
-  if (i < 0 || !musicOn || muted) return;
+  if (i < 0 || !musicOn || muted || !musMayAutoPlay()) return;
   if (music && trackIdx === i) return;
   playTrack(i);
 }
 function toggleMusic() {
   musicOn = !musicOn;
   if (!musicOn) { musGen++; if (music) { music.pause(); music = null; } musStopPreview(); }
-  else startMusic();
+  else { musArm(); startMusic(); }   // a tap on MUS is the gesture that unlocks the element
 }
 // PREV/NEXT ARE A WALK ALONG THE ROTATION, not another shuffle. `b` already
 // skips to "another one that fits" - a chosen track - and that is a different
@@ -7329,6 +7419,7 @@ function musStep(d) {
   const to = trackIdx + d;
   musicOn = true;
   if (muted) muted = false;              // a skip while muted means "let me hear it"
+  musArm();                              // a skip is a gesture: it may unlock what autoplay could not
   playTrack(to);
 }
 // WHAT IS AUDIBLE, as the box's own pool row - so KEEP from the main interface
@@ -16067,10 +16158,10 @@ cv.addEventListener("click", (ev) => {
       if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { toggleHelp(); return; }
     }
     if (p.x >= bx && p.x < bx + 100) {
-      if (hasSave && p.y >= 118 && p.y < 134) { screen = "play"; startMusic(); sfx.ding(); return; }
+      if (hasSave && p.y >= 118 && p.y < 134) { screen = "play"; startMusicTapped(); sfx.ding(); return; }
       const ny = hasSave ? 138 : 122;
       if (p.y >= ny && p.y < ny + 16) {
-        if (!hasSave || newConfirmT > 0) { hasSave ? newGame() : (screen = "intro", startMusic(), sfx.ding()); }
+        if (!hasSave || newConfirmT > 0) { hasSave ? newGame() : (screen = "intro", startMusicTapped(), sfx.ding()); }
         else { newConfirmT = 3; sfx.buy(); }
         return;
       }
@@ -16380,7 +16471,11 @@ cv.addEventListener("click", (ev) => {
     reportT = 0; return;
   }
   if (departT > 0) { departTapped(); return; }   // ...and the day's second page pages, then closes
-  startMusic();
+  // A TAP ON THE TOWN IS STILL A GESTURE, and it is the widest recovery net a
+  // phone player has: if they never touched the title buttons, this is the one
+  // that unlocks the element. Bounded by the hand - one attempt per tap, which
+  // is the whole difference from the frame loop.
+  startMusicTapped();
   const p = evPos(ev);
   if (dragMoved) return;
   {  // the hire card: a tap on it puts it away and gives the town back
@@ -22992,6 +23087,7 @@ function musPlay(t, toggle = true) {
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
   music = null;
+  musArm();                           // choosing a row is a gesture, and the box is where a blocked phone recovers
   const gen = musSrcGen = ++musGen;
   const a = speaker();
   a.pause();
@@ -23000,8 +23096,9 @@ function musPlay(t, toggle = true) {
   musPreviewId = t.id;
   musMeta(t.name);
   a.play().then(() => {
+    musBlocked = false;
     if (musGen === gen && ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
-  }).catch(() => musFail(gen));
+  }).catch(e => musFail(gen, e));
 }
 // THE BENCH'S HALF OF THE FALLBACK, reached through `musFail` so the rotation
 // and the bench share one policy: try the mirror, learn from the 404, take the
@@ -23095,7 +23192,7 @@ function musClose() {
     return;
   }
   musStopPreview();
-  if (musicOn && !muted) startMusic();     // nothing was playing: hand the speakers back
+  if (musicOn && !muted) startMusicTapped();   // nothing was playing: hand the speakers back (BACK is a tap)
 }
 // WHERE A CHOSEN TRACK SITS IN THE ROTATION, making room for it if it is not
 // there yet. A shipped track is already a row. A catalog track you have not
@@ -23394,7 +23491,7 @@ function sciPlay() {
   SCI.run = true; sciShuttle(SCI.days[SCI.at].env); SCI.run = false;
   screen = "play";
   SCI.days = []; SCI.at = -1;
-  startMusic(); sfx.buy();
+  startMusicTapped(); sfx.buy();
   toast = { text: "DAY " + d + " OF THAT TOWN IS YOURS NOW", t: 8 };
   slotOwned = true;                      // "YOURS NOW" is the deliberate act - the lab earns the slot only here
   save();                                // it becomes an ordinary town, in the ordinary slot

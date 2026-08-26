@@ -11372,12 +11372,34 @@ const AUDIO_SPY = `
       _live.push(this);
     }
     get src() { return this._src; }
-    set src(v) { this._src = v; }
-    play() { this._playing = true; return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} }; }
+    set src(v) { this._src = v; _srcSets++; }
+    play() {
+      // A PHONE THAT HAS NOT BEEN TAPPED YET, when the scenario asks for one.
+      // iOS rejects play() with a NotAllowedError until a gesture unlocks the
+      // ELEMENT, and the rejection is the only thing that tells the game the
+      // difference between "no permission" and "no file" - so a spy that always
+      // resolves cannot see the bug at all. Off by default: every other
+      // scenario keeps the resolve-immediately behaviour it was written against.
+      _playCalls++;
+      if (globalThis._iosLocked) {
+        const err = { name: "NotAllowedError", message: "gesture required" };
+        const rej = { then: () => rej, catch: (g) => { g && g(err); return rej; } };
+        return rej;
+      }
+      this._playing = true;
+      return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} };
+    }
     pause() { this._playing = false; }
     addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
     fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
   };
+  // THE TWO COSTS THE FRAME-LOOP STORM ACTUALLY SPENT on a phone, counted
+  // rather than argued about: play() attempts, and src assignments (each one an
+  // aborted load on cellular data). A latch that works keeps both O(1) across
+  // any number of frames.
+  globalThis._playCalls = 0;
+  globalThis._srcSets = 0;
+  globalThis._iosLocked = false;
   // CUMULATIVE, NEVER RESET, and that is the point of it now. The list used to
   // be cleared between blocks because each track built its own element and the
   // old ones were noise. With one shared element that idiom counts to zero
@@ -11612,6 +11634,130 @@ scenario("the whole session plays through one audio element", () => {
   if (got.afterRotation !== 1) return `the rotation built ${got.afterRotation} audio elements, want exactly 1 (iOS blocks every one after the first)`;
   if (got.total !== 1) return `the session built ${got.total} audio elements, want exactly 1 - the bench must share the rotation's speaker`;
   if (got.audible !== 1) return `${got.audible} tracks audible, want 1`;
+  return true;
+});
+
+// THE FRAME-LOOP STORM (Matt, 2026-08-26): "music still not working on iOS".
+// The single-element fix was correct and shipped, and the music STILL did not
+// play - because the title screen spent every frame re-asking a phone that had
+// already said no.
+//
+// MEASURED on the deployed build b426ccd, in a real browser with iOS's autoplay
+// policy simulated, sitting on the title screen with a save that restores
+// musicOn true: 636 play() attempts and 636 src assignments in 5.0 seconds -
+// ~127/sec, one per frame, musGen 0 -> 1272. Not silence: a src-swap and
+// aborted-load storm on the one shared element, which on a phone is battery and
+// somebody's cellular data.
+//
+// Two independent holes made it possible, and this scenario pins both:
+//   1. `playRole`'s only guard was `music && trackIdx === i`, and the refusal
+//      path nulls `music` - so the guard fell open on the very next frame.
+//   2. `musFails` could not save it either: only `musSkip` ever read that
+//      counter, and `playRole` calls `playTrack` directly, straight past it.
+scenario("an iOS refusal latches instead of re-arming every frame", () => {
+  const sim = createSim({ seed: 13 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musJudge = {}; MUSCAT = null; rebuildRotation();
+    // THE RETURNING PLAYER'S STATE, which is the one that hurts: the save
+    // restores musicOn true, and the title screen is where they land.
+    musicOn = true; muted = false; musicView = false;
+    musArm();
+    _iosLocked = true;                       // nothing has been tapped yet
+    _playCalls = 0; _srcSets = 0;
+    // THE FRAME LOOP, 120 frames of it - about two seconds of staring at the
+    // title screen. On the pre-fix build this is 120 attempts.
+    for (let i = 0; i < 120; i++) playRole("title");
+    out.attempts = _playCalls;
+    out.srcSets = _srcSets;
+    out.latched = musBlocked ? 1 : 0;
+    out.audible = liveCount();
+
+    // AND THE TAP STILL WORKS, which is the half that must not be broken in
+    // exchange: a gesture clears the latch and the music starts. (Verified in a
+    // real browser too - the tap's play() was allowed and the track sounded.)
+    _iosLocked = false;                      // the finger arrives
+    _playCalls = 0; _srcSets = 0;
+    startMusicTapped();
+    out.afterTapAttempts = _playCalls;
+    out.recovered = liveCount();
+    out.clearedLatch = musBlocked ? 0 : 1;
+
+    // ...and once the TITLE track is playing, the frame loop must not restart it
+    // either - the trackIdx guard that was already there, still holding. It is
+    // started through playRole here on purpose: startMusicTapped picks a random
+    // track, and playRole switching off that to the title track is correct
+    // behaviour, not a restart. What must not happen is a second attempt once
+    // the title track itself is the thing playing.
+    _playCalls = 0;
+    playRole("title");
+    out.titleStarted = _playCalls;           // exactly one: the switch to the title track
+    _playCalls = 0;
+    for (let i = 0; i < 60; i++) playRole("title");
+    out.restartsWhilePlaying = _playCalls;
+    return JSON.stringify(out);
+  })()`));
+  // ONE ATTEMPT PER REFUSAL, not one per frame. The exact number is 1: the
+  // first frame tries, the refusal latches, and every frame after it returns.
+  if (got.attempts !== 1) return `120 title frames made ${got.attempts} play() attempts, want 1 - the refusal did not latch (measured 127/sec on the deployed build)`;
+  if (got.srcSets > 1) return `120 title frames pushed ${got.srcSets} srcs onto the element, want <=1 - that is an aborted load per frame on cellular`;
+  if (!got.latched) return "a NotAllowedError did not set musBlocked, so nothing stops the next frame";
+  if (got.audible !== 0) return `a refused play left ${got.audible} tracks audible`;
+  if (got.afterTapAttempts !== 1) return `a tap made ${got.afterTapAttempts} play() attempts, want exactly 1`;
+  if (got.recovered !== 1) return "a tap after the block did not start the music - the latch is now the bug";
+  if (!got.clearedLatch) return "a successful play left musBlocked set, so the next automatic play is refused forever";
+  if (got.titleStarted !== 1) return `switching to the title track took ${got.titleStarted} attempts, want 1`;
+  if (got.restartsWhilePlaying !== 0) return `the frame loop restarted a PLAYING title track ${got.restartsWhilePlaying} times`;
+  return true;
+});
+
+// A 404 AND A REFUSAL ARE OPPOSITE EVENTS, and the storm existed partly because
+// one function treated them as the same one. 404 means "this source is gone,
+// try the next" - skip on. NotAllowedError means "you have no permission yet,
+// and nothing without a gesture will change that" - stop and wait. Conflating
+// them turns one refusal into a walk through the whole rotation, at frame rate.
+scenario("a refusal waits for a tap where a 404 skips on", () => {
+  const sim = createSim({ seed: 17 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musJudge = {}; MUSCAT = null; rebuildRotation();
+    musicOn = true; muted = false; musicView = false;
+
+    // A MISSING FILE still skips to the next track - the deployed-build fix
+    // above, which must survive this change.
+    musArm(); _iosLocked = false;
+    playTrack(0);
+    const wasAt = trackIdx;
+    theSpeaker().fire("error");
+    out.a404Skipped = trackIdx !== wasAt ? 1 : 0;
+    out.a404StillAudible = liveCount();
+
+    // A REFUSAL does not move the rotation at all: the track is fine, the
+    // permission is not, and stepping to a neighbour would refuse identically.
+    musArm(); _iosLocked = true;
+    playTrack(0);
+    const at = trackIdx;
+    _playCalls = 0;
+    startMusic();                            // the automatic path, asked twice
+    startMusic();
+    out.refusalHeldStill = trackIdx === at ? 1 : 0;
+    out.refusalRetries = _playCalls;
+    out.blocked = musBlocked ? 1 : 0;
+
+    // THE GIVE-UP COUNTER IS NOT WHAT DID THIS. A refusal must not burn the
+    // "nothing is reachable" budget: those are different diagnoses, and a phone
+    // waiting for a tap has a perfectly reachable rotation.
+    out.failsAfterRefusal = musFails;
+    return JSON.stringify(out);
+  })()`));
+  if (!got.a404Skipped) return "a 404 no longer skips to the next track - the rotation dies with one bad file";
+  if (got.a404StillAudible !== 1) return `after a 404 skip ${got.a404StillAudible} tracks audible, want 1`;
+  if (!got.refusalHeldStill) return "a refusal walked the rotation - it should hold still and wait for a gesture";
+  if (got.refusalRetries !== 0) return `after latching, two startMusic calls made ${got.refusalRetries} attempts, want 0`;
+  if (!got.blocked) return "the refusal did not latch";
+  if (got.failsAfterRefusal !== 0) return `a refusal spent ${got.failsAfterRefusal} of the give-up budget, want 0 - a blocked phone is not an unreachable rotation`;
   return true;
 });
 
