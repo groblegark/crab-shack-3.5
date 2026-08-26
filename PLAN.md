@@ -7559,6 +7559,88 @@ rate, what the duty raised today and all time, the pier price against its
 (possibly tariffed) ceiling. Rendered even with no tariff on: a player
 weighing the TARIFF dial reads this page to see what it would fall on.
 
+## THE HALL'S LISTS SCROLL (Matt, 2026-08-26) — "the whole political UX has displayed problems, maybe we need scrollable inner lists? Like we have in the music player"
+
+His instinct was right and the audit was worse than "displayed problems":
+**five of the six lists on the hall card truncated, and only the roll was even
+paged.** Landed on trunk `d3587b6`, stamp `580d88b`, receipt `8927f76`.
+
+### What was actually broken
+
+| List | Kept | Drew | How it failed |
+| --- | --- | --- | --- |
+| BOOKS ledger | 48 | 4 | printed `+44 EARLIER` beside a control that **did not exist** |
+| TRADE goods | 6 | 5 | **silent** clip — PAPER, the one import the office itself buys |
+| live BALLOT | ≤6 | 4 | silent, and `buildBallot` **pushes your own nominee last** |
+| LAST BALLOT | ≤6 | 3 | honest `+3 MORE` about rows no surface could reach |
+| THE ROLL | ≤24 | 8 | paged off the **view chip**, forward-only |
+
+The live-ballot one is the sharpest: the single page in the game that lists who
+is standing could not show you **that you were standing**. And nothing in the
+political UX scrolled at all — no wheel handler, no swipe, and not one key on
+the busiest card in the game (eleven controls in 224×196).
+
+### The mechanism, lifted from the record box
+
+`HALL_SCROLL` — **one offset per surface**, so reading the roll does not move
+your place in the ledger — plus one `hallWindow(len, rows)` that **clamps in
+place**, which fixes for all four at once the stale-offset bug the old chip
+pager had its own scenario for. Wheel, finger-swipe and Up/Down/PgUp/PgDn/
+Home/End, gated on `hallListHit` so a short list falls through to the camera
+pan instead of swallowing the gesture. `_hallWin` carries the last draw's row
+count to the input path (the `_brainTvPager` idiom) and is cleared every frame,
+so a surface that draws no list cannot inherit the previous one's window.
+
+Deliberately NOT copied from the box: the **drag thumb** (a 224px card has no
+gutter a full-width roll line would not print through) and the horizontal keys
+(unshifted ←/→ keep panning the town; the hall has no horizontal axis). The
+gain is **7px a row** because a hall row is 7px — the same rule the box applies
+at 20. The ledger is **newest-first** now that it scrolls: taking the last four
+in ledger order is right when four is all you get and backwards the moment
+scrolling walks you towards the top.
+
+### Three tariff legibility fixes, no new mechanism
+
+The tariff was settable already (cycle `pmech`, raise the rate, as mayor) and
+buried:
+
+1. The rate dial printed the **raw step index** — `RATE 3` under a chip reading
+   `TARIFF 50%` — breaking the rule stated eight lines below it, that a dial
+   reads as the THING VOTED FOR and never as a step index. The tariff is where
+   it shows: its ladder is `0/10/25/50/100`, so the index bears **no arithmetic
+   relation** to the number it stands for. Nobody campaigns on rate 3.
+2. TRADE read the **live policy** while the dials 30px below write the
+   **platform**, so a candidate who had just set TARIFF 50% read "NO TARIFF —
+   THE GANGWAY IS FREE" above their own tariff dial. It names both now.
+3. The help card said **"FOUR PURSES"** and named four, a cycle after the
+   tariff landed as the fifth — so the one purse Matt asked for by name was the
+   one the help card did not have.
+
+### Gated
+
+**816/816** both backends at the merged tree `580d88b` (js 408/408, wasm
+408/408), 24 arms exit 0 — receipt
+`design/cs35-research/kube-runs/cs-suite-330-580d88b-rw27/`. Gated **twice**:
+main moved 9 commits (cs-arcade-stalls) between the branch-tip gate (808/808 at
+`a268a91`) and the merge, and a verdict belongs to one tree.
+
+Two new scenarios. The first asks the question **a bounds sweep cannot** — not
+"does it fit" but *"can a player GET there"* — by capturing what each surface
+prints while walking the scroll, then demanding the union cover every row the
+data holds. A `slice(0, 4)` passes every bounds sweep in the file and fails
+this. Four mutations, four reds, each naming its own defect: TRADE reverted to
+`slice(0,5)` → *"TRADE never showed paper"*; the ballot to `slice(0,4)` →
+*"never showed MYCRAB"* (the player's own); the rate dial to the index → 50
+raw-index failures; `hallWindow`'s clamp removed → *"a stale offset blanked a
+shortened roll"*.
+
+**One lesson worth keeping.** The first cut of that scenario reported **six
+phantom failures against a working scroll**: its marker names were wider than
+the columns they land in, so `fitSmall` trimmed them — and a trimmed marker
+reads exactly like a row that was never drawn. On a card that trims by width,
+**a test's own fixtures are subject to the same measured budgets as the copy**.
+The markers are measured now, by a helper that fails loudly if one overruns.
+
 ### LANDED ON TRUNK 2026-08-26 (merge `92ec9a6`, stamp `b1ad72a`, receipt `45eb6a2`)
 
 By cs-the-tariff-is-myk (kd-7rX5iMyY5z). The feature was closed-but-not-on-trunk

@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-580d88b-rw27",
+  "armId": "wasm-2",
+  "index": 14,
+  "sha": "580d88bfdeab3863ebd6a0fde786ffdd151d809d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 93142,
+  "verdict": "34/34 passed in slice 2/12 (92.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1862ms)\n  PASS  showers: guests occupy stalls, staff turn them over (1417ms)\n  PASS  save/load: townsfolk keep wallets and houses (1012ms)\n  PASS  all crew dead: town survives, rehire recovers (587ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (525ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (443ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (16574ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (397ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (3128ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (17629ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (15898ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1269ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (448ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (85ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (3091ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (3362ms)\n  PASS  departures: the card waits behind the day report, then pages itself (598ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (2550ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (899ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (7ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (7ms)\n  PASS  the whole session plays through one audio element (11ms)\n  PASS  missing payday costs the crew, not the lease (4744ms)\n  PASS  crab-as-document: a hostile document is refused by name (11ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (6992ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (39ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (300ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (330ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (309ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (2220ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1022ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (2994ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1074ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1110ms)\n34/34 passed in slice 2/12 (92.9s)\n"
+}
