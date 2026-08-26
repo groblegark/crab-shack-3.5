@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-feebe9f-l98y",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "feebe9f90ea58a2a89f83cec6851eb151aad13b0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 180681,
+  "verdict": "35/35 passed in slice 4/12 (180.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (2406ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1183ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (17ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1192ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1360ms)\n  PASS  tired: the morning and evening shifts end the week level (77568ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (669ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (14384ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (98ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (69ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (23081ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1970ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (635ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (9370ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (5711ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (21406ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2550ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1502ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (2128ms)\n  PASS  the HALL tab's text is measured, in every state it has (5256ms)\n  PASS  the shack says where the money comes from, and only your shops do (606ms)\n  PASS  the music controls answer from outside the record box (15ms)\n  PASS  a crab may stand in the cabana it has come to clean (14ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (10ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (10ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (13ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (11ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (9ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (7ms)\n  PASS  space: every position rides the Q8 grain, all day (1320ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (14ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (7ms)\n  PASS  science: the seed is the town - a different one lives differently (5857ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (18ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (112ms)\n35/35 passed in slice 4/12 (180.6s)\n"
+}
