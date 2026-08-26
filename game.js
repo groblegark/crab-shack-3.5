@@ -13452,7 +13452,17 @@ function updateKitchen(c, dt) {
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe, bizKey);
         c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
-      else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
+      else if (c.stepIdx >= c.cust.recipe.steps.length) {
+        // THE TRAY (feature B): the plate at orderIdx is done and carried out.
+        // If the ticket has another plate, the chef keeps the guest and their
+        // ONE queue slot and walks back to the crate for it (stepIdx -1, which
+        // KS.walk re-aims to sourceSpot next frame) - each plate pays its own
+        // ingredient debit and its own station time as it is made. Only a
+        // COMPLETE tray reaches serve(). Length-1 trays never take the branch,
+        // so this is bit-identical until the assembler puts a second plate on.
+        if (c.cust.orderIdx + 1 < c.cust.order.length) { c.cust.orderIdx++; c.stepIdx = -1; }
+        else serve(c);
+      }
       else {
         const [kind] = c.cust.recipe.steps[c.stepIdx];
         const s = tryAcquire(bizKey, kind);
