@@ -10289,7 +10289,13 @@ scenario("the shop tooltip promises what the button actually does", () => {
     table: 'bizTables("shack").length',
     juicebar: "ownedBizList().length",
     arcade: "ownedBizList().length",
-    cadegear: 'stationCap("arcade", "claw")',
+    // CADE GEAR+ counts MACHINES ON THE FLOOR, not a station cap. The arcade's
+    // claw and skee used to be work STATIONS a staff crab stood at, so "more
+    // machines" was stationCap("arcade","claw") - a number only the production
+    // recipe could feel. They are `stalls` now: furniture a CUSTOMER occupies,
+    // so the upgrade has to put real cabinets down, and this counter follows
+    // the mechanic rather than the other way round.
+    cadegear: "arcadeFloor().length",
   };
   // the arcade has to be standing before CADE GEAR+'s counter means anything,
   // which is why the order below is the shop grid's own order
@@ -17675,6 +17681,144 @@ scenario("rethink: two town days of switches stay countable - inertia is the def
   const n = sim.G("window._stats.rethinkSwitch || 0");
   if (!(n > 0)) return "two full days and nobody ever changed her mind: the mechanism is dead";
   if (!(n < 300)) return "the town is dithering: " + n + " switches in two days (want < 300)";
+  return true;
+});
+
+scenario("the arcade: a crab pays for a game and actually plays it", () => {
+  // THE FALL-THROUGH THIS FEATURE EXISTS TO FIX. The serve dispatch branches
+  // on whether a business declares `lodging`, `stalls` or `tables` and names
+  // no business anywhere; the arcade used to declare NONE of the three, so a
+  // paying customer hit `else cust.stC = VS.leaving` and walked straight back
+  // out the door. The pin is the whole cycle, end to end: somebody reaches a
+  // machine, the machine is OCCUPIED while they play, and it is left DIRTY.
+  const sim = createSim({ seed: 1337 });
+  sim.G(`coins = 500000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; crabs[3].p.job = "arcade"; rosterGen++;`);
+  const reached = sim.runUntil(
+    'customers.some(k => k.biz === "arcade" && k.stC === VS.playing)', { maxSteps: 600000 });
+  if (!reached) return "nobody ever reached a machine - the arcade is a shop again";
+  // ...and while they play they are ON the machine, holding it against the
+  // next customer. An occupancy that does not occupy is a costume.
+  const held = sim.G(`(() => { const k = customers.find(k => k.biz === "arcade" && k.stC === VS.playing);
+    return !!(k && k.stall && k.stall.occupant === k); })()`);
+  if (!held) return "a crab is 'playing' but holds no machine";
+  sim.G("window._stats = window._stats || {};");
+  sim.runDays(4);
+  const st = JSON.parse(sim.G(`JSON.stringify({ games: window._stats.gamesPlayed || 0,
+    cleaned: window._stats.stallsCleaned || 0,
+    floor: (BIZ.arcade.stalls || []).length })`));
+  if (!(st.games > 0)) return "four days and no game was ever finished";
+  if (st.floor !== 4) return "the arcade floor should open with 4 machines, found " + st.floor;
+  // the machines go dirty, so the attendant has something to do - which is
+  // what makes HIRE_DUTY.arcade ("MINDS THE FLOOR AT") true at all
+  if (!(st.cleaned > 0)) return "machines never needed resetting: the floor duty is still a lie";
+  return true;
+});
+
+scenario("the arcade: the chore is named for the shop it happens in", () => {
+  // The cleaning cycle is SHARED furniture code and its diary line used to be
+  // the literal "SCRUBBED OUT A SHOWER STALL" - so the moment the arcade grew
+  // stalls, an attendant in the CLAWCADE started writing about shower stalls.
+  // Observed before it was fixed; pinned so it cannot come back.
+  const sim = createSim({ seed: 1337 });
+  sim.G(`coins = 900000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; crabs[3].p.job = "showers"; rosterGen++;`);
+  sim.runDays(5);
+  const lines = JSON.parse(sim.G(`JSON.stringify(crabs.flatMap(c =>
+    (c.p.log || []).filter(e => e[2] === "work").map(e => (c.p.job || "-") + "|" + e[3])))`));
+  const bad = lines.find(t => t.startsWith("arcade|") && /SHOWER|STALL/.test(t));
+  if (bad) return "an arcade worker wrote a shower line: " + bad;
+  if (!lines.some(t => t.startsWith("arcade|") && /MACHINE|SKEEBALL/.test(t)))
+    return "no arcade worker ever recorded resetting a machine";
+  // ...and the showers must still say their own thing: a phrase table that
+  // fixes one shop by breaking another is not a fix
+  const shw = JSON.parse(sim.G(`JSON.stringify(crabs.flatMap(c =>
+    (c.p.log || []).map(e => e[3])).filter(t => /SHOWER|SOAK/.test(t)))`));
+  if (!shw.length) return "the showers stopped saying anything about showers";
+  return true;
+});
+
+scenario("the arcade floor survives a save and reload", () => {
+  // The machines are FURNITURE derived from an upgrade level, not a saved list
+  // - the same contract the hotel annexe has ("THE ROOMS ARE THE TRUTH, not a
+  // counter beside them"), so no new save field. That means the load path has
+  // to RE-DEAL the floor before anything can stand at one, and a reloaded town
+  // that silently drops back to four machines would be invisible: the shop
+  // still works, it is just quietly smaller than what the player bought.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store });
+  a.G(`coins = 900000; tryBuy("arcade"); tryBuy("cadegear"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; rosterGen++;`);
+  a.runDays(2);
+  const shape = `JSON.stringify({ lvl: UPS.cadegear.lvl, floor: arcadeFloor().length,
+    xs: arcadeFloor().map(t => t.x), machines: arcadeFloor().map(t => t.machine) })`;
+  const pre = a.G(shape);
+  if (JSON.parse(pre).floor !== 6) return "CADE GEAR+ did not put 6 machines down: " + pre;
+  // save(hold) RETURNS the envelope rather than writing it (a fresh session
+  // never writes a slot), so the slot write is explicit here
+  a.G("writeSlotEnv(activeSlot, save(true));");
+  const b = createSim({ seed: 77, storage: store, fresh: false });
+  const post = b.G(shape);
+  if (pre !== post) return "the floor changed shape across a reload:\n  pre  " + pre + "\n  post " + post;
+  // ...and every fid must still be unique ACROSS the whole town: the arcade
+  // draws from the same registry as the shack's tables and the hotel's rooms,
+  // and two pieces of furniture sharing a fid would share their flags
+  const uniq = b.G(`(() => { const all = [].concat(...Object.values(BIZ)
+    .map(z => (z.stalls || []).concat(z.tables || []))).map(t => t.fid);
+    return new Set(all).size === all.length; })()`);
+  if (!uniq) return "a reloaded town has two pieces of furniture on one fid";
+  // and the reloaded town must still be PLAYABLE, not merely shaped right
+  if (!b.runUntil('customers.some(k => k.biz === "arcade" && k.stC === VS.playing)',
+      { maxSteps: 400000 })) return "nobody could play a machine after the reload";
+  return true;
+});
+
+scenario("the arcade's occupancy is the JS chain's alone, on both backends", () => {
+  // WHY THIS PIN EXISTS, and it is the sharpest hazard in the feature. The
+  // compiled kernel (tools/kernel/kernel.c) reimplements the counter machine,
+  // and its occupancy exit HARD-CODES the shower: it subtracts a scrub from
+  // the visitor DIRT plane, with both branches nonzero, so no argument JS can
+  // pass means "this was not a wash". Had the arcade reused `showering`, a
+  // tourist would have walked out of a claw machine CLEANER.
+  //
+  // The defence is structural: the arcade's three states are appended past
+  // `leaving` and are absent from KCUST_STATES, so the wasm unit never
+  // dispatches them. Two pins, because the structure and the result can fail
+  // apart: the states must stay out of KCUST_STATES, AND the two backends must
+  // still agree on a town that actually plays games.
+  const oob = createSim({ seed: 1337 });
+  const inTable = JSON.parse(oob.G(
+    `JSON.stringify(["toMachine", "waitMachine", "playing"].map(s => !!KCUST_STATES[VS[s]]))`));
+  if (inTable.some(Boolean))
+    return "an arcade state entered KCUST_STATES: the kernel would dispatch it into the shower's exit";
+  // ...and the four codes the C file hard-codes must not have moved under it
+  if (!oob.G("VS.toBiz === 12 && VS.inRoom === 15 && VS.onSand === 16 && VS.roam === 17"))
+    return "the VS codes the kernel pins have moved - abi_check should have thrown";
+
+  const stage = `coins = 900000; tryBuy("arcade"); tryBuy("chef"); tryBuy("chef"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; crabs[3].p.job = "showers"; rosterGen++;`;
+  const ref = createSim({ seed: 4242, kernel: "off" });
+  let kern;
+  try { kern = createSim({ seed: 4242, kernel: "wasm" }); }
+  catch (e) { return "kernel failed to arm: " + e.message; }
+  ref.G(stage); kern.G(stage);
+  ref.runDays(5); kern.runDays(5);
+  const read = (s) => s.G(`JSON.stringify([window._stats.gamesPlayed || 0,
+    window._stats.showersDone || 0, window._stats.stallsCleaned || 0, coins, lifetime,
+    customers.map(k => [k.si, VSTCP[k.si], C_SHW[k.si]]),
+    (BIZ.arcade.stalls || []).map(t => [t.fid, FT_X[t.fid], FT_FLG[t.fid]])])`);
+  const a = read(ref), b = read(kern);
+  if (a !== b) {
+    const A = JSON.parse(a), B = JSON.parse(b);
+    const F = ["games", "showers", "cleaned", "coins", "lifetime"];
+    for (let i = 0; i < F.length; i++)
+      if (JSON.stringify(A[i]) !== JSON.stringify(B[i]))
+        return `backends diverged on ${F[i]}: ref ${A[i]} vs kernel ${B[i]}`;
+    return "backends diverged on the customer/furniture planes";
+  }
+  // ...and the run has to have actually PLAYED something, or this pin is
+  // green on a town where the hazard never arose
+  if (!(JSON.parse(a)[0] > 0)) return "no games were played: the agreement is vacuous";
   return true;
 });
 
