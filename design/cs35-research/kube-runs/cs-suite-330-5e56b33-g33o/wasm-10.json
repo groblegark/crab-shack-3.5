@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-5e56b33-g33o",
+  "armId": "wasm-10",
+  "index": 22,
+  "sha": "5e56b33f6927755e7319baa76b31e88960c13aa7",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 171521,
+  "verdict": "32/32 passed in slice 10/12 (171.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 4,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (1440ms)\n  PASS  housing: npcs sleep at the shelter, then move up (404ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (489ms)\n  PASS  credit: the town is warned before it goes under (29557ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (328ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (1679ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (34055ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (50ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (4399ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (737ms)\n  PASS  the title's credit block never lands on the science button (11ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (47340ms)\n  PASS  visitors: the wallet is real money, and it runs out (348ms)\n  PASS  the town fund moves money and never mints it (11890ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1322ms)\n  PASS  departures: every character the card prints exists in the font (920ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2479ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (63ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (306ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (256ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (2126ms)\n  PASS  traits: the island's table is the literal, value for value (8ms)\n  PASS  depart programs: a hostile table is refused by name (9ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (22519ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (319ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (360ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (322ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (2102ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (878ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (2591ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1083ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (979ms)\n32/32 passed in slice 10/12 (171.4s)\n"
+}

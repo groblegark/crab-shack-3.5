@@ -8487,6 +8487,62 @@ scenario("departures: the manifest is the day's own boat-load, and the money add
   return true;
 });
 
+// A RECORD THAT ADDS UP CAN STILL PRINT THE WRONG NUMBER. The check above
+// validates the manifest's ARITHMETIC - purse = spent + left - and that was
+// true every single day, including the four days the card was visibly wrong.
+// It never read the string on the glass. So when 2e84c1e moved the game to
+// cents and gave `departRecord` a `$d`, the money band kept handing those
+// DOLLARS to `fmt` (which divides by 100 again) and the suite stayed green
+// through a card that printed BROUGHT $7 above its own SPENT $42 OF $71.
+//
+// So: read the band off the DRAWN card, and hold it against the guest rows
+// drawn directly underneath it - the same quantities, in the same units, by
+// construction. A units bug cannot move both and stay consistent.
+scenario("departures: the money band prints the manifest's own dollars", () => {
+  const sim = createSim({ seed: 42 });
+  sim.runUntil(`report && reportT > 0 && (today.left || []).length > 0`, { maxSteps: 800000 });
+  if (!sim.G(`departQ`)) return "settlement built no manifest";
+  const got = JSON.parse(sim.G(`(() => {
+    const q = departQ;
+    depart = q; departT = 11; departPage = 0;
+    const seen = [];
+    const T = text, S = smallText;
+    text = (c, s2, x, y, col, sz) => { seen.push(String(s2)); return T(c, s2, x, y, col, sz); };
+    smallText = (c, s2, x, y, col) => { seen.push(String(s2)); return S(c, s2, x, y, col); };
+    try { drawDepart(); } finally { text = T; smallText = S; }
+    const one = (re) => { const m = seen.map(s => s.match(re)).filter(Boolean); return m.length === 1 ? +m[0][1] : null; };
+    // the per-guest rows on this page, which print the SAME quantities and
+    // have never been run through the cents divisor
+    const rows = seen.map(s => s.match(/SPENT \\$(\\d+) OF \\$(\\d+)/)).filter(Boolean)
+      .map(m => ({ spent: +m[1], purse: +m[2] }));
+    return JSON.stringify({
+      brought: one(/^BROUGHT \\$(\\d+)$/), spent: one(/^SPENT \\$(\\d+)$/), home: one(/^TOOK HOME \\$(\\d+)$/),
+      recPurse: q.purse, recSpent: q.spent, recLeft: q.left, rows, pages: departPages(),
+    });
+  })()`));
+  for (const k of ["brought", "spent", "home"])
+    if (got[k] == null) return `the drawn card has no single ${k.toUpperCase()} figure`;
+  // 1. the band is the manifest, undivided
+  if (got.brought !== got.recPurse || got.spent !== got.recSpent || got.home !== got.recLeft)
+    return `the band misprints the manifest: BROUGHT ${got.brought}/${got.recPurse},`
+      + ` SPENT ${got.spent}/${got.recSpent}, TOOK HOME ${got.home}/${got.recLeft}`;
+  // 2. ...and it still adds up once printed
+  if (got.spent + got.home !== got.brought)
+    return `the printed band does not add up: ${got.spent} + ${got.home} != ${got.brought}`;
+  // 3. THE UNITS CHECK. One page of guests cannot have spent more than the
+  //    whole boat did - and if the band were divided by 100 again, it would.
+  if (!got.rows.length) return "the drawn card printed no guest rows to check the band against";
+  const pageSpent = got.rows.reduce((n, r) => n + r.spent, 0);
+  const pagePurse = got.rows.reduce((n, r) => n + r.purse, 0);
+  if (pageSpent > got.spent || pagePurse > got.brought)
+    return `the band is in different units from its own rows: page ${pageSpent}/${pagePurse}`
+      + ` vs band ${got.spent}/${got.brought}`;
+  // a single-page card is the whole boat, so the two must match exactly
+  if (got.pages === 1 && (pageSpent !== got.spent || pagePurse !== got.brought))
+    return `a one-page card disagrees with its own total: ${pageSpent}/${got.spent}, ${pagePurse}/${got.brought}`;
+  return true;
+});
+
 scenario("departures: the card waits behind the day report, then pages itself", () => {
   const sim = createSim({ seed: 42 });
   sim.runUntil(`report && reportT > 0 && (today.left || []).length > 4`, { maxSteps: 800000 });

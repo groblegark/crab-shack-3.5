@@ -7181,7 +7181,24 @@ const sfx = {
 
 // ---------------------------------------------------------------- economy
 function fmt(c) {   // cents in, whole dollars out - every caller is money
-  let n = $d(c);
+  return fmtD($d(c));
+}
+// ...and the same abbreviation for a number that is ALREADY dollars.
+//
+// THE REGRESSION THIS EXISTS TO PREVENT. The card shipped CORRECT on 2026-08-20
+// - the devlog screenshot reads BROUGHT $1190 / SPENT $368 / TOOK HOME $822.
+// Then 2e84c1e ("every balance is integer cents") moved the whole game to cents
+// and gave `departRecord` a `$d` on the way in, so the row speaks DOLLARS -
+// every reader of it is a voice line or a printed label. It converted the
+// PER-GUEST rows correctly and left the money band calling `fmt`, which divides
+// by 100 again. For four days the card contradicted itself on its own face:
+// BROUGHT $7 sitting directly above SPENT $42 OF $71.
+//
+// The unit that a `fmt` protects is invisible at the call site - `fmt(x)` looks
+// right whatever x is - so the guard is a SECOND DOOR with the unit in its
+// name, and a scenario that reads the DRAWN string. The old scenario checked
+// the record's arithmetic, which was right the whole time.
+function fmtD(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
   if (n >= 1e4) return (n / 1e3).toFixed(1) + "K";
   return String(n);
@@ -20907,8 +20924,10 @@ function drawDepart() {
   // incentive since the visitor pass and has never once been printed anywhere.
   // Here it is, every night, in the player's own arithmetic.
   {
-    const a = "BROUGHT $" + fmt(D.purse), b = "SPENT $" + fmt(D.spent),
-      c = "TOOK HOME $" + fmt(D.left);
+    // fmtD, not fmt: the manifest speaks DOLLARS already (departRecord runs
+    // $d on the way in), and fmt would divide by 100 a second time.
+    const a = "BROUGHT $" + fmtD(D.purse), b = "SPENT $" + fmtD(D.spent),
+      c = "TOOK HOME $" + fmtD(D.left);
     smallText(ctx, a, x + 6, y + 25, [110, 100, 110]);
     smallText(ctx, b, x + 86, y + 25, [40, 110, 60]);
     smallText(ctx, c, x + w2 - 6 - smallTextWidth(c), y + 25,
