@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-972d1d5-zjjl",
+  "armId": "wasm-2",
+  "index": 14,
+  "sha": "972d1d5207fbca9c5ace1ebc0dd66f022e0d2bd4",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 84143,
+  "verdict": "37/37 passed in slice 2/12 (84.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2062ms)\n  PASS  showers: guests occupy stalls, staff turn them over (1474ms)\n  PASS  save/load: townsfolk keep wallets and houses (1190ms)\n  PASS  all crew dead: town survives, rehire recovers (632ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (581ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (655ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (15745ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (395ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (2839ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (16320ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (7644ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (505ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (941ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (10593ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1055ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (609ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (9ms)\n  PASS  departures: a stay survives a save and a reload (1870ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (2582ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (50ms)\n  PASS  a hire is something you can see happen (223ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1105ms)\n  PASS  the whole session plays through one audio element (11ms)\n  PASS  the shipped catalog builds a rotation of every track, with its moments intact (29ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (5237ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (12ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (25ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (29ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (43ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (13ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (13ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1466ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1364ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (3347ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1529ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1355ms)\n  PASS  spend reserve: the affordability gates read the reserve, and it BINDS (497ms)\n37/37 passed in slice 2/12 (84.1s)\n"
+}

@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-3adcc9a-kq9g",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "3adcc9a72d6a46783eb394dc47754725afd0c414",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 145679,
+  "verdict": "36/36 passed in slice 7/12 (145.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (5622ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (2127ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1632ms)\n  PASS  boat: ownership and berth roundtrip through save/load (1745ms)\n  PASS  the drop nudge: open sand nudges nothing (1933ms)\n  PASS  days off: wages skip exactly and the bill dips to match (2035ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (54ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (1805ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1455ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1002ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (9ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (1109ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (22ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (4730ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2750ms)\n  PASS  the mayor wears the hat, and nobody else ever does (1076ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (614ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (805ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (90555ms)\n  PASS  the shop tooltip promises what the button actually does (595ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (14ms)\n  PASS  every track in the playlist is a file that exists (11ms)\n  PASS  the box does not stop the music, and a finished track walks to the next row (12ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (8245ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (8ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (7440ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (22ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (755ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (9ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (605ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3393ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1743ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (7ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (8ms)\n  PASS  the arcade floor survives a save and reload (1642ms)\n36/36 passed in slice 7/12 (145.6s)\n"
+}

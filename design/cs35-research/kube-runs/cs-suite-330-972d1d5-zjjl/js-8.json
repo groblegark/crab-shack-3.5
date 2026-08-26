@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-972d1d5-zjjl",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "972d1d5207fbca9c5ace1ebc0dd66f022e0d2bd4",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 80680,
+  "verdict": "36/36 passed in slice 8/12 (80.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (790ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (2032ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (4493ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (117ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5506ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (403ms)\n  PASS  roster: the refactor preserves every census ordering (1008ms)\n  PASS  sale: the player buys a failed business through the shopfront (3765ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4814ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (118ms)\n  PASS  one reading surface owns the screen (1112ms)\n  PASS  almanac: swell is an autocorrelated per-town history, wind an independent gate (13ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1239ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (6161ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1632ms)\n  PASS  departures: the money band prints the manifest's own dollars (624ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (672ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (4071ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (11ms)\n  PASS  a standing offer can be answered from the card that announces it (13ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (13ms)\n  PASS  the walk steps over the moments and the dropped rows (11ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1823ms)\n  PASS  crab voice: two whole days with the table off are the same town (2024ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (922ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (8ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (24187ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (14ms)\n  PASS  foodways: the validator names its refusals (12ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1094ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (9ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (7943ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (200ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (41ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (3656ms)\n36/36 passed in slice 8/12 (80.6s)\n"
+}

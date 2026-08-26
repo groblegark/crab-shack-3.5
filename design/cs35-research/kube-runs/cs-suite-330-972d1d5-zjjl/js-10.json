@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-972d1d5-zjjl",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "972d1d5207fbca9c5ace1ebc0dd66f022e0d2bd4",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 186643,
+  "verdict": "36/36 passed in slice 10/12 (186.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2911ms)\n  PASS  housing: npcs sleep at the shelter, then move up (787ms)\n  PASS  queue hard cap holds for locals too (3668ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (734ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (904ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (102ms)\n  PASS  fish market: price + series roundtrip save/load (52ms)\n  PASS  labor policy: every new setting roundtrips save/load (1536ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (6216ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7683ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (42373ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (998ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (2566ms)\n  PASS  visitors: the wallet is real money, and it runs out (757ms)\n  PASS  the town fund moves money and never mints it (16232ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (1320ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (12ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (3927ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1839ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (683ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (69100ms)\n  PASS  a dead <source> reaches musFail through the child's own listener (15ms)\n  PASS  the now-playing ticker names what is audible and scrolls only when it must (12ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (7686ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (18ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (7199ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (11ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (599ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (10ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (499ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3076ms)\n  PASS  the build stamp is well-formed and wired (1ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1495ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (11ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (10ms)\n  PASS  the arcade floor survives a save and reload (1490ms)\n36/36 passed in slice 10/12 (186.5s)\n"
+}
