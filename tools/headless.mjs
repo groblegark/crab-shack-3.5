@@ -58,6 +58,14 @@ const NOFLOOR = args.includes("--nofloor");
 // directly. A capped shack cannot take the hires `--buy` asks for, so a growth
 // matrix that moved needs to be able to ask whether the town did that.
 const NOCAP = args.includes("--nocap");
+// `--noplay` sends the arcade back to a COUNTER: a customer is handed their
+// prize and leaves instead of occupying a machine for playT seconds. The
+// arcade still sells, still takes the money, still zeroes boredom - only the
+// occupancy goes away. That is the exact arm needed to attribute the floor's
+// THROUGHPUT COST, which is expected to be real and negative: a crab standing
+// at a claw machine is a crab not being handed something at the prize counter.
+// Named rather than tuned away, per the measurement rule.
+const NOPLAY = args.includes("--noplay");
 // `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
 // body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
 // the same buildPhys conversion a document does, lands on ENG_BODY and the
@@ -165,6 +173,7 @@ if (NOVSEP) G(`window._novsep = true;`);
 if (NORETHINK) G(`window._norethink = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
+if (NOPLAY) G(`window._noPlay = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);

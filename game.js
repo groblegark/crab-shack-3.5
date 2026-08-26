@@ -259,24 +259,65 @@ const BIZ = {
         steps: [["grill", 5.0, "plate_fish"]] },
     ],
   },
+  // ---------------------------------------------------------- the CLAWCADE
+  // THE MACHINES ARE `stalls`, NOT STATIONS, and that is the whole shop.
+  //
+  // WHAT WAS WRONG. The arcade was modelled as a KITCHEN: `clawgame` was
+  // [["claw", 3.5, "plush"]], so a STAFF crab stood at the claw machine,
+  // worked it for three and a half seconds like a grill, and handed a plush
+  // over the prize counter. The customer queued, was handed an item, had
+  // `bored` zeroed and walked out. NOBODY EVER PLAYED ANYTHING. Worse, the
+  // serve dispatch branches purely on whether a business declares `lodging`,
+  // `stalls` or `tables` - it names no business - and the arcade declared
+  // none of the three, so it fell through to `leaving`: a crab paid for a
+  // game and went straight back out the door.
+  //
+  // WHAT IT IS NOW. What the shop SELLS is a TOKEN, over the booth, in one
+  // step. What the crab DOES is PLAY, and the play is an OCCUPANCY: the
+  // machines are furniture a customer takes for `playT` seconds and leaves
+  // needing a wipe - the shower stalls' cycle, one furniture type over, which
+  // is the same argument the hotel's rooms are built on. Every queue guard,
+  // patience timeout, abort path and cleaning dispatch in the game already
+  // knows what to do with that, so four shipped systems switch on at once and
+  // `HIRE_DUTY.arcade` ("MINDS THE FLOOR AT") becomes TRUE for the first time.
+  //
+  // The machines leave the production graph entirely. A staff crab at the
+  // booth cannot starve the floor, which the old shape did by construction:
+  // `stationCap("arcade","claw")` is 1 until CADE GEAR+, so ONE customer at
+  // the claw would have blocked the only production slot the shop had.
   arcade: {
     name: "CLAWCADE", short: "CADE", sign: "THE CLAWCADE", kind: "shopfront", rent: 8000, owner: "player",
     x0: 1620, x1: 1800, door: 1636,
     stations: {
       booth: [{ x: 1630, y: 136 }],
-      claw:  [{ x: 1666, y: 136 }, { x: 1688, y: 136 }],
-      skee:  [{ x: 1718, y: 160 }, { x: 1740, y: 160 }],
       prize: [{ x: 1772, y: 160 }],
     },
+    // THE FLOOR. Two claw cabinets on the back row (y136, the stalls' own row
+    // - the two travel lanes keep their daylight by construction) and two
+    // skeeball lanes on the front row, on the coordinates the machines have
+    // always stood at. `machine` is which art the cabinet wears; everything
+    // else is the standard furniture record every stall reader already walks.
+    stalls: [
+      { x: 1666, y: 136, machine: "claw", occupant: null, dirty: false, cleaning: false },
+      { x: 1688, y: 136, machine: "claw", occupant: null, dirty: false, cleaning: false },
+      { x: 1718, y: 160, machine: "skee", occupant: null, dirty: false, cleaning: false },
+      { x: 1740, y: 160, machine: "skee", occupant: null, dirty: false, cleaning: false },
+    ],
     source: "booth", out: "prize", queueX: 1804,
     park: 1590, rack: 1604,
+    // ONE STEP, AT THE BOOTH. The showers prove the engine runs a zero-step
+    // recipe (SUDS is `steps: []` with the occupancy on the recipe), but the
+    // cultureway validator REFUSES an empty `steps` - so a zero-step arcade
+    // would be a shape the engine's own literals use and a document may never
+    // declare, which is exactly the drift the hostile-file posture exists to
+    // prevent. A token sale is a real step at a real station instead.
     recipes: [
-      { id: "clawgame", icon: "plush", pay: 13, raw: "token",
-        steps: [["claw", 3.5, "plush"]] },
-      { id: "skeerun", icon: "tickets", pay: 9, raw: "token",
-        steps: [["skee", 2.8, "tickets"]] },
-      { id: "gamenight", icon: "gold_plush", pay: 18, raw: "token",
-        steps: [["skee", 2.5, "tickets"], ["claw", 3.0, "gold_plush"]] },
+      { id: "clawgame", icon: "plush", pay: 13, raw: "token", playT: 6, machine: "claw",
+        steps: [["booth", 0.6, "token"]] },
+      { id: "skeerun", icon: "tickets", pay: 9, raw: "token", playT: 5, machine: "skee",
+        steps: [["booth", 0.6, "token"]] },
+      { id: "gamenight", icon: "gold_plush", pay: 18, raw: "token", playT: 9, machine: null,
+        steps: [["booth", 0.9, "token"]] },
     ],
   },
   juicebar: {
@@ -4242,6 +4283,36 @@ function setHotelRooms(n) {
   furnGen++;       // collide's furniture memo re-reads the stalls it just changed
   _bandsKey = "";   // the furniture cache keys on the room count; make it re-read anyway
 }
+// THE ARCADE FLOOR, and CADE GEAR+ as a FURNITURE upgrade rather than a
+// station cap. The machines used to be work stations, so "more machines" was
+// `stationCap("arcade","claw")` - a number only the staff recipe could feel.
+// Now a machine is a thing a CUSTOMER stands at, so the upgrade has to put
+// real cabinets on the floor, exactly the way the annexe puts huts on the
+// forecourt: rebuild from a count, so a load lands on the geometry a fresh
+// build of the same size has, to the pixel.
+const CADE_FLOOR_BASE = 4, CADE_GEAR_ADDS = 2;
+function arcadeFloor() { return BIZ.arcade.stalls || []; }
+// the two extra bays: the front row continues east at the skee lanes' pitch,
+// stopping clear of the prize counter at 1772
+function cadeSpot(i) { return { x: 1762 + i * 22, y: 136, machine: i % 2 ? "skee" : "claw" }; }
+function setArcadeFloor(n) {
+  const b = BIZ.arcade;
+  if (!b || !b.stalls) return;
+  const want = Math.max(CADE_FLOOR_BASE, Math.min(CADE_FLOOR_BASE + CADE_GEAR_ADDS, n | 0));
+  while (b.stalls.length > want) {
+    const st = b.stalls.pop();
+    // a machine pulled out from under a player is released the way the wedge
+    // rule demands: the occupant is let go FIRST, never left holding a fid
+    if (st && st.occupant) { const o = st.occupant; if (o.stall === st) o.stall = null; st.occupant = null; }
+    if (st) freeFurn(st);
+  }
+  while (b.stalls.length < want) {
+    const s = cadeSpot(b.stalls.length - CADE_FLOOR_BASE);
+    b.stalls.push(mkFurn({ x: s.x, y: s.y, machine: s.machine, occupant: null, dirty: false, cleaning: false }));
+  }
+  furnGen++;        // collide's furniture memo re-reads the floor it just changed
+  _bandsKey = "";   // ...and the band cache keys on the furniture, so make it re-read
+}
 function annexeFull() { return hotelRooms().length >= HOTEL_ROOMS_BASE + ROOM_CFG.EXTRA; }
 function roomBuildCost() { return ROOM_CFG.BUILD; }
 // the same predicate for whoever is holding the lease: the player's till IS
@@ -5467,7 +5538,10 @@ function upEffect(key) {
       const t = (bizTables("shack") || []).length;
       return "TABLES " + t + " -> " + (t + 1);
     }
-    case "cadegear": return "MACHINES " + cap("claw") + " -> " + (cap("claw") + 1);
+    case "cadegear": {
+      const m = arcadeFloor().length;
+      return "MACHINES " + m + " -> " + (m + CADE_GEAR_ADDS);
+    }
     case "juicebar": case "arcade":
       return "BUSINESSES " + ownedBizList().length + " -> " + (ownedBizList().length + 1);
   }
@@ -5486,7 +5560,6 @@ function upOngoing(key) {
 function stationCap(bizKey, kind) {
   if (bizKey === "shack" && kind === "grill") return 1 + UPS.grill.lvl;
   if (bizKey === "shack" && kind === "board") return 1 + UPS.board.lvl;
-  if (bizKey === "arcade" && (kind === "claw" || kind === "skee")) return 1 + UPS.cadegear.lvl;
   if (bizKey === "juicebar" && kind === "juicer") return 2;
   return 1;
 }
@@ -5672,7 +5745,7 @@ function nightlyDue() { return totalRent() + wagesOwedTonight(); }
 const busy = {
   shack: { board: [false, false, false], grill: [false, false, false] },
   juicebar: { juicer: [false, false] },
-  arcade: { claw: [false, false], skee: [false, false] },
+  arcade: { booth: [false] },   // the machines are furniture now, not work stations
   showers: {},
   hotel: { linen: [false] },
 };
@@ -6418,9 +6491,29 @@ const KS_NAMES = ["idle", "walk", "work", "toSlot", "waitSlot", "waitCash",
   "busingTable", "cleaningStall", "toStallClean", "toTableClean", "nap", "wander"];
 const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
   "walkToVehicle", "drive", "travel", "walkOff"];
+// APPEND-ONLY PAST `leaving`. The compiled kernel hard-codes four of these
+// codes and checks them at arm time (`abi_check`), so reordering this list
+// fails loudly rather than walking guests through the wrong doors.
+//
+// THE ARCADE'S THREE STATES ARE ITS OWN, AND THAT IS THE POINT. A machine is
+// occupiable furniture exactly like a shower stall, so the obvious move is to
+// reuse toStall/showering - and it is WRONG, because those four states are in
+// KCUST_STATES and therefore dispatched by the WASM unit, whose occupancy exit
+// hard-codes the shower: it subtracts a scrub from the visitor DIRT plane, and
+// both branches of that subtraction are nonzero, so there is no argument JS can
+// pass to mean "this was not a wash". A tourist would come out of a claw
+// machine CLEANER. Appending three states the kernel does not know about puts
+// the arcade's occupancy in the JS chain alone, on BOTH backends, by
+// construction - and the suite's referee compares VSTCP across the two, so if
+// that reasoning is wrong it fails loudly instead of drifting.
+//
+// Reusing `stalls` as the FURNITURE is untouched by this: the queue, the dirty
+// flag, the cleaning dispatch, patience and every abort path still come free.
+// It is only the customer's own state machine that is arcade-shaped.
 const VS_NAMES = ["", "ashore", "arriving", "waiting", "toSeat", "seatedWaiting",
   "dining", "toStall", "waitStall", "outStall", "toTable", "showering", "toBiz",
-  "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving"];
+  "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving",
+  "toMachine", "waitMachine", "playing"];
 const DS = {}, KS = {}, CS = {}, VS = {};
 DS_NAMES.forEach((n, i) => DS[n] = i); KS_NAMES.forEach((n, i) => KS[n] = i);
 CS_NAMES.forEach((n, i) => CS[n] = i); VS_NAMES.forEach((n, i) => VS[n] = i);
@@ -10509,6 +10602,11 @@ function load(slot, envIn) {
     for (const cid in s.dw) if (typeof cid === "string" && cid.length <= 16 && s.dw[cid]) dishWord[cid] = true;
   loadDorm(s.dorm);
   loadAnnexe(s.annexe);
+  // ...and the arcade floor, for the same reason the annexe is rebuilt here:
+  // the machines are FURNITURE derived from an upgrade level, so a load has to
+  // re-deal them before anything can stand at one. No new save field - the
+  // level is already in the envelope and the floor is a function of it.
+  setArcadeFloor(CADE_FLOOR_BASE + CADE_GEAR_ADDS * (UPS.cadegear.lvl | 0));
   customers = customers.filter(k => !k.visitor);
   if (Array.isArray(s.visitors)) for (const v of s.visitors) {
     if (!v || typeof v.n !== "string") continue;
@@ -12425,6 +12523,11 @@ function updateErrand(c, dt) {
     else if (k.stC === VS.showering && k.stall) { c.x = k.stall.x + 2; c.y = k.stall.y + 4; c.hidden = true; }
     else if ((k.stC === VS.toStall || k.stC === VS.outStall) && k.climb)
       { c.hidden = false; c.x = k.x; c.y = (166 * Q8 - idiv(26 * Q8 * k.climb, 4096)) / Q8; }   // stepping up/down, on the grain
+    // AT A MACHINE, AND VISIBLE - the one place this deliberately parts from
+    // the shower. A bather is `hidden` because the stall draws them behind a
+    // curtain; a player is the whole point, so they stand at the cabinet in
+    // their own body, on the machine's own row.
+    else if (k.stC === VS.playing && k.stall) { c.hidden = false; c.x = k.stall.x + 3; c.y = k.stall.y + 7; }
     else { c.hidden = false; c.x = k.x; c.y = 166; }
   }
 }
@@ -13008,6 +13111,34 @@ function tableShunned(t, skip) {
     return 25 * dx * dx + 81 * dy * dy < 25 * SHUN_PX * SHUN_PX;
   });
 }
+// WHICH STALL. A shower stall is a shower stall, so the showers and the hotel
+// take the first free one and always have - `find` order IS semantics there,
+// and the kernel's own waitStall scan walks the same list in the same order.
+// An ARCADE machine has a KIND: a crab who paid for a claw game wants a claw
+// cabinet. Preference only, never a refusal - the fall-through to "any free
+// machine" is what stops a crab paying for a game and finding nowhere to play
+// it, which is the exact fall-through this whole change exists to fix.
+// WHAT THE CHORE IS CALLED, per shop. The cleaning cycle is shared furniture
+// code and its diary line used to be the literal "SCRUBBED OUT A SHOWER
+// STALL" - which the moment the arcade grew stalls put an attendant in the
+// CLAWCADE writing about shower stalls. Keyed on the BUSINESS, the same shape
+// HIRE_DUTY uses: a new lot adds a row here and nothing else changes.
+const STALL_CHORE = { showers: "SCRUBBED OUT A SHOWER STALL",
+  hotel: "MADE UP A ROOM", arcade: "WIPED DOWN A MACHINE" };
+const STALL_CHORE_POP = { showers: "SPARKLING", hotel: "MADE UP", arcade: "RESET" };
+function stallChoreLine(bizKey, st) {
+  // the arcade knows WHICH machine, because the cabinet does
+  if (bizKey === "arcade" && st && st.machine)
+    return st.machine === "skee" ? "RESET THE SKEEBALL LANE" : "WIPED DOWN A CLAW MACHINE";
+  return STALL_CHORE[bizKey] || "TIDIED UP";
+}
+function pickStall(stalls, cust) {
+  const free = (stalls || []).filter(t => !t.occupant && !t.dirty);
+  if (!free.length) return null;
+  const want = cust && cust.recipe && cust.recipe.machine;
+  if (want) { const m = free.find(t => t.machine === want); if (m) return m; }
+  return free[0];
+}
 function pickSeat(tables, cust) {
   // a DIRTY table is not a table: it seats nobody until a crab has cleared it
   const free = (tables || []).filter(t => !t.occupant && t.dishes === 0 && !t.dirty);
@@ -13237,11 +13368,12 @@ function updateKitchen(c, dt) {
   } else if (c.ksC === KS.cleaningStall) {
     c.workT -= dtT;
     if (c.workT <= 0) {
-      if (c.cleanStall) { c.cleanStall.dirty = false; c.cleanStall.cleaning = false; c.cleanStall = null; }
-      crabLogEvery(c, "stall", 90, "work", "SCRUBBED OUT A SHOWER STALL");   // DIARY
+      const wiped = c.cleanStall;
+      if (wiped) { wiped.dirty = false; wiped.cleaning = false; c.cleanStall = null; }
+      crabLogEvery(c, "stall", 90, "work", stallChoreLine(bizKey, wiped));   // DIARY
       c.ksC = KS.idle;
       if (window._stats) window._stats.stallsCleaned = (window._stats.stallsCleaned || 0) + 1;
-      popText("SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
+      popText(STALL_CHORE_POP[bizKey] || "SPARKLING", c.x - 6, FLOOR_Y - 30, [140, 220, 255]);
     }
   } else if (c.ksC === KS.toTableClean) {
     if (routedStep(c, spd, dt)) { c.workMax = c.workT = (BUS_SECS * 4096 / (crabWork(c) * crabEffQ12(c))) | 0; c.ksC = KS.busingTable; }
@@ -13621,15 +13753,29 @@ function serve(c) {
     if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
     const seat = tables ? pickSeat(tables, cust) : null;
-    const stall = stalls ? stalls.find(t => !t.occupant && !t.dirty) : null;
+    const stall = stalls ? pickStall(stalls, cust) : null;
     // LODGING: the key is handed over and the guest walks to their own door.
     // The room was reserved before they joined the line (nobody sells the last
     // room twice), so there is nothing to find here - `leaving` sends them
     // through visAfterCounter, which checks them in.
     if (BIZ[cust.biz].lodging) { cust.stC = VS.leaving; }
     else if (stalls) {
-      if (stall) { stall.occupant = cust; cust.stC = VS.toStall; cust.stall = stall; }
-      else { cust.stC = VS.waitStall; cust.waitT = 30 * SEC; }
+      // A WASH OR A GAME - the same furniture, two occupancies. `playT` on the
+      // recipe is what says which: a shop whose menu names a play time sends
+      // its customer to a MACHINE, and everything else is a shower. Data, not
+      // a business name, so a cultureway shop that declares playT gets the
+      // arcade's behaviour without this line learning its id.
+      // ARM-OFF HATCH (--noplay): the shop still sells, still takes the money
+      // and still zeroes boredom - only the occupancy goes away, so the matrix
+      // can attribute the floor's throughput cost on its own.
+      const play = !!(cust.recipe && cust.recipe.playT) && !window._noPlay;
+      if (stall) {
+        stall.occupant = cust; cust.stall = stall;
+        cust.stC = play ? VS.toMachine : VS.toStall;
+      } else {
+        cust.stC = play ? VS.waitMachine : VS.waitStall;
+        cust.waitT = 30 * SEC;
+      }
     }
     else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
     else cust.stC = VS.leaving;
@@ -15393,6 +15539,55 @@ function updateCustomers(dt) {
       const st = BIZ[k.biz].stalls.find(t => !t.occupant && !t.dirty);
       if (st) { st.occupant = k; k.stall = st; k.stC = VS.toStall; }
       else if (k.waitT <= 0) { k.stC = VS.leaving; k.happy = false; }
+    // ------------------------------------------------- THE ARCADE FLOOR
+    // The same three beats as the showers, on the same furniture, with the
+    // same integer geometry - a crab WALKS to the cabinet, PLAYS for playT,
+    // and leaves it needing a wipe. The one deliberate difference is that
+    // there is no climb and no curtain: you are meant to SEE them playing,
+    // which is the entire point of the feature.
+    } else if (k.stC === VS.toMachine) {
+      const m = k.stall;
+      if (!m) { k.stC = VS.leaving; }   // machine pulled out from under them (a load, a refit)
+      else {
+        const dxm = m.x + 3 - k.x;
+        if (Math.abs(dxm) > 2) k.x = (k.x * Q8 + Math.sign(dxm) * Math.min(idiv(45 * Q8 * dtT, TICK_HZ), Math.round(Math.abs(dxm) * Q8))) / Q8;
+        else {
+          k.stC = VS.playing;
+          // the occupancy rides the SAME plane field the shower's does, so it
+          // survives save/load and crosses the js/wasm boundary for free
+          k.showerT = (k.recipe && k.recipe.playT ? k.recipe.playT : 5) * SEC;
+          k.face = -1;
+        }
+      }
+    } else if (k.stC === VS.playing) {
+      k.showerT -= dtT;
+      if (k.showerT <= 0) {
+        const m = k.stall;
+        if (m) { m.occupant = null; m.dirty = true; }
+        k.stall = null;
+        // BOREDOM WAS ALREADY PAID AT THE COUNTER. payAndBenefit zeroes it the
+        // moment the token is sold, for crabs and visitors alike, and that is
+        // deliberately left alone: the ruling was OCCUPANCY, not outcome, so
+        // the play draws nothing, decides nothing, and cannot fail. What the
+        // machine adds is the TIME and the FLOOR, not the relief.
+        if (k.isCrab) {
+          crabLog(k.crab, "need", "PLAYED THE " + (m && m.machine === "skee" ? "SKEEBALL" : "CLAW MACHINE")
+            + " AT THE " + BIZ[k.biz].name, 0);   // DIARY
+          k.crab.quip = { text: "BEST DAY EVER!", t: 2.4 * SEC };
+        }
+        if (window._stats) {
+          window._stats.gamesPlayed = (window._stats.gamesPlayed || 0) + 1;
+          const kk = k.crab ? "gamesPlayedCrab" : "gamesPlayedTour";
+          window._stats[kk] = (window._stats[kk] || 0) + 1;
+        }
+        popText("NICE!", k.x, 126, [255, 220, 120]);
+        k.stC = VS.leaving;
+      }
+    } else if (k.stC === VS.waitMachine) {
+      k.waitT -= dtT;
+      const m = pickStall(BIZ[k.biz].stalls, k);
+      if (m) { m.occupant = k; k.stall = m; k.stC = VS.toMachine; }
+      else if (k.waitT <= 0) { k.stC = VS.leaving; k.happy = false; }
     } else if (k.stC === VS.toSeat) {
       const t = k.table;
       const dxs2 = t.x + 10 - k.x;
@@ -15468,13 +15663,18 @@ function tapStatus(c) {
   return e.need === "clean" ? "RINSING OFF AT " + nm : "DRINKING AT " + nm;
 }
 const NAP_WHERE = { grill: "AT THE GRILL", board: "AT THE BOARD", juicer: "AT THE JUICER",
-  crate: "AT THE CRATE", pass: "AT THE PASS" };
+  crate: "AT THE CRATE", pass: "AT THE PASS",
+  booth: "AT THE TOKEN BOOTH", prize: "AT THE PRIZE COUNTER",
+  taps: "AT THE TAPS", towel: "AT THE TOWEL COUNTER",
+  fruitbin: "AT THE FRUIT BIN", bar: "AT THE JUICE BAR",
+  linen: "AT THE LINEN PRESS", desk: "AT THE FRONT DESK" };
 function crabStatus(c) {
   // THE TEN-SECOND TELLS come first: what the eyes just saw has to be what the
   // card says (design doc Rule 4). A nodding crab is not "ON SHIFT".
   if ((c.napT || 0) > 0)
     return "NODDED OFF " + (c.napFrom === "cleaningStall" || c.napFrom === "toStallClean"
-      ? "OVER A STALL" : NAP_WHERE[c.slotKind] || "ON THE JOB");
+      ? (c.workBiz === "arcade" ? "OVER A MACHINE" : "OVER A STALL")
+      : NAP_WHERE[c.slotKind] || "ON THE JOB");
   if (c.dsC === DS.chat)
     return "CHEWING THE FAT" + (c.chatWith ? " WITH " + c.chatWith.p.name : "");
   if (c.p.rough) return darkness() > 0.6 ? "ASLEEP WHERE THEY DROPPED" : "SLEPT ROUGH LAST NIGHT";
@@ -15736,6 +15936,10 @@ function tryBuy(key) {
     return;
   }
   coins -= upCost(u); u.lvl++; furnGen++;
+  // CADE GEAR+ puts the cabinets on the floor. Derived from the level rather
+  // than appended, so buying it twice (it cannot be, but a save can lie) and
+  // a load both land on the same geometry.
+  if (key === "cadegear") setArcadeFloor(CADE_FLOOR_BASE + CADE_GEAR_ADDS * UPS.cadegear.lvl);
   if (key === "arcade") {
     toast = { text: "THE CLAWCADE IS YOURS! CLICK A CRAB, THEN ITS CARD, TO STAFF IT", t: 8 };
     popText("GRAND OPENING!", BIZ.arcade.x0 + 40, 100, [140, 255, 160]);
@@ -17791,6 +17995,9 @@ function custStatus(k) {
   if (k.stC === VS.seatedWaiting) return "WAITING ON THEIR ORDER";
   if (k.stC === VS.dining) return "EATING " + (ITEM_NAMES[k.recipe.icon] || "LUNCH");
   if (k.stC === VS.waitStall || k.stC === VS.toStall || k.stC === VS.outStall) return "AT THE SHOWERS";
+  if (k.stC === VS.playing) return "PLAYING THE " + (k.stall && k.stall.machine === "skee" ? "SKEEBALL" : "CLAW MACHINE");
+  if (k.stC === VS.toMachine) return "PICKING A MACHINE";
+  if (k.stC === VS.waitMachine) return "WAITING FOR A MACHINE";
   if (k.stC === VS.leaving) return k.happy ? "HEADING HOME HAPPY" : k.served ? "HEADING HOME" : "LEAVING IN A HUFF";
   return "ENJOYING THE BEACH";
 }
@@ -22828,6 +23035,19 @@ function viewFrame(dt) {
         px(ctx, t.x + 8 - camX, t.y - 1, [200, 170, 120]);
         px(ctx, t.x + 12 - camX, t.y - 2, [220, 190, 130]);
       }
+    } }); continue; }
+    // ARCADE MACHINES are stalls too, but they read as CABINETS a crab stands
+    // in front of rather than a curtain they hide behind. The claw's two-frame
+    // art was always a win animation - frame 2 has the gold '+' in the
+    // cabinet - and it used to play while an EMPLOYEE worked the machine as a
+    // production step. It now plays for the crab who actually paid.
+    if (stalls && key === "arcade") { for (const t of stalls) paint.push({ base: t.y, f: () => {
+      const live = t.occupant && t.occupant.stC === VS.playing;
+      const art = t.machine === "skee" ? SKEEBALL : CLAW_MACHINE[live ? ((viewT * 4) | 0) % 2 : 0];
+      wblit(art, t.x, t.y - art.h);
+      // a machine nobody has reset: the attendant's job, and the same green
+      // flecks the shower stalls wear so the player only learns one signal
+      if (t.dirty) { px(ctx, t.x + 3 - camX, t.y - 2, [130, 220, 110]); px(ctx, t.x + 7 - camX, t.y - 1, [110, 190, 110]); px(ctx, t.x + 11 - camX, t.y - 2, [130, 220, 110]); }
     } }); continue; }
     if (stalls) for (const t of stalls) paint.push({ base: t.y, f: () => {
       const bathing = t.occupant && t.occupant.stC === VS.showering;
