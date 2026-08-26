@@ -28,7 +28,10 @@ Run `node tools/mkcultureways.mjs` (bundle regen must be byte-exact) AND
 `node tools/mkversion.mjs` (regenerates version.js — the title-screen build
 stamp; the stamp is the MERGE's identity, so a push whose stamp names the
 previous commit is a ritual miss). Both are sub-second generators, allowed
-locally.
+locally. The stamp now also carries the commit's epoch (`t`), which the title
+screen counts up from live — "PUBLISHED 2M 5S AGO" — so a missed regen is
+visible to a play-tester as an age that is wrong by a whole merge, not just a
+stale sha.
 
 ## The sim contract (load-bearing)
 - `tools/simlib.mjs` executes the REAL game files (font.js, ppu.js, sprites.js,
