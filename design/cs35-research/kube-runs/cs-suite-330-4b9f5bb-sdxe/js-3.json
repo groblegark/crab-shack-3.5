@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-4b9f5bb-sdxe",
+  "armId": "js-3",
+  "index": 3,
+  "sha": "4b9f5bb3a64ee4ac23571e430116314e3da2d159",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 126144,
+  "verdict": "36/36 passed in slice 3/12 (126.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (3990ms)\n  PASS  save/load roundtrip preserves state (1913ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1684ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (35594ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (4534ms)\n  PASS  tired: fatigue scales with the hours actually worked (1865ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (1206ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (551ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (9ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (10480ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (47ms)\n  PASS  the beach ball is LIMITED fun (759ms)\n  PASS  a town saved mid-errand reloads and keeps running (930ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (17252ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2739ms)\n  PASS  the fund is struck to the bill and does not hoard (1315ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (23ms)\n  PASS  departures: a display card moves nothing in the town (1775ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (4041ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (981ms)\n  PASS  the hire card runs on the wall clock, not the game clock (1297ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (630ms)\n  PASS  an iOS refusal latches instead of re-arming every frame (14ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (11348ms)\n  PASS  crab-as-document: the crab diary never reaches the code literal (1352ms)\n  PASS  civics receipt: voteReason is byte-equal to the lambda receipt on every voter, every platform (8360ms)\n  PASS  the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none (19ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (1542ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (2288ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (403ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2375ms)\n  PASS  the title screen ages the build, and keeps ticking (16ms)\n  PASS  load: the same envelope lands the same way however often you land it (1806ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (2499ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (8ms)\n  PASS  spend reserve: a housed crab keeps tonight's rent back, by temperament (390ms)\n36/36 passed in slice 3/12 (126.0s)\n"
+}
