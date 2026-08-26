@@ -101,6 +101,24 @@ histogram's tail is not a zero — check the tool's cutoff before saying "never"
 So the honest finding is *the glad register is rare (1.5%) and one glad rule is
 structurally unreachable for crabs*, not *the card can only scold*.
 
+**RULING 6 (glad card = OVERALL CONDITION AT EXIT). Horizon 1 landed the readout
+(`delight` reads the five-bar condition sum, `36c2696`). Horizon 2 — the
+CULTURAL/CLASS/INDIVIDUAL WEIGHT MATRIX — landed its CARD SLICE
+(`cs-ruling6-h2-matrix-card`, decision `kd-uQifN1xD5z`=A1, task `kd-EKw124qi3Z`):
+one per-need weight vector (`needW(r)`, x1/4 ints, 4 the identity), composed
+cultural (`appeal.needs`) × class (register `needMul`) × individual around
+all-4s, read by BOTH the `delight` lambda AND its L1 twin — so the two card paths
+cannot diverge. The individual axis is declared-but-identity per A1 (room for a
+future per-guest temperament; nothing sources it yet). Byte-neutral for shipped
+content — no culture declares weights, so the departure census is byte-identical
+to the pre-change tree, and the delight gate becomes `sum(w·bar) ≤ qn(0.45)·sum(w)`,
+which at identity is exactly horizon 1's `sum(bar) ≤ 5·qn(0.45)`. The DECISION
+consumer (Matt's "ALSO influences their decisions" — `visScoreOne` + the wasm
+kernel `vis_pick` + `brainVisPick`) is HORIZON 3 (`kd-I9fjOBARav`, blocked on
+this bead): it reads the SAME `needW` vector, and it needs a pod with the wasm
+toolchain (`zig`), absent in cs pods — so the decision side is un-gateable
+in-pod and is correctly deferred, not a half-built passenger here.**
+
 **A NUMBER WITHOUT ITS TREE IS NOT QUOTABLE.** Every figure above names the SHA
 it was measured at and the receipt it came from, because that is the one rule
 this project does not bend. If you are about to cite a growth number, re-measure
