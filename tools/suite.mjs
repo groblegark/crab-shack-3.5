@@ -12193,6 +12193,148 @@ scenario("depart weights: a culture's thumb re-orders the card, and the clamps r
   if (got.good !== null) return "a good declaration was refused: " + got.good;
   return true;
 });
+scenario("need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name", () => {
+  // Ruling 6 h2, decision kd-uQifN1xD5z=A1, constraint 1 (ruling 5's corollary:
+  // a declared option must be refused when malformed, not merely unexercised).
+  // The matrix has two authored axes today - CULTURAL (appeal.needs) and CLASS
+  // (a register's needMul) - and both feed the SAME needWProblem, so both refuse
+  // identically: an unknown need by name, an out-of-range or fractional or
+  // non-integer weight, a non-object. Every check goes through the real front
+  // door (cultureProblem(doc)), never needWProblem alone - a validator wired to
+  // nothing is the silent no-op this discipline exists to catch.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    // CULTURAL axis, through cultureProblem's appeal block
+    const cdoc = (needs) => { const d = JSON.parse(JSON.stringify(BUNDLED_CULTUREWAYS.pig));
+      d.appeal = Object.assign({}, d.appeal, { needs }); return cultureProblem(d, "pig"); };
+    out.c_unknown = cdoc({ nosuch: 4 });
+    out.c_hot = cdoc({ food: 9 });
+    out.c_neg = cdoc({ food: -1 });
+    out.c_frac = cdoc({ food: 2.5 });
+    out.c_arr = cdoc([4, 4, 4, 4, 4]);
+    out.c_good = cdoc({ food: 8, rest: 0 });   // legal extremes CAN be declared
+    out.c_partial = cdoc({ food: 6 });          // a partial map is legal (omitted needs = identity)
+    out.c_ident = cdoc({ food: 4, drink: 4, clean: 4, fun: 4, rest: 4 });
+    // CLASS axis, through cultureProblem's voice block (voiceProblem)
+    const vdoc = (nm) => { const d = JSON.parse(JSON.stringify(BUNDLED_CULTUREWAYS.pig));
+      d.voice.registers[0].needMul = nm; return cultureProblem(d, "pig"); };
+    out.v_unknown = vdoc({ nosuch: 4 });
+    out.v_hot = vdoc({ clean: 9 });
+    out.v_good = vdoc({ drink: 8, clean: 1 });
+    return out;
+  })())`));
+  if (got.c_unknown !== "A NEED NOBODY FEELS: nosuch") return "cultural unknown need not refused by name: " + got.c_unknown;
+  if (got.c_hot !== "A BAD NEED WEIGHT") return "cultural weight 9 got in: " + got.c_hot;
+  if (got.c_neg !== "A BAD NEED WEIGHT") return "cultural weight -1 got in: " + got.c_neg;
+  if (got.c_frac !== "A BAD NEED WEIGHT") return "cultural fractional weight got in: " + got.c_frac;
+  if (got.c_arr !== "A BAD NEED WEIGHT") return "cultural array-shaped needs got in: " + got.c_arr;
+  if (got.c_good !== null) return "cultural legal extremes refused: " + got.c_good;
+  if (got.c_partial !== null) return "cultural partial map refused: " + got.c_partial;
+  if (got.c_ident !== null) return "cultural identity refused: " + got.c_ident;
+  if (got.v_unknown !== "A NEED NOBODY FEELS: nosuch") return "class unknown need not refused by name: " + got.v_unknown;
+  if (got.v_hot !== "A BAD NEED WEIGHT") return "class weight 9 got in: " + got.v_hot;
+  if (got.v_good !== null) return "class legal declaration refused: " + got.v_good;
+  return true;
+});
+scenario("need-weight matrix: a declared axis BITES the glad card, both directions, both axes", () => {
+  // Ruling 6 h2, constraint 2 (discipline 2): arm a deliberate weight and watch
+  // the delight verdict flip; a mutation that does NOT bite is a finding, not a
+  // pass. The stage is built AROUND the step-function trap (the delight gate is
+  // 66-or-0, so a weight only visibly bites near the threshold): a guest with
+  // one high bar and the rest zero sits BELOW the identity gate (delight) and is
+  // pushed OVER it by a heavy weight on that bar - and pulled back UNDER by a
+  // light one. Driven through the LAMBDA path (pig has no depart.rules); the
+  // program path gets its own equality proof in the sweep below. If this ever
+  // reads "delight" for the food-heavy row, the matrix is wired to identity - a
+  // silent no-op (the wrong-values-key failure, advice kd-MFuMcKezQA).
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    // hunger 2,000,000 alone: identity sum 2e6 <= 5*qn(0.45)=2359295 => delight.
+    // food weight 8: 8*2e6=16e6 vs qn(0.45)*(8+4*4)=471859*24=11324616 => over => not.
+    // food weight 1: 1*2e6=2e6 vs 471859*(1+16)=8021603 => under => delight still.
+    const row = { cu: "pig", acc: "none", hunger: 2000000, thirst: 0, dirt: 0, bored: 0, tired: 0 };
+    const pigNeeds = CULTURES.pig.def.appeal.needs;
+    const pigReg = CULTURES.pig.regs[0];
+    const regNeedMul = pigReg.needMul;
+    const bar = { cu: "pig", acc: pigReg.acc, hunger: 2000000, thirst: 0, dirt: 0, bored: 0, tired: 0 };
+    const cPick = (n) => { CULTURES.pig.def.appeal.needs = n; const id = visQuote(Object.assign(${DEP_BASE}, row)).id; return id; };
+    const rPick = (n) => { pigReg.needMul = n; const id = visQuote(Object.assign(${DEP_BASE}, bar)).id; return id; };
+    const out = {};
+    out.c_identity = cPick(null);
+    out.c_heavy = cPick({ food: 8 });
+    out.c_light = cPick({ food: 1 });
+    CULTURES.pig.def.appeal.needs = pigNeeds;
+    out.r_identity = rPick(null);
+    out.r_heavy = rPick({ food: 8 });
+    pigReg.needMul = regNeedMul;
+    return out;
+  })())`));
+  if (got.c_identity !== "delight") return "cultural identity did not read delight: " + got.c_identity;
+  if (got.c_heavy === "delight") return "a heavy food weight did NOT bite - matrix is a no-op: " + got.c_heavy;
+  if (got.c_light !== "delight") return "a light food weight wrongly suppressed delight: " + got.c_light;
+  if (got.r_identity !== "delight") return "class identity did not read delight: " + got.r_identity;
+  if (got.r_heavy === "delight") return "a heavy class weight did NOT bite - matrix is a no-op: " + got.r_heavy;
+  return true;
+});
+scenario("need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic", () => {
+  // Ruling 6 h2, constraint 3 / discipline 5: the E3 sweep below proves the twin
+  // at IDENTITY (the crab is always all-4s). This proves the WEIGHTED arithmetic
+  // - the terms that were dead at identity - on BOTH paths at once. A synthetic
+  // culture carries the crab's full rule table (so it runs the PROGRAM path) AND
+  // a non-identity appeal.needs + register needMul (so needW composes to
+  // something other than 4). The composed vector rides the appended bundle slots
+  // into the program; the lambda reads needW(r) directly; they must pick the
+  // same rule/mood/line on every staged bar, and NO capture clamp may fire (a
+  // clamp is a lie about the appended slots' 0..8 ranges).
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const doc = JSON.parse(JSON.stringify(BUNDLED_CULTUREWAYS.pig));
+    doc.depart = { rules: JSON.parse(JSON.stringify(BUNDLED_CRAB_DEPART.rules)) };
+    // ALL FIVE composed coefficients must be DISTINCT, or a coefficient SWAP in
+    // the program's LHS is invisible (two equal weights swap to no effect - the
+    // gap that let a wFood<->wDrink swap pass a first cut of this scenario).
+    // composed = floor(cultural * class / 4): food 8*4/4=8, drink 6*4/4=6,
+    // clean 2*6/4=3, fun 4*2/4=2, rest 1*4/4=1 -> [8,6,3,2,1], all distinct,
+    // and both axes are live (clean+fun get their thumb from the register).
+    doc.appeal = Object.assign({}, doc.appeal, { needs: { food: 8, drink: 6, clean: 2, fun: 4, rest: 1 } });
+    doc.voice.registers[0].needMul = { clean: 6, fun: 2 };
+    const why = cultureProblem(doc, "wtest");
+    if (why) return { err: "the test culture did not validate: " + why };
+    installCultures({ wtest: doc }, false);
+    if (!CULTURES.wtest || !CULTURES.wtest.departR) { loadCultures(null); return { err: "the program path did not install" }; }
+    const acc = CULTURES.wtest.regs[0].acc;
+    const base = { name: "T", color: 0, acc, days: 1, nights: 0, nightsBed: 0, rough: 0,
+      purse: 100, left: 20, spent: 80, buys: 1, serves: 1, tables: 0, meals: 1, drinks: 0, washes: 0,
+      games: 0, rooms: 0, topItem: null, topBiz: null, topPaid: 0, tips: 0, dues: 0, waitMin: 10,
+      worstMin: 10, worstBiz: "X", quits: 0, quitMin: 0, quitBiz: null, shut: 0, full: 0, broke: 0,
+      blocked: null, mistMin: 0, missed: 0, cu: "wtest" };
+    // bars stay inside the bundle's Q20 range (a value over Q20 is a staging bug,
+    // not a divergence: the program clamps it and the lambda does not) - the
+    // threshold-straddling values are the ones the delight gate turns on.
+    const bars = [0, 300000, 471859, 471860, 600000, 1048576];
+    let n = 0, delightSeen = 0;
+    departClamped = 0;
+    for (const h of bars) for (const t of bars) for (const dd of bars) for (const bo of [0, 600000]) for (const ti of [0, 600000]) {
+      const r = Object.assign({}, base, { hunger: h, thirst: t, dirt: dd, bored: bo, tired: ti });
+      window._nol1depart = false; const a = visQuote(r);
+      window._nol1depart = true;  const b = visQuote(r);
+      window._nol1depart = false;
+      if (a.id !== b.id || a.mood !== b.mood || a.line !== b.line)
+        return { err: "row " + n + " diverged: " + a.id + "/" + a.mood + " vs " + b.id + "/" + b.mood + " on " + JSON.stringify(r) };
+      if (a.id === "delight") delightSeen++;
+      n++;
+    }
+    const clamped = departClamped;
+    loadCultures(null);
+    return { n, delightSeen, clamped };
+  })())`));
+  if (got.err) return got.err;
+  if (got.clamped !== 0) return "the appended weight slots clamped " + got.clamped + " reads - a range lies";
+  if (got.n < 864) return "the non-identity sweep shrank: only " + got.n + " rows";
+  if (got.delightSeen < 1) return "delight never fired across the sweep - the weighted gate is vacuous here";
+  return true;
+});
 scenario("depart programs: the transcription and the lambdas agree on every staged stay", () => {
   // PHASE E3'S WHOLE CONTRACT IN ONE ROOM. The crab's rule table re-expressed
   // as Layer-1 programs must pick the same rule, wear the same mood, and say

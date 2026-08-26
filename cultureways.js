@@ -9879,39 +9879,109 @@ var BUNDLED_CRAB_DEPART = {
    "weight": [
     [
      "LD",
+     "wFood"
+    ],
+    [
+     "LD",
      "hunger"
+    ],
+    [
+     "MUL"
+    ],
+    [
+     "LD",
+     "wDrink"
     ],
     [
      "LD",
      "thirst"
     ],
     [
+     "MUL"
+    ],
+    [
      "ADD"
+    ],
+    [
+     "LD",
+     "wClean"
     ],
     [
      "LD",
      "dirt"
     ],
     [
+     "MUL"
+    ],
+    [
      "ADD"
+    ],
+    [
+     "LD",
+     "wFun"
     ],
     [
      "LD",
      "bored"
     ],
     [
+     "MUL"
+    ],
+    [
      "ADD"
+    ],
+    [
+     "LD",
+     "wRest"
     ],
     [
      "LD",
      "tired"
     ],
     [
+     "MUL"
+    ],
+    [
      "ADD"
     ],
     [
      "PUSHI",
-     2359295
+     471859
+    ],
+    [
+     "LD",
+     "wFood"
+    ],
+    [
+     "LD",
+     "wDrink"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "wClean"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "wFun"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "LD",
+     "wRest"
+    ],
+    [
+     "ADD"
+    ],
+    [
+     "MUL"
     ],
     [
      "LE"
