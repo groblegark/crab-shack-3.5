@@ -12599,7 +12599,7 @@ function updateErrand(c, dt) {
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order: [c.errand.recipe], orderIdx: 0, isCrab: true, crab: c,
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order: [c.errand.recipe], orderNeeds: [c.errand.need], orderIdx: 0, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
@@ -13833,20 +13833,41 @@ function visBenefit(k) {
     { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short,
       PRICE: $d(menuPrice(k.biz, r)) }));
 }
+// THE TRAY IS RUNG UP ONE PLATE AT A TIME (feature B). serve() fires once, at
+// the end of a COMPLETE tray, but the ticket is N plates: N sales, N benefits,
+// N serve counts. payAndBenefit already does everything a single plate needs
+// (charge, credit, cure, diary, tip) off cust.recipe/cust.need, so the whole
+// tray is rung up by walking orderIdx and pointing recipe/need at each plate in
+// turn and calling it once per plate. A length-1 tray runs this exactly once
+// with orderIdx already 0, so it is BIT-IDENTICAL to the single-plate serve.
+// The tip is inside payAndBenefit's VISITOR branch, and visitors stay length-1
+// by scope (only crabs get trays), so "one tip roll per guest" still holds.
+function ringUpTray(c, cust) {
+  const n = cust.order && cust.order.length ? cust.order.length : 1;
+  for (let i = 0; i < n; i++) {
+    cust.orderIdx = i;
+    if (cust.orderNeeds && cust.orderNeeds[i] != null) cust.need = cust.orderNeeds[i];
+    payAndBenefit(c, cust);   // reads cust.recipe (=order[i]) and cust.need
+    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
+    if (window._stats && bizOwner(cust.biz) !== "player")
+      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
+  }
+  // point the ticket back at its headline plate for the dining-room display
+  // (EATING / the ORDER row read cust.recipe). A no-op at length 1.
+  cust.orderIdx = 0;
+  if (cust.orderNeeds && cust.orderNeeds[0] != null) cust.need = cust.orderNeeds[0];
+}
 function serve(c) {
   const cust = c.cust;
   if (cust && cust.stC === VS.toSeat) return;   // guest still walking to the table: wait a beat, retry next frame
   if (cust && cust.stC === VS.seatedWaiting) {
     // table delivery: payment + benefits as usual, then straight to dining
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 800);   // table service impresses - she tells HER people
     cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
     c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
     // CLEAR THE NEXT TABLE ON THE WAY BACK. The server is standing IN the
     // dining room with an empty tray - the one moment in the day when busing
@@ -13859,7 +13880,7 @@ function serve(c) {
     return;
   }
   if (cust && cust.stC === VS.waiting) {
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
@@ -13890,9 +13911,6 @@ function serve(c) {
     }
     else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
     else cust.stC = VS.leaving;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
   }
   c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
 }
