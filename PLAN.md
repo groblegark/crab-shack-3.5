@@ -802,6 +802,26 @@ vm — never fork game logic into tools/) and perf expectations live there.
   caches game files hard; only index.html gets a `?t=` bust.
 
 ## Gameplay features (recent)
+- **ONE TICKET, N PLATES — the tray** (feature B, Matt's "crabs order multiple
+  things at once"; shipped 2026-08-26, merge `ddcf3fe`, operator ruling
+  `kd-KvIXZtKqPN`). A local who walks to the shack for a taco and is also
+  thirsty leaves with the juice too, in ONE queue slot, instead of getting back
+  in line. `cust.recipe` is now the head of `cust.order` (a tray, VisProto
+  accessor over `order`/`orderIdx`); the kitchen walks the tray plate by plate
+  and only a COMPLETE tray reaches `serve()`, which rings up N sales / N cures /
+  N serve counts in one ticket; the assembler (`trayAddon`) appends a second
+  plate the crab wants and can afford at full retail, trimming it if the wallet
+  moved by pay time. TRAY_MAX=2; visitors/rooms/showers/arcade stay one item by
+  scope. A crab on a BONUS plate (`orderIdx>0`) no longer counts against the
+  queue caps (`inQueueLine`), so the tray is served out of the slot it already
+  holds and never competes with the tourQ rush — which is why its roomLets cost
+  is an order of magnitude below A's. **Measured (40-seed A/B, draw-free
+  feature):** crabServes **+20.7%**, till **+24.5%**, tourRage −1.8%, tourServes
+  flat; roomLets **−3.6%** (near noise, vs A's decisive −25%). A's "get back in
+  line" cut was measured NO-SHIP for exactly the crowding B escapes
+  (`kd-rDoEK45s6l`). Steps 1-3 were bit-identical (the day-2 fingerprint held);
+  step 4 is the one behavior commit. Cluster gate suite-330 828/828 both
+  backends at `8c64eb7`. Report bundle `kd-h6oWpxxvJo`.
 - **THE VISITORS BOOK** (Matt, 2026-08-25: *"need a nice view of all tourists
   like we have for other kinds of citizens, button on main screen i would
   think"* — then, on the first draft: *"unless there's an opportunity to

@@ -50,6 +50,11 @@ const NOVSEP = args.includes("--novsep");
 // window._norethink at the top of visRethink and the citizen walk re-think) -
 // the attribution arm for mid-commitment switching.
 const NORETHINK = args.includes("--norethink");
+// `--nodepart` switches VISITOR-CHOSEN DEPARTURE off (game.js reads
+// window._nodepart at the top of visDepartPick), so leaveT stays exactly the
+// spawn-fixed sailing it was before ruling 6 horizon 3 - the attribution arm
+// for "does choosing when to leave move the town".
+const NODEPART = args.includes("--nodepart");
 // `--nofloor` leaves the hall running - elections, the fund, the pot - but
 // holds the WAGE FLOOR at zero, so a payroll effect can be attributed without
 // switching the whole office off (which would move the shelter too).
@@ -183,6 +188,10 @@ if (STAR != null)
   G(`if (crabs.length) setCrabWage(crabs[0], ${STAR} * 100);`);
 
 // ---- run ----------------------------------------------------------------
+// each matrix town gets its own OCEAN (the almanac's per-town seed), the run's
+// seed itself - so a 48-town surf matrix samples 48 swell histories rather than
+// running one 48 times. Symmetric with mulberry32(seed) above; mist ignores it.
+G(`_almanacSeed = ${seed >>> 0};`);
 G('soundOn = false; musicOn = false; screen = "play"; window._headless = true; window._stats = { tourServes: 0, crabServes: 0, tourRage: 0, crabRage: 0, bused: 0 };');
 if (FAILOFF.length) G(`window._failOff = ${JSON.stringify(Object.fromEntries(FAILOFF.map(k => [k, 1])))};`);
 if (NORIVAL) G(`window._noRival = true;`);
@@ -190,6 +199,7 @@ if (NOHOTELIER) G(`window._noHotelier = true;`);
 if (NOHALL) G(`window._noHall = true;`);
 if (NOVSEP) G(`window._novsep = true;`);
 if (NORETHINK) G(`window._norethink = true;`);
+if (NODEPART) G(`window._nodepart = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);
