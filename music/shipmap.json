@@ -1,0 +1,125 @@
+{
+ "_comment": [
+  "GENERATED-ONCE by tools/mkshipmap.mjs, then checked in - see that file.",
+  "Maps a catalog id to the mp3 this build ALREADY ships in music/.",
+  "The join is by AUDIO CONTENT, never by name: 7 of the 20 name-equal",
+  "pairs are a DIFFERENT recording of the same title (the archive has 20",
+  "tracks called TRAIN WHISTLE, 16 GOAT CIRCUIT, 14 REGALIA WALTZ).",
+  "byte-exact = release asset is byte-identical to the shipped file.",
+  "fingerprint = shipped file is a 128kbps re-encode; matched on RMS",
+  "envelope correlation (controls: true pair 1.0000, unrelated 0.23-0.35)."
+ ],
+ "built": 22,
+ "ships": {
+  "81e6ead9": {
+   "file": "music/beach-volleyball-start-screen.mp3",
+   "name": "BEACH VOLLEYBALL START SCREEN",
+   "how": "fingerprint 0.9999"
+  },
+  "9042984b": {
+   "file": "music/butter-pow.mp3",
+   "name": "BUTTER POW",
+   "how": "byte-exact"
+  },
+  "008ca2af": {
+   "file": "music/carnival-of-the-glitch.mp3",
+   "name": "CARNIVAL OF THE GLITCH",
+   "how": "byte-exact"
+  },
+  "668ca13c": {
+   "file": "music/dance-up.mp3",
+   "name": "DANCE UP 5",
+   "how": "byte-exact"
+  },
+  "cf5f3121": {
+   "file": "music/dense-portal.mp3",
+   "name": "DENSE PORTAL",
+   "how": "byte-exact"
+  },
+  "f41c7f02": {
+   "file": "music/frog-ledger.mp3",
+   "name": "FROG LEDGER",
+   "how": "fingerprint 1.0000"
+  },
+  "663834bb": {
+   "file": "music/front-porch.mp3",
+   "name": "FRONT PORCH",
+   "how": "fingerprint 0.9999"
+  },
+  "b9ca55c1": {
+   "file": "music/goat-circuit.mp3",
+   "name": "GOAT CIRCUIT 15",
+   "how": "byte-exact"
+  },
+  "c8970502": {
+   "file": "music/grease-man.mp3",
+   "name": "GREASE MAN",
+   "how": "fingerprint 1.0000"
+  },
+  "4cddc57f": {
+   "file": "music/island-sand.mp3",
+   "name": "ISLAND SAND",
+   "how": "fingerprint 0.9998"
+  },
+  "5b5174c3": {
+   "file": "music/lantern-circuit.mp3",
+   "name": "LANTERN CIRCUIT 2",
+   "how": "byte-exact"
+  },
+  "08e886e2": {
+   "file": "music/marble-rain.mp3",
+   "name": "MARBLE RAIN",
+   "how": "byte-exact"
+  },
+  "06af5a6e": {
+   "file": "music/peenball.mp3",
+   "name": "PEENBALL",
+   "how": "fingerprint 0.9998"
+  },
+  "3c405c61": {
+   "file": "music/pixel-wave-waltz.mp3",
+   "name": "PIXEL WAVE WALTZ 2",
+   "how": "byte-exact"
+  },
+  "597b02eb": {
+   "file": "music/pixomatic-moon.mp3",
+   "name": "PIXOMATIC MOON",
+   "how": "byte-exact"
+  },
+  "c1d45c58": {
+   "file": "music/power-limbo.mp3",
+   "name": "POWER LIMBO",
+   "how": "fingerprint 0.9999"
+  },
+  "a73ca001": {
+   "file": "music/rain-circuit-lullaby.mp3",
+   "name": "RAIN CIRCUIT LULLABY 3",
+   "how": "byte-exact"
+  },
+  "999bb66d": {
+   "file": "music/raster-beach.mp3",
+   "name": "RASTER BEACH",
+   "how": "fingerprint 0.9999"
+  },
+  "afabdf23": {
+   "file": "music/regalia-of-the-surf.mp3",
+   "name": "REGALIA OF THE SURF 2",
+   "how": "byte-exact"
+  },
+  "db32dd20": {
+   "file": "music/regalia-waltz.mp3",
+   "name": "REGALIA WALTZ 9",
+   "how": "byte-exact"
+  },
+  "ead3c982": {
+   "file": "music/train-whistle.mp3",
+   "name": "TRAIN WHISTLE 18",
+   "how": "fingerprint 1.0000"
+  },
+  "e484af75": {
+   "file": "music/you-win-game-over.mp3",
+   "name": "YOU WIN GAME OVER",
+   "how": "fingerprint 0.9998"
+  }
+ }
+}

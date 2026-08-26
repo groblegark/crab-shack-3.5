@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-60b4bb1-ddz2",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "60b4bb1b1375731412bac95cd2c081fa2fdd7cc4",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 109638,
+  "verdict": "34/34 passed in slice 11/12 (109.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1948ms)\n  PASS  sick crabs can still wash (mobility + cure path) (1098ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (321ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1012ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (16ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (9ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (5939ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1555ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (35074ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (5442ms)\n  PASS  ferry: the arming tap times out, and an old save never won (44ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (17ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (9866ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (6817ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (22223ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2524ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1436ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1885ms)\n  PASS  the HALL tab's text is measured, in every state it has (4994ms)\n  PASS  the shack says where the money comes from, and only your shops do (598ms)\n  PASS  the music controls answer from outside the record box (10ms)\n  PASS  a crab may stand in the cabana it has come to clean (11ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (10ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (11ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (10ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (13ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (8ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (8ms)\n  PASS  space: every position rides the Q8 grain, all day (908ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (9ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (7ms)\n  PASS  science: the seed is the town - a different one lives differently (5644ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (15ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (67ms)\n34/34 passed in slice 11/12 (109.6s)\n"
+}

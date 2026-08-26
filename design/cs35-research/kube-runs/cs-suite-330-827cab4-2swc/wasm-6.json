@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-827cab4-2swc",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "827cab46a6d6244438fe9de28348442ca00c09dd",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 46400,
+  "verdict": "34/34 passed in slice 6/12 (46.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (1679ms)\n  PASS  save guard: an empty slot still receives the first town (20ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (0ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (1878ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1612ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1109ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (2971ms)\n  PASS  census: rows derive live state, and sort + filter actually move (487ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2228ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (2924ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (129ms)\n  PASS  one reading surface owns the screen (964ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (852ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (1539ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (4166ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1391ms)\n  PASS  departures: nobody on the boat knows the town's name (909ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (1703ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (193ms)\n  PASS  the help card teaches the machine and does not spoil the ending (20ms)\n  PASS  nothing paints over an open card except another card (921ms)\n  PASS  the record box scrolls without the drag thumb (8ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (5238ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (8ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (21ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (12ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (13ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (2751ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (4033ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (695ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (97ms)\n  PASS  science: one recipe lives the same town twice (5672ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (8ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (58ms)\n34/34 passed in slice 6/12 (46.3s)\n"
+}

@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-5810720-n132",
+  "armId": "wasm-11",
+  "index": 23,
+  "sha": "5810720df1fb75f9d2b82e7d7264102618993a4b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 62692,
+  "verdict": "34/34 passed in slice 11/12 (62.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1225ms)\n  PASS  sick crabs can still wash (mobility + cure path) (826ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (236ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (657ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (31ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (14ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (3735ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (967ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (22958ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (3835ms)\n  PASS  ferry: the arming tap times out, and an old save never won (36ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (24ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (11826ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (1379ms)\n  PASS  the fund is struck to the bill and does not hoard (610ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (12ms)\n  PASS  departures: a display card moves nothing in the town (1021ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (2104ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (356ms)\n  PASS  the hire card runs on the wall clock, not the game clock (490ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (244ms)\n  PASS  BACK hands the town the track you were auditioning (12ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (2155ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (69ms)\n  PASS  civics stakes: a hostile table is refused by name (9ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (12ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (17ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (13ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (12ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1044ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1155ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (3117ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1272ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1064ms)\n34/34 passed in slice 11/12 (62.5s)\n"
+}

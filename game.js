@@ -6819,6 +6819,15 @@ class VisS {
   set stall(v) { C_STL[this.si] = v ? v.fid : -1; }
   get table() { return C_TBL[this.si] >= 0 ? FURN[C_TBL[this.si]] : null; }
   set table(v) { C_TBL[this.si] = v ? v.fid : -1; }
+  // THE TRAY (feature B: one ticket, N plates). A customer holds an ORDER - a
+  // short list of recipes - and the chef works it one plate at a time. `recipe`
+  // is the plate currently under the claws: the head of the tray at orderIdx.
+  // An own `recipe:` data property would SHADOW this accessor (lesson #1), so
+  // every literal writes `order:` and vivifyCust lifts recipe through the
+  // setter. Length-1 is the default and the setter re-wraps a single dish, so
+  // every path that used to set one recipe reads back bit-identical.
+  get recipe() { const o = this.order; return o && o.length ? o[this.orderIdx || 0] : null; }
+  set recipe(r) { this.orderIdx = 0; this.order = r == null ? null : [r]; }
 }
 const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // the boundary for FOREIGN literals: the suite stages customer stubs as plain
@@ -6831,7 +6840,8 @@ function vivifyCust(o) {
   const lift = {};
   for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
                    "hunger", "thirst", "dirt", "bored", "tired",
-                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table"])
+                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table",
+                   "recipe"])   // recipe is the tray's head accessor now: lift off the literal, re-write through the setter (an own property would shadow VisProto's getter)
     if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
@@ -7922,6 +7932,16 @@ var _rtap = null;   // null = the default sim stream (the context's Math.random,
 var _rs = 0;
 var _rOwned = false;   // does the TOWN own the stream, or is it still the host's?
 var _foundSeed = null;   // the recipe that founded this town, when it had one
+// THE OCEAN THIS TOWN GOT (the almanac's per-town seed). The mist is a fact
+// about the CALENDAR alone - the same fog on day 7 for every town in the world
+// - but a SURF break wants its own history per town, or a 48-town matrix would
+// run one ocean 48 times rather than sample 48 (ruling on kd-d4pMPKIiRJ: mix
+// the seed for the almanac's NEW channels only, leaving mist byte-identical).
+// It is a per-town CONSTANT read without ever drawing from the stream, so
+// folding it into swell/wind forks no randomness and moves no shipped pin. Set
+// by the harness to the run's seed, derived from entropy at a fresh browser
+// founding, and carried in the save so a town keeps the ocean it grew up with.
+var _almanacSeed = 0;
 function _jsTap() {
   _rs = (_rs + 0x6D2B79F5) | 0;
   let t = _rs;
@@ -9301,6 +9321,33 @@ registerSurface("cit_errand.candidate", {
   script: "pickErrand",   // candidates, draws and the argmax stay script
   doc: "what a resident does with their next free thought",
 });
+// WHEN A VISITOR GOES HOME, AS A DECISION (Matt, 2026-08-24 ruling 6: "we'd
+// also like for visitors to choose when they depart in their neural-net/
+// decision policy"). Departure timing used to be fixed at spawn - newVisitor
+// pinned leaveT to a sailing before the guest had experienced anything. This
+// makes it a CHOICE the policy re-evaluates: a guest the town is delighting
+// stays on, a guest it is failing cuts the trip short.
+//
+// A SURFACE OF ITS OWN, not a class on vis_pick.candidate, and the reasons are
+// two advice items measured on this project today (kd-kSccbUfcdw, kd-zQB8oRGDeQ):
+//   1. vis_pick.candidate has a SHIPPED trained brain (gullway, 7 classes) and
+//      the loader requires classes==surface N in order - a fourteenth class
+//      would HARD-FAIL that artifact at boot until it is retrained. A new
+//      registration leaves the trained one byte-identical.
+//   2. vis_pick.candidate SCORES THE PRESENT ("what do I fancy now"); departure
+//      READS THE FUTURE ("is this trip worth prolonging"). A decision that
+//      reads the future does not belong in a surface built to score the present.
+// So: three classes (stay put / leave sooner / stay longer), engine-default
+// SCRIPT (visDepartPick), and NO trained artifact - departure is a rare event
+// (a guest decides it a handful of times a stay), so per kd-zQB8oRGDeQ it ships
+// as the heuristic with a stated exit condition rather than a confidently-wrong
+// brain. A future culture whose guests are MEANT to linger or bolt differently
+// declares a "vis_depart.stay" policy here, reading the same needW matrix.
+registerSurface("vis_depart.stay", {
+  classes: ["hold", "sooner", "longer"],
+  script: "visDepartPick",   // the engine default reads needW; no brain ships yet
+  doc: "when a visitor chooses to sail home",
+});
 // Which policy answers for a culture on a surface - the declared one, or the
 // registered engine default. Table/script/brain all resolve here; the brain
 // path keeps its own fast lane (brainOf) and this accessor never replaces it,
@@ -10322,6 +10369,7 @@ function save(hold) {
   // carried for provenance - a lab wants to know which run a town came from.
   if (_rOwned) env.rs = simCursor();
   if (_foundSeed != null) env.sd = _foundSeed >>> 0;
+  env.as = _almanacSeed >>> 0;   // the ocean this town grew up with (almanac's per-town seed)
   env._ver = SAVE_VER;
   env._meta = slotMeta(env);   // written at save time; re-derivable if it ever goes missing
   if (hold) return env;
@@ -10536,6 +10584,12 @@ function load(slot, envIn) {
   // first thing that reads it, not merely before the first thing you notice.
   simStreamAdopt(s.rs != null ? s.rs : cursorFromEnvelope(s));
   if (s.sd != null) _foundSeed = s.sd >>> 0;
+  // ...and the ocean rides in the same way. A pre-almanac save has no `as`, so
+  // one is DERIVED from the envelope's own bytes the way the stream cursor is
+  // (cursorFromEnvelope) - the same old town always lands on the same ocean and
+  // keeps the same surf history, rather than every old town in the world
+  // sharing one. mist does not read it, so no shipped mist pin is disturbed.
+  _almanacSeed = s.as != null ? s.as >>> 0 : cursorFromEnvelope(s);
   // A town loaded FROM A SLOT is that slot's town, so the session owns the
   // slot from here. An envelope handed in directly (the lab's shuttle) earns
   // nothing - a scrubbed keyframe is somebody's town, not this slot's.
@@ -12586,6 +12640,63 @@ function pickErrand(c) {
   if (bp && bp.mode === "shadow") shadowCitObserve(c, cand, bp, best);
   return best;
 }
+// THE TRAY ASSEMBLER (feature B: one ticket, N plates). pickErrand chose the
+// best single stop; this asks the companion question - "what ELSE does this
+// crab want that THIS shop sells, that they can afford on top?" - so a crab who
+// walked to the shack for a taco and is also thirsty walks away with the juice
+// too, in ONE queue slot, instead of getting back in line (measured 53% of the
+// time into a line already full of guests - the whole case for B, plan
+// kd-NTQvKxSEkA). It reuses the SAME appetite thresholds pickErrand's gathers
+// use and the SAME errandScore, so the tray never assembles a stop the crab
+// would not have made anyway.
+//
+// DRAW-FREE on purpose: it takes the cheapest affordable plate for the addon
+// need (no flush recipe roll), so it consumes no RNG and the second plate is a
+// pure, attributable consequence of the first arrival. The affordability check
+// is against the SUM at full retail (the two traps, plan §"the two traps"):
+// every plate is afforded, debits its own ingredient, and costs its own station
+// time - the tray is never a free need-cure.
+//
+// SCOPE: only where a counter sells across needs - the shack (food + juice).
+// Visitors, rooms, showers, the arcade and self-cook never assemble a tray;
+// this is only ever reached from the local-customer mint below, and only a
+// second need at the SAME biz can qualify. Cap the tray at 2 (the second plate
+// is where nearly all the value is; three-item trays wait on the number).
+const TRAY_MAX = 2;
+function trayAddon(c, primaryRecipe, primaryNeed) {
+  if (window._notray) return null;                 // the arm-off hatch, attribution's friend
+  const b = c.errandBiz;
+  if (!b || !BIZ[b] || !bizStaffed(b)) return null;
+  // the needs a counter can answer, in the errand census's own rank order, each
+  // paired with its appetite gate (the exact bars pickErrand's gathers use) and
+  // the filter that says which of this shop's recipes serve it
+  const off = awayToday(c) && !c.p.sick;
+  const wants = [
+    { need: "food",  want: (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food"),
+      is: (r) => !DRINKS[r.id] },
+    { need: "drink", want: (c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink"),
+      is: (r) => !!DRINKS[r.id] },
+  ];
+  const rs = bizRecipes(b);
+  let best = null, bestN = 0, bestD = 1;
+  for (const w of wants) {
+    if (w.need === primaryNeed || !w.want) continue;
+    // the cheapest plate this shop sells for the addon need - draw-free, and the
+    // one a broke crab could clear; a flush crab's splurge is the primary's job
+    const aff = rs.filter(w.is).sort((a, b2) => a.pay - b2.pay);
+    if (!aff.length) continue;
+    const r = aff[0];
+    const s = errandScore(c, { biz: b, need: w.need, recipe: r });
+    if (s.n <= 0) continue;                         // a refused stop (morning-detour clamp) is not an addon
+    if (!best || ratGt(s.n, s.d, bestN, bestD)) { best = { recipe: r, need: w.need }; bestN = s.n; bestD = s.d; }
+  }
+  if (!best) return null;
+  // AFFORD THE SUM at full local retail, with the same $2 cushion the errand
+  // gathers keep - a crab whose wallet cannot clear both plates gets only the
+  // first (the tray trims), which is re-checked at pay time in payAndBenefit.
+  if (c.p.wallet < localPrice(b, primaryRecipe) + localPrice(b, best.recipe) + 200) return null;
+  return best;
+}
 function startSelfCook(c, e) {
   c.dsC = DS.selfCook; c.cookStep = 0; c.cookRecipe = e.recipe;
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
@@ -12834,14 +12945,26 @@ function updateErrand(c, dt) {
     if (c.tx !== tail) setT(c, tail, 166);
     if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
-      const q = customers.filter(k => k.biz === c.errandBiz && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
+      // (a crab already being served a BONUS plate holds no line slot - feature
+      // B, see inQueueLine; byte-identical while every tray is length 1)
+      const q = customers.filter(k => k.biz === c.errandBiz
+        && (k.stC === VS.waiting || k.stC === VS.arriving) && !(k.isCrab && (k.orderIdx || 0) > 0)).length;
       if (q >= QUEUE_MAX) {
         c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
         c.errandCd = 12 * SEC; c.dsC = DS.home;
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
+      // THE TRAY: the primary plate, plus a companion if this crab wants a
+      // second thing this shop sells and can afford it (feature B). One queue
+      // slot, N plates - see trayAddon. Capped at TRAY_MAX.
+      const order = [c.errand.recipe], orderNeeds = [c.errand.need];
+      if (order.length < TRAY_MAX) {
+        const add = trayAddon(c, c.errand.recipe, c.errand.need);
+        if (add) { order.push(add.recipe); orderNeeds.push(add.need);
+          if (window._stats) window._stats.trayAddon = (window._stats.trayAddon || 0) + 1; }
+      }
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order, orderNeeds, orderIdx: 0, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
@@ -13702,7 +13825,17 @@ function updateKitchen(c, dt) {
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe, bizKey);
         c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
-      else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
+      else if (c.stepIdx >= c.cust.recipe.steps.length) {
+        // THE TRAY (feature B): the plate at orderIdx is done and carried out.
+        // If the ticket has another plate, the chef keeps the guest and their
+        // ONE queue slot and walks back to the crate for it (stepIdx -1, which
+        // KS.walk re-aims to sourceSpot next frame) - each plate pays its own
+        // ingredient debit and its own station time as it is made. Only a
+        // COMPLETE tray reaches serve(). Length-1 trays never take the branch,
+        // so this is bit-identical until the assembler puts a second plate on.
+        if (c.cust.orderIdx + 1 < c.cust.order.length) { c.cust.orderIdx++; c.stepIdx = -1; }
+        else serve(c);
+      }
       else {
         const [kind] = c.cust.recipe.steps[c.stepIdx];
         const s = tryAcquire(bizKey, kind);
@@ -14073,20 +14206,53 @@ function visBenefit(k) {
     { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short,
       PRICE: $d(menuPrice(k.biz, r)) }));
 }
+// THE TRAY IS RUNG UP ONE PLATE AT A TIME (feature B). serve() fires once, at
+// the end of a COMPLETE tray, but the ticket is N plates: N sales, N benefits,
+// N serve counts. payAndBenefit already does everything a single plate needs
+// (charge, credit, cure, diary, tip) off cust.recipe/cust.need, so the whole
+// tray is rung up by walking orderIdx and pointing recipe/need at each plate in
+// turn and calling it once per plate. A length-1 tray runs this exactly once
+// with orderIdx already 0, so it is BIT-IDENTICAL to the single-plate serve.
+// The tip is inside payAndBenefit's VISITOR branch, and visitors stay length-1
+// by scope (only crabs get trays), so "one tip roll per guest" still holds.
+function ringUpTray(c, cust) {
+  const n = cust.order && cust.order.length ? cust.order.length : 1;
+  for (let i = 0; i < n; i++) {
+    cust.orderIdx = i;
+    if (cust.orderNeeds && cust.orderNeeds[i] != null) cust.need = cust.orderNeeds[i];
+    // THE TRAY TRIMS AT PAY TIME (feature B, trap #1). An ADDON plate (i>0) a
+    // crab can no longer afford at full local retail is dropped whole - no
+    // charge, no cure, no serve count - so the till is never credited money the
+    // crab did not have (payAndBenefit floors the wallet at 0, which would MINT
+    // the shortfall) and the second helping is never a free need-cure. The
+    // PRIMARY plate (i=0) keeps its existing floor-at-0 contract untouched, so a
+    // length-1 tray is byte-identical to the pre-B serve.
+    if (i > 0 && cust.isCrab && cust.crab && cust.crab.p
+        && cust.crab.p.wallet < localPrice(cust.biz, cust.recipe)) {
+      if (window._stats) window._stats.trayTrim = (window._stats.trayTrim || 0) + 1;
+      continue;
+    }
+    payAndBenefit(c, cust);   // reads cust.recipe (=order[i]) and cust.need
+    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
+    if (window._stats && bizOwner(cust.biz) !== "player")
+      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
+  }
+  // point the ticket back at its headline plate for the dining-room display
+  // (EATING / the ORDER row read cust.recipe). A no-op at length 1.
+  cust.orderIdx = 0;
+  if (cust.orderNeeds && cust.orderNeeds[0] != null) cust.need = cust.orderNeeds[0];
+}
 function serve(c) {
   const cust = c.cust;
   if (cust && cust.stC === VS.toSeat) return;   // guest still walking to the table: wait a beat, retry next frame
   if (cust && cust.stC === VS.seatedWaiting) {
     // table delivery: payment + benefits as usual, then straight to dining
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 800);   // table service impresses - she tells HER people
     cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
     c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
     // CLEAR THE NEXT TABLE ON THE WAY BACK. The server is standing IN the
     // dining room with an empty tray - the one moment in the day when busing
@@ -14099,7 +14265,7 @@ function serve(c) {
     return;
   }
   if (cust && cust.stC === VS.waiting) {
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
@@ -14130,9 +14296,6 @@ function serve(c) {
     }
     else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
     else cust.stC = VS.leaving;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
   }
   c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
 }
@@ -14547,8 +14710,10 @@ function newVisitor(overnightOnly, cu) {
     si: poolAlloc(), leg: 0,
     // the shop pipeline's own fields, dormant until they join a line
     // (patience/table/stall are PLANE fields now - set through the accessors
-    // below the attach, never in the literal: an own property shadows)
-    biz: null, recipe: null, maxPatience: A.PATQ,
+    // below the attach, never in the literal: an own property shadows). recipe
+    // is the tray's head too, so it rides as order/orderIdx (an own `recipe:`
+    // would shadow the VisProto accessor).
+    biz: null, order: null, orderIdx: 0, maxPatience: A.PATQ,
     claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
@@ -14731,6 +14896,137 @@ function visWalkMins(k) {
   // the ETA divides by the SAME dispatched speed the stepper walks at, or a
   // slow culture misses boats the sign promised (the design doc's named trap)
   return Math.abs(k.x - FERRY.gangway) / mannerOf(k).SPEED * TS + 25;
+}
+// ---- WHEN A VISITOR CHOOSES TO GO HOME (ruling 6, kd-I9fjOBARav) -----------
+// Departure was fixed at spawn; this makes it a DECISION the policy re-reads.
+// The signal is the SAME needW-weighted condition the delight departure card
+// reads (the `delight` rule, visDepartCond below is its live-guest twin): one
+// matrix, two readers, exactly as ruling 6 demands. A guest the town is
+// delighting stays on; a guest it is failing cuts the trip short.
+const DEPART_CAP_NIGHTS = 3;     // the longest a delighted guest extends to -
+                                 // the same ceiling load() already clamps nights
+                                 // to (10661), so a stay never outgrows the save.
+const DEPART_SLACK = 90;         // game-minutes of walk/queue headroom folded
+                                 // into a "leave on the next reachable boat" cut,
+                                 // so a rebook never targets a boat they'd miss.
+const DEPART_SPEND_MIN = 1500;   // cents a guest wants left ABOVE a night's board
+                                 // before choosing to stay on - roughly a meal
+                                 // and a drink, so an extra night is an evening
+                                 // in town, not a night idle in a paid room.
+const DEPART_SOON = 300;         // game-minutes: a guest weighs STAYING ON only
+                                 // when the boat they hold is this close - the
+                                 // choice is made at the dock, not the instant
+                                 // their bars top up after a meal (see the note
+                                 // on visDepartPick's "longer" gate).
+// THE LIVE CONDITION, in needW's weighted-sum space and to the delight gate's
+// own tolerance. delight (game.js:21410) reads a FROZEN departRecord; this reads
+// the LIVE guest for an in-stay decision, but the arithmetic is identical -
+// `sum(w*bar) <= qn(0.45)*sum(w)` is "delighted", and a matching over-line test
+// with the want threshold is "being failed". needW is identity (all-4s) for a
+// crab and every undeclared culture, so for the species that fills every town
+// this is exactly `sum(bar)` against `5*qn(0.45)` / `5*qn(0.85)` - no floats a
+// crab's condition is not already measured against. Draw-free by construction.
+function visDepartCond(k) {
+  // the live guest carries no departRecord row, so hand needW the two fields it
+  // reads (cu for the culture axis, acc for the class register) off the guest.
+  const w = needW({ cu: k.culture && k.culture !== "crab" ? k.culture : null, acc: k.acc });
+  const wsum = w[0] + w[1] + w[2] + w[3] + w[4];
+  const cond = w[0] * (k.hunger || 0) + w[1] * (k.thirst || 0) + w[2] * (k.dirt || 0)
+    + w[3] * (k.bored || 0) + w[4] * (k.tired || 0);
+  return { cond, wsum };
+}
+// DELIGHTED: every bar, weighted, below the want line the delight card uses.
+function visDelighted(k) {
+  const { cond, wsum } = visDepartCond(k);
+  return cond <= qn(0.45) * wsum;
+}
+// FAILING: the town is genuinely losing this guest. The bar is deliberately
+// narrow, and which of the three blocked counters counts is the whole point -
+// the departure card already taught this distinction and the decision must not
+// unlearn it (21232-21237): only a SHUT door is the town failing a guest. FULL
+// is the town being POPULAR (a BUILD signal, not a grievance) and BROKE is the
+// guest's own empty wallet (a guest who spent their money is a SUCCESS, and one
+// who arrived skint was never the town's to lose) - counting either as "failing"
+// makes half a busy growth town bolt in a huff and talk the place down, which
+// measured as a reputation crash that suppressed pig arrival (the mistake this
+// comment exists to not repeat). So:
+//   - slept ROUGH -> failing outright (no bed is the loudest failure, and it
+//     has already docked reputation on its own);
+//   - a SHUT-door want that clearly dominates (shut >= 3, and shut over full and
+//     broke - the card's own dominance rule) AND a real over-the-line unmet
+//     condition -> failing. Hours and staffing are the fix, which the player owns.
+function visFailing(k) {
+  if (k.roughNights > 0) return true;
+  const s = k.stay;
+  if (!s) return false;
+  const shut = s.shut || 0;
+  if (!(shut >= 3 && shut > (s.full || 0) && shut > (s.broke || 0))) return false;
+  const { cond, wsum } = visDepartCond(k);
+  return cond >= qn(0.85) * wsum;
+}
+// THE ENGINE DEFAULT for the vis_depart.stay surface: which way (if any) does
+// this guest want to move their boat? Returns a class name from the surface's
+// list. A brain that ships for this surface returns the same three answers off
+// the same observables; the mechanics of ACTING on the answer stay here in the
+// shared harness (visDepartAct), so whoever decides, the rebooking is identical.
+function visDepartPick(k) {
+  if (window._nodepart) return "hold";              // the arm-off hatch (--nodepart)
+  if (k.nights > 0 && k.nightsHad >= k.nights) return "hold";  // last morning: they are already going
+  if (visFailing(k)) return "sooner";
+  // EXTENDING IS A DECISION MADE AT THE DOCK, NOT MID-STAY. A guest weighs
+  // another night only when the boat they booked is genuinely near - "I'm about
+  // to sail and I'm having too good a time" - not the instant their bars top up
+  // after a meal. Without this the choice fired every think a guest was content,
+  // and a dozen guests each stretching their stay by a night manufactured a bed
+  // shortage a 7-room hotel could not meet: rough nights climbed and the town's
+  // word FELL (measured, seed 1337 growth - MORE homeless tourists, the opposite
+  // of the intent). Gating on "the sailing they hold is within DEPART_SOON"
+  // makes it the occasional considered choice it should be.
+  const soonToSail = k.leaveT - gnow() <= DEPART_SOON;
+  // EXTENDING NEEDS A BED AND THE MONEY FOR IT. Even at the dock, a guest only
+  // stays on if the town can actually PUT THEM UP - a free room, the hotel open,
+  // the board price plus a little left in the wallet - so a "stay on" never
+  // strands somebody on the sand. A FULL house is a BUILD signal, not an
+  // invitation to sleep rough. roomPrice is cents, like the wallet.
+  if (soonToSail && visDelighted(k) && k.nights < DEPART_CAP_NIGHTS
+      && visOpen("hotel") && freeRoom()
+      && k.wallet >= roomPrice() + DEPART_SPEND_MIN) return "longer";
+  return "hold";
+}
+// ACT on the chosen class, always on the sailing grid (nearestSail) so the
+// ferry line never lies, and never crossing a boat the guest could not reach.
+// Both moves generalise an EXISTING engine precedent onto the matrix: "sooner"
+// is sleepOnSand's leaveT=min(leaveT, nearestSail(...)) (14596); "longer" is
+// ferryGo's missed-boat nights bump (14444). Draw-free.
+function visDepartAct(k, cls) {
+  if (cls === "sooner") {
+    const soon = nearestSail(gnow() + DEPART_SLACK);
+    if (soon < k.leaveT) {
+      k.leaveT = soon;
+      visLog(k, "life", vline(k, "cutshort", "SEEN ENOUGH - CATCHING THE NEXT BOAT HOME"));
+    }
+    return;
+  }
+  if (cls === "longer") {
+    const want = k.nights + 1;                        // one more night than planned
+    const later = nearestSail(gnow() + (want - k.nightsHad) * 1440 - DEPART_SLACK);
+    if (later > k.leaveT) {
+      k.nights = Math.min(DEPART_CAP_NIGHTS, want);   // a day-tripper becomes an overnighter, and now wantsRoom
+      k.leaveT = later;
+      visLog(k, "life", vline(k, "stayon", "HAVING TOO GOOD A TIME - STAYING ON ANOTHER NIGHT"));
+    }
+  }
+}
+// WHO DECIDES when this guest leaves. The vis_depart.stay surface ships
+// SCRIPT-ONLY - no trained artifact (per kd-zQB8oRGDeQ: a departure is a rare
+// per-stay event, not trainable yet, so it ships as the heuristic with a stated
+// exit condition). The SEAM is here: when a culture declares a vis_depart.stay
+// brain and a brainDepartPick lands to run it, this is the one line that routes
+// to it - reading the same needW matrix, the same three classes. Until then the
+// engine default answers for everyone, crab and cultured alike.
+function visDepartThink(k) {
+  const cls = visDepartPick(k);
+  if (cls !== "hold") visDepartAct(k, cls);
 }
 // WHO IS GOING HOME ON THIS ONE - and, just as importantly, WHEN THEY SET OFF.
 // `minsLeft` is how long until she sails; a guest leaves when the walk needs
@@ -14976,11 +15272,25 @@ function visOpen(b) {
 }
 // the two line counts, shared verbatim by visRoomFor and the kernel marshal
 // so the compiled scorer and the reference count the same heads
+// A CRAB ON A BONUS PLATE IS NOT IN THE LINE (feature B). A tray-crab keeps its
+// VS.waiting state through the whole ticket - it flips out only at serve(), when
+// the LAST plate is done - so without this a two-plate tray would hold its queue
+// slot for ~2x the kitchen time and turn arriving tourists away (measured: the
+// exact crowding that sank A). But the crab is being SERVED their second plate
+// at the window, not standing in the waiting line: they took ONE slot for plate
+// one (baseline), and the bonus plate is served out of it. So once the kitchen
+// has bumped them onto the addon (orderIdx > 0), they no longer count against
+// the line - which is precisely B's thesis, "one queue slot for N plates,
+// never competing with the tourQ rush." Length-1 trays never reach orderIdx > 0,
+// so this is byte-identical to the pre-B line count.
+function inQueueLine(c) {
+  return (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)
+    && !(c.isCrab && (c.orderIdx || 0) > 0);
+}
 function lineCounts(k, b) {
   const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
-  const allQ = customers.filter(c => c.biz === b && c !== k
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
+    && inQueueLine(c)).length;
+  const allQ = customers.filter(c => c.biz === b && c !== k && inQueueLine(c)).length;
   return [tourQ, allQ];
 }
 function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
@@ -15551,6 +15861,12 @@ function updateVisitor(k, dt) {
       e = KERN ? kernelVisPick(k) : visPick(k);
       if (bp && bp.mode === "shadow") shadowObserve(k, bp, e);
     }
+    // ...and on the SAME free thought, a guest weighs whether the trip is still
+    // worth prolonging (ruling 6: "choose when they depart in their decision
+    // policy"). It runs whether or not they found an errand - a delighted guest
+    // with nothing left to buy is exactly the one who chooses to stay on - and
+    // it is draw-free, so both backends make the identical (zero) draws here.
+    visDepartThink(k);
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
@@ -15702,7 +16018,7 @@ function newCustomer(bizKey) {
   const cul = cuId !== "crab" && CULTURES[cuId] ? CULTURES[cuId] : null;
   const r = bizRecipes(bizKey)[(srand() * bizRecipes(bizKey).length) | 0];
   const spawnX = biz.queueX + 150;
-  const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
+  const w = Object.setPrototypeOf({ biz: bizKey, order: [r], orderIdx: 0,
     culture: cul ? cuId : null,
     name: cul ? freeVisitorName(cul.def.people.names)
       : CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
@@ -17432,6 +17748,86 @@ function mistNowQ16() {
   return mistTodayQ16;
 }
 function mistNow() { return mistNowQ16() / 65536; }   // the DRAW layer's float view
+
+// ── THE ALMANAC ──────────────────────────────────────────────────────────
+// The town's exogenous world state, as NAMED day-hashed channels. Each channel
+// is a PURE INTEGER function of the day (Q16, 65536 = full), with an OPTIONAL
+// intraday envelope - a value that rolls across the day the way the mist rolls
+// in off the sea and burns off by morning; a channel with no envelope is a
+// whole-day fact. The mist is the first entry and the proof of the shape: it is
+// already consumed by the sim (a guest deciding whether to walk home in the
+// fog, visTick), already a kernel input (_ktMist -> vis_tick), and already
+// pinned two ways - its DISTRIBUTION and that it consumes ZERO randomness.
+// swell and wind join it for the surf break. Registration only NAMES the mist's
+// existing functions; the mist's own code above is untouched and byte-identical,
+// so every shipped mist pin still holds. The registry is the door Step 2's
+// forecast and Step 3's break read through, by name.
+const ALMANAC = {};
+function registerChannel(name, peakQ16, nowQ16) {
+  // no envelope => the day's peak is the value all day (a whole-day fact)
+  ALMANAC[name] = { peakQ16, nowQ16: nowQ16 || ((d) => peakQ16(d)) };
+  return ALMANAC[name];
+}
+function channelPeakQ16(name, d) { const c = ALMANAC[name]; return c ? c.peakQ16(d) : 0; }
+function channelNowQ16(name) { const c = ALMANAC[name]; return c ? c.nowQ16(day) : 0; }
+
+// THE SWELL AND THE WIND - the surf break's two exogenous channels, each folded
+// with the town's own ocean (_almanacSeed) so a 48-town matrix samples 48
+// histories rather than running one 48 times. A storm is hashed per 5-day
+// epoch (onset, size, duration); the swell on day d is the sum of the triangle
+// envelopes of the storms that reach it; the wind is an independent per-day
+// roll; surf quality is swell * (1 - wind) - the wind a MULTIPLICATIVE GATE,
+// not a subtraction, which is the one choice that buys the whole texture: two
+// days both at swell 1.00 read 0.19 and 0.95 on wind alone (blown out vs
+// firing) with no rule written for it. PROTOTYPE SHAPE, and the digits are a
+// KNOB I PICKED, not a sim measurement: swell autocorrelation ~0.62 at lag 1,
+// ~0.15 at lag 2, ~0 by lag 5; firing days ~8%, clustered into events rather
+// than scattered singletons. The pins below defend the SHAPE (an autocorrelated
+// swell, a decorrelated wind, a base rate in a band), not the exact 8%.
+const _ALM_EPOCH = 5;   // one storm rolled per 5-day epoch
+// the mist's own mixer family (an imul avalanche), folding a day-or-epoch index
+// with the ocean seed. Reads no stream, so a channel forks no randomness.
+function _almHash(a, seed) {
+  let h = (Math.imul(a | 0, 2654435761) ^ Math.imul((seed | 0) + 0x9e3779b9, 2246822519)) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+  h = Math.imul(h, 3266489917) >>> 0; h ^= h >>> 16;
+  return h >>> 0;
+}
+function windPeakQ16(d) { return _almHash(((d | 0) ^ 0x5715) >>> 0, _almanacSeed) & 0xFFFF; }
+function swellPeakQ16(d) {
+  let acc = 0;   // Q16, clamped to full at the end
+  const e0 = Math.floor((d | 0) / _ALM_EPOCH);
+  for (let e = e0 - 2; e <= e0 + 1; e++) {   // only nearby epochs can still reach day d
+    if (e < 0) continue;
+    const h = _almHash((e ^ 0x503e) >>> 0, _almanacSeed);
+    const onset = e * _ALM_EPOCH + (h & 7);                         // 0..7 days into the window
+    const dur = 2 + ((h >>> 3) & 3);                                // a storm runs 2..5 days
+    const sizeQ16 = 22938 + ((((h >>> 5) & 0xff) * 58982 / 255) | 0);   // amplitude 0.35..1.25
+    const rel = (d | 0) - onset;
+    if (rel < 0 || rel >= dur) continue;
+    // an integer triangle peaking mid-storm, worked in half-days to stay exact
+    const num2 = Math.abs(2 * rel - (dur - 1)), den2 = dur + 1;
+    const triQ16 = 65536 - ((num2 * 65536 / den2) | 0);
+    if (triQ16 <= 0) continue;
+    // Q16 * Q16 OVERFLOWS a signed >>16: the product reaches ~5.5e9 and wraps
+    // to a negative int, silently zeroing the swell. Floored division stays in
+    // double precision, exact for these magnitudes. (Learned the hard way in
+    // the prototype - the >>16 port dropped the mean 8x and killed the shape.)
+    acc += Math.floor(sizeQ16 * triQ16 / 65536);
+  }
+  return Math.min(65536, acc);
+}
+// surf quality: the swell GATED by the wind. Same Q16*Q16 overflow trap as above.
+function surfQualityQ16(d) { return Math.floor(swellPeakQ16(d) * (65536 - windPeakQ16(d)) / 65536); }
+function swellPeak(d) { return swellPeakQ16(d) / 65536; }   // the read/draw layer's float views
+function windPeak(d) { return windPeakQ16(d) / 65536; }
+function surfQuality(d) { return surfQualityQ16(d) / 65536; }
+
+registerChannel("mist", mistPeakQ16, mistNowQ16);   // the calendar's fog - day-only, byte-identical
+registerChannel("swell", swellPeakQ16);             // the surf's size - per-town, no intraday envelope
+registerChannel("wind", windPeakQ16);               // blows the swell out - independent per-day
+// ─────────────────────────────────────────────────────────────────────────
+
 function drawMist() {
   if (window._noMist) return;
   const m = mistNow();
@@ -19235,7 +19631,15 @@ function drawPanel() {
     // always the exact per-crab total either way
     const rates = Array.from(new Set(owed.map(c => Math.round(wageRate(c)))));
     const rateTxt = rates.length === 1 ? "$" + $d(rates[0]) : "MIXED";
-    smallText(ctx, "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H" + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : ""), 132, by, [190, 175, 160]);
+    // NOBODY OWED TONIGHT is its own short line, not "0XMIXED/6H (N OUT)": with
+    // an empty `owed` list `rates` is empty so rateTxt falls to "MIXED" (there is
+    // no rate to be mixed), and the full "0X.../ (N OUT)" label overran the $0
+    // total column at x224 by a few pixels. A crew all off tonight has no wage
+    // bill to itemise; say so plainly and the row cannot collide with its total.
+    const wageLabel = owedN === 0 ? "WAGES - NONE DUE"
+      : "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H"
+        + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : "");
+    smallText(ctx, wageLabel, 132, by, [190, 175, 160]);
     smallText(ctx, "$" + $d(baseBill), 224, by, [235, 160, 130]); by += MROW;
     const otBill = owed.reduce((s, c) => s + Math.round(otPayForecast(c)), 0);
     if (otBill > 0) {
@@ -23710,7 +24114,69 @@ function musSave() {
 function musLoadCatalog() {
   if (typeof fetch !== "function") return;
   fetch("music/catalog.json").then(r => (r.ok ? r.json() : null))
-    .then(j => { if (j && j.tracks) { MUSCAT = j; rebuildRotation(); } }).catch(() => {});
+    .then(j => {
+      if (!j || !j.tracks) return;
+      MUSCAT = j;
+      rebuildRotation();
+      // THE SHIPPED ROWS MUST KNOW THEY ARE SHIPPED, and this is the whole iOS
+      // fix. 22 of these 1,201 rows are tracks this build already carries in
+      // music/ - but nothing in the catalog says so, so musSrc sent every one
+      // of them to music/archive/ (absent from Pages -> 404) and only reached
+      // the release from an async .catch(). iOS honours play() only inside the
+      // gesture that started it, and that retry is a network round trip too
+      // late, so the box was silent on a phone while desktop shrugged it off.
+      //
+      // Stamped here rather than baked into catalog.json because it is a fact
+      // about THIS BUILD's music/ directory, not about the archive: a build
+      // that ships a different set gets a different shipmap, and the catalog
+      // stays the portable index of everything.
+      musLoadShipmap();
+      musProbeArchive();
+    }).catch(() => {});
+}
+// Optional, like the catalog: absent shipmap just means nothing is stamped and
+// every row streams, which is exactly the old behaviour.
+function musLoadShipmap() {
+  fetch("music/shipmap.json").then(r => (r.ok ? r.json() : null))
+    .then(j => { if (musApplyShipmap(j)) rebuildRotation(); }).catch(() => {});
+}
+// THE STAMP IS ITS OWN FUNCTION so the suite can drive it. Left inside the
+// fetch callback it was unreachable from a test - and a scenario that re-typed
+// this loop beside it passed happily with the real one deleted, which is the
+// only kind of test worse than none. Returns how many rows it stamped.
+function musApplyShipmap(j) {
+  if (!j || !j.ships || !MUSCAT || !MUSCAT.tracks) return 0;
+  let n = 0;
+  for (const t of MUSCAT.tracks) {
+    const s = j.ships[t.id];
+    if (!s || !s.file) continue;
+    t.shipped = 1;      // musSrc returns t.file verbatim for a shipped row
+    t.file = s.file;    // ...so it must be the same-origin path, not the archive name
+    n++;
+  }
+  return n;
+}
+// SETTLE THE ARCHIVE QUESTION BEFORE ANYONE TAPS, not on the first tap.
+//
+// ARCHIVE_OK is a tri-state that learns from a real playback failure, and that
+// is the right policy for a machine that HAS the 4.3 GB mirror. But the way it
+// learned cost the first track of every session a 404 - and on iOS that first
+// track is the one that matters, because the retry lands a network round trip
+// after the tap that authorised it and WebKit refuses to play outside the
+// gesture. A latch that is correct on the second tap is no use on a phone.
+//
+// So ask ONCE, at load, with a request that costs nothing and belongs to no
+// gesture. By the time a player opens the record box the answer is in, and
+// musSrc returns the streaming url SYNCHRONOUSLY - one src, one play(), inside
+// the tap. Same-origin relative path, so no CORS and no preflight.
+function musProbeArchive() {
+  if (typeof fetch !== "function" || ARCHIVE_OK !== null) return;
+  const t = MUSCAT && MUSCAT.tracks && MUSCAT.tracks.find(r => !r.shipped && r.file);
+  if (!t) return;
+  // HEAD, because we want the status and never the 3 MB body.
+  fetch("music/archive/" + t.file, { method: "HEAD" })
+    .then(r => { if (ARCHIVE_OK === null) ARCHIVE_OK = !!r.ok; })
+    .catch(() => { if (ARCHIVE_OK === null) ARCHIVE_OK = false; });
 }
 function musRowRect(i) { return { x: 6, y: 34 + i * 20, w: W - 26, h: 18 }; }
 function musBarRect() { return { x: W - 16, y: 34, w: 10, h: MUS_ROWS * 20 - 2 }; }
@@ -24413,6 +24879,12 @@ if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
   coins = 15000;   // cents - a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
   dayOpen = coins;   // day one opens on the float, so TODAY starts at +$0
+  // A FRESH TOWN GETS ITS OWN OCEAN. Drawn from the wall clock, not the sim
+  // stream, so a new town's surf history is its own without forking the one
+  // random sequence the fingerprint gates guard. A save restores it (load()
+  // above), a lab/harness run overwrites it with the recipe's seed, and the
+  // fallback 0 is a legitimate ocean too - it just is not a UNIQUE one.
+  _almanacSeed = (Math.imul(nowMs() >>> 0, 2654435761) ^ (nowMs() / 4294967296 | 0)) >>> 0;
 }
 // A NEW TOWN OPENS EMPTY and waits for the 08:00 boat; a SAVED town keeps
 // exactly the guests it was saved with, and nothing is seeded on top of them.
