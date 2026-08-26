@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-95f0ba0-wipe",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "95f0ba0d75b2f91f5edd15d37ef35287cd17e04d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 151874,
+  "verdict": "34/34 passed in slice 2/12 (151.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2595ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2346ms)\n  PASS  save/load: townsfolk keep wallets and houses (1575ms)\n  PASS  all crew dead: town survives, rehire recovers (1310ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (1128ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (949ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (24181ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (777ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4858ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (28448ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (29317ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (2154ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (784ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (96ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (5060ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (6013ms)\n  PASS  departures: the card waits behind the day report, then pages itself (982ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (4680ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1480ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (10ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (10ms)\n  PASS  the whole session plays through one audio element (12ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (10497ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (11ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (14297ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (13ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (397ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (54ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (690ms)\n  PASS  brains: a live brain spends the script's own draws, no more (3189ms)\n  PASS  the title screen ages the build, and keeps ticking (10ms)\n  PASS  load: the same envelope lands the same way however often you land it (1656ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (2136ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (18ms)\n34/34 passed in slice 2/12 (151.7s)\n"
+}

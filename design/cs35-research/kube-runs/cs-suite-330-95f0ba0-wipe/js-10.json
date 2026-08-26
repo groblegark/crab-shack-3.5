@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-95f0ba0-wipe",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "95f0ba0d75b2f91f5edd15d37ef35287cd17e04d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 54247,
+  "verdict": "34/34 passed in slice 10/12 (54.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2480ms)\n  PASS  housing: npcs sleep at the shelter, then move up (779ms)\n  PASS  queue hard cap holds for locals too (3257ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (794ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (886ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (133ms)\n  PASS  fish market: price + series roundtrip save/load (44ms)\n  PASS  labor policy: every new setting roundtrips save/load (1811ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (5425ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (1301ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (12ms)\n  PASS  the lease card: every term fits on the card it is printed on (10ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (3408ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (6628ms)\n  PASS  an election is held on the week, and every voter is accounted for (4687ms)\n  PASS  departures: three ways to be turned away are three different counters (130ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (433ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1660ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (941ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1029ms)\n  PASS  only one track is ever audible at once (13ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1740ms)\n  PASS  idle quips: the island's table is the literal, key for key (18ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (81ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (13ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (3207ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (8ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (36ms)\n  PASS  seam: the view is a reader - two renders move nothing (177ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (21ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (8958ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (230ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (44ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (3768ms)\n34/34 passed in slice 10/12 (54.2s)\n"
+}

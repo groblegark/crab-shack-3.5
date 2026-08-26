@@ -6,6 +6,17 @@ A simulation-style beach-town economy, built on the snescat toy PPU
 
 Play: https://groblegark.github.io/crab-shack-3.5/
 
+**This repo is `crab-shack-3.5`, and 3.5 is the only version under
+development.** CRAB SHACK 3 — `groblegark/crab-shack-3`, deployed at
+`groblegark.github.io/crab-shack-3/` — is **not** under development. That
+older Pages site is still live and still serves a build from 2026-08-22,
+which is why the link above matters: this line used to point at it, so
+anyone following the README got a build many merges behind, missing the
+record box, the science lab and the visitors book. If you are testing a
+fix, confirm the URL ends in **3.5** and check the title screen's build
+stamp against `version.js` — an iOS music fix was once reported as broken
+purely because the tester was on the 3 deploy, where the fix did not exist.
+
 ## The town
 
 You run the CRAB SHACK, but you're not the only one who matters. Fisher-crabs
