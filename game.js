@@ -15563,21 +15563,32 @@ function visTick(k, dt) {
 // comment's named 1.19% sin. Draw-free integer Q20, so crabTick moves no RNG
 // cursor itself; the needs it raises drive more errands, which re-rolls the
 // downstream stream, so frozen fingerprints move (a legitimate re-pin, traced).
-const CIT_DECAY_MUL = 6;   // twentieths of VIS_RATE - CALIBRATED on the cluster (see below)
-// THE RATE, CALIBRATED. Two 48-town cluster matrices drove the number and the
-// shape of this model, both against the pre-U1 pillar (baseline 0/48, growth
-// 24/48):
-//  1. cs-u1-rate-sweep-e6083cd: an ADDITIVE / always-on continuous drain
-//     collapses the growth pillar at EVERY rate - mul 1 through 20 all read
-//     growth 0/48. The rate is not the lever. A continuous need with no relief
-//     path through the town's whole working day is uniquely punishing to a crab.
-//  2. cs-u1-workpause-cal-07570d1: pausing the drain WHILE ON DUTY (work is
-//     "occupied" the way an in-room tourist is asleep) restores a tunable band.
-//     Growth survival by rate: mul 4 -> 44/48 (too easy), mul 5 -> 36/48,
-//     mul 6 -> 27/48, mul 8 -> 5/48 (too hard). Baseline: mul 6 -> 0/48, mul 5
-//     -> 1/48. So mul 6 HOLDS the pillar (growth 27/48 ~ 24/48 within the
-//     any-16-block-is-a-coin noise, baseline floor intact at 0/48). That is the
-//     shipped number.
+const CIT_DECAY_MUL = 7;   // twentieths of VIS_RATE - CALIBRATED on the cluster (see below)
+// THE RATE, CALIBRATED against the pillar RE-TAKEN on the landing tree. Three
+// 48-town cluster matrices drove the model and the number:
+//  1. cs-u1-decay-matrix-578022e: full VIS_RATE (mul 20) on a resident starves
+//     the whole town by day 3-4 - 0/48 on BOTH baseline and growth. A resident
+//     is not a tourist; the rate that paces a 2-day stay is ~an order too fast.
+//  2. cs-u1-rate-sweep-e6083cd: an ADDITIVE / always-on drain collapses the
+//     growth pillar at EVERY rate (mul 1..20 all 0/48). The rate is not the
+//     lever - a continuous need with NO relief path through the town's whole
+//     working day is uniquely punishing to a crab. So the MODEL changed: pause
+//     the drain while ON DUTY (work is "occupied" like a sleeping tourist), and
+//     RE-TIME the discrete metabolic bumps the drain now subsumes (they turn off
+//     under crabDecayOn(); tired keeps its own lump).
+//  3. cs-u1-rebase-cal-3fc20a3: the deciding run, on CURRENT main (tray + depart
+//     + almanac landed). The pillar had MOVED - the pre-U1 control RE-TAKEN on
+//     this tree is growth 17/48 (6/5/6), baseline 0/48, NOT the stale 24/48 an
+//     older tree read (advice kd-RSS4Nkil3c: an absolute-target calibration must
+//     re-take its control on the landing tree). Against that 17/48:
+//       mul 5 -> growth 26/48 (+9, easier)   mul 6 -> 23/48 (+6, easier)
+//       mul 7 -> growth 12/48 (-5)           baseline mul 6 -> 0/48
+//     U1 re-times the discrete lumps OFF, so at low mul the removed lumps
+//     dominate and the town is EASIER; difficulty-neutral crosses ~mul 6.5.
+//     mul 7 is the closest hold (|-5| < |+6|) AND the higher drain the unified
+//     model wants teeth from (captain kd-2LdjVWNgEd: reproduce pre-U1 difficulty,
+//     prefer the higher drain). Baseline 0/48 holds by bracketing (mul 6 and
+//     mul 20 both 0/48, monotone). SHIPPED: mul 7, on-duty pause, lumps re-timed.
 // The lesson the receipts carry: giving the citizen the tourist's continuous
 // decay was not a rate tuning - the citizen's day has no continuous-relief path,
 // so the MODEL had to change (pause on duty + re-time the discrete metabolic
