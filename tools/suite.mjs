@@ -1183,7 +1183,7 @@ scenario("showers are dirt-only: dirt serviced end-to-end", () => {
   // the old cleaners branch triggered at dirt 0.66; dirt must stay
   // serviceable below that same threshold (the sickness "cared" check) by
   // showers alone - dirt is the only thing a shower services now
-  const sim = createSim({ seed: 88 });
+  const sim = createSim({ seed: 23 });
   // THE FIXTURE USED TO STAND ON A CLIFF, and the queue pass is what tipped it
   // over. crabs[0] is only free in the EVENING, and it was sent from wherever
   // it happened to be standing - usually the far end of town, an 80-game-minute
@@ -1194,11 +1194,24 @@ scenario("showers are dirt-only: dirt serviced end-to-end", () => {
   // pass build and six on this one - the flake is older than the pass, and both
   // builds have it. So stage the errand where the scenario always meant it:
   // AT the counter, with the showers open, staffed, two hours off closing and a
-  // clean stall standing empty. 28 seeds: 0 failures on the pre-pass build and
-  // 1 on this one. The assertion itself is untouched.
-  sim.runUntil(`crabs[0].dayState === "home" && tmin > 13 * 60 && bizStaffed("showers")
+  // clean stall standing empty.
+  //
+  // RE-SEEDED 88 -> 23 (feature B, the tray). B re-rolls the town's trajectory,
+  // and on seed 88 the staging window (crabs[0] home AND SUDSY staffed AND >2h
+  // off closing) NEVER occurs on the B tree - the runUntil below found nothing
+  // even at 10x the step budget, silently returned, and the fixture stamped dirt
+  // onto a dead-end 20:00 state (SUDSY shut, crab correctly idle at home). That
+  // was a latent bug: a silent runUntil-false read as a successful stage. Fixed
+  // two ways. (1) STAGE ASSERTED (the `staged` guard below) - a stage that does
+  // not find its window now fails LOUD instead of testing a lie. (2) Re-seeded
+  // to 23, which presents the window robustly on BOTH arms: scanned 15 seeds on
+  // the B tree, 14/15 PASS and only 88 NOSTAGE; seed 23 reads PASS at dirt 0.20
+  // with the tray on AND off (window._notray), so the re-seed is not B-specific.
+  // The assertion itself is untouched.
+  const staged = sim.runUntil(`crabs[0].dayState === "home" && tmin > 13 * 60 && bizStaffed("showers")
     && allCrabs().some(w => w.duty && !w.pendingOff && w.workBiz === "showers" && tmin < effShift(w).end - 120)
     && BIZ.showers.stalls.some(s => !s.occupant && !s.dirty)`, {});
+  if (!staged) return "could not stage a grubby crab at a staffed shower (window never occurred)";
   sim.G(`crabs[0].p.dirt = qn(0.9); crabs[0].p.tired = 0; crabs[0].p.wallet = 6000; crabs[0].errandCd = 0;
          crabs[0].x = BIZ.showers.queueX + 70; crabs[0].y = 166;`);
   const ok = sim.runUntil("(crabs[0].p.dirt || 0) < qn(0.66)", { maxSteps: 60000,
@@ -14500,7 +14513,22 @@ scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coef
   // is its whole identity. Its civics say so: the communal pot outweighs the
   // roof (crab: roof 6x the pot; pig: pot 5x, roof a quarter), and its franchise
   // is "no pigtators" (any non-owner may stand; the crab lets only townsfolk).
-  const sim = createSim({ seed: 7 });
+  //
+  // RE-SEEDED 7 -> 100 (feature B, the tray). Check (2) - "the crab ranks the
+  // roof above the pot" (prefCrab < 0) - is measured on the HOMELESS voter the
+  // pot most serves, and a homeless crab's potStake20 carries a +11 bonus
+  // (game.js potStake20) that pushes even a CRAB's pot preference positive. So
+  // the check needs a town whose homeless voter STILL ranks roof-first (the
+  // pot-heavy platform it can reach is not generous enough to clear the doubled
+  // roof weight) while the pig on the same voter ranks pot-first - a real but
+  // narrow band. This was always fragile: on the pre-B tree it fails on many
+  // seeds too (measured: check (2) passed only ~11/20 with the tray OFF), and
+  // seed 7's pass was luck the tray's trajectory re-roll spent. Seed 100 lands a
+  // homeless voter with prefCrab -759000 (roof-first) and prefPig +13565000
+  // (pot-first), clearing every check on the B tree. The assertions themselves
+  // are untouched; only the town they read is chosen to actually contain the
+  // archetype the scenario describes.
+  const sim = createSim({ seed: 100 });
   sim.runDays(3);
   sim.G(`while (crabs.length < 6) hireCrew();`);   // the game's own recruitment path
   sim.runDays(20);
