@@ -657,6 +657,77 @@ scenario("slots: a legacy single-key save migrates into slot 1, losing nothing",
   return true;
 });
 
+scenario("pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean", () => {
+  // NUMERIC SLICE 1: a float-dollar save (no `_num`) is scaled *100 to cents on
+  // the envelope, then load() squares the wallets to whole cents ONCE by largest
+  // remainder (game.js load(), `if (preCents)`). When several accounts tie on
+  // fraction, the leftover cents are handed out in NAME order, and COINS + the
+  // TOWN FUND carry a printable sentinel prefix ("!COINS" / "!FUND") that sorts
+  // before every real account name ("W"+crab, "V"+visitor, "O"+owner) so the two
+  // privileged accounts take the remainder DETERMINISTICALLY. This scenario pins
+  // that order with an exactly-representable three-way .5 tie, and proves a
+  // re-save stamps cents so the settle never runs twice.
+  //
+  // WHY THIS EXISTS: the sentinel used to be a literal NUL byte, which sorts
+  // first just the same but made GNU grep classify game.js as binary and go
+  // blind for 13k lines (kd-ndW18RZEsr). It moved to "!" (code 33, < "O"=79).
+  // The mutation this bites: swap the sentinel to one that sorts AFTER the real
+  // names (e.g. "z") and BARNEY steals a cent - FUND 213->212, wallet 312->313.
+  // Verified by hand at the fix; this scenario is the standing guard.
+  const store = new Map();
+  const save = {
+    coins: 5.125, lifetime: 900, day: 6, tmin: 640, lastRentDay: 5,   // *100 -> 512.50, frac .5
+    lv: { chef: 2, table: 1 }, rep: 44, gameOver: false, t: 1700000000000,
+    personas: [
+      { name: "BARNEY", trait: "speedy", mode: "walk", acc: "none", color: 0, shift: "M", wallet: 3.125, house: 0, homeless: false, job: "shack" },
+    ],
+    fund: { bal: 2.125, arrears: 0 },   // *100 -> 212.50, frac .5
+  };
+  store.set(SLOT1, JSON.stringify(save));
+  store.set(ACTIVE, "1");
+  if (JSON.parse(store.get(SLOT1))._num != null) return "the fixture is already a cents-era save - it must be pre-cents to exercise the settle";
+  const sim = createSim({ seed: 3, storage: store, fresh: false });
+  const settled = JSON.parse(sim.G(`JSON.stringify({
+    coins, fund: townFund.bal, wallet: crabs.find(c => c.p.name === "BARNEY").p.wallet,
+    allInt: [coins, townFund.bal, crabs.find(c => c.p.name === "BARNEY").p.wallet].every(Number.isInteger),
+  })`));
+  if (!settled.allInt) return "the settle left a fractional balance: " + JSON.stringify(settled);
+  // COINS 512.5 -> 513, FUND 212.5 -> 213 (both won a leftover cent); the crab
+  // wallet 312.5 floors to 312 because "!COINS"/"!FUND" outrank "WBARNEY".
+  if (settled.coins !== 513 || settled.fund !== 213 || settled.wallet !== 312)
+    return "the sentinels did not take the leftover cents: " + JSON.stringify(settled) + " (expected coins 513, fund 213, wallet 312)";
+  // and the pool conserved: the three .5-fraction accounts plus every integer
+  // account still sum to the rounded target. 512.5 + 212.5 + 312.5 = 1037.5 -> 1038.
+  if (settled.coins + settled.fund + settled.wallet !== 1038)
+    return "the settle created or destroyed money: " + (settled.coins + settled.fund + settled.wallet) + " != 1038";
+  // ROUND-TRIP: save now stamps `_num` and writes cents; a reload from the cents
+  // envelope must NOT re-settle (preCents is false), so the values hold exactly.
+  sim.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  if (!env._num) return "the re-save did not stamp a numeric rung - a reload would settle twice";
+  const sim2 = createSim({ seed: 3, storage: store, fresh: false });
+  const reload = JSON.parse(sim2.G(`JSON.stringify([coins, townFund.bal, crabs.find(c => c.p.name === "BARNEY").p.wallet])`));
+  if (reload.join() !== "513,213,312") return "the cents-era save settled AGAIN on reload: " + JSON.stringify(reload);
+  return true;
+});
+
+scenario("game.js carries no NUL byte (a binary-classified file blinds grep)", () => {
+  // A single NUL byte anywhere in game.js makes GNU grep treat the whole file as
+  // binary: `grep -n` stops dead at the first NUL and EXITS 0, so a symbol that
+  // demonstrably exists reads as absent to every un-wrapped grep (sh scripts,
+  // execSync, Makefiles, CI). The interactive Bash tool shadows grep with a
+  // binary-safe wrapper, so the hazard is invisible exactly where it is least
+  // supervised. The cent-settle sentinels were the source (kd-ndW18RZEsr); this
+  // guard keeps a NUL from creeping back into the file silently.
+  const buf = readFileSync(new URL("../game.js", import.meta.url));
+  const at = buf.indexOf(0);
+  if (at >= 0) {
+    const line = buf.slice(0, at).toString("utf8").split("\n").length;
+    return `game.js contains a NUL byte at offset ${at} (line ${line}) - grep will go binary-blind past it`;
+  }
+  return true;
+});
+
 scenario("slots: two towns stay independent, switching never crosses them", () => {
   const store = new Map();
   const a = createSim({ seed: 21, storage: store, fresh: false });
