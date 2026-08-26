@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-8926e7c-36r1",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "8926e7c76b412e9b2d18c0f35bac09386624bc59",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 123091,
+  "verdict": "32/32 passed in slice 11/12 (123.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1486ms)\n  PASS  sick crabs can still wash (mobility + cure path) (912ms)\n  PASS  crew never staff npc-owned shops (684ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (1350ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (62508ms)\n  PASS  hours: shortened hours really close the shop (929ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (1736ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (41ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (41ms)\n  PASS  tips: the counter gets a token, the table gets the lot (8ms)\n  PASS  no card prints text on top of its own text (1395ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (4122ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1276ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (952ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1801ms)\n  PASS  departures: a stay survives a save and a reload (3186ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (4811ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (113ms)\n  PASS  a hire is something you can see happen (539ms)\n  PASS  a shop's takings show on its owner's card the moment they land (2038ms)\n  PASS  the house limit stops a hire and never fires anybody (7561ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (10ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (13402ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (23ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (18ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (4304ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (5794ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (1296ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (482ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (61ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (12ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (87ms)\n32/32 passed in slice 11/12 (123.0s)\n"
+}
