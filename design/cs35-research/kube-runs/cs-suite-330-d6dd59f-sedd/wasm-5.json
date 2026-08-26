@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-d6dd59f-sedd",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "d6dd59f3e09bece640cfeae8b0017788a3a32580",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 38954,
+  "verdict": "34/34 passed in slice 5/12 (38.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (10911ms)\n  PASS  save guard: a town born from a rejected save does not bury it (909ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (32ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (876ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (658ms)\n  PASS  days off: everyone rests their weekday and plays customer (4259ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (304ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (807ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (1795ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (651ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (8ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (594ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (10ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (869ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (587ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1120ms)\n  PASS  departures: every character the card prints exists in the font (582ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2497ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (87ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (521ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (359ms)\n  PASS  the cabana row leaves both travel lanes a real margin (8ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (10ms)\n  PASS  need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name (9ms)\n  PASS  civics: a people's voters score a platform on THEIR OWN declared stakes (7461ms)\n  PASS  civics calendar/relief: the scalars DRIVE the town, not just a readout (the behaviour gate) (19ms)\n  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (13ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (11ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (1633ms)\n  PASS  saves: a ver-3 envelope is the zero delta (776ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (307ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (49ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (17ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (88ms)\n34/34 passed in slice 5/12 (38.8s)\n"
+}

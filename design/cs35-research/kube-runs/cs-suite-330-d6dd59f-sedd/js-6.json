@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-d6dd59f-sedd",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "d6dd59f3e09bece640cfeae8b0017788a3a32580",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 55351,
+  "verdict": "34/34 passed in slice 6/12 (55.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3677ms)\n  PASS  save guard: an empty slot still receives the first town (19ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (4170ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (3204ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1822ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4722ms)\n  PASS  census: rows derive live state, and sort + filter actually move (734ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (3304ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4697ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (115ms)\n  PASS  one reading surface owns the screen (1503ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1395ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (2358ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (6568ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1998ms)\n  PASS  departures: nobody on the boat knows the town's name (1661ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (3218ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (253ms)\n  PASS  the help card teaches the machine and does not spoil the ending (8ms)\n  PASS  nothing paints over an open card except another card (1177ms)\n  PASS  a crab may stand in the cabana it has come to clean (10ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (10ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (14ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (14ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (44ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (24ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (15ms)\n  PASS  space: every position rides the Q8 grain, all day (1659ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (11ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (9ms)\n  PASS  science: the seed is the town - a different one lives differently (6633ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (23ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (163ms)\n34/34 passed in slice 6/12 (55.2s)\n"
+}
