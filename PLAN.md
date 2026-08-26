@@ -6036,7 +6036,27 @@ copy of them.
     settles 12 of 22; the rest are 128kbps re-encodes matched on RMS-envelope
     correlation, **controlled before use** (true pair 1.0000, unrelated
     0.23–0.35, all accepted ≥ 0.9998). Stamping the name-match would have
-    pointed seven tracks at the wrong audio and failed *silently*.
+    pointed seven tracks at the wrong audio and failed *silently*. **22 of 22**
+    shipped mp3s are mapped — the last one, `YOU WIN/GAME OVER`, was missed by a
+    hand pass that grouped by name family (`shout()` turns the slash into a
+    space) and found by the generator, which never groups by name at all. *A
+    generator you have not actually run is a comment, not a generator.*
+  - **THE TAP COSTS ONE `src` AND ONE `play()`, and that is the iOS fix**
+    (`musProbeArchive`, `musApplyShipmap`). Measured by simulating iOS's autoplay
+    **policy** — `play()` rejects `NotAllowedError` outside a gesture — rather
+    than chasing WebKit; see `design/cs35-research/ios-music/`:
+
+    | | `src` swaps | `play()` attempts | ends on |
+    |---|---|---|---|
+    | title, no tap | 0 | 0 | — (the latch holds) |
+    | shipped row, tapped | 1 | 1 | `music/<name>.mp3` |
+    | streaming row, tapped | 1 | 1 | the release URL |
+    | streaming row, **probe removed** | **2** | **2** | `music/archive/…` → 404 |
+
+    The last row is the control and the bug: the first tap of a session spent its
+    gesture on a 404 and reached the real URL only from an async `.catch()`, a
+    network round trip later — after iOS has withdrawn permission. Desktop
+    unlocks per origin and never noticed.
   - **Judgements REACH THE MUSIC.** The rotation is the shipped playlist minus
     what you dropped, plus every catalog track you kept at the energy you gave
     it — inert until you judge something. Before this the box recorded keeps,
