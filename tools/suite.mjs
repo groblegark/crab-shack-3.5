@@ -16324,6 +16324,49 @@ scenario("the build stamp is well-formed and wired", () => {
   return true;
 });
 
+scenario("the stamp gate watches every file a player is served", () => {
+  // tools/hooks/pre-push warns when version.js misnames the bytes a player
+  // gets. It decides that by diffing a HARD-CODED list of player-served files
+  // (PLAYER_SERVED) between the stamped build and the pushed one — so the whole
+  // check quietly NARROWS the moment index.html learns to load something the
+  // list does not name. That failure is invisible: the hook keeps passing, just
+  // over less. This scenario is the only thing standing between "the gate
+  // watches the game" and "the gate watches a subset of the game it used to be".
+  //
+  // Derived from index.html rather than restated, so the assertion cannot drift
+  // in the same direction as the bug.
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const hook = readFileSync(new URL("./hooks/pre-push", import.meta.url), "utf8");
+  const hm = hook.match(/^\s*PLAYER_SERVED="([^"]*)"/m);
+  if (!hm) return "pre-push no longer declares PLAYER_SERVED - the stamp gate cannot be audited";
+  const watched = new Set(hm[1].split(/\s+/).filter(Boolean));
+
+  // Every local script/href index.html loads. Skips data: URIs (the favicon)
+  // and absolute URLs, and strips ?v= cache-busters (kernel-b64.js carries one).
+  const loaded = [...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((u) => !/^(?:https?:|data:)/.test(u))
+    .map((u) => u.split("?")[0]);
+
+  // version.js is EXCLUDED on purpose: it is the thing being audited, and it
+  // necessarily differs between a build and its own stamp. music/playlist.js is
+  // excluded because it is a documented 404 in the shipped build (generated
+  // only when the record box is populated), so it is not a byte a player gets.
+  // index.html is served to the player but does not appear in its own load
+  // list, so it is added here rather than discovered — the hook must watch it
+  // (a changed index.html is a changed build) and it can never be "missing".
+  const expect = ["index.html", ...loaded.filter((u) => u !== "version.js" && u !== "music/playlist.js")];
+  const missing = expect.filter((u) => !watched.has(u));
+  if (missing.length)
+    return `index.html serves ${missing.join(", ")} but the stamp gate does not watch it`;
+  // The reverse drift matters too: a stale entry means the hook diffs a path
+  // that no longer exists, which silently never differs.
+  const stale = [...watched].filter((u) => !expect.includes(u));
+  if (stale.length)
+    return `the stamp gate watches ${stale.join(", ")}, which index.html no longer serves`;
+  return true;
+});
+
 scenario("the title screen ages the build, and keeps ticking", () => {
   // Matt's ask: a "published n minutes m seconds ago" readout that actively
   // ticks, "so you can always see how fresh your version is" - days and hours
