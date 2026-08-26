@@ -6300,9 +6300,82 @@ copy of them.
     what you dropped, plus every catalog track you kept at the energy you gave
     it — inert until you judge something. Before this the box recorded keeps,
     drops and energies that nothing read.
-  - **Open:** no vetting pass has been made yet, so the rotation is still the
-    original 22 tracks until someone sits down with the box. `tools/mkplaylist.mjs`
-    turns an export into a shipped playlist when that happens.
+  - ~~**Open:** no vetting pass has been made yet, so the rotation is still the
+    original 22 tracks until someone sits down with the box.~~ — **closed by
+    THE BOX IS THE PLAYLIST below**, which removed the premise rather than doing
+    the pass: a vetting pass is no longer what stands between the archive and
+    the town. `tools/mkplaylist.mjs` still turns an export into a shipped
+    playlist if anyone wants to curate one.
+- **THE BOX *IS* THE PLAYLIST** — *shipped (branch `cs-music-box-expand`,
+  2026-08-26)*. Matt: "opening the music box shouldn't stop the music from
+  playing; also, once the selected song is done playing the next one in the
+  music box should play, and then the next. we should forget about the old
+  playlist of just a few songs and expand; also need a tiny scrolling ticker w
+  song name in bottom left corner."
+  - **The change is one of KIND, not size.** The box was a vetting bench feeding
+    a 22-track rotation: **1,201 auditionable, 22 audible**, and a catalog track
+    stayed inaudible until you personally tapped KEEP on it. The rotation is now
+    the box's own list, in the box's order, **minus only what you DROPPED**.
+    KEEP survives as a filter and an export; it is no longer the gate on being
+    heard. No catalog → the pool is still `PLAYLIST`, unchanged.
+  - **Ownership moved from "the box is open" to "something is auditioning."**
+    `musOpen` stops nothing and starts nothing (it scrolls to the playing row);
+    `musClose` no longer restarts a rotation it never stopped; `startMusic` and
+    `playRole` test `musPreview` rather than `musicView`. The invariant that
+    scenario was really for — never two tracks at once — is untouched.
+  - **What follows a track is the NEXT ROW** (`nextTrack`), wrapping, stepping
+    over the moments. `pickTrack` survives as the **entry** point, so the first
+    song still agrees with the town (`targetEnergy`); it is no longer a re-roll
+    at every boundary, which is what made "the next one in the music box"
+    impossible to hear.
+  - **Energy for 1,179 untagged rows** is guessed from the catalog's own tag
+    prose — measured spread over the shipped catalog: **340 calm / 578 steady /
+    283 lively**, so every hour of the day has something to reach for. The box
+    still shows `-` for an unjudged row (that dash is the difference between
+    your tag and our guess), and a player's tag outranks the guess forever.
+  - **Roles cross by FILE, never by name**, and this is the sharp edge: the
+    catalog spells the title theme `BEACH VOLLEYBALL START SCREEN` where
+    `PLAYLIST` says `BEACH VOLLEYBALL` (5 of the 22 shipped titles disagree).
+    So the rebuild waits for the **shipmap**, which stamps a row's same-origin
+    `file` — and `musLoadShipmap` now rebuilds **unconditionally**, where it
+    used to rebuild only on a successful stamp. That branch now carries the
+    whole expansion; a build with a missing shipmap would otherwise have played
+    its original 22 forever.
+  - **The now-playing ticker** is a tiny marquee bottom-left, in the sand
+    between the shop tooltip's floor and the nav map's ceiling (derived from
+    `shopTipRect`/`NAV_MAP`, so it moves with `H`). **Character-grained like the
+    toast** — neither the sim's ctx stub nor `mcp/canvas.mjs` implements
+    `ctx.clip()`, so a pixel-grained scroll would render fine in a browser and
+    be invisible to every test we have. Phased on **wall** time, not `viewT`:
+    the music plays at wall speed, so at `>>>>` the label must not crawl 4x.
+  - **THE ROTATION NOW STREAMS, and that is the cost of the ask.** Measured on
+    the shipped pair: **22 of 1,201 rows are same-origin (1.8%)**, so **98.2% of
+    the town's music comes off the release CDN** where it was ~0% before. That
+    is the same path the box's auditions have always taken (median 362 ms cold,
+    worst 553 — see *Streaming, measured* above), and the fallback ladder is
+    unchanged: local mirror → our release → skip on. Total catalog runtime, for
+    scale: **47.9 h, mean 144 s a track**.
+  - **What OFFLINE actually does, measured rather than assumed.** The first
+    draft of this entry said a networkless player gets "22 tracks and a lot of
+    skipping". Wrong on the second half: `musGiveUp` is `min(4, ROTATION.length)`
+    and it **stops after 4 failed tracks** — 4 play attempts, then silence until
+    a gesture. Bounded, not a cascade through 1,179 dead urls. A tap re-arms it
+    (`musArm`) and it tries 4 more. So the honest failure mode is **"the music
+    stops"**, not "the music stutters".
+  - **A probe of this is easy to get backwards, and I did.** The suite's
+    `AUDIO_SPY` stub RESOLVES `play()`, and `playTrack`'s `.then` resets
+    `musFails` on every resolve — so a naive offline probe on the shared stub
+    shows `musFails=0` forever and reads as "it never gives up", which is the
+    instrument talking, not the game. Measuring it needs a stub whose `play()`
+    REJECTS the way a browser does on a dead source. Same trap as the inert-DOM
+    stub that left the `<source>` branch untested for a whole branch.
+  - **Two existing scenarios were amended, each with its reason in place.** The
+    bench block asserted `openStopsRotation === 0` — that *is* the behaviour
+    Matt asked to change. The dead-`<source>` fixture needed a second row:
+    `musGiveUp` is `min(4, ROTATION.length)`, so a one-row fixture that used to
+    inherit 22 shipped rows now has a budget of **1** and gives up before the
+    skip it measures — which would have read as "the child listener is missing",
+    the most expensive kind of red.
 - **THE MUSIC CONTROLS LEFT THE BOX** — *shipped (branch `cs-music-controls`,
   2026-08-25)*. Matt: a button "to turn the music on and off without viewing the
   playlist"; up/down arrows in the playlist that "auto-play the track"; it

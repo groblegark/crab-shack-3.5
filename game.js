@@ -7474,49 +7474,106 @@ const PLAYLIST = (typeof BUNDLED_PLAYLIST !== "undefined" && Array.isArray(BUNDL
   && BUNDLED_PLAYLIST.length && BUNDLED_PLAYLIST.every(t => t && t.src && t.name))
   ? BUNDLED_PLAYLIST : PLAYLIST_LITERAL;
 
-// THE ROTATION IS WHAT THE BOX EDITS. Matt asked for a menu "so you can assign
-// songs to stuff and remove them from consideration" - and until this existed
-// the box could not do either: it recorded judgements that nothing read, so
-// dropping a track you were sick of did not stop it playing.
+// THE ROTATION IS THE MUSIC BOX (Matt, 2026-08-26: "we should forget about the
+// old playlist of just a few songs and expand"), and that sentence is a change
+// of KIND, not of size.
 //
-// The rotation is the shipped playlist MINUS what you dropped, PLUS every
-// catalog track you kept, at the energy you gave it. That is also the answer to
-// "we could have the whole playlist": all 1,201 candidates are auditionable in
-// the box, and the ones you keep join the music the town actually plays.
+// It used to be an OPT-IN list: the 22 shipped tracks, minus what you dropped,
+// plus the handful you had personally tapped KEEP on. So the box was a vetting
+// bench that fed a tiny playlist - 1,201 tracks were auditionable and 22 were
+// audible, and hearing a new one meant judging it first. That is a curation
+// tool. Matt asked for a jukebox.
 //
-// It is INERT until you judge something - with no judgements it rebuilds to
-// exactly PLAYLIST - so a player who never opens the box hears what they always
-// heard.
+// So the rotation is now the BOX'S OWN LIST, in the box's own order, minus only
+// what you DROPPED. Every row you can see is a row the town can play, which is
+// what makes "the next one in the music box" (below) a sentence about one list
+// rather than two. KEEP survives as a filter and an export - it is how a
+// vetting pass still reaches tools/mkplaylist.mjs - it is just no longer the
+// gate on being heard.
+//
+// TWO POOLS, ONE RULE, unchanged: with no catalog the pool IS PLAYLIST, so a
+// checkout with no index behaves exactly as it always did.
 //
 // Roled tracks (title, ending) are never dropped: they are moments rather than
-// rotation, pickTrack already skips them, and losing the ending sting to a
-// stray tap on a vetting screen is not a trade anyone asked for.
+// rotation, and both the picker and the sequential walk skip them, so losing
+// the ending sting to a stray tap on a vetting screen is not a trade anyone
+// asked for. The catalog names them differently from PLAYLIST ("BEACH
+// VOLLEYBALL START SCREEN" vs "BEACH VOLLEYBALL"), so the role is carried
+// across by FILE - musLoadShipmap stamps a shipped row's `file` to the same
+// same-origin path PLAYLIST's `src` holds - and never by name.
 let ROTATION = PLAYLIST.slice();
+function roleOfFile(file) {
+  const p = file && PLAYLIST.find(x => x.src === file);
+  return p ? p.role : undefined;
+}
+// WHAT ENERGY THE ROTATION READS. Distinct from `musEnergy`, which is what the
+// BOX shows: the box must keep saying "-" for a row nobody has judged, because
+// that dash is the difference between your tag and our guess and the energy
+// chip cycles from it. The rotation cannot afford a null - with 1,179 untagged
+// candidates in the list, defaulting them all to "steady" would flatten the one
+// feature that makes the music agree with the town (see targetEnergy) - so it
+// falls through to a guess read off the catalog's own tag prose.
+function rotEnergy(t) {
+  const e = musEnergy(t);
+  if (e != null) return e;
+  const g = musTagEnergy(t.tags);
+  return g == null ? 1 : g;
+}
+// THE GUESS, and it is deliberately crude: two word lists and whichever side
+// scores higher. MEASURED over the shipped 1,201-track catalog: 340 calm, 283
+// lively, 578 undecided-and-therefore-steady - a spread that gives every hour
+// of the town's day something to reach for, which is the only property that
+// matters here. A wrong guess costs a lullaby on a busy afternoon; a player who
+// cares taps the energy chip and their judgement outranks this forever.
+const MUS_CALM = ["lullaby", "slow", "sparse", "ballad", "ambient", "quiet", "gentle",
+  "soft", "calm", "sleepy", "night", "dreamy", "lonely", "mellow", "sad",
+  "meditative", "hymn", "nocturne", "tender", "drifting", "spare"];
+const MUS_LIVELY = ["dance", "fast", "thumping", "frantic", "driving", "party", "hard",
+  "upbeat", "punk", "rave", "racing", "aggressive", "banger", "hyper",
+  "breakbeat", "stomp", "march", "energetic", "chase", "funk", "disco",
+  "hustle", "bright"];
+function musTagEnergy(tags) {
+  if (!tags) return null;
+  const s = String(tags).toLowerCase();
+  let calm = 0, hot = 0;
+  for (const w of MUS_CALM) if (s.indexOf(w) >= 0) calm++;
+  for (const w of MUS_LIVELY) if (s.indexOf(w) >= 0) hot++;
+  return hot > calm ? 2 : calm > hot ? 0 : null;
+}
 function rebuildRotation() {
-  const playing = ROTATION[trackIdx] ? ROTATION[trackIdx].name : null;
+  // WHAT IS PLAYING IS AN IDENTITY, NOT AN INDEX, and with the whole catalog in
+  // the list the identity has to be the catalog id where there is one: 1,201
+  // rows contain repeated titles (mkmusic numbers them, but only after the
+  // first), so a name match could land the playhead on a different song.
+  const cur = ROTATION[trackIdx];
+  const curId = cur && cur.cat ? cur.cat.id : null;
+  const curName = cur ? cur.name : null;
   const rows = [];
-  for (let i = 0; i < PLAYLIST.length; i++) {
-    const t = PLAYLIST[i];
-    const j = musJudge["p" + i];                       // musPool ids shipped tracks "p<index>"
-    if (j && j.k === 0 && !t.role) continue;           // dropped, and not a moment
-    // A re-tagged energy is honoured here too, which is the other half of
-    // "assign songs to stuff" - it used to be recorded and ignored.
-    rows.push(j && j.e != null && j.e !== t.e ? Object.assign({}, t, { e: j.e }) : t);
-  }
   if (MUSCAT && MUSCAT.tracks) {
     for (const t of MUSCAT.tracks) {
-      const j = musJudge[t.id];
-      if (!j || j.k !== 1) continue;                   // only what you kept
+      const role = roleOfFile(t.shipped && t.file);
+      if (musState(t) === 0 && !role) continue;        // dropped, and not a moment
       // `cat` carries the catalog row so playTrack can resolve its source the
       // same way the box does - local mirror if you have one, our release if
       // you do not.
-      rows.push({ cat: t, name: t.name, e: j.e == null ? 1 : j.e });
+      rows.push({ cat: t, name: t.name, e: rotEnergy(t), role });
+    }
+  } else {
+    for (let i = 0; i < PLAYLIST.length; i++) {
+      const t = PLAYLIST[i];
+      const j = musJudge["p" + i];                     // musPool ids shipped tracks "p<index>"
+      if (j && j.k === 0 && !t.role) continue;
+      // A re-tagged energy is honoured here too, which is the other half of
+      // "assign songs to stuff" - it used to be recorded and ignored.
+      rows.push(j && j.e != null && j.e !== t.e ? Object.assign({}, t, { e: j.e }) : t);
     }
   }
   ROTATION = rows.length ? rows : PLAYLIST.slice();
   // Keep playing what was playing: trackIdx is an index, and the array it
   // indexes just changed underneath it.
-  const at = playing ? ROTATION.findIndex(r => r.name === playing) : -1;
+  let at = -1;
+  if (curId) at = ROTATION.findIndex(r => r.cat && r.cat.id === curId);
+  if (at < 0 && curName) at = ROTATION.findIndex(r => r.name === curName);
   if (at >= 0) trackIdx = at;
   else if (trackIdx >= ROTATION.length) trackIdx = 0;
 }
@@ -7533,6 +7590,11 @@ function targetEnergy() {
 // ...and the track for it. Never a roled track, never the one just played, and
 // it falls back through the neighbouring energies rather than going silent -
 // a town with no lively track left still gets music, just calmer music.
+//
+// THIS IS NOW THE ENTRY POINT ONLY - what plays when the music STARTS (MUS,
+// unmute, a fresh town). What follows a track is `nextTrack` below. The town
+// still gets a first song that agrees with it; it then gets a side of the
+// record rather than a re-roll per track.
 function pickTrack() {
   const want = targetEnergy();
   for (const d of [0, 1, 2, 3]) {
@@ -7545,6 +7607,31 @@ function pickTrack() {
     if (pool.length) return pool[(vrand() * pool.length) | 0];   // music is view: the shuffle never advances the sim stream
   }
   return trackIdx;
+}
+// WHAT FOLLOWS A TRACK IS THE NEXT ROW IN THE BOX (Matt, 2026-08-26: "once the
+// selected song is done playing the next one in the music box should play, and
+// then the next").
+//
+// It used to be another `pickTrack` - an energy-matched re-shuffle at every
+// track boundary. That was the right answer for a twelve-track loop, where
+// walking the list in order meant hearing the same twelve songs in the same
+// order forever, and it is the WRONG answer for the box: a player who picks a
+// song is stating where in the list they want to be, and a shuffle threw that
+// away one track later. The rotation is the box's own order now (see
+// rebuildRotation), so "the next one in the music box" and "the next one in the
+// rotation" are the same row.
+//
+// It wraps, and it steps OVER the moments - the title theme and the ending
+// sting are not rotation, and a record box that walks into thirty-one seconds
+// of somebody telling you how it went is a bug wearing a feature's coat.
+function nextTrack(d = 1) {
+  const n = ROTATION.length;
+  if (!n) return 0;
+  for (let step = 1; step <= n; step++) {
+    const i = ((trackIdx + d * step) % n + n) % n;
+    if (!ROTATION[i].role) return i;
+  }
+  return trackIdx;   // a rotation of nothing but moments: stay put rather than sound one
 }
 function roleTrack(role) {
   for (let i = 0; i < ROTATION.length; i++) if (ROTATION[i].role === role) return i;
@@ -7705,9 +7792,16 @@ function speaker() {
     if (musPreview) { musAdvance(1); return; }        // the bench walks its own list
     if (!music) return;
     music = null;
-    // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
-    // match what the town is doing when this one runs out - see pickTrack.
-    if (musicOn && !musicView) playTrack(pickTrack());
+    // WHAT FOLLOWS A TRACK IS THE NEXT ROW IN THE BOX - see nextTrack. (It used
+    // to be another energy re-roll, which is what made "the next one in the
+    // music box" impossible to hear.)
+    //
+    // AND IT NO LONGER STOPS BECAUSE THE BOX IS OPEN. `!musicView` was here
+    // because the box owned the speakers the moment it opened; it does not any
+    // more (musOpen), so a track running out while you are reading the list
+    // walks on exactly as it would with the list shut. `musPreview` above is
+    // the real ownership test and it already answered.
+    if (musicOn) playTrack(nextTrack(1));
   });
   a.addEventListener("error", () => musFail(musSrcGen));
   return a;
@@ -7818,12 +7912,15 @@ function musFail(gen, e) {
   }
   musSkip(gen);
 }
-// PAST THE TRACK, NOT INTO SILENCE.
+// PAST THE TRACK, NOT INTO SILENCE. A dead file steps to the NEXT ROW rather
+// than re-rolling: with the whole catalog in the rotation a re-roll could land
+// on the dead track's neighbour anyway, and stepping is what the player asked
+// the box to do.
 function musSkip(gen) {
   if (gen !== musGen) return;
   music = null;
   if (++musFails >= musGiveUp()) return;   // nothing is reachable: stop trying
-  if (musicOn && !musicView) playTrack(pickTrack());
+  if (musicOn) playTrack(nextTrack(1));
 }
 // THE LOCK SCREEN, THE CAR, AND THE HEADPHONE BUTTON. Matt: "we should have
 // 'next' and 'last' tracks available if we can in the browser, esp if i can go
@@ -7862,10 +7959,17 @@ function musMeta(name) {
 // player's own gesture goes through `musArm` and is never refused: pressing MUS
 // must always mean "try, right now", even on the frame after a failure.
 function musMayAutoPlay() { return !musBlocked && musFails < musGiveUp(); }
-// THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
-// underneath a track you are auditioning - which is what the box's own MUSIC ON
-// button used to do.
-function startMusic() { if (!music && musicOn && !muted && !musicView && musMayAutoPlay()) playTrack(pickTrack()); }
+// THE BENCH OWNS THE SPEAKERS WHILE IT IS PLAYING, so the rotation does not
+// start underneath a track you are auditioning - which is what the box's own
+// MUSIC ON button used to do.
+//
+// THE TEST IS `musPreview`, NOT `musicView`, and that swap is Matt's first ask
+// ("opening the music box shouldn't stop the music from playing"). The box used
+// to claim the speakers by EXISTING - open it and the town went silent, whether
+// or not you ever tapped a row. Ownership belongs to whoever is actually
+// sounding, and `musPreview` is the handle that says so; an open box with
+// nothing auditioned owns nothing.
+function startMusic() { if (!music && !musPreview && musicOn && !muted && musMayAutoPlay()) playTrack(pickTrack()); }
 // THE SAME START, ASKED FOR BY A FINGER. Every caller of this is inside a real
 // tap/click/key handler, and that matters twice over: iOS grants playback only
 // to a play() made SYNCHRONOUSLY inside the gesture, and a gesture is also the
@@ -7887,9 +7991,16 @@ function startMusicTapped() { musArm(); startMusic(); }
 // without the latch, an iOS refusal nulled `music`, the `trackIdx` guard fell
 // open on the next frame, and the title screen spent 127 attempts a second
 // re-requesting a track the phone had already said no to.
+//
+// AND IT YIELDS TO THE BENCH, which it never had to before. The box used to
+// silence the rotation on the way in, so `music` was null and this guard was
+// the only thing standing between the title screen and a second track. Now that
+// an open box leaves the music alone, an audition on the title screen would be
+// stomped by the title theme on the very next frame - `musPlay` nulls `music`,
+// which is exactly the shape of the hole `musMayAutoPlay` was invented to plug.
 function playRole(role) {
   const i = roleTrack(role);
-  if (i < 0 || !musicOn || muted || !musMayAutoPlay()) return;
+  if (i < 0 || !musicOn || muted || musPreview || !musMayAutoPlay()) return;
   if (music && trackIdx === i) return;
   playTrack(i);
 }
@@ -7912,7 +8023,12 @@ function musStep(d) {
   // whole of this function's care: unmuting runs startMusic, which picks a
   // random track and WRITES trackIdx - so stepping afterwards would step from
   // a track nobody chose rather than from the one you were listening to.
-  const to = trackIdx + d;
+  // ...and it steps over the MOMENTS, which it never had to before: the title
+  // theme and the ending sting used to be two rows in a 22-row rotation you
+  // reached only by walking past twenty others. With the whole catalog in the
+  // list they are still exactly two rows, and a next-track button that can land
+  // on thirty-one seconds of "here is how it went" is a broken button.
+  const to = nextTrack(d);
   musicOn = true;
   if (muted) muted = false;              // a skip while muted means "let me hear it"
   musArm();                              // a skip is a gesture: it may unlock what autoplay could not
@@ -7934,7 +8050,7 @@ function musNowRow() {
   const t = ROTATION[trackIdx];
   if (!t) return null;
   if (t.cat) return t.cat;
-  const i = PLAYLIST.findIndex(x => x.name === t.name);
+  const i = PLAYLIST.findIndex(x => x.src === t.src);
   if (i < 0) return null;
   return { id: "p" + i, name: t.name, file: t.src, shipped: 1 };
 }
@@ -23027,6 +23143,84 @@ function toastOffset(s, age) {
   if (!f.over) return 0;
   return Math.max(0, Math.min(f.over, Math.floor(Math.max(0, (age || 0) - TOAST_HOLD) * TOAST_CPS)));
 }
+// ============================================== THE NOW-PLAYING TICKER
+// Matt, 2026-08-26: "need a tiny scrolling ticker w song name in bottom left
+// corner". The rotation is 1,201 tracks now, so "what IS this?" is a question a
+// player will actually have - and the only answers before this were a four-
+// second toast at the moment of the change (gone if you were reading a card)
+// and opening the box.
+//
+// WHERE: the LEFT END OF THE NAV CHIP ROW - y159..167 hard against the left
+// margin, between the shop tooltip's floor (156) and the nav map's ceiling
+// (PANEL_Y-7 = 169). That row is eleven pixels of HUD whose only tenants are
+// MANAGE / TOWN / GUESTS, and those hold the RIGHT end from x214 (see the note
+// at NAV_CHIPS: they were moved there precisely to leave the world alone). The
+// ticker ends at x78, so the two cannot meet at any crew count or canvas
+// height. Derived from NAV_MAP rather than typed, because that whole stack
+// moves with H - VERIFIED at both 240 and 288.
+//
+// CHARACTER-GRAINED, LIKE THE TOAST, and for the same reason: neither the sim's
+// ctx stub nor mcp/canvas.mjs implements ctx.clip(), so a pixel-grained scroll
+// would look right in a browser and be invisible to every test we have. The
+// fonts are fixed-width; slice the string and draw the window.
+//
+// IT LOOPS rather than ping-ponging (the toast's idiom): a toast is a sentence
+// you read once and a ticker is a name that stays true until the track changes,
+// so it wraps through a separator and comes round again.
+const MUS_TICK_W = 76;          // px of strip: 18 characters of 3x5 plus its margins
+const MUS_TICK_CPS = 4;         // characters a second - a readout, not a race
+const MUS_TICK_GAP = "   -   ";
+function musTickRect() { return { x: 2, y: NAV_MAP.y - 10, w: MUS_TICK_W, h: 8 }; }
+function musTickFits() { return Math.floor((MUS_TICK_W - 4) / 4); }
+// THE WINDOW, as a pure function of (name, seconds) so the suite can drive the
+// crawl without a clock. A name that fits does not move at all - a ticker that
+// scrolls "BUTTER POW" for no reason is just a twitch.
+function musTickWindow(name, secs) {
+  const s = String(name || "").toUpperCase();
+  const fits = musTickFits();
+  if (s.length <= fits) return s;
+  const loop = s + MUS_TICK_GAP;
+  const at = Math.floor(Math.max(0, secs) * MUS_TICK_CPS) % loop.length;
+  return (loop + loop).slice(at, at + fits);
+}
+// WHAT IS AUDIBLE, as a name - the bench first, because when you are auditioning
+// a row that is what you can hear. Empty string means nothing is playing, and
+// the ticker draws nothing at all rather than a box saying so.
+function musTickName() {
+  if (musPreview && musPreviewId) {
+    const row = musPool().find(t => t.id === musPreviewId);
+    if (row) return row.name;
+  }
+  if (!music || !musicOn) return "";
+  const t = ROTATION[trackIdx];
+  return t ? t.name : "";
+}
+// THE SURFACE TEST AND THE NAME ARE SEPARATE, and deliberately so: this runs
+// every frame, and `musTickName` can walk the 1,201-row pool to resolve an
+// audition. The cheap screen predicates short-circuit first, and the draw asks
+// for the name ONCE rather than once here and once again on the way out.
+function musTickLive() {
+  return screen === "play" && !gameOver && !helpView && !musicView
+    && !(dossier || manage || boardView || saveView || departT > 0)
+    && !(window.MergeMode && MergeMode.active());
+}
+function drawMusTicker() {
+  if (!musTickLive()) return;
+  const name = musTickName();
+  if (!name) return;              // nothing playing: no strip at all, rather than an empty one
+  const r = musTickRect();
+  // THE PHASE IS WALL TIME, deliberately - `nowMs` rather than `viewT`. viewT is
+  // sim seconds and scales with the speed chips, so at >>>> the name would crawl
+  // four times faster than the song it names. The music plays at wall speed and
+  // so does its label. (nowMs is the guarded reader: a headless sandbox with no
+  // clock gets 0 and a ticker that holds still, which is correct for a surface
+  // no headless run draws.)
+  const shown = musTickWindow(name, nowMs() / 1000);
+  rect(ctx, r.x, r.y, r.w, r.h, [26, 18, 30]);
+  rect(ctx, r.x + 1, r.y + 1, 2, r.h - 2, muted ? [120, 70, 70] : [140, 220, 140]);   // the speaker pip: green when it is sounding
+  smallText(ctx, shown, r.x + 5, r.y + 2, muted ? [160, 140, 140] : [225, 215, 235]);
+}
+
 function drawToast() {
   if (!toast) return;
   const f = toastFit(toast.text);
@@ -24346,6 +24540,7 @@ function viewFrame(dt) {
   drawPanel();
   drawNavChips();      // MANAGE / TOWN sit IN the panel now, so they go on after it
   drawShopTip();       // hangs off the bottom of the world, pointing at the grid it explains
+  drawMusTicker();     // ...and the now-playing name sits under it, bottom-left
   drawHireCard();
   if (!boardView && !manage && !saveView && !dossier && !helpView && departT <= 0) drawToast();   // reading surfaces own the screen
   // ...AND SO DOES THE END, either kind of it: the ferry ending and the
@@ -24464,7 +24659,16 @@ function musLoadCatalog() {
     .then(j => {
       if (!j || !j.tracks) return;
       MUSCAT = j;
-      rebuildRotation();
+      // THE REBUILD WAITS FOR THE SHIPMAP, and that ordering became load-bearing
+      // the moment the whole catalog became the rotation. A role - the title
+      // theme, the ending sting - is carried across by FILE (roleOfFile), and a
+      // catalog row only HAS its same-origin file after musApplyShipmap stamps
+      // it. Rebuilding here, one fetch too early, would put both moments into
+      // the rotation as ordinary rows pointing at the absent archive mirror: the
+      // title screen would go quiet (roleTrack finds nothing) while the shuffle
+      // was free to 404 on a win sting. So musLoadShipmap owns the rebuild, and
+      // it rebuilds however it settles - stamped, 404, or thrown.
+      //
       // THE SHIPPED ROWS MUST KNOW THEY ARE SHIPPED, and this is the whole iOS
       // fix. 22 of these 1,201 rows are tracks this build already carries in
       // music/ - but nothing in the catalog says so, so musSrc sent every one
@@ -24483,9 +24687,17 @@ function musLoadCatalog() {
 }
 // Optional, like the catalog: absent shipmap just means nothing is stamped and
 // every row streams, which is exactly the old behaviour.
+//
+// IT REBUILDS UNCONDITIONALLY NOW - on a stamp, on a 404, and on a throw. It
+// used to rebuild only `if (musApplyShipmap(j))`, which was right when the
+// rotation was 22 shipped rows plus your keeps: an unstamped catalog changed
+// nothing about it. It is wrong now that the catalog IS the rotation, because
+// the rebuild that puts 1,201 rows in the list is the one being skipped, and a
+// build whose shipmap is missing would play the 22 it started with forever.
 function musLoadShipmap() {
   fetch("music/shipmap.json").then(r => (r.ok ? r.json() : null))
-    .then(j => { if (musApplyShipmap(j)) rebuildRotation(); }).catch(() => {});
+    .then(j => { musApplyShipmap(j); rebuildRotation(); })
+    .catch(() => rebuildRotation());
 }
 // THE STAMP IS ITS OWN FUNCTION so the suite can drive it. Left inside the
 // fetch callback it was unreachable from a test - and a scenario that re-typed
@@ -24567,7 +24779,16 @@ function musState(t) { const j = musJudge[t.id]; return j && j.k != null ? j.k :
 function musEnergy(t) {
   const j = musJudge[t.id];
   if (j && j.e != null) return j.e;
-  if (t.shipped) { const p = PLAYLIST.find(x => x.name === t.name); if (p) return p.e; }
+  // BY FILE, NOT BY NAME. The catalog and PLAYLIST disagree about titles for
+  // five of the 22 shipped tracks - mkmusic numbers duplicates ("DANCE UP 5")
+  // and spells out what PLAYLIST abbreviates ("BEACH VOLLEYBALL START SCREEN") -
+  // so a name lookup silently dropped their hand-tagged energy and fell to the
+  // guess. musLoadShipmap stamps `file` to the same same-origin path `src`
+  // holds, which is the one key both sides agree on.
+  if (t.shipped) {
+    const p = PLAYLIST.find(x => x.src === t.file) || PLAYLIST.find(x => x.name === t.name);
+    if (p) return p.e;
+  }
   return null;
 }
 function musFiltered() {
@@ -24595,9 +24816,19 @@ function musStopPreview() {
 // would refuse. The 'ended' and 'error' listeners live on the element and
 // dispatch on who owns it, so there are none to bind here.
 function musPlay(t, toggle = true) {
-  const wasPlaying = musPreviewId === t.id;
+  // TAPPING THE LIT ROW STOPS IT, whoever is driving it. `musPreviewId` was the
+  // whole test while the box silenced the town on the way in - the lit row could
+  // only ever be the bench's. Now the lit row is usually the ROTATION's, and a
+  // tap on it that RESTARTED the song you are already hearing (from the top, on
+  // the bench, as an audition) is not what the gesture means anywhere else in
+  // this box.
+  const rotRow = !musPreviewId && music && musNowRow();
+  const wasPlaying = musPreviewId ? musPreviewId === t.id : !!(rotRow && rotRow.id === t.id);
   musStopPreview();
-  if (toggle && wasPlaying) return;   // tapping the playing row stops it
+  if (toggle && wasPlaying) {
+    if (music) { musGen++; music.pause(); music = null; }   // the rotation's turn to be stopped by a tap
+    return;
+  }
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
   music = null;
@@ -24645,8 +24876,17 @@ function musPrevFail(gen) {
 function musAdvance(d) {
   const list = musFiltered(), n = list.length;
   if (!n) return;
-  let at = list.findIndex(t => t.id === musPreviewId);
-  if (at < 0) at = d > 0 ? -1 : 0;              // nothing playing: start at the top
+  let at = musPreviewId ? list.findIndex(t => t.id === musPreviewId) : -1;
+  // ...AND IT WALKS FROM WHAT THE TOWN IS PLAYING when the bench itself is
+  // silent, which is the case the open box could not produce until now. With
+  // the music still running behind the list, `musPreviewId` is empty and the
+  // arrows used to jump to row 1 of 1,201 - a cursor that teleports away from
+  // the song you can hear. The rotation's own row is the honest starting point.
+  if (at < 0) {
+    const now = musNowRow();
+    if (now) at = list.findIndex(t => t.id === now.id);
+  }
+  if (at < 0) at = d > 0 ? -1 : 0;              // nothing playing at all: start at the top
   const next = ((at + d) % n + n) % n;          // and it wraps, like the rotation does
   musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS),
     next < musTop ? next : next >= musTop + MUS_ROWS ? next - MUS_ROWS + 1 : musTop));
@@ -24705,25 +24945,66 @@ function musClose() {
     trackIdx = rotIndexFor(row);
     return;
   }
-  musStopPreview();
-  if (musicOn && !muted) startMusicTapped();   // nothing was playing: hand the speakers back (BACK is a tap)
+  // NOTHING WAS AUDITIONED, so there is nothing to hand over - and now, nothing
+  // to restart either. The rotation was never stopped on the way in (musOpen),
+  // so a town that was playing when you opened the list is still playing, and
+  // touching it here would restart a track mid-bar for no reason. The only case
+  // left is a box opened over SILENCE and shut again, which is what
+  // startMusicTapped is for; its own `!music` guard makes it a no-op otherwise.
+  if (musPreview) musStopPreview();        // paused mid-audition: let the rotation have them back
+  if (musicOn && !muted) startMusicTapped();
 }
 // WHERE A CHOSEN TRACK SITS IN THE ROTATION, making room for it if it is not
-// there yet. A shipped track is already a row. A catalog track you have not
-// kept is not, so it is spliced in after the cursor for this session rather
-// than being quietly promoted to a KEPT judgement - BACK means "play this",
-// not "remember this", and the two are different promises.
+// there yet.
+//
+// THE SPLICE IS NEARLY DEAD CODE NOW and is kept deliberately. Every catalog row
+// is already a rotation row (rebuildRotation), so the lookup hits for anything
+// you can see in the box, and "the next one in the music box" is a real walk
+// through a real list rather than a one-row detour. The one case left is a row
+// you DROPPED and then chose anyway - the box still lists it under the DROPPED
+// filter, and tapping it plainly means play it. It goes in after the cursor for
+// this session only, rather than being quietly promoted to a KEEP: BACK means
+// "play this", not "un-drop this", and the two are different promises.
+//
+// Matched by catalog ID first: 1,201 rows contain repeated titles, so a name
+// match can find the wrong song.
 function rotIndexFor(row) {
-  const at = ROTATION.findIndex(r => (r.cat && r.cat.id === row.id) || r.name === row.name);
+  let at = ROTATION.findIndex(r => r.cat && r.cat.id === row.id);
+  if (at < 0) at = ROTATION.findIndex(r => r.name === row.name);
   if (at >= 0) return at;
-  const e = musEnergy(row);
-  ROTATION.splice(trackIdx + 1, 0, { cat: row, name: row.name, e: e == null ? 1 : e });
+  const e = rotEnergy(row);
+  ROTATION.splice(trackIdx + 1, 0, { cat: row, name: row.name, e });
   return trackIdx + 1;
 }
+// OPENING THE BOX PLAYS NOTHING AND STOPS NOTHING (Matt, 2026-08-26: "opening
+// the music box shouldn't stop the music from playing").
+//
+// It used to pause the speaker and null the handle on the way in, on the theory
+// that the bench owned the speakers while it was up. The theory was half right -
+// two tracks at once is nobody's idea of vetting - but it charged the whole cost
+// at the door: you opened the list to SEE what was in it and the town went
+// quiet, and it stayed quiet until you tapped a row or hit BACK. Ownership is
+// now taken by the first audition (musPlay pauses the rotation itself) and by
+// nothing else, so the list is free to browse.
+//
+// IT ALSO SCROLLS TO WHAT IS PLAYING, which only became possible once the music
+// survived the door: opening on row 0 of 1,201 while a track plays is a list
+// that has lost your place before you have looked at it.
 function musOpen() {
-  musicView = true; musTop = 0;
-  musGen++;
-  if (music) { music.pause(); music = null; }   // the bench owns the speakers while it is up
+  musicView = true;
+  musTop = 0;
+  musShowNowPlaying();
+}
+// PUT THE PLAYHEAD ON SCREEN. Same window arithmetic musAdvance uses - centred
+// where there is room, clamped at both ends - so the row you can hear is the
+// row you are looking at.
+function musShowNowPlaying() {
+  const row = musNowRow();
+  if (!row) return;
+  const list = musFiltered(), n = list.length;
+  const at = list.findIndex(t => t.id === row.id);
+  if (at < 0) return;
+  musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS), at - ((MUS_ROWS / 2) | 0)));
 }
 function musBarIndex(p, n) {
   const bar = musBarRect();
@@ -24779,6 +25060,7 @@ function drawMusic(ctx) {
     musicOn ? [190, 240, 195] : [200, 170, 170]);
   const kept = musPool().filter(t => musState(t) === 1).length;
   smallText(ctx, kept + " KEPT", musCountRect().x, musCountRect().y + 4, [180, 235, 190]);
+  const now = musNowRow();
   for (let i = 0; i < MUS_ROWS; i++) {
     const t = list[musTop + i];
     if (!t) break;
@@ -24787,7 +25069,11 @@ function drawMusic(ctx) {
     const er = musEnergyRect(i);
     rect(ctx, er.x + 1, er.y + 3, 12, 12, e == null ? [50, 46, 60] : [70, 90, 130]);
     smallText(ctx, e == null ? "-" : String(e), er.x + 5, er.y + 6, [230, 235, 245]);
-    const playing = musPreviewId === t.id;
+    // WHAT IS PLAYING IS LIT WHETHER OR NOT THE BENCH IS DRIVING IT. The box no
+    // longer silences the town on the way in, so the audible row is often the
+    // ROTATION's - and a list that lights nothing while a song plays is a list
+    // that has lost track of it. `now` is computed once outside the loop.
+    const playing = now && now.id === t.id;
     smallText(ctx, fitSmall(t.name, r.w - 66), r.x + 20, r.y + 3,
       playing ? [255, 240, 170] : [225, 220, 235]);
     const secs = t.secs ? Math.floor(t.secs / 60) + ":" + String(t.secs % 60).padStart(2, "0") : "";
