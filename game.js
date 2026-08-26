@@ -11972,11 +11972,22 @@ function afterErrand(c, chain) {
     // is same shop AND SAME NEED. (`c.errand` is written on the same line as
     // `c.errandBiz` in startErrand and nowhere else, so the pair never skews.)
     // The second plate is not a free cure: it is still priced at full retail,
-    // still costs the kitchen a station and an ingredient, and still takes one
-    // of the five queue slots - which is the whole tension and stays paid.
+    // and still costs the kitchen a station and an ingredient.
     const sameStop = e && !free(e) && e.biz === c.errandBiz
       && e.need === (c.errand && c.errand.need);
-    if (e && !e.selfCook && !sameStop && (free(e) || bizOpenNow(e.biz))
+    // ...but THE QUEUE SLOT IS NOT THE CHAINER'S TO TAKE. Measured, 4 seeds x
+    // 12 days: letting the second helping into the line at the ordinary cap
+    // bought +25 crab serves and cost 38 TOURIST serves and 80 ROOM LETS -
+    // basePay -5.7%, and `unhoused` +74/+76 across both 8-seed blocks with
+    // `hotelier` down 3/8 in each. `visRoomFor` caps a line by ALL heads
+    // (`allQ < QUEUE_MAX`), so every chaining local is a guest turned away -
+    // and a guest pays retail, tips, AND rents a bed, where the local pays
+    // retail once. A crab going back for seconds has already been served
+    // today; the tourist at the gangway has not. So the chainer takes a slot
+    // only while one is going spare, and yields the last of the five.
+    const backForMore = e && !free(e) && !e.selfCook && e.biz === c.errandBiz;
+    const roomToChain = !backForMore || queueLen(e.biz) < QUEUE_MAX - 1;
+    if (e && !e.selfCook && !sameStop && roomToChain && (free(e) || bizOpenNow(e.biz))
         && errandDetour(c, e) <= CHAIN_PX) {
       c.chainN = (c.chainN || 0) + 1; c.errandCd = 0;
       if (e.ball) startBallStop(c);
