@@ -11959,7 +11959,23 @@ function afterErrand(c, chain) {
     // pot, the beach ball and the ballot box - and none of them is "the same
     // stop" as a shop counter
     const free = (x) => !!x && (x.ball || x.soup || x.vote || x.tap != null);
-    const sameStop = e && (free(e) ? false : e.biz === c.errandBiz);
+    // ONE SHOP, TWO NEEDS IS NOT A LOOP. This guard used to refuse ANY second
+    // stop at the shop the crab was standing in, which reads right until you
+    // notice the shack sells FOOD AND JUICE off the same counter: a crab who
+    // had just eaten, was thirsty, and was standing in front of a window that
+    // pours got sent home to walk back later. Instrumented over 12 days x two
+    // independent 8-seed blocks, `REFUSED_same_stop:shack:drink` (31 and 25)
+    // was the single largest refusal in the whole chain census - while the
+    // chain fired on 1.5% of errand finishes and 77% of crabs walked away from
+    // a counter with another need already past its own bar.
+    // What the guard MEANS is "don't queue twice for the same thing", and that
+    // is same shop AND SAME NEED. (`c.errand` is written on the same line as
+    // `c.errandBiz` in startErrand and nowhere else, so the pair never skews.)
+    // The second plate is not a free cure: it is still priced at full retail,
+    // still costs the kitchen a station and an ingredient, and still takes one
+    // of the five queue slots - which is the whole tension and stays paid.
+    const sameStop = e && !free(e) && e.biz === c.errandBiz
+      && e.need === (c.errand && c.errand.need);
     if (e && !e.selfCook && !sameStop && (free(e) || bizOpenNow(e.biz))
         && errandDetour(c, e) <= CHAIN_PX) {
       c.chainN = (c.chainN || 0) + 1; c.errandCd = 0;
