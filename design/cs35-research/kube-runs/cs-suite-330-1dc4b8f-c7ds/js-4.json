@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 404148,
+  "verdict": "32/32 passed in slice 4/12 (404.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3440ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1379ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (23ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (3862ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (3163ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1809ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4176ms)\n  PASS  census: rows derive live state, and sort + filter actually move (713ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (17677ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (9341ms)\n  PASS  tip sharing + the table cap roundtrip save/load (495ms)\n  PASS  no surface prints off the canvas (1351ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (245865ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (6822ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1786ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2596ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (750ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (85536ms)\n  PASS  the shop tooltip promises what the button actually does (544ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (10ms)\n  PASS  every track in the playlist is a file that exists (11ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (7251ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (14ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (26ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (2705ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (14ms)\n  PASS  foodways: the validator names its refusals (11ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1098ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (8ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1373ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (180ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (24ms)\n32/32 passed in slice 4/12 (404.1s)\n"
+}

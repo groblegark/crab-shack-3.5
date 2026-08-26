@@ -8487,6 +8487,62 @@ scenario("departures: the manifest is the day's own boat-load, and the money add
   return true;
 });
 
+// A RECORD THAT ADDS UP CAN STILL PRINT THE WRONG NUMBER. The check above
+// validates the manifest's ARITHMETIC - purse = spent + left - and that was
+// true every single day, including the four days the card was visibly wrong.
+// It never read the string on the glass. So when 2e84c1e moved the game to
+// cents and gave `departRecord` a `$d`, the money band kept handing those
+// DOLLARS to `fmt` (which divides by 100 again) and the suite stayed green
+// through a card that printed BROUGHT $7 above its own SPENT $42 OF $71.
+//
+// So: read the band off the DRAWN card, and hold it against the guest rows
+// drawn directly underneath it - the same quantities, in the same units, by
+// construction. A units bug cannot move both and stay consistent.
+scenario("departures: the money band prints the manifest's own dollars", () => {
+  const sim = createSim({ seed: 42 });
+  sim.runUntil(`report && reportT > 0 && (today.left || []).length > 0`, { maxSteps: 800000 });
+  if (!sim.G(`departQ`)) return "settlement built no manifest";
+  const got = JSON.parse(sim.G(`(() => {
+    const q = departQ;
+    depart = q; departT = 11; departPage = 0;
+    const seen = [];
+    const T = text, S = smallText;
+    text = (c, s2, x, y, col, sz) => { seen.push(String(s2)); return T(c, s2, x, y, col, sz); };
+    smallText = (c, s2, x, y, col) => { seen.push(String(s2)); return S(c, s2, x, y, col); };
+    try { drawDepart(); } finally { text = T; smallText = S; }
+    const one = (re) => { const m = seen.map(s => s.match(re)).filter(Boolean); return m.length === 1 ? +m[0][1] : null; };
+    // the per-guest rows on this page, which print the SAME quantities and
+    // have never been run through the cents divisor
+    const rows = seen.map(s => s.match(/SPENT \\$(\\d+) OF \\$(\\d+)/)).filter(Boolean)
+      .map(m => ({ spent: +m[1], purse: +m[2] }));
+    return JSON.stringify({
+      brought: one(/^BROUGHT \\$(\\d+)$/), spent: one(/^SPENT \\$(\\d+)$/), home: one(/^TOOK HOME \\$(\\d+)$/),
+      recPurse: q.purse, recSpent: q.spent, recLeft: q.left, rows, pages: departPages(),
+    });
+  })()`));
+  for (const k of ["brought", "spent", "home"])
+    if (got[k] == null) return `the drawn card has no single ${k.toUpperCase()} figure`;
+  // 1. the band is the manifest, undivided
+  if (got.brought !== got.recPurse || got.spent !== got.recSpent || got.home !== got.recLeft)
+    return `the band misprints the manifest: BROUGHT ${got.brought}/${got.recPurse},`
+      + ` SPENT ${got.spent}/${got.recSpent}, TOOK HOME ${got.home}/${got.recLeft}`;
+  // 2. ...and it still adds up once printed
+  if (got.spent + got.home !== got.brought)
+    return `the printed band does not add up: ${got.spent} + ${got.home} != ${got.brought}`;
+  // 3. THE UNITS CHECK. One page of guests cannot have spent more than the
+  //    whole boat did - and if the band were divided by 100 again, it would.
+  if (!got.rows.length) return "the drawn card printed no guest rows to check the band against";
+  const pageSpent = got.rows.reduce((n, r) => n + r.spent, 0);
+  const pagePurse = got.rows.reduce((n, r) => n + r.purse, 0);
+  if (pageSpent > got.spent || pagePurse > got.brought)
+    return `the band is in different units from its own rows: page ${pageSpent}/${pagePurse}`
+      + ` vs band ${got.spent}/${got.brought}`;
+  // a single-page card is the whole boat, so the two must match exactly
+  if (got.pages === 1 && (pageSpent !== got.spent || pagePurse !== got.brought))
+    return `a one-page card disagrees with its own total: ${pageSpent}/${got.spent}, ${pagePurse}/${got.brought}`;
+  return true;
+});
+
 scenario("departures: the card waits behind the day report, then pages itself", () => {
   const sim = createSim({ seed: 42 });
   sim.runUntil(`report && reportT > 0 && (today.left || []).length > 4`, { maxSteps: 800000 });
@@ -13492,6 +13548,15 @@ scenario("civics eligibility: a hostile franchise is refused by name at the door
     badLD: boar({ vote: V, stand: [["LD", "wealth"]] }),
     badOp: boar({ vote: V, stand: [["FROB", 1]] }),
     notPred: boar({ vote: V, stand: [["LD", "npc"], ["PUSHI", 7], ["ADD"]] }),   // can reach 8
+    // CLAMP-laundered predicate (kd-6NKxmSvlpP): clamp(0, npc*50, npc) returns the
+    // LO operand npc*50 at runtime, so it reads 50 for a townsfolk - NOT a
+    // predicate. The old CLAMP static [min(a0,b0), max(a1,c1)] collapsed it to
+    // [0,1] and this slid past the 0/1 gate; the sound hull bounds it [0,50] and
+    // the gate names it. WIDEN the CLAMP interval back and this stops refusing.
+    clampLaunder: boar({ vote: V, stand: [["PUSHI", 0], ["LD", "npc"], ["PUSHI", 50], ["MUL"], ["LD", "npc"], ["CLAMP"]] }),
+    // ...and a GENUINE clamp predicate - clamp(npc, 0, 1), the honest way to pin a
+    // read to 0/1 - must still be ACCEPTED, so the fix refuses launderers, not CLAMP.
+    clampGood: boar({ vote: V, stand: [["LD", "npc"], ["PUSHI", 0], ["PUSHI", 1], ["CLAMP"]] }),
   };
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
     const docs = ${JSON.stringify(docs)};
@@ -13513,6 +13578,8 @@ scenario("civics eligibility: a hostile franchise is refused by name at the door
   if (!/NOT A BUNDLE ROW/.test(String(v.badLD))) return "a typo'd LD name slid in: " + v.badLD;
   if (!/NOT AN L1 OP/.test(String(v.badOp))) return "an unknown op slid in: " + v.badOp;
   if (!/NOT A 0\/1 PREDICATE/.test(String(v.notPred))) return "a program that can return 8 slid in as a predicate: " + v.notPred;
+  if (!/NOT A 0\/1 PREDICATE/.test(String(v.clampLaunder))) return "a CLAMP-laundered program that returns 50 slid in as a predicate: " + v.clampLaunder;
+  if (v.clampGood !== null) return "a genuine clamp(npc,0,1) predicate was refused: " + v.clampGood;
   return true;
 });
 
@@ -15341,6 +15408,12 @@ scenario("layer 1: the golden programs answer to the pin, and the pin is the law
     { p: [["LD", 1], ["TERM"]], want: 42 },
     // a plausible family-3 shape: (y - 20) clamped to [0,30], scaled 345
     { p: [["LD", 1], ["PUSHI", 20], ["SUB"], ["PUSHI", 0], ["PUSHI", 30], ["CLAMP"], ["PUSHI", 345], ["MUL"]], want: 7590 },
+    // CLAMP soundness (kd-6NKxmSvlpP): the runtime is `a<b?b:a>c?c:a`, so when the
+    // LO operand climbs ABOVE the HI operand the result is the LO - the case the
+    // old static interval [min(a0,b0), max(a1,c1)] never contained. Here lo=y=42,
+    // hi=1, so clamp(0, 42, 1) returns 42. A "fix" that narrows the runtime to
+    // match the old static turns this red.
+    { p: [["PUSHI", 0], ["LD", 1], ["PUSHI", 1], ["CLAMP"]], want: 42 },
   ];
   const got = JSON.parse(sim.G(`(() => {
     const bundle = [{ name: "x", min: -1000, max: 1000 }, { name: "y", min: 0, max: 100 }, { name: "z", min: -50, max: 50 }];
@@ -15380,6 +15453,24 @@ scenario("layer 1: hostile programs are refused by name, before anything runs", 
   //    anything >= 1 and this goes red. Between them the constant cannot move.
   const magAtBound   = [["PUSHI", 67108864], ["PUSHI", 67108864], ["MUL"]];                            // 2^26 * 2^26 == 2^52
   const magOverByOne = [["PUSHI", 67108864], ["PUSHI", 67108864], ["MUL"], ["PUSHI", 1], ["ADD"]];     // 2^52 + 1
+  // A SECOND BRACKETING PAIR, guarding the CLAMP interval (kd-6NKxmSvlpP). The
+  // runtime clamp is `a<b?b:a>c?c:a`, so it can return the LO operand b - which
+  // the old static [min(a0,b0), max(a1,c1)] never consulted at its high end.
+  // That laundered a wide read into a narrow interval, slipping the 2^52 rail.
+  //  - clampLaunder builds clamp(0, y, 1): OLD static collapsed to [0,1] no
+  //    matter y's range, so this MUL chain read [0,1]^8 and was ACCEPTED while
+  //    the runtime crossed 2^52 (y=100 -> 100^8 = 1e16). With the sound hull
+  //    [min(a0,b0,c0), max(a1,b1,c1)] the CLAMP bound is [0,100] and the eighth
+  //    MUL is REFUSED naming PAST 2^52. WIDEN the CLAMP interval back and this
+  //    goes green-when-it-must-be-red.
+  //  - clampGenuine is the shipped shape - clamp(y, 0, 10) with PUSHI lo/hi -
+  //    and must stay ACCEPTED with a tight [0,100] bound: the fix narrows no
+  //    real use. NARROW the CLAMP hull wrongly (drop b1/c0) and it still passes,
+  //    so the accept side alone is not the guard - the launder refuse side is.
+  const launderY = [["PUSHI", 0], ["LD", 1], ["PUSHI", 1], ["CLAMP"]];     // clamp(0, y, 1): runtime y, old static [0,1]
+  const clampLaunder = [];
+  for (let k = 0; k < 8; k++) { clampLaunder.push(...launderY); if (k) clampLaunder.push(["MUL"]); }   // launderY^8
+  const clampGenuine = [["LD", 1], ["PUSHI", 0], ["PUSHI", 10], ["CLAMP"]];   // the shipped shape, stays [0,100]
   const cases = [
     { p: [["FOO"]], re: /NOT AN L1 OP/ },
     { p: longProg, re: /257 OPS, MAX 256/ },
@@ -15393,6 +15484,8 @@ scenario("layer 1: hostile programs are refused by name, before anything runs", 
     { p: magProg, re: /PAST 2\^52/ },
     { p: magOverByOne, re: /PAST 2\^52/ },      // 2^52 + 1: the tight refuse side of the pin
     { p: magAtBound, re: /^ACCEPTED$/ },        // 2^52 exactly: the load-bearing accept side
+    { p: clampLaunder, re: /PAST 2\^52/ },      // CLAMP cannot launder a wide read past the rail
+    { p: clampGenuine, re: /^ACCEPTED$/ },      // ...and the shipped clamp shape is untouched
     { p: [["PUSHI", 1], ["PUSHI", 2]], re: /MUST END WITH ONE VALUE, ENDS WITH 2/ },
     { p: [["PUSHI", 1], ["TERM"], ["PUSHI", 2], ["ADD"]], re: /TERM AT OP 1 - TERM CLOSES A PROGRAM/ },
     { p: [], re: /A PROGRAM WITH NO OPS/ },

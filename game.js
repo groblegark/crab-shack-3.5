@@ -7267,7 +7267,24 @@ const sfx = {
 
 // ---------------------------------------------------------------- economy
 function fmt(c) {   // cents in, whole dollars out - every caller is money
-  let n = $d(c);
+  return fmtD($d(c));
+}
+// ...and the same abbreviation for a number that is ALREADY dollars.
+//
+// THE REGRESSION THIS EXISTS TO PREVENT. The card shipped CORRECT on 2026-08-20
+// - the devlog screenshot reads BROUGHT $1190 / SPENT $368 / TOOK HOME $822.
+// Then 2e84c1e ("every balance is integer cents") moved the whole game to cents
+// and gave `departRecord` a `$d` on the way in, so the row speaks DOLLARS -
+// every reader of it is a voice line or a printed label. It converted the
+// PER-GUEST rows correctly and left the money band calling `fmt`, which divides
+// by 100 again. For four days the card contradicted itself on its own face:
+// BROUGHT $7 sitting directly above SPENT $42 OF $71.
+//
+// The unit that a `fmt` protects is invisible at the call site - `fmt(x)` looks
+// right whatever x is - so the guard is a SECOND DOOR with the unit in its
+// name, and a scenario that reads the DRAWN string. The old scenario checked
+// the record's arithmetic, which was right the whole time.
+function fmtD(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
   if (n >= 1e4) return (n / 1e3).toFixed(1) + "K";
   return String(n);
@@ -7601,7 +7618,16 @@ function l1Assemble(prog, bundle) {
       }
       case "MIN": b = pop(); a = pop(); st.push([Math.min(a[0], b[0]), Math.min(a[1], b[1])]); break;
       case "MAX": b = pop(); a = pop(); st.push([Math.max(a[0], b[0]), Math.max(a[1], b[1])]); break;
-      case "CLAMP": c = pop(); b = pop(); a = pop(); st.push([Math.min(a[0], b[0]), Math.max(a[1], c[1])]); break;
+      // runtime is `a < b ? b : a > c ? c : a` - the result is always one of
+      // {a, b, c}, so the sound over-approximation is the hull of all three.
+      // The old [min(a0,b0), max(a1,c1)] never consulted b's HIGH end nor c's
+      // LOW end, so when the lo operand's interval reached ABOVE the hi
+      // operand's the runtime returned lo, a value the static interval did not
+      // contain - which laundered a wide read into a narrow [0,1] and slipped
+      // past both the 0/1 predicate gate and the 2^52 magnitude rail. Still
+      // tight for the normal case where lo/hi are PUSHI constants (every
+      // shipped use), so no existing bound narrows.
+      case "CLAMP": c = pop(); b = pop(); a = pop(); st.push([Math.min(a[0], b[0], c[0]), Math.max(a[1], b[1], c[1])]); break;
       case "ABS": a = pop(); st.push([a[0] <= 0 && a[1] >= 0 ? 0 : Math.min(Math.abs(a[0]), Math.abs(a[1])), Math.max(Math.abs(a[0]), Math.abs(a[1]))]); break;
       case "NEG": a = pop(); st.push([-a[1], -a[0]]); break;
       case "LT": case "LE": case "EQ": case "AND": case "OR": pop(); pop(); st.push([0, 1]); break;
@@ -21031,8 +21057,10 @@ function drawDepart() {
   // incentive since the visitor pass and has never once been printed anywhere.
   // Here it is, every night, in the player's own arithmetic.
   {
-    const a = "BROUGHT $" + fmt(D.purse), b = "SPENT $" + fmt(D.spent),
-      c = "TOOK HOME $" + fmt(D.left);
+    // fmtD, not fmt: the manifest speaks DOLLARS already (departRecord runs
+    // $d on the way in), and fmt would divide by 100 a second time.
+    const a = "BROUGHT $" + fmtD(D.purse), b = "SPENT $" + fmtD(D.spent),
+      c = "TOOK HOME $" + fmtD(D.left);
     smallText(ctx, a, x + 6, y + 25, [110, 100, 110]);
     smallText(ctx, b, x + 86, y + 25, [40, 110, 60]);
     smallText(ctx, c, x + w2 - 6 - smallTextWidth(c), y + 25,

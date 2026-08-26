@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "js-3",
+  "index": 3,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 121376,
+  "verdict": "32/32 passed in slice 3/12 (121.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (3366ms)\n  PASS  save/load roundtrip preserves state (1516ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1442ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1379ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (1348ms)\n  PASS  days off: everyone rests their weekday and plays customer (6820ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (415ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1200ms)\n  PASS  sale: the player buys a failed business through the shopfront (3004ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7003ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (38848ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1144ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (18074ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2813ms)\n  PASS  the fund is struck to the bill and does not hoard (1334ms)\n  PASS  departures: three ways to be turned away are three different counters (176ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1402ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1820ms)\n  PASS  the HALL tab's text is measured, in every state it has (5297ms)\n  PASS  the shack says where the money comes from, and only your shops do (871ms)\n  PASS  the music controls answer from outside the record box (30ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (4322ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (92ms)\n  PASS  civics stakes: a hostile table is refused by name (18ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (9176ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (14ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (36ms)\n  PASS  seam: the view is a reader - two renders move nothing (149ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (8ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (7952ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (169ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (38ms)\n32/32 passed in slice 3/12 (121.3s)\n"
+}

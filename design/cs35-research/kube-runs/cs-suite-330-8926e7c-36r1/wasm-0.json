@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-8926e7c-36r1",
+  "armId": "wasm-0",
+  "index": 12,
+  "sha": "8926e7c76b412e9b2d18c0f35bac09386624bc59",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 77256,
+  "verdict": "33/33 passed in slice 0/12 (77.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (28743ms)\n  PASS  disease: sustained neglect breeds sickness (2075ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (283ms)\n  PASS  all crew dead: town survives, rehire recovers (545ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (447ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (315ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (14567ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (347ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (2021ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (922ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (12ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (739ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (9ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (934ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (861ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (33ms)\n  PASS  departures: a display card moves nothing in the town (1249ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (2503ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (406ms)\n  PASS  the hire card runs on the wall clock, not the game clock (577ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (241ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (5619ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (16ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (7931ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (12ms)\n  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (19ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (14ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (1301ms)\n  PASS  saves: a ver-3 envelope is the zero delta (643ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (9ms)\n  PASS  science: the seed is the town - a different one lives differently (3707ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (15ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (49ms)\n33/33 passed in slice 0/12 (77.2s)\n"
+}

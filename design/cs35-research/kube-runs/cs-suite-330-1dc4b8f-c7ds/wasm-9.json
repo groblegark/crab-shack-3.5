@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "wasm-9",
+  "index": 21,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 87443,
+  "verdict": "32/32 passed in slice 9/12 (87.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (399ms)\n  PASS  npc: SUDSY dines at the player shack (2241ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (162ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (592ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (16ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (11ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (3313ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (2573ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (14474ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (15753ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1560ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (445ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (78ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (3184ms)\n  PASS  the town hall survives a save and a reload, ledger and all (2663ms)\n  PASS  departures: every character the card prints exists in the font (660ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2138ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (42ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (264ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (284ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (2272ms)\n  PASS  traits: the island's table is the literal, value for value (7ms)\n  PASS  depart programs: a hostile table is refused by name (8ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (23875ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (262ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (295ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (285ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (2288ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1523ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (3324ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1247ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1083ms)\n32/32 passed in slice 9/12 (87.3s)\n"
+}

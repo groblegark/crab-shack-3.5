@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 144862,
+  "verdict": "32/32 passed in slice 7/12 (144.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (4836ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1812ms)\n  PASS  slots: the preview card reflects the town it came from (1929ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (34ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (101ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (124ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (10050ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (12ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (15954ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (9830ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (856ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (1093ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (3205ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2579ms)\n  PASS  the mayor wears the hat, and nobody else ever does (1018ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (7ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (4135ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (2001ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (679ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (71084ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (3702ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (16ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (36ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (7ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (667ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (78ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (879ms)\n  PASS  brains: a live brain spends the script's own draws, no more (4211ms)\n  PASS  the title screen ages the build, and keeps ticking (14ms)\n  PASS  load: the same envelope lands the same way however often you land it (2032ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1765ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (9ms)\n32/32 passed in slice 7/12 (144.8s)\n"
+}

@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-5e56b33-g33o",
+  "armId": "wasm-9",
+  "index": 21,
+  "sha": "5e56b33f6927755e7319baa76b31e88960c13aa7",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 58455,
+  "verdict": "32/32 passed in slice 9/12 (58.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (379ms)\n  PASS  npc: SUDSY dines at the player shack (2358ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (177ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (589ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (16ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (11ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (3190ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (2486ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (13527ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (15298ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1167ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (423ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (92ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (2708ms)\n  PASS  the town hall survives a save and a reload, ledger and all (2492ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1301ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (1780ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (480ms)\n  PASS  the help card fits the card, in the font the card is printed in (10ms)\n  PASS  the title screen credits the track that is actually queued (14ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (993ms)\n  PASS  idle quips: the island's table is the literal, key for key (7ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (68ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (10ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (698ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (1201ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (242ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (1424ms)\n  PASS  the kernel and the reference agree, byte for byte (1800ms)\n  PASS  load: the new town's desk is clear of the last town's books (2669ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (13ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (727ms)\n32/32 passed in slice 9/12 (58.4s)\n"
+}
