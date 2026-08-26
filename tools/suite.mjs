@@ -2578,6 +2578,24 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // the cross-check that this is the ruled town and not a fixture bug (rule 6).
     // Re-pointed LAST, after every other fixture on this tree was corrected.
     //
+    //
+    // RE-BASELINED AGAIN for IDLE HANDS' DAY-1 FIX (the boredom trickle),
+    // merged on top of visitors-choose-depart, and ATTRIBUTED rather than
+    // observed: arming the trickle's own boredidle hatch on these seeds puts
+    // the wander count back where it was. Before the fix a crab could not
+    // reach WANDER_AT until day 5 BY ARITHMETIC - boredom arrives in +0.20
+    // shift-end lumps against a 0.6 bar - so every save's first four days had
+    // a motionless crab at a dead counter. Now an empty counter gets her off
+    // the wall on day 1, which is the whole point. What moves:
+    //   * POSITIONS, for exactly the crabs who are off-post, and every one of
+    //     them is standing at a WANDER_SPOT - not a locomotion regression.
+    //   * COINS/SERVES/CATCH re-roll off the shifted stream. The rng pin below
+    //     re-points by VALUE with its own two-way attribution: the draw
+    //     STRUCTURE is intact, the trickle simply ADDS wander draws.
+    // Unlike visitors-choose-depart, this moves BOTH seeds - a crab standing
+    // at a dead counter is not a narrow trigger, it is every shift in town.
+    // Seed 4242 still matches the cultureways-save pin below TO THE CENT
+    // (coins 21117, REEF 25686) - one town, two readers (rule 6).
     // RE-BASELINED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
     // kd-I9fjOBARav). Departure time stopped being fixed at spawn: on the same
     // free thought a guest weighs whether the trip is worth prolonging, reading
@@ -2598,12 +2616,12 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // to the cent (coins 19570, rep 44141, REEF 25688) - one town, two readers,
     // the cross-check that this is the real town and not a fixture bug (rule 6).
     // Arm-off: window._nodepart / --nodepart restores the spawn-fixed leaveT.
-    1337: '{"day":3,"tmin":0,"coins":24115,"rep":41045,"catch":4,"serves":43,"crabServes":3,"rage":5,"till":18077,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18077],["REEF",24599],["SALTY",100],["DRIFT",1000],["KELP",300]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,167],[425,167.2]]}',
+    1337: '{"day":3,"tmin":0,"coins":20319,"rep":42414,"catch":4,"serves":45,"crabServes":3,"rage":2,"till":17885,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17885],["REEF",26986],["SALTY",200],["DRIFT",300],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,167],[291.7,167.2]]}',
     // 4242 is UNMOVED - byte-identical to the pre-change tree - and still the
     // shared cross-check with the cultureways-save pin: coins 19570, rep 44141,
     // REEF 25688 read identically there, proving one trajectory measured by two
     // scenarios. That this seed did not move is the proof the trigger is narrow.
-    4242: '{"day":3,"tmin":0,"coins":19570,"rep":44141,"catch":4,"serves":44,"crabServes":5,"rage":4,"till":19055,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19055],["REEF",25688],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[450,155]]}',
+    4242: '{"day":3,"tmin":0,"coins":21117,"rep":42608,"catch":4,"serves":43,"crabServes":4,"rage":5,"till":18076,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18076],["REEF",25686],["SALTY",300],["DRIFT",400],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[450,155],[248,154]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -4601,6 +4619,83 @@ scenario("idle hands: a bored crab leaves its post - and an order brings it back
     return "the wander outlived the order that ended it";
   if (!sim.runUntil(`crabs.some(c => c.p.name === window._w && Math.abs(c.x - ${post}) < 80)`, { maxSteps: 300000 }))
     return "the wanderer never walked back to the kitchen";
+  return true;
+});
+
+// THE ONE-LUMP-A-DAY BOUND. This is the gate that carries the whole claim that
+// the idle trickle costs the balance nothing: BORED_IDLE only ever DRAWS DOWN
+// the +0.20 the shift settlement was going to charge anyway, so no crab may
+// gain more than one lump of boredom in a day. That bound is what keeps the
+// walk-out ladder (WALKOUT_AT for WALKOUT_DAYS running) where it was tuned.
+//
+// It is a gate rather than a comment because the bound broke THREE times while
+// this was being written, each time through a different path and never in a way
+// the freeze measurement could see - boredom only ever climbed FASTER, which
+// looks like the fix working:
+//   1. clearing the advance at CLOCK-IN: a crab who breaks for an errand and
+//      clocks back in drew a second full advance (REEF, +0.40 in a day);
+//   2. clearing it in the NIGHTLY block: that block fires at tmin 20:00 and
+//      REEF's shift runs to 20:30, so the reset landed MID-SHIFT and the
+//      settlement double-charged half an hour later - same +0.40;
+//   3. not clearing it at all: a crab called sick mid-shift kept an unrepaid
+//      advance forever, which CANCELLED later lumps (SALTY froze at 0.54 for
+//      four days) - the same accounting error with the sign flipped.
+// Every one of those is invisible to "is she still frozen?" and obvious here.
+scenario("idle hands: the boredom trickle is an ADVANCE - never more than one lump a day", () => {
+  const sim = createSim({ seed: 21 });
+  idleTown(sim, 3);
+  // Watch every crab's boredom for a few days and bank the POSITIVE deltas per
+  // crab-day. Only two things in the game ADD boredom (the shift-end lump and
+  // the idle trickle); chat, the ball and the arcade all subtract. So the sum
+  // of a crab-day's rises is exactly what the day charged it.
+  sim.G(`window._iv = { prev: {}, acc: {}, day: 0, worst: 0, who: "" };
+    window._ivTick = function () {
+      const V = window._iv;
+      if (day !== V.day) {
+        for (const n in V.acc) if (V.acc[n] > V.worst) { V.worst = V.acc[n]; V.who = n + " d" + V.day; }
+        V.acc = {}; V.day = day;
+      }
+      for (const c of allCrabs()) {
+        const n = c.p.name, b = c.p.bored || 0, p = V.prev[n];
+        if (p != null && b > p) V.acc[n] = (V.acc[n] || 0) + (b - p);
+        V.prev[n] = b;
+      }
+    };`);
+  sim.runDays(5, { onTick: (g) => g("window._ivTick()"), tickEvery: 1 });
+  const worst = sim.G(`window._iv.worst`), who = sim.G(`window._iv.who`);
+  const lump = qn(0.2);
+  if (worst > lump)
+    return `a crab gained ${(worst / 1048576).toFixed(4)} boredom in ONE day (${who}); ` +
+      `the shift-end lump is ${(lump / 1048576).toFixed(4)} and the trickle must only draw against it`;
+  // ...and the trickle must actually BE doing something, or this gate passes for
+  // the wrong reason (it would also pass with the whole feature deleted).
+  if (worst <= 0) return "no crab gained any boredom at all in 5 days - fixture drifted";
+  return true;
+});
+
+// ...and the bar it feeds. WANDER_AT sits BELOW one shift's lump on purpose:
+// the advance can move at most +0.20 in a day, so any bar above that leaves a
+// save's first day arithmetically frozen no matter how fast the trickle runs -
+// which was the bug (16/16 seeds took their worst freeze on day 1). This gate
+// states the arithmetic so a future re-tune of either number has to notice.
+scenario("idle hands: a crab can be restless on DAY ONE (the bar is under one lump)", () => {
+  const sim = createSim({ seed: 21 });
+  const wanderAt = sim.G(`WANDER_AT`), advMax = sim.G(`BORED_ADV_MAX`);
+  if (!(wanderAt <= advMax))
+    return `WANDER_AT ${(wanderAt / 1048576).toFixed(3)} is above one day's reachable ` +
+      `boredom ${(advMax / 1048576).toFixed(3)} - day 1 is frozen again by arithmetic`;
+  // and the display bar stays where the walk-out warning was tuned, so a mild
+  // drift off-post does not dress a crab up as ready to quit
+  const restlessAt = sim.G(`RESTLESS_AT`), walkoutAt = sim.G(`WALKOUT_AT`);
+  if (!(restlessAt > wanderAt && restlessAt < walkoutAt))
+    return `RESTLESS_AT ${(restlessAt / 1048576).toFixed(3)} must sit between the wander bar ` +
+      `and WALKOUT_AT ${(walkoutAt / 1048576).toFixed(3)}`;
+  // ...and it must actually FIRE on day 1 in a real town, not merely be legal.
+  idleTown(sim, 2);
+  if (!sim.runUntil(`day > 1 || (window._stats.wanders || 0) > 0`, { maxSteps: 400000 }))
+    return "ran out of steps before day 1 ended";
+  if (sim.G(`day`) > 1 && !sim.G(`window._stats.wanders || 0`))
+    return "no crab wandered off once in the whole of day 1 - the freeze is back";
   return true;
 });
 
@@ -8418,7 +8513,15 @@ scenario("an election is held on the week, and every voter is accounted for", ()
     return `${p.lines.length} written reasons for ${p.turnout} voters`;
   const win = p.cands.find(k => k.name === p.winner);
   if (!win) return "the winner is not on their own ballot";
-  for (const k of p.cands) if (k.votes > win.votes) return `${k.name} outpolled the winner`;
+  // ...and the top-polling crab takes it, UNLESS they are no longer in town to
+  // take it. A ballot is printed the night before the poll and this town has
+  // universal mortality, so a candidate can be outpolled-but-seated only when
+  // everybody above them died or quit between the printing and the count (see
+  // the count in game.js). The exception is asserted, not waved through:
+  // anybody who beat the winner has to be genuinely GONE from the roster.
+  const here = new Set(JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => c.p.name))`)));
+  for (const k of p.cands)
+    if (k.votes > win.votes && here.has(k.name)) return `${k.name} outpolled the winner`;
   if (sim.G("hall.mayor") !== p.winner) return "the winner did not take the office";
   return true;
 });
@@ -10256,7 +10359,21 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // the same night, the same crabs, with the beds the mayor could have signed
   // for. Nobody is on the step. "Somebody slept rough" on its own is true of
   // any tired town; "somebody slept rough FOR WANT OF A BED" is this feature.
-  sim.G(`dorm.beds = cotRoster().length - 4; for (const c of allCrabs()) c.p.rough = false;`);
+  // THE COUNTER-ARM MUST GRANT THE BEDS **AND** KEEP THE DOOR UNBOLTED, and the
+  // second half was missing. sleepRough has TWO want-of-shelter causes -
+  // `!hasCot(c)` and `shelterShut()` - and this arm only ever controlled the
+  // first. It ran three game-days past the settlement it started from, which is
+  // long enough for the fund to miss the shelter's rent three times and for Mr.
+  // Pincherton to bolt the door; then every crab slept out WITH A BED EACH and
+  // the arm read that as the beds not working. Measured: at the failure the
+  // roster was 4 against 5 beds and hasCot was TRUE for every crab on the step -
+  // shelterShut was the whole story. (And it is a fixture artifact, not a
+  // regression: over 6 seeds x 14d the town takes ZERO shelter shuts either
+  // side of this change.) So the arm pins the door open, the same way it already
+  // pins the exhaustion channel, and for the same reason - it exists to measure
+  // want-of-a-BED alone.
+  sim.G(`dorm.beds = cotRoster().length - 4; for (const c of allCrabs()) c.p.rough = false;
+    townFund.shut = 0; townFund.strikes = 0; townFund.arrears = 0;`);
   if (sim.G("shelterBeds()") !== roll) return "the bought beds did not stand";
   sim.runUntil("tmin < 1 * 60", { maxSteps: 400000 });
   sim.G(`{ for (const c of cotRoster()) { c.p.rough = false; c.x = SHELTER_X + 20; c.y = 155; setT(c, c.x, c.y); } }`);
@@ -10267,8 +10384,9 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // work late and keel over honestly; pinned, the only rough left is bedless.
   // MUTATION-TESTED below: with the beds revoked the same pinned night fails.
   if (!sim.runUntil(bedtime, { maxSteps: 400000,
-    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); }'),
+    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); } townFund.shut = 0; townFund.strikes = 0;'),
     tickEvery: 40 })) return "the counter-arm's roll never got home to the shelter";
+  if (sim.G("shelterShut()")) return "the counter-arm's shelter got bolted - it measures want-of-a-bed, not want-of-rent";
   const out2 = JSON.parse(sim.G(`JSON.stringify(cotRoster().map(c => [c.p.name, !!c.p.rough]))`));
   const rough2 = out2.filter(r => r[1]).map(r => r[0]);
   if (rough2.length) return "a bed each and " + rough2.join(",") + " still slept outside";
@@ -12448,18 +12566,25 @@ scenario("a platform that WINS actually reaches the office, floor and all", () =
     const want = { mech: "levy", rate: 3, bowls: 4, wage: 3, cap: 2 };
     ballotBox = { day, printed: 9, papers: 0, shut: true, declared: false, roll: 6,
       voters: {}, counted: 0, turnedAway: [], lines: [],
-      cands: [{ name: "CORAL", plat: want, votes: 7 },
+      // THE WINNER MUST BE A CRAB WHO IS ACTUALLY IN TOWN. The count now drops
+      // any candidate who is no longer on the roster - a ballot is printed the
+      // night before the poll and a candidate can die or quit before it is
+      // counted, and a departed crab cannot take the office. "CORAL" was a
+      // name this fixture invented, so it was correctly refused; the claim
+      // being tested is about DIALS reaching the office, not about who, so the
+      // winner is now a real resident and the platform rides on them.
+      cands: [{ name: allCrabs()[0].p.name, plat: want, votes: 7 },
               { name: "DRIFT", plat: { mech: "tin", rate: 1, bowls: 0, wage: 0, cap: 0 }, votes: 2 }],
       // A REAL BOX, because declarePoll's first guard is an EMPTY one: no
       // papers cast means nobody got there and the incumbent keeps the hat, so
       // a fixture with a tally and no ballots declares nothing at all.
-      cast: [0,1,2,3,4,5,6].map(i => ({ voter: "V" + i, pick: "CORAL" }))
+      cast: [0,1,2,3,4,5,6].map(i => ({ voter: "V" + i, pick: allCrabs()[0].p.name }))
         .concat([{ voter: "V7", pick: "DRIFT" }, { voter: "V8", pick: "DRIFT" }]) };
     declarePoll();
-    return JSON.stringify({ want, got: hall.policy, mayor: hall.mayor,
+    return JSON.stringify({ want, got: hall.policy, mayor: hall.mayor, winner: ballotBox.cands[0].name,
       line: policyLine(hall.policy), floor: minWage(), wantFloor: floorOf(want) });
   })()`));
-  if (got.mayor !== "CORAL") return "the count did not seat the winner, it seated " + got.mayor;
+  if (got.mayor !== got.winner) return "the count did not seat the winner, it seated " + got.mayor;
   for (const k of ["mech", "rate", "bowls", "wage", "cap"])
     if (got.got[k] !== got.want[k])
       return `the winner ran on ${k}=${JSON.stringify(got.want[k])} and the office got ` +
@@ -14941,9 +15066,19 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // moved pixel. The cross-check with the frozen day-2 fingerprint's 4242 seed
   // is EXACT and unchanged (coins 19570, rep 44141, REEF 25688) - one town, two
   // scenarios, and both agree it did not move.
-  const want = '{"day":3,"coins":19570,"rep":44141,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,19055],["REEF",2136,25688],["SALTY",2072,100],'
-    + '["DRIFT",318,0],["KELP",450,700]],"vis":7,"catch":4}';
+  // ...AND NOW IT DOES MOVE, for IDLE HANDS' DAY-1 FIX (the boredom trickle),
+  // which unlike visitors-choose-depart is not a narrow trigger: a crab standing
+  // at a dead counter is every shift in every town, so this seed re-rolls too.
+  // The cross-check is what makes the re-point trustworthy and it stays EXACT:
+  // coins 21117, rep 42608 and REEF 25686 match the frozen day-2 fingerprint's
+  // 4242 seed byte for byte - one town, two scenarios (rule 6). The structural
+  // claim is untouched: no EXTRA draw and no moved pixel come from the registry
+  // code when there is no cultures key; the rng pin re-points by VALUE with its
+  // own two-way attribution, and every pixel that moved belongs to a crab
+  // standing at a WANDER_SPOT.
+  const want = '{"day":3,"coins":21117,"rep":42608,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,18076],["REEF",2136,25686],["SALTY",2072,300],'
+    + '["DRIFT",450,400],["KELP",248,100]],"vis":8,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
   // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
@@ -16337,7 +16472,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1863, 2: 2607 };   // RE-POINTED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav). The move is ATTRIBUTED CLEANLY, not just observed: arming the feature's OWN `_nodepart` hatch on this exact seed reads day 1 and day 2 back to EXACTLY 1859/2731 - the pre-change spec, to the draw - so visitor-chosen departure owns the ENTIRE delta and nothing else moved. The decision itself takes ZERO draws (needW/nearestSail/visLog are draw-free), so the stream STRUCTURE is untouched - the kernel-agreement scenario is byte-identical either side; what moves the count is BEHAVIOUR downstream, a guest who chooses to stay on at the dock keeps roaming (each stroll draws) while a guest who cuts short leaves sooner. Day 1 +4 (1859->1863), day 2 -124 (2731->2607). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. vm AND main realm read 1863/2607 identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 1863, 2: 3015 };   // RE-POINTED for IDLE HANDS' DAY-1 FIX (the boredom trickle), merged on top of VISITORS-CHOOSE-DEPART. ATTRIBUTED BOTH WAYS on the MERGED tree, not merely observed: arming this change's own `boredidle` hatch reads 1863/2607 - EXACTLY the incoming pin, to the draw - and arming `wander` instead reads the same 1863/2607, so the trickle owns the ENTIRE day-2 delta (2607 -> 3015) and adds nothing on day 1 (the +4 there is visitors-choose-depart's, already in the incoming number). The trickle ADDS draws rather than REORDERING the stream: it lets a crab reach WANDER_AT on day 1 at all, and each wander is a spot pick + a quip line + a dwell jitter. Day 2 is where it bites hardest, as boredom climbs 0.2 -> 0.5 and an empty counter keeps sending crabs out. A VALUE re-point off a new but fully-attributable mechanism, the same shape as every holder below. PRIOR HOLDER, VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav). The move is ATTRIBUTED CLEANLY, not just observed: arming the feature's OWN `_nodepart` hatch on this exact seed reads day 1 and day 2 back to EXACTLY 1859/2731 - the pre-change spec, to the draw - so visitor-chosen departure owns the ENTIRE delta and nothing else moved. The decision itself takes ZERO draws (needW/nearestSail/visLog are draw-free), so the stream STRUCTURE is untouched - the kernel-agreement scenario is byte-identical either side; what moves the count is BEHAVIOUR downstream, a guest who chooses to stay on at the dock keeps roaming (each stroll draws) while a guest who cuts short leaves sooner. Day 1 +4 (1859->1863), day 2 -124 (2731->2607). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. vm AND main realm read 1863/2607 identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -18180,15 +18315,27 @@ scenario("the boat lands a citizen's body: arrival needs sit in the hire band", 
   const bad = sim.G(`(() => { const out = [];
     for (let i = 0; i < 12; i++) {
       const v = newVisitor(i % 2 === 0);   // both mint paths: overnight and mixed
-      let over = 0;
+      // FLOORS AND THE CAP are the part that IS a per-need contract: nobody
+      // disembarks at 8% everything, and nobody arrives past the cap.
+      let peak = 0;
       for (const key in VIS_ARRIVE) {
-        const [lo, span] = VIS_ARRIVE[key];
+        const lo = VIS_ARRIVE[key][0];
         if (v[key] < lo) out.push("fresh " + key + " under its floor: " + v[key] + " < " + lo);
         if (v[key] > qn(0.95)) out.push("fresh " + key + " over the loaded cap: " + v[key]);
-        if (v[key] > lo + span) over++;   // a LOADED need
+        if (v[key] > peak) peak = v[key];
       }
-      if (over > 2) out.push("a fresh body with " + over + " loaded needs, max 2");
-      if (over < 1) out.push("a fresh body with nothing pressing - the pier went illegible");
+      // ...and LEGIBILITY is asserted as what it actually is: somebody wants
+      // something visibly. It is deliberately NOT a count of loaded needs,
+      // because that count is UNRECOVERABLE from the values - the unloaded
+      // windows and the loaded band OVERLAP (thirst's window reaches 0.60,
+      // above the band's 0.55 floor; hunger's tops out exactly AT it). The old
+      // check counted "above floor+span" as loaded, which read an unloaded
+      // thirst as loaded and a low-rolled loaded hunger as nothing pressing -
+      // so it failed on 9 of 40 seeds on MAIN, latently red the whole time and
+      // one stream-shift from going red for real. A predicate that cannot be
+      // computed from the data is not a weaker gate, it is a broken one.
+      if (peak < VIS_LOADED[0])
+        out.push("a fresh body with nothing pressing (peak need " + peak + ") - the pier went illegible");
     }
     // the probe visitors join no list, so the next poolReap reclaims the slots
     return out; })()`);
