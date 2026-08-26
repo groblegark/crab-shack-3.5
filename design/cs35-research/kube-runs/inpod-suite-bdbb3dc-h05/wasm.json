@@ -1,0 +1,20 @@
+{
+  "release": "inpod-suite-bdbb3dc-h05",
+  "backend": "wasm",
+  "sha": "b7e2a60f0428aeade8f1cf48aa45f72369845c6a",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--jobs",
+    "4"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 885300,
+  "verdict": "386/386 passed in 885.3s",
+  "failures": [],
+  "runner": "in-pod (gasboat fleet pod, project cs) — NOT tools/kube.mjs",
+  "stdoutTail": "  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (10024ms)\n  PASS  science: one recipe lives the same town twice (16055ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (376ms)\n  PASS  science: the seed is the town - a different one lives differently (11908ms)\n  PASS  science: a scrub lands on the day the run recorded (10995ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (436ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (587ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (881ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (216ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (392ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (3379ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (212ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (4104ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (218ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (198ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (261ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (204ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (215ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (321ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (329ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (198ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (212ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (187ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (2784ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (3715ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (585ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (591ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (557ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (585ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (2603ms)\n\n386/386 passed in 885.3s"
+}
