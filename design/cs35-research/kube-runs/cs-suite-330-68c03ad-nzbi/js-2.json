@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-68c03ad-nzbi",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "68c03ad70f1a874a95db8fbc12063d6ee3d3718f",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 143163,
+  "verdict": "33/33 passed in slice 2/12 (143.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2539ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2106ms)\n  PASS  save/load: townsfolk keep wallets and houses (1495ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1255ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1622ms)\n  PASS  tired: the morning and evening shifts end the week level (72045ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (416ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (13076ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (84ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (69ms)\n  PASS  tips: the counter gets a token, the table gets the lot (10ms)\n  PASS  no card prints text on top of its own text (2117ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (5370ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1383ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (971ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1667ms)\n  PASS  departures: nobody on the boat knows the town's name (1029ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (2394ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (152ms)\n  PASS  the help card teaches the machine and does not spoil the ending (7ms)\n  PASS  nothing paints over an open card except another card (989ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1583ms)\n  PASS  crab voice: two whole days with the table off are the same town (2865ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (1526ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (16ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (21546ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (479ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (513ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2227ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (8ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1481ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (10ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (14ms)\n33/33 passed in slice 2/12 (143.1s)\n"
+}

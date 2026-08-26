@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-68c03ad-nzbi",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "68c03ad70f1a874a95db8fbc12063d6ee3d3718f",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 153442,
+  "verdict": "33/33 passed in slice 0/12 (153.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (42626ms)\n  PASS  disease: sustained neglect breeds sickness (3410ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (637ms)\n  PASS  all crew dead: town survives, rehire recovers (1272ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (780ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (506ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (24228ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (823ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4574ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (20959ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (24726ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (2132ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (701ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (126ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4629ms)\n  PASS  the town hall survives a save and a reload, ledger and all (4061ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2274ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2995ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (760ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  the title screen credits the track that is actually queued (10ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1464ms)\n  PASS  idle quips: the island's table is the literal, key for key (7ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (66ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (8ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (2230ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (11ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (29ms)\n  PASS  seam: the view is a reader - two renders move nothing (74ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (10ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (7019ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (123ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (60ms)\n33/33 passed in slice 0/12 (153.3s)\n"
+}

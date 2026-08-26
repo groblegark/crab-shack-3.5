@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-68c03ad-nzbi",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "68c03ad70f1a874a95db8fbc12063d6ee3d3718f",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 348676,
+  "verdict": "33/33 passed in slice 1/12 (348.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (149348ms)\n  PASS  disease: care cures, neglect can kill (26545ms)\n  PASS  job board: unpaid staff quit back to the pier (540ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (26744ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (3373ms)\n  PASS  tired: fatigue scales with the hours actually worked (1679ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (939ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (479ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (8ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (5499ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1075ms)\n  PASS  the title's credit block never lands on the science button (10ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (68657ms)\n  PASS  visitors: the wallet is real money, and it runs out (706ms)\n  PASS  the town fund moves money and never mints it (17139ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1779ms)\n  PASS  departures: every character the card prints exists in the font (1140ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (3621ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (67ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (426ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (400ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (3245ms)\n  PASS  traits: the island's table is the literal, value for value (8ms)\n  PASS  depart programs: a hostile table is refused by name (9ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (32115ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (24ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (19ms)\n  PASS  foodways: the validator names its refusals (11ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1119ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (12ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1618ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (202ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (29ms)\n33/33 passed in slice 1/12 (348.6s)\n"
+}
