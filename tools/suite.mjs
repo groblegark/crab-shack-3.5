@@ -15304,6 +15304,70 @@ scenario("cultureways: an unknown culture id degrades to crab, and the town runs
   return b.G("gameOver") === false || b.G("day") > 1 ? true : "the town wedged after the degrade";
 });
 
+scenario("toast: a message longer than the card CRAWLS, and every character reaches the screen", () => {
+  // Matt, from play: "why do i get 'town is at the house limit of ..' and then
+  // i cant see the rest", then "we need all next like that to scroll".
+  //
+  // drawToast clamped the BOX to 252px and drew the text anyway, so a long
+  // message ran off the side of a 256px screen with no ellipsis and no second
+  // page. The bug is only visible in the TAIL, which is exactly the part that
+  // was never drawn - so this walks the whole crawl and asserts every index of
+  // the string appears in some frame's window.
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil("tmin > 10 * 60", {});   // into the day: the toast clock only runs on a live town
+  // the real message, from a real town at a real rung of the real ladder
+  sim.G("hall.policy.cap = 1;");
+  if (sim.G("headCap()") !== 2) return "rung 1 is not a 2-head limit: " + sim.G("headCap()");
+  const msg = JSON.parse(sim.G(`JSON.stringify(capWhy("shack") + " - THE TOWN VOTED FOR IT")`));
+  if (!/HOUSE LIMIT OF 2/.test(msg)) return "the fixture did not build the reported message: " + msg;
+
+  const fit = JSON.parse(sim.G(`JSON.stringify(toastFit(${JSON.stringify(msg)}))`));
+  if (!fit.over) return "the reported message no longer overflows - this scenario has lost its subject";
+
+  // WALK THE CRAWL at the tick rate, exactly as the game does: age advances,
+  // the window slides, and the union of the windows must cover the string.
+  const seen = new Set();
+  const dt = 1 / 60;
+  let t = Math.max(6, sim.G(`toastSecs(${JSON.stringify(msg)})`));
+  for (let age = 0; t > 0; age += dt, t -= dt) {
+    const off = sim.G(`toastOffset(${JSON.stringify(msg)}, ${age})`);
+    if (off < 0 || off > fit.over) return "the window left the string at age " + age + ": offset " + off;
+    for (let i = off; i < Math.min(msg.length, off + fit.fits); i++) seen.add(i);
+  }
+  for (let i = 0; i < msg.length; i++)
+    if (!seen.has(i)) return "character " + i + " (" + JSON.stringify(msg[i]) + ") never reached the screen";
+
+  // ...and the drawn slice always FITS the card - the crawl must not simply
+  // move the overflow along.
+  for (const age of [0, 1.1, 2, 3, 99]) {
+    const off = sim.G(`toastOffset(${JSON.stringify(msg)}, ${age})`);
+    const shown = msg.slice(off, off + fit.fits);
+    const w = sim.G(`textWidth(${JSON.stringify(shown)}, ${fit.sp}) + 12`);
+    if (w > 252) return "the crawling slice is wider than the card at age " + age + ": " + w + "px";
+  }
+
+  // A TOAST MUST OUTLIVE ITS OWN CRAWL. Every call site chose its `t` for a
+  // message that appeared all at once; a long one that expires mid-sentence is
+  // the same bug wearing a nicer coat.
+  sim.G(`toast = { text: ${JSON.stringify(msg)}, t: 0.5 };`);
+  sim.G("window.simNow += 50; window.rafCb(window.simNow);");   // one whole sim tick (the quantizer's 50ms)
+  if (sim.G("toast.t") < sim.G(`toastSecs(${JSON.stringify(msg)})`) - 0.1)
+    return "a short-lived toast was not extended to cover its crawl: t=" + sim.G("toast.t");
+
+  // ...and a SHORT message keeps the duration its author picked and does not move.
+  const brief = "THE FARE IS $20,000 - YOU HAVE $412";
+  if (sim.G(`toastFit(${JSON.stringify(brief)}).over`)) return "a message that fits was classed as overflowing";
+  if (sim.G(`toastSecs(${JSON.stringify(brief)})`) !== 0) return "a message that fits was given crawl time";
+  if (sim.G(`toastOffset(${JSON.stringify(brief)}, 99)`) !== 0) return "a message that fits scrolled anyway";
+  sim.G(`toast = { text: ${JSON.stringify(brief)}, t: 3 };`);
+  sim.G("window.simNow += 50; window.rafCb(window.simNow);");   // one whole sim tick (the quantizer's 50ms)
+  // one tick is 50ms = 1/TICK_HZ seconds of sim time, so the author's 3s is
+  // now 2.95 - spent, not overwritten
+  if (Math.abs(sim.G("toast.t") - (3 - 1 / 20)) > 1e-6)
+    return "a short toast's own duration was overwritten: t=" + sim.G("toast.t");
+  return true;
+});
+
 scenario("cultureways: broken art is refused with a message and the town still loads", () => {
   const store = new Map();
   const a = createSim({ seed: 65, storage: store, fresh: false });
