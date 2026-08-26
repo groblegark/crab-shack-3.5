@@ -4557,6 +4557,83 @@ scenario("idle hands: a bored crab leaves its post - and an order brings it back
   return true;
 });
 
+// THE ONE-LUMP-A-DAY BOUND. This is the gate that carries the whole claim that
+// the idle trickle costs the balance nothing: BORED_IDLE only ever DRAWS DOWN
+// the +0.20 the shift settlement was going to charge anyway, so no crab may
+// gain more than one lump of boredom in a day. That bound is what keeps the
+// walk-out ladder (WALKOUT_AT for WALKOUT_DAYS running) where it was tuned.
+//
+// It is a gate rather than a comment because the bound broke THREE times while
+// this was being written, each time through a different path and never in a way
+// the freeze measurement could see - boredom only ever climbed FASTER, which
+// looks like the fix working:
+//   1. clearing the advance at CLOCK-IN: a crab who breaks for an errand and
+//      clocks back in drew a second full advance (REEF, +0.40 in a day);
+//   2. clearing it in the NIGHTLY block: that block fires at tmin 20:00 and
+//      REEF's shift runs to 20:30, so the reset landed MID-SHIFT and the
+//      settlement double-charged half an hour later - same +0.40;
+//   3. not clearing it at all: a crab called sick mid-shift kept an unrepaid
+//      advance forever, which CANCELLED later lumps (SALTY froze at 0.54 for
+//      four days) - the same accounting error with the sign flipped.
+// Every one of those is invisible to "is she still frozen?" and obvious here.
+scenario("idle hands: the boredom trickle is an ADVANCE - never more than one lump a day", () => {
+  const sim = createSim({ seed: 21 });
+  idleTown(sim, 3);
+  // Watch every crab's boredom for a few days and bank the POSITIVE deltas per
+  // crab-day. Only two things in the game ADD boredom (the shift-end lump and
+  // the idle trickle); chat, the ball and the arcade all subtract. So the sum
+  // of a crab-day's rises is exactly what the day charged it.
+  sim.G(`window._iv = { prev: {}, acc: {}, day: 0, worst: 0, who: "" };
+    window._ivTick = function () {
+      const V = window._iv;
+      if (day !== V.day) {
+        for (const n in V.acc) if (V.acc[n] > V.worst) { V.worst = V.acc[n]; V.who = n + " d" + V.day; }
+        V.acc = {}; V.day = day;
+      }
+      for (const c of allCrabs()) {
+        const n = c.p.name, b = c.p.bored || 0, p = V.prev[n];
+        if (p != null && b > p) V.acc[n] = (V.acc[n] || 0) + (b - p);
+        V.prev[n] = b;
+      }
+    };`);
+  sim.runDays(5, { onTick: (g) => g("window._ivTick()"), tickEvery: 1 });
+  const worst = sim.G(`window._iv.worst`), who = sim.G(`window._iv.who`);
+  const lump = qn(0.2);
+  if (worst > lump)
+    return `a crab gained ${(worst / 1048576).toFixed(4)} boredom in ONE day (${who}); ` +
+      `the shift-end lump is ${(lump / 1048576).toFixed(4)} and the trickle must only draw against it`;
+  // ...and the trickle must actually BE doing something, or this gate passes for
+  // the wrong reason (it would also pass with the whole feature deleted).
+  if (worst <= 0) return "no crab gained any boredom at all in 5 days - fixture drifted";
+  return true;
+});
+
+// ...and the bar it feeds. WANDER_AT sits BELOW one shift's lump on purpose:
+// the advance can move at most +0.20 in a day, so any bar above that leaves a
+// save's first day arithmetically frozen no matter how fast the trickle runs -
+// which was the bug (16/16 seeds took their worst freeze on day 1). This gate
+// states the arithmetic so a future re-tune of either number has to notice.
+scenario("idle hands: a crab can be restless on DAY ONE (the bar is under one lump)", () => {
+  const sim = createSim({ seed: 21 });
+  const wanderAt = sim.G(`WANDER_AT`), advMax = sim.G(`BORED_ADV_MAX`);
+  if (!(wanderAt <= advMax))
+    return `WANDER_AT ${(wanderAt / 1048576).toFixed(3)} is above one day's reachable ` +
+      `boredom ${(advMax / 1048576).toFixed(3)} - day 1 is frozen again by arithmetic`;
+  // and the display bar stays where the walk-out warning was tuned, so a mild
+  // drift off-post does not dress a crab up as ready to quit
+  const restlessAt = sim.G(`RESTLESS_AT`), walkoutAt = sim.G(`WALKOUT_AT`);
+  if (!(restlessAt > wanderAt && restlessAt < walkoutAt))
+    return `RESTLESS_AT ${(restlessAt / 1048576).toFixed(3)} must sit between the wander bar ` +
+      `and WALKOUT_AT ${(walkoutAt / 1048576).toFixed(3)}`;
+  // ...and it must actually FIRE on day 1 in a real town, not merely be legal.
+  idleTown(sim, 2);
+  if (!sim.runUntil(`day > 1 || (window._stats.wanders || 0) > 0`, { maxSteps: 400000 }))
+    return "ran out of steps before day 1 ended";
+  if (sim.G(`day`) > 1 && !sim.G(`window._stats.wanders || 0`))
+    return "no crab wandered off once in the whole of day 1 - the freeze is back";
+  return true;
+});
+
 scenario("idle hands: the WALK-OUT costs the wage, and coverage stays honest", () => {
   const sim = createSim({ seed: 33 });
   idleTown(sim, 2);

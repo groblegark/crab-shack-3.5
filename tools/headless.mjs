@@ -22,7 +22,7 @@ const BUY = (opt("buy", "") || "").split(",").filter(Boolean);
 const SET = (opt("set", "") || "").split(",").filter(Boolean);
 const STEP = parseFloat(opt("step", "0.05"));   // sim timestep, seconds
 const QUIET = args.includes("--quiet");
-// `--failoff wander,chat,walkout,nod,rough` switches individual needs-failure
+// `--failoff wander,chat,walkout,nod,rough,boredidle` switches individual needs-failure
 // behaviours off, so the balance matrix can attribute its own movement to one
 // of them at a time (game.js reads window._failOff through one helper and
 // never sets it). This is how the attribution table in PLAN was built.

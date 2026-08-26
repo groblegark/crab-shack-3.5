@@ -733,7 +733,7 @@ vm — never fork game logic into tools/) and perf expectations live there.
 
 - `node tools/headless.mjs --days N --seeds K [--buy list] [--quiet]
   [--jobs J] [--failoff a,b,c]` — CLI; `--failoff` switches individual
-  needs-failure behaviours off (`wander,chat,walkout,nod,rough`) so a matrix can
+  needs-failure behaviours off (`wander,chat,walkout,nod,rough,boredidle`) so a matrix can
   attribute its own movement to one of them at a time; `--jobs` fans seeds out across worker processes
   (default USABLE cores−1, deterministic either way, ~3x faster on 4 seeds).
   "Usable" means the cgroup quota, via `tools/cores.mjs` — NOT `os.cpus().length`,
@@ -4503,7 +4503,7 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   back and nothing else.
   What keeps it CHARMING at saturation (boredom is 0.72–0.85 town-wide with
   everyone touching 1.0, so this fires constantly by design): `WANDER_AT`
-  **0.6**; the counter must be DEAD for `WANDER_QUIET` **3s** first, so nobody
+  **0.15**; the counter must be DEAD for `WANDER_QUIET` **3s** first, so nobody
   bolts the instant the queue empties; and a wander is a **trip**, not a
   posting — `WANDER_DWELL` **14–24s** stood there, then back to the post, then
   `WANDER_CD` **20s** before the next. A six-hour shift is only 90 REAL seconds,
@@ -4516,6 +4516,50 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   **without** (lifetime $30,224 vs $31,319) — inside the documented per-build
   wobble. It is nearly free, and it lands hardest exactly when the shop is
   quiet, which is when it costs the town least.
+
+- **THE DAY-1 FREEZE, and why it needed TWO changes** (Matt, 2026-08-26: "sudsy
+  goes to work and stops doing anything while there"). Reproduced, 16/16 seeds:
+  SUDSY stood **dead still for up to 11.1 GAME-HOURS** of a shift — same
+  sub-pixel x, same `kstate` — and **every one of the 16 worst freezes was on
+  day 1**, a new player's first look at the shower house. She was never *wedged*
+  (1.5% abandonment, ~0.9s pickup): the shop is empty ~92% of her shift and the
+  system meant to move her fired **7 times in 146k on-shift ticks**.
+  Two things were wrong, and neither alone is sufficient:
+  1. `WANDER_AT` was **0.6**, but boredom arrives in **+0.20 lumps at shift
+     END** — so days 1–4 carry 0.0 / 0.2 / 0.4 / 0.6-*minus-one-Q20-grain* into
+     work and the wander is **arithmetically impossible before day 5**. By day 5
+     hunger has pinned at 1.00 and `boredYields` (rightly) shuts it. The two
+     gates **never blocked at once — they own different days**, which is exactly
+     why relaxing either alone left the freeze untouched and only relaxing both
+     moved it. 0.6 also contradicted its own design: it is 1.75 lumps below
+     `WALKOUT_AT` 0.95, making "restless" and "ready to quit" nearly the same
+     state, when the doc calls idle hands the EARLY stage.
+  2. Nothing made an empty counter boring *during* the shift, so day 1 sat at a
+     flat 0.000 with no way to move until knock-off.
+  The fix: `WANDER_AT` **0.15** (under one lump, so day 1 can reach it), a new
+  `RESTLESS_AT` **0.6** carrying the *display* bar so the mood ring and the
+  ARCADE quips stay tuned against the walk-out warning, and `BORED_IDLE`
+  **3.0/idle-shift** as an **ADVANCE** against the shift-end lump — `p.boredAdv`
+  banks what idleness drew, the settlement pays only the remainder, so **no crab
+  can gain more than +0.20 in a day** and the walk-out ladder does not move.
+  Measured, 2 seeds × 12d: worst still-run **11.1 → 3.2 game-hours** (day 1:
+  11.1 → 1.5), wanders 5 → 20, and boredom first pins ≥ 0.95 on **day 5, exactly
+  as before**. Gated by `idle hands: the boredom trickle is an ADVANCE` and
+  `idle hands: a crab can be restless on DAY ONE`.
+  **Three wrong versions came first, and the freeze number improved in all of
+  them** — which is the lesson worth keeping. An *additive* trickle fixed a
+  fifth of the freeze and pulled the walk-out ladder from day 5 to **day 2**,
+  town-wide, forever; *capping* it did not help because the lump stacks on top;
+  and the advance itself broke three times (cleared at clock-in → a crab back
+  from an errand drew a second lump; cleared in the nightly block → that block
+  fires at **tmin 20:00** while REEF's shift runs to **20:30**, so the reset
+  landed mid-shift; not cleared at all → a crab called sick mid-shift kept an
+  unrepaid advance that CANCELLED later lumps, freezing SALTY at 0.54 for four
+  days). Every one of those is invisible to "is she still frozen?". The advance
+  now carries a **day stamp** and self-expires instead of relying on any reset's
+  position. Also fixed here: `WANDER_QUIET` was authored `3` and documented as
+  "3s" but compared against `idleT`, which sums **ticks** — it was 0.15s, 20×
+  too short, so the "counter must be dead first" clause was doing nothing.
 - **THE WALK-OUT (B3, the late stage).** Pinned past `WALKOUT_AT` **0.95** at
   `WALKOUT_DAYS` settlements running and the crab takes an unauthorised day: no
   commute, no shift, **NO WAGE**, and **nobody covering**, because nobody was
