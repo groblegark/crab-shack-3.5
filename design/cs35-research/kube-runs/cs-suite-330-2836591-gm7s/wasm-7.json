@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-2836591-gm7s",
+  "armId": "wasm-7",
+  "index": 19,
+  "sha": "28365916b9018c3dc1468f3bede862ac47cf3ca5",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 68639,
+  "verdict": "33/33 passed in slice 7/12 (68.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (3551ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1388ms)\n  PASS  slots: the preview card reflects the town it came from (1420ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (42ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (121ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (109ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (8018ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (20ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (9813ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (6780ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (642ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (1095ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2307ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (1717ms)\n  PASS  the mayor wears the hat, and nobody else ever does (727ms)\n  PASS  departures: the card waits behind the day report, then pages itself (667ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (3071ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1209ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (12ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (16ms)\n  PASS  a crab may stand in the cabana it has come to clean (41ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (10ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (13ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (12ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (6969ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4336ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (8ms)\n  PASS  seam: a headless day never enters the view (725ms)\n  PASS  brains: a town full of thinking heads round-trips its save (6136ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (6803ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (45ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (7ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (706ms)\n33/33 passed in slice 7/12 (68.5s)\n"
+}
