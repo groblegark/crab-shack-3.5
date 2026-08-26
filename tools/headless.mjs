@@ -101,10 +101,11 @@ const NODECAY = args.includes("--nodecay");
 // value without a recompile. `--citdecay 0` is a drain of zero (== --nodecay by
 // arithmetic); `--citdecay 20` is full VIS_RATE (the starve-the-town arm).
 const CITDECAY = opt("citdecay", null) != null ? parseInt(opt("citdecay", null)) : null;
-// `--citworkpause` pauses the citizen drain while a crab is on duty (working or
-// commuting) - the EXPERIMENT that a working crab is occupied like a sleeping
-// one, with no relief path. game.js reads window._citWorkPause in crabTick.
-const CITWORKPAUSE = args.includes("--citworkpause");
+// `--citnoworkpause` turns OFF the on-duty pause (crabTick pauses the citizen
+// drain while working/commuting by default - work is "occupied", no relief path,
+// the calibrated model). This is the attribution arm for the pause: game.js
+// reads window._citNoWorkPause in crabTick and never sets it.
+const CITNOWORKPAUSE = args.includes("--citnoworkpause");
 const SEEDS = parseInt(opt("seeds", "1"));
 // `--realm main` (or SIMLIB_REALM=main) runs the game files in the main realm
 // instead of a vm context - the vm escape; simlib.loadGame owns the mechanics.
@@ -197,7 +198,7 @@ if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
 if (NODECAY) G(`window._noDecay = true;`);
 if (CITDECAY != null) G(`window._citDecayMul = ${CITDECAY};`);
-if (CITWORKPAUSE) G(`window._citWorkPause = true;`);
+if (CITNOWORKPAUSE) G(`window._citNoWorkPause = true;`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
 const buyFn = BUY.length ? mkFn(`
   if (tmin >= 9 * 60 && tmin <= 19 * 60 && Math.abs(tmin - Math.round(tmin / 60) * 60) < ${STEP} * TS / 2) {

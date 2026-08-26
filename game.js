@@ -15253,29 +15253,49 @@ function visTick(k, dt) {
 // comment's named 1.19% sin. Draw-free integer Q20, so crabTick moves no RNG
 // cursor itself; the needs it raises drive more errands, which re-rolls the
 // downstream stream, so frozen fingerprints move (a legitimate re-pin, traced).
-const CIT_DECAY_MUL = 4;   // twentieths of VIS_RATE - swept on the cluster, see the receipt
-// THE HATCHES, both the game NEVER sets (the _noRival / _noHall attribution
-// idiom): window._noDecay gives the pre-U1 tree back (--nodecay), and
-// window._citDecayMul overrides the fraction (--citdecay N) so the sweep can
-// find the pillar-holding value without a recompile.
+const CIT_DECAY_MUL = 6;   // twentieths of VIS_RATE - CALIBRATED on the cluster (see below)
+// THE RATE, CALIBRATED. Two 48-town cluster matrices drove the number and the
+// shape of this model, both against the pre-U1 pillar (baseline 0/48, growth
+// 24/48):
+//  1. cs-u1-rate-sweep-e6083cd: an ADDITIVE / always-on continuous drain
+//     collapses the growth pillar at EVERY rate - mul 1 through 20 all read
+//     growth 0/48. The rate is not the lever. A continuous need with no relief
+//     path through the town's whole working day is uniquely punishing to a crab.
+//  2. cs-u1-workpause-cal-07570d1: pausing the drain WHILE ON DUTY (work is
+//     "occupied" the way an in-room tourist is asleep) restores a tunable band.
+//     Growth survival by rate: mul 4 -> 44/48 (too easy), mul 5 -> 36/48,
+//     mul 6 -> 27/48, mul 8 -> 5/48 (too hard). Baseline: mul 6 -> 0/48, mul 5
+//     -> 1/48. So mul 6 HOLDS the pillar (growth 27/48 ~ 24/48 within the
+//     any-16-block-is-a-coin noise, baseline floor intact at 0/48). That is the
+//     shipped number.
+// The lesson the receipts carry: giving the citizen the tourist's continuous
+// decay was not a rate tuning - the citizen's day has no continuous-relief path,
+// so the MODEL had to change (pause on duty + re-time the discrete metabolic
+// events), not just the number.
+//
+// THE HATCHES, all three the game NEVER sets (the _noRival / _noHall attribution
+// idiom): window._noDecay gives the pre-U1 tree back (--nodecay); _citDecayMul
+// overrides the fraction (--citdecay N, the sweep lever); _citNoWorkPause turns
+// the on-duty pause OFF (--citnoworkpause), the attribution arm for the pause.
 function crabDecayOn() { return !window._noDecay; }
 function citDecayMul() {
   return (typeof window !== "undefined" && window._citDecayMul != null) ? window._citDecayMul : CIT_DECAY_MUL;
 }
+// OCCUPIED, so the clock pauses - the two crab states a tourist has no parallel
+// for. ASLEEP: slept rough, or bedded down at home past nightfall (mirrors an
+// in-room visitor, whose needs pause while tired recovers). ON DUTY: working or
+// commuting to/from - a crab at a counter it cannot leave has no relief path a
+// roaming tourist always has, and the calibration above is why the pause is part
+// of the model and not a dial.
 function crabAsleep(c) {
   return c.p.rough || (c.dsC === DS.home && darkness() > 0.7);
 }
-// EXPERIMENT (hatch _citWorkPause): a crab on duty - working or commuting to/from
-// - is OCCUPIED the way an in-room tourist is asleep. A tourist can shop any
-// waking minute; a crab spends most of its day at a counter it cannot leave, so
-// a continuous drain through the shift has no relief path and is uniquely
-// punishing. Under test on the cluster before it becomes the model.
 function crabOnDuty(c) {
   return c.dsC === DS.working || c.dsC === DS.toWork || c.dsC === DS.toHome;
 }
 function crabTick(c, dt) {
   if (!crabDecayOn() || crabAsleep(c)) return;
-  if (window._citWorkPause && crabOnDuty(c)) return;   // EXPERIMENT: pause the drain on duty
+  if (crabOnDuty(c) && !window._citNoWorkPause) return;   // on duty = occupied, no relief path (calibrated)
   const BR = bodyOf(c).R;   // a crab's own culture body, or the engine's by identity
   const m = citDecayMul();
   for (const n of ["hunger", "thirst", "dirt", "bored"])
