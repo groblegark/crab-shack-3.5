@@ -9348,7 +9348,9 @@ var BUNDLED_CRAB_VOICE = {
     "rough": "NO ROOM AT THE HOTEL - SLEPT ON THE BEACH",
     "wokesand": "WOKE UP ON THE SAND - NOT A GREAT NIGHT",
     "turnin": "TURNED IN FOR THE NIGHT",
-    "gaveup": "GAVE UP WAITING AT THE {BIZ}"
+    "gaveup": "GAVE UP WAITING AT THE {BIZ}",
+    "cutshort": "SEEN ENOUGH - CATCHING THE NEXT BOAT HOME",
+    "stayon": "HAVING TOO GOOD A TIME - STAYING ON ANOTHER NIGHT"
    },
    "depart": {
     "foreign": "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO.",

@@ -2577,12 +2577,31 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // cultureways-save fingerprint below to the cent (one town, two readers) -
     // the cross-check that this is the ruled town and not a fixture bug (rule 6).
     // Re-pointed LAST, after every other fixture on this tree was corrected.
-    1337: '{"day":3,"tmin":0,"coins":17544,"rep":42930,"catch":1,"serves":42,"crabServes":3,"rage":3,"till":17485,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17485],["REEF",25791],["SALTY",400],["DRIFT",300],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[646,163],[450,155],[2072,167],[464,167]]}',
-    // 4242, re-harvested in the same trio landing and for the same three
-    // reasons. This seed's day-3 town is the shared cross-check with the
-    // cultureways-save pin: coins 19570, rep 44141, REEF 25688 read identically
-    // there, proving one trajectory measured by two scenarios.
-    4242: '{"day":3,"tmin":0,"coins":19570,"rep":44141,"catch":4,"serves":44,"crabServes":5,"rage":4,"till":19055,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19055],["REEF",25688],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[450,155]]}',
+    //
+    // RE-BASELINED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
+    // kd-I9fjOBARav). Departure time stopped being fixed at spawn: on the same
+    // free thought a guest weighs whether the trip is worth prolonging, reading
+    // the SAME needW-weighted condition the delight card reads. So a day-1/2
+    // guest the town is delighting stays on and one it is failing cuts short,
+    // and a two-day town could not survive that - it is the whole point. The
+    // drift reads exactly like the change: on 1337 coins 17544 -> 23300 and
+    // serves 42 -> 46 (guests who were leaving stay on and spend), rep 42930 ->
+    // 38695 and rage 3 -> 6 (guests the town is failing cut the trip short and
+    // say so on the way out); on 4242 coins 19570 -> 22231, REEF 25688 -> 26869.
+    // DRAW-FREE by construction (needW, nearestSail, visLog take no srand()), so
+    // the kernel-vs-JS agreement scenario is byte-untouched and this is a pure
+    // trajectory re-roll off leaveT moving, not a leak. Both seeds measured vm
+    // AND main realm BYTE-IDENTICAL, and seed 4242 still matches the
+    // cultureways-save pin below to the cent (coins 22231, rep 41388, REEF
+    // 26869) - one town, two readers, the cross-check that this is the real town
+    // and not a fixture bug (rule 6). Arm-off: window._nodepart / --nodepart
+    // restores the spawn-fixed leaveT and, with it, the pre-change numbers.
+    1337: '{"day":3,"tmin":0,"coins":23300,"rep":38695,"catch":4,"serves":46,"crabServes":3,"rage":6,"till":20045,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",20045],["REEF",25787],["SALTY",800],["DRIFT",1300],["KELP",0]],"pos":[[520,154],[108,154],[388,154],[646,163],[450,155],[2072,167],[419.8,167.3]]}',
+    // 4242, re-harvested in the same landing and for the same reason. This
+    // seed's day-3 town is the shared cross-check with the cultureways-save pin:
+    // coins 22231, rep 41388, REEF 26869 read identically there, proving one
+    // trajectory measured by two scenarios.
+    4242: '{"day":3,"tmin":0,"coins":22231,"rep":41388,"catch":4,"serves":44,"crabServes":5,"rage":2,"till":17485,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17485],["REEF",26869],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[647.2,168],[2136,154],[2072,154],[657.9,166.5],[450,155]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -14669,9 +14688,19 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // from the registry code when there is no cultures key) still holds - the rng
   // draw-count pin below is byte-untouched in structure; only the trajectory
   // re-rolled off the combined economy's own constants.
-  const want = '{"day":3,"coins":19570,"rep":44141,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,19055],["REEF",2136,25688],["SALTY",2072,100],'
-    + '["DRIFT",318,0],["KELP",450,700]],"vis":7,"catch":4}';
+  // RE-HARVESTED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
+  // kd-I9fjOBARav). Same two-day 4242 town as the frozen day-2 fingerprint
+  // above, re-rolled by the same change: leaveT is no longer fixed at spawn, so
+  // day-1/2 guests re-decide their departure boat off the needW condition. The
+  // structural claim is UNCHANGED and still proven - a save without a cultures
+  // key loads onto exactly the trajectory a fresh boot walks, no EXTRA draw
+  // (the departure decision is draw-free), no moved pixel from the registry
+  // code. The cross-check stays EXACT: this town's coins (22231), rep (41388)
+  // and REEF's wallet (26869) match that fingerprint's 4242 seed byte for byte -
+  // one town, two scenarios, measured vm AND main realm identically.
+  const want = '{"day":3,"coins":22231,"rep":41388,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",647,17485],["REEF",2136,26869],["SALTY",2072,100],'
+    + '["DRIFT",658,0],["KELP",450,700]],"vis":9,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
   // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
