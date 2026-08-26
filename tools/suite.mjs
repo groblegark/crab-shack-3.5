@@ -6706,6 +6706,131 @@ scenario("almanac: the new channels consume ZERO randomness, like the mist", () 
   return arm(false) === arm(true) ? true : "swell/wind/surfQuality consumed randomness";
 });
 
+scenario("forecast: names the swell it can see, never the quality it cannot", () => {
+  // THE HONESTY CONTRACT, measured against the LANDED channels (not the
+  // prototype the design bead cited - the digits drifted, the shape held). The
+  // board reveals a future day's SWELL - forecast(day+n) is a pure lookup, so
+  // it is always right - and refuses to name that day's QUALITY, because the
+  // wind that decides clean-vs-blown is an iid per-day roll (wind lag-1
+  // autocorrelation ~0.00, pinned by the swell scenario above). Pinned as
+  // BANDS the way the almanac base rate is, because the thresholds are knobs.
+  const sim = createSim({ seed: 7 });
+  const o = JSON.parse(sim.G(`JSON.stringify((() => {
+    const today = { FIRING: 0, "BLOWN OUT": 0, FLAT: 0 };
+    let named = 0, namedClean = 0, lookupOk = true, badToday = null;
+    // lead-time split: does knowing the swell is 1 day out vs 4 days out change
+    // your odds of a clean day? It must NOT - the wind is iid, so quality is
+    // unforecastable at EVERY lead. This is the claim the whole feature rests on.
+    const byLead = {}; for (let n = 1; n <= FC_HORIZON; n++) byLead[n] = { named: 0, clean: 0 };
+    for (let d = 1; d <= 400; d++) {
+      const t = surfToday(d);
+      if (today[t] === undefined) badToday = t; else today[t]++;
+      const fc = surfForecast(d);
+      if (fc) {
+        named++;
+        if (swellPeakQ16(fc.day) < FC_BIG) lookupOk = false;   // the named swell is REAL - a confident lookup
+        const clean = surfQualityQ16(fc.day) >= FC_CLEAN;
+        if (clean) namedClean++;
+        byLead[fc.n].named++; if (clean) byLead[fc.n].clean++;
+      }
+    }
+    return { today, named, namedClean, lookupOk, badToday, byLead };
+  })())`));
+  if (o.badToday) return "surfToday returned an unexpected state: " + o.badToday;
+  if (!o.lookupOk) return "a named swell did not verify - the forecast must be a confident pure lookup";
+  // the board has something true to say most days, and firing days are rare but real
+  if (!(o.named > 150 && o.named < 340)) return `${o.named}/400 days name a coming swell - want it useful but not constant`;
+  if (!(o.today.FIRING >= 20 && o.today.FIRING <= 120)) return `${o.today.FIRING}/400 firing days today - want rare but present`;
+  if (o.today.FLAT < o.today.FIRING) return `flat should be the common day, not firing (${o.today.FLAT} vs ${o.today.FIRING})`;
+  // THE HONEST GAP: when the board names a swell, that day turns out CLEAN well
+  // under half the time (measured ~36%) - so the board NEVER promises quality,
+  // and is not useless either (a named swell does carry real, partial odds).
+  const gap = o.namedClean / o.named;
+  if (!(gap > 0.15 && gap < 0.60)) return `named-swell days are clean ${(gap*100).toFixed(0)}% - a board that promised quality (or predicted nothing) would fail here`;
+  // ...and that gap does NOT close as the swell gets nearer - quality is
+  // unforecastable at lead 1 exactly as at lead FC_HORIZON (the wind is iid).
+  for (let n = 1; n <= 4; n++) {
+    const L = o.byLead[n]; if (L.named < 15) continue;   // too few at this lead to judge
+    const r = L.clean / L.named;
+    if (r > 0.70) return `at +${n}d a named swell is clean ${(r*100).toFixed(0)}% - too predictable; the wind should keep quality a coin at every lead`;
+  }
+  return true;
+});
+
+scenario("forecast: draws on both boards, on the canvas and never over its neighbours", () => {
+  // The forecast is a LINE ON EXISTING FURNITURE on a coast with "NOT ONE 74px
+  // gap left" - so it gets the polling board's two checks: its measured text
+  // must stay on the canvas, and neither its strings nor its filled rects may
+  // land on a neighbour (the class of bug where the first poll table printed
+  // through the JOB BOARD's sign).
+  //
+  // But the town's OWN furniture already overlaps in the east end (the ferry
+  // office draws across the pier tap's WATER label - not this feature's bug),
+  // so a whole-town sweep is noisy. Instead ISOLATE the forecast's own draws:
+  // render the town twice per state, once with _noFcast and once without. Draw
+  // order is deterministic, so the ON pass is the OFF pass with drawForecast's
+  // ops inserted at one point - a longest-common-prefix/suffix diff extracts
+  // EXACTLY those ops, and only they are checked against the OFF pass's boxes.
+  // Driven across days so all four board states (FIRING/BLOWN/FLAT today, and
+  // swell-coming vs none) are painted, at BOTH camera anchors, with the arcade
+  // on so ferryKnown() puts the pier-head neighbour on screen.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    const T = text, S = smallText, R = rect;
+    let ops = [];   // ordered draw ops for the current pass: {t,x0,x1,y0,y1,s,sig}
+    const push = (t, x, y, w, h, s) => {
+      const o = { t, x0: x, x1: x + w, y0: y, y1: y + h, s: String(s),
+        sig: t + "|" + Math.round(x) + "|" + Math.round(y) + "|" + Math.round(w) + "|" + Math.round(h) + "|" + s };
+      ops.push(o); return o;
+    };
+    text = (c, str, x, y, col, sz) => { push("t", x, y, textWidth(str, sz), 7, str); return T(c, str, x, y, col, sz); };
+    smallText = (c, str, x, y, col) => { push("s", x, y, smallTextWidth(str), 5, str); return S(c, str, x, y, col); };
+    rect = (c, x, y, w, h, col) => { push("r", x, y, w, h, ""); return R(c, x, y, w, h, col); };
+    const pass = () => { ops = []; drawTown(); return ops; };
+    const bad = [], seen = {};
+    UPS.arcade.lvl = 1;
+    for (let d = 1; d <= 40 && Object.keys(seen).length < 4; d++) {
+      day = d;
+      const L = forecastLines(day);
+      const key = L.today + "/" + (L.swellComing ? "swell" : "none");
+      if (seen[key]) continue;
+      seen[key] = 1;
+      for (const pl of FORECAST_PLACES) {
+        camX = clampCam(pl.x - 100);
+        window._noFcast = true;  const off = pass().slice();
+        window._noFcast = false; const on  = pass().slice();
+        // longest common prefix / suffix by signature -> the middle of the ON
+        // pass is exactly what drawForecast added at this camera.
+        let p = 0; while (p < off.length && p < on.length && off[p].sig === on[p].sig) p++;
+        let q = 0; while (q < off.length - p && q < on.length - p && off[off.length-1-q].sig === on[on.length-1-q].sig) q++;
+        const fc = on.slice(p, on.length - q);
+        if (!fc.length) { bad.push([key, "drew NOTHING at x" + pl.x]); continue; }
+        // furniture = everything the OFF pass drew (with a real label, for text)
+        for (const f of fc) {
+          if (f.x0 < 0 || f.x1 > W) bad.push([key + " x" + pl.x, "OFF CANVAS", f.s || f.sig]);
+          for (const b of off) {
+            const hit = f.x0 < b.x1 && f.x1 > b.x0 && f.y0 < b.y1 && f.y1 > b.y0;
+            if (!hit) continue;
+            // a forecast STRING over a furniture string, or a forecast RECT over
+            // a furniture string, is the collision that matters (the poll table
+            // over the JOB BOARD sign). Forecast rects over furniture rects are
+            // fine - a board panel sits on the sky/sea fill by design.
+            if (b.t !== "r" && b.s.trim())
+              bad.push([key + " x" + pl.x, (f.t === "r" ? "RECT" : "'" + f.s + "'") + " OVER '" + b.s + "'"]);
+          }
+        }
+      }
+    }
+    text = T; smallText = S; rect = R; window._noFcast = false;
+    return JSON.stringify({ bad: bad.slice(0, 8), states: Object.keys(seen) });
+  })()`));
+  if (out.bad && out.bad.length) return out.bad.map(b => b.join(" :: ")).join("\n        ");
+  if (!out.states || out.states.length < 3)
+    return "only drew forecast states: " + JSON.stringify(out.states) + " - the sweep must exercise more than one";
+  return true;
+});
+
 scenario("cycler: < crab > steps the selection AND the camera, and wraps", () => {
   // THE CONTROL: a pictorial next/prev under the little sun. Selection and
   // camera are deliberately separate in this game, so the thing under test is
