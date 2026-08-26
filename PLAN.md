@@ -6353,11 +6353,22 @@ copy of them.
     the town's music comes off the release CDN** where it was ~0% before. That
     is the same path the box's auditions have always taken (median 362 ms cold,
     worst 553 — see *Streaming, measured* above), and the fallback ladder is
-    unchanged: local mirror → our release → skip on. But a build served to a
-    player with no network now has **22 tracks and a lot of skipping**, where
-    before it had a complete, if small, soundtrack. Worth knowing before anyone
-    reads a "the music keeps cutting out" report as a regression in this code.
-    Total catalog runtime, for scale: **47.9 h, mean 144 s a track**.
+    unchanged: local mirror → our release → skip on. Total catalog runtime, for
+    scale: **47.9 h, mean 144 s a track**.
+  - **What OFFLINE actually does, measured rather than assumed.** The first
+    draft of this entry said a networkless player gets "22 tracks and a lot of
+    skipping". Wrong on the second half: `musGiveUp` is `min(4, ROTATION.length)`
+    and it **stops after 4 failed tracks** — 4 play attempts, then silence until
+    a gesture. Bounded, not a cascade through 1,179 dead urls. A tap re-arms it
+    (`musArm`) and it tries 4 more. So the honest failure mode is **"the music
+    stops"**, not "the music stutters".
+  - **A probe of this is easy to get backwards, and I did.** The suite's
+    `AUDIO_SPY` stub RESOLVES `play()`, and `playTrack`'s `.then` resets
+    `musFails` on every resolve — so a naive offline probe on the shared stub
+    shows `musFails=0` forever and reads as "it never gives up", which is the
+    instrument talking, not the game. Measuring it needs a stub whose `play()`
+    REJECTS the way a browser does on a dead source. Same trap as the inert-DOM
+    stub that left the `<source>` branch untested for a whole branch.
   - **Two existing scenarios were amended, each with its reason in place.** The
     bench block asserted `openStopsRotation === 0` — that *is* the behaviour
     Matt asked to change. The dead-`<source>` fixture needed a second row:

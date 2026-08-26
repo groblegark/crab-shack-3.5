@@ -12857,6 +12857,82 @@ scenario("the now-playing ticker names what is audible and scrolls only when it 
   return true;
 });
 
+scenario("a networkless town gives up after four tracks, not after a thousand", () => {
+  // WHAT THE EXPANSION COSTS, bounded. The rotation went from ~0% streamed to
+  // 98.2% (22 of 1,201 rows ship same-origin), so "no network" stopped being a
+  // corner case and became the whole soundtrack. The failure has to STOP: a
+  // cascade through 1,179 dead release urls is somebody's cellular data and
+  // battery, which is the exact bill the frame-loop storm ran up.
+  //
+  // THIS NEEDS ITS OWN STUB, and that is the point of the scenario. AUDIO_SPY's
+  // play() RESOLVES, and playTrack's .then resets musFails on every resolve - so
+  // an offline probe written against the shared spy reads musFails=0 forever and
+  // concludes the give-up never fires. That is the instrument talking. A browser
+  // REJECTS play() on a dead source, so this stub does too. (Same family as the
+  // inert-DOM stub that left the <source> branch untestable for a whole branch.)
+  const sim = createSim({ seed: 63 });
+  sim.G(`
+    globalThis._live = []; globalThis._playCalls = 0; globalThis._offline = false;
+    const RealAudio = Audio;
+    Audio = class extends RealAudio {
+      constructor(s) { super(s); this._src = s; this._playing = false; this._h = {}; _live.push(this); }
+      get src() { return this._src; } set src(v) { this._src = v; }
+      play() {
+        _playCalls++;
+        if (globalThis._offline) {
+          const err = { name: "NotSupportedError", message: "no source" };
+          const rej = { then: () => rej, catch: (g) => { g && g(err); return rej; } };
+          return rej;
+        }
+        this._playing = true;
+        return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} };
+      }
+      pause() { this._playing = false; }
+      addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+      fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
+    };
+    globalThis.liveCount = () => _live.filter(a => a._playing).length;
+  `);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: Array.from({ length: 50 }, (_, i) =>
+      ({ id: "n" + i, name: "N" + i, file: i + ".mp3", secs: 30, tags: "",
+         url: "https://x.invalid/" + i + ".mp3" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0;
+    ARCHIVE_OK = false;                       // settled: every row goes straight to its release url
+    out.rotation = ROTATION.length;
+    out.budget = musGiveUp();
+    musArm(); _offline = true; _playCalls = 0;
+    playTrack(0);                             // one start, then let it cascade
+    out.attempts = _playCalls;
+    out.fails = musFails;
+    out.audible = liveCount();
+    // A GESTURE RE-ARMS IT - "everything is unreachable" must be a latch a tap
+    // can lift, or a player who reconnects is stuck with silence for the session.
+    musArm(); _playCalls = 0;
+    playTrack(0);
+    out.afterGesture = _playCalls;
+    // ...and when the network comes back, it plays.
+    musArm(); _offline = false; _playCalls = 0;
+    playTrack(0);
+    out.recovered = liveCount();
+    out.failsAfterRecovery = musFails;
+    return JSON.stringify(out);
+  })()`));
+  if (got.rotation !== 50) return `the fixture built a ${got.rotation}-row rotation`;
+  if (got.budget !== 4) return `the give-up budget is ${got.budget}, want 4 - min(4, ROTATION.length) over 50 rows`;
+  if (got.attempts !== got.budget)
+    return `a networkless town made ${got.attempts} play attempts against a budget of ${got.budget} - it is cascading through dead urls on somebody's cellular data`;
+  if (got.fails !== got.budget) return `musFails reached ${got.fails}, want ${got.budget}`;
+  if (got.audible !== 0) return `${got.audible} tracks audible with every source dead`;
+  if (got.afterGesture !== got.budget)
+    return `after a fresh gesture the town tried ${got.afterGesture} times, want ${got.budget} - a tap must lift the give-up latch`;
+  if (got.recovered !== 1) return "the music did not come back when the sources did";
+  if (got.failsAfterRecovery !== 0) return `a successful play left musFails at ${got.failsAfterRecovery}, want 0`;
+  return true;
+});
+
 scenario("mute and MUSIC OFF still reach a track playing behind an open box", () => {
   // THE CASE THE NEW musOpen CREATED. Music playing + box open + nothing
   // auditioned did not exist before this pass: opening the box silenced the
