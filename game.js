@@ -22988,14 +22988,58 @@ function departTick(dt) {
   if (departPage < departPages() - 1) { departPage++; departT = DEPART_T2; }
   else { departT = 0; depart = null; }
 }
+// THE TOAST IS A WINDOW, AND A LONG ONE CRAWLS PAST IT (Matt, from play: "why
+// do i get 'town is at the house limit of ..' and then i cant see the rest" -
+// then "we need all next like that to scroll").
+//
+// The old card clamped its own WIDTH to 252px and then drew the text anyway.
+// `text()` puts glyph i at x + i*spacing with no idea a box exists, so every
+// character past the edge was drawn off the side of a 256px screen and simply
+// lost - no ellipsis, no second page, no sign anything was missing. The narrow
+// 5px spacing was a partial dodge that bought 8 characters and then gave up
+// silently at 49. Measured across game.js: 33 of the 95 toast sites can build
+// a string longer than that, so this was systemic rather than one bad message.
+//
+// A crawl rather than a wrap, because the toast is a one-line strip at a fixed
+// y and things are docked under it; growing it to two lines moves furniture.
+// It is CHARACTER-GRAINED - slice the string, draw the window - which needs no
+// ctx.clip(): the fonts are fixed-width, and neither the sim's ctx stub nor
+// mcp/canvas.mjs (fillRect + drawImage, nothing else) implements clipping, so
+// a pixel-grained scroll would have rendered fine in a browser and been
+// invisible to every test we have.
+const TOAST_MAX_W = 252;
+const TOAST_HOLD = 1.1;   // seconds parked at each end - you get to read the start before it moves
+const TOAST_CPS = 12;     // characters a second once it is moving
+function toastFit(s) {
+  const sp = textWidth(s) + 12 > TOAST_MAX_W ? 5 : 6;
+  const fits = Math.floor((TOAST_MAX_W - 12 + 1) / sp);   // 40 at 6px, 48 at 5px
+  return { sp, fits, over: Math.max(0, String(s).length - fits) };
+}
+// ...and a scrolling toast has to OUTLIVE ITS OWN CRAWL. Every call site picked
+// its `t` for a message that appeared all at once; left alone, a long one would
+// now expire mid-sentence - the same bug wearing a nicer coat.
+function toastSecs(s) {
+  const f = toastFit(s);
+  return f.over ? 2 * TOAST_HOLD + f.over / TOAST_CPS : 0;
+}
+function toastOffset(s, age) {
+  const f = toastFit(s);
+  if (!f.over) return 0;
+  return Math.max(0, Math.min(f.over, Math.floor(Math.max(0, (age || 0) - TOAST_HOLD) * TOAST_CPS)));
+}
 function drawToast() {
   if (!toast) return;
-  const sp = textWidth(toast.text) + 12 > 252 ? 5 : 6;
-  const w2 = Math.min(252, textWidth(toast.text, sp) + 12);
+  const f = toastFit(toast.text);
+  // Always exactly `fits` characters while it crawls, so the card holds still
+  // and only the letters move - a box that resized per frame would strobe.
+  const shown = f.over
+    ? String(toast.text).slice(toastOffset(toast.text, toast.age), toastOffset(toast.text, toast.age) + f.fits)
+    : String(toast.text);
+  const w2 = Math.min(TOAST_MAX_W, textWidth(shown, f.sp) + 12);
   const x = Math.max(2, ((W - w2) / 2) | 0), y = 62;
   rect(ctx, x, y, w2, 13, [30, 20, 36]);
   rect(ctx, x + 1, y + 1, w2 - 2, 11, [255, 250, 230]);
-  text(ctx, toast.text, x + 6, y + 3, [90, 50, 30], sp);
+  text(ctx, shown, x + 6, y + 3, [90, 50, 30], f.sp);
 }
 
 // ===========================================================================
@@ -23992,6 +24036,15 @@ function simTown(dt) {
   if (departT > 0 && !ffSleep && !reading) departTick(dt);
   if (toast && (reading || departT > 0)) toast.t = Math.max(toast.t, 0.4);   // a toast holds while you read, then plays out
   if (newConfirmT > 0) newConfirmT -= dt;
+  // ...and the CRAWL holds behind a card too, on the same rule: `age` drives
+  // which slice of a long toast is showing, so advancing it while the strip is
+  // covered would scroll the sentence past a player who cannot see it.
+  if (toast && !reading && departT <= 0) toast.age = (toast.age || 0) + dt;
+  // ONE CHOKE POINT FOR THE LIFETIME, stamped the first tick a toast is seen,
+  // rather than 95 hand-edited `t:` values that would drift the moment somebody
+  // wrote a 96th. A toast that does not overflow keeps exactly the duration its
+  // author chose (toastSecs returns 0 and the max is a no-op).
+  if (toast && !toast._sized) { toast._sized = 1; toast.t = Math.max(toast.t, toastSecs(toast.text)); }
   if (toast) { toast.t -= dt; if (toast.t <= 0) toast = null; }
   saveT += dt; if (saveT > 5) { saveT = 0; save(); }
   }
