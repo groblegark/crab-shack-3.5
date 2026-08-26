@@ -19262,7 +19262,15 @@ function drawPanel() {
     // always the exact per-crab total either way
     const rates = Array.from(new Set(owed.map(c => Math.round(wageRate(c)))));
     const rateTxt = rates.length === 1 ? "$" + $d(rates[0]) : "MIXED";
-    smallText(ctx, "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H" + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : ""), 132, by, [190, 175, 160]);
+    // NOBODY OWED TONIGHT is its own short line, not "0XMIXED/6H (N OUT)": with
+    // an empty `owed` list `rates` is empty so rateTxt falls to "MIXED" (there is
+    // no rate to be mixed), and the full "0X.../ (N OUT)" label overran the $0
+    // total column at x224 by a few pixels. A crew all off tonight has no wage
+    // bill to itemise; say so plainly and the row cannot collide with its total.
+    const wageLabel = owedN === 0 ? "WAGES - NONE DUE"
+      : "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H"
+        + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : "");
+    smallText(ctx, wageLabel, 132, by, [190, 175, 160]);
     smallText(ctx, "$" + $d(baseBill), 224, by, [235, 160, 130]); by += MROW;
     const otBill = owed.reduce((s, c) => s + Math.round(otPayForecast(c)), 0);
     if (otBill > 0) {
