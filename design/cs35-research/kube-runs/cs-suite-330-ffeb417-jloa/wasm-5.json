@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-ffeb417-jloa",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "ffeb417aa264e9a939e6fd610aa3d3a86b54f017",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 104521,
+  "verdict": "33/33 passed in slice 5/12 (104.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (11885ms)\n  PASS  save guard: a town born from a rejected save does not bury it (943ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1299ms)\n  PASS  boat: ownership and berth roundtrip through save/load (873ms)\n  PASS  the drop nudge: open sand nudges nothing (1610ms)\n  PASS  days off: wages skip exactly and the bill dips to match (1231ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (21ms)\n  PASS  labor policy: every new setting roundtrips save/load (824ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (3245ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (719ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (7ms)\n  PASS  the lease card: every term fits on the card it is printed on (9ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (2350ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (4392ms)\n  PASS  an election is held on the week, and every voter is accounted for (2955ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (409ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (573ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (59109ms)\n  PASS  the shop tooltip promises what the button actually does (215ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (8ms)\n  PASS  every track in the playlist is a file that exists (11ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (4064ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (8ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (20ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (10ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (12ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (2564ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (3940ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (702ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (284ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (51ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (13ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (54ms)\n33/33 passed in slice 5/12 (104.4s)\n"
+}

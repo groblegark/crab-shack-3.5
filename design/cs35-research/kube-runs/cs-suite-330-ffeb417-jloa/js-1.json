@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-ffeb417-jloa",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "ffeb417aa264e9a939e6fd610aa3d3a86b54f017",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 258409,
+  "verdict": "33/33 passed in slice 1/12 (258.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (147659ms)\n  PASS  disease: care cures, neglect can kill (27183ms)\n  PASS  job board: unpaid staff quit back to the pier (395ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (26674ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (3407ms)\n  PASS  tired: fatigue scales with the hours actually worked (1856ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (1105ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (479ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2342ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (3638ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (226ms)\n  PASS  one reading surface owns the screen (979ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (851ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (1799ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (5298ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (9ms)\n  PASS  departures: a display card moves nothing in the town (1354ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (3283ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (565ms)\n  PASS  the hire card runs on the wall clock, not the game clock (1191ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (453ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (8550ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (9ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (12319ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (12ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (391ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (56ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (617ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2716ms)\n  PASS  the title screen ages the build, and keeps ticking (9ms)\n  PASS  load: the same envelope lands the same way however often you land it (1444ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1428ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (14ms)\n33/33 passed in slice 1/12 (258.3s)\n"
+}
