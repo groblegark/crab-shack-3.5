@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-2836591-gm7s",
+  "armId": "wasm-2",
+  "index": 14,
+  "sha": "28365916b9018c3dc1468f3bede862ac47cf3ca5",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 106069,
+  "verdict": "33/33 passed in slice 2/12 (106.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1903ms)\n  PASS  showers: guests occupy stalls, staff turn them over (1539ms)\n  PASS  save/load: townsfolk keep wallets and houses (925ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (974ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (899ms)\n  PASS  tired: the morning and evening shifts end the week level (47244ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (245ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (8472ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (843ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (1089ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (864ms)\n  PASS  a science run is silent and the mind panel banks at the fold (678ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (10271ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1020ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (589ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (8ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (13ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (37ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (527ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1035ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (9ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (7146ms)\n  PASS  crab-as-document: the crab diary never reaches the code literal (680ms)\n  PASS  civics receipt: voteReason is byte-equal to the lambda receipt on every voter, every platform (9001ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (41ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (338ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (477ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (388ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (2289ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1033ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (2926ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1184ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1287ms)\n33/33 passed in slice 2/12 (106.0s)\n"
+}

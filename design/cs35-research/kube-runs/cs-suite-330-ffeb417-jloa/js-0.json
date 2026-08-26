@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-ffeb417-jloa",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "ffeb417aa264e9a939e6fd610aa3d3a86b54f017",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 127685,
+  "verdict": "33/33 passed in slice 0/12 (127.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (43276ms)\n  PASS  disease: sustained neglect breeds sickness (3301ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (439ms)\n  PASS  all crew dead: town survives, rehire recovers (862ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (702ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (747ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (23021ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (684ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (3259ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1158ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (8ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (993ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (17ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1729ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (1257ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (10ms)\n  PASS  departures: a stay survives a save and a reload (2697ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (4497ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (108ms)\n  PASS  a hire is something you can see happen (615ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1625ms)\n  PASS  the house limit stops a hire and never fires anybody (6918ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (10ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (12812ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (10ms)\n  PASS  cultureways: a save without cultures changes nothing (962ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (9ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (405ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3242ms)\n  PASS  the build stamp is well-formed and wired (1ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (12130ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (45ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (11ms)\n33/33 passed in slice 0/12 (127.6s)\n"
+}

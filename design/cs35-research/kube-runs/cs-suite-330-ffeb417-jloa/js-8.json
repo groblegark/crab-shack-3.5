@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-ffeb417-jloa",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "ffeb417aa264e9a939e6fd610aa3d3a86b54f017",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 146159,
+  "verdict": "33/33 passed in slice 8/12 (146.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (820ms)\n  PASS  queue hard cap holds for locals too (3468ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (1194ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (725ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (63ms)\n  PASS  fish market: price + series roundtrip save/load (44ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (5241ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (12268ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (31ms)\n  PASS  the beach ball is LIMITED fun (536ms)\n  PASS  a town saved mid-errand reloads and keeps running (900ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1965ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (7006ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1496ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (7ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (4643ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1854ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (720ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (67942ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2750ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (15ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (29ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (10ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (8055ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3428ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (7ms)\n  PASS  seam: a headless day never enters the view (992ms)\n  PASS  brains: a town full of thinking heads round-trips its save (8320ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (10148ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (124ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (14ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1246ms)\n33/33 passed in slice 8/12 (146.1s)\n"
+}

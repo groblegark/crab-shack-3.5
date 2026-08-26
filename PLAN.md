@@ -7389,6 +7389,140 @@ platforms**, scored once an election. `allPlatforms()` prices the purse half
 once per (mech, rate, bowls) and shares it across the 25 floor/limit
 combinations, which is what keeps `buildBallot()` at **30ms**.
 
+## THE TARIFF (Matt, 2026-08-25) — "the ability to tariff incoming goods especially fish; this will be a great platform thing"
+
+NOT a seventh dial — the FIFTH PURSE. The floor and the cap are separate axes
+because they bill a till directly; the purses all answer *"who pays for the
+pot"*, and a duty on the gangway is a fifth answer to exactly that question.
+So it rides the whole purse machinery for free: the mech chip cycles it, the
+ballot dedups it, elections score it through the same `purseCost100` /
+`purseYield` reads the L1 stake table already draws — **zero stake-table
+surgery, byte-equal by construction** (the six term-programs never changed;
+only the engine helpers under them grew a branch).
+
+`PURSES.tariff.steps = [0, 10, 25, 50, 100]` — % on the landed price, step 0
+NO TAKE, document-adopted (`crab-civics.json` purses) like the other four.
+
+### Two halves, built together
+
+1. **The duty.** Collected at `consumeIngredient` — the same chokepoint that
+   books the import, so the charge and the ledger can never disagree. Off the
+   till that bought the crate (fish the pier didn't land, corn for the
+   tortillas), into the fund, capped by `fundNeed` like every purse. The
+   office's own purchases are exempt BY CONSTRUCTION: ballot paper is bought
+   by the fund itself, and the pot's fish passes no payer — the town does not
+   toll its own relief, and `bowlCost()` stays the honest price the fund is
+   struck for.
+2. **The protection** (Matt, on review: *"this should increase the price paid
+   for fish in high tariff scenarios, right?"*). `fishCeil()` — the pier
+   ceiling IS import parity. $7 was only ever the ceiling because that is
+   where the world supplies; a posted 50% tariff moves parity to $10.50 and
+   the pier may clear up to it. Scarce weeks — exactly when the tariff
+   bites — pay every cast more. The POSTED rate moves the market, not
+   tonight's collection (`fundNeed` may wave a crate through the booth; a
+   merchant prices off the schedule). A repeal re-parities in ONE clearing:
+   the world undercuts anything above its own landed price.
+
+### The politics it buys
+
+The fleet is the one bloc with nothing to pay and everything to gain — a
+fisher sells what the tariff protects and buys none of what it taxes; the
+shack owner writes the checks twice (the duty at the bin, the protected pier
+price at the counter). `purseCost100`: owners 55, wage crabs 10, else 2 —
+narrower than the levy because only tills that buy imports feel it.
+`purseYield` reads TODAY's priced import flows × rate, so the estimate
+honestly reads zero while the pier keeps up — nobody campaigns on a tariff
+until the town actually leans on the ferry. KNOWN SEAM, written down rather
+than papered over: a fisher's INCOME interest in the protected ceiling is not
+priced into `platValue` (no purse models income effects — the same
+approximation the levy's flat 100 makes). Pricing it would be a seventh stake
+term with its own byte-equality pass; do that as its own landing if the
+politics want sharpening.
+
+### UX (the "bigger civics UX")
+
+The hall card grew a fourth view — BOOKS / **TRADE** / BALLOT / ROLL. TRADE
+is the gangway's page: per-good today/all-time/spent columns, the posted
+rate, what the duty raised today and all time, the pier price against its
+(possibly tariffed) ceiling. Rendered even with no tariff on: a player
+weighing the TARIFF dial reads this page to see what it would fall on.
+
+### LANDED ON TRUNK 2026-08-26 (merge `92ec9a6`, stamp `b1ad72a`, receipt `45eb6a2`)
+
+By cs-the-tariff-is-myk (kd-7rX5iMyY5z). The feature was closed-but-not-on-trunk
+for a cycle (`git grep -c tariff origin/main -- game.js` was 0); it is now 23.
+Trunk moved three times during the landing — `8926e7c` (votereason receipt
+rewrite) → `21064f3` (L1 CLAMP hull + departcard fmtD) → `8510a28` (pig civics)
+— so the branch was re-merged and re-gated each time; a verdict belongs to one
+tree. Every merge conflicted only in `version.js` (generated); `mkcultureways`
+regen was byte-exact at each step (the crab's tariff purse and the pig's civics
+coexist in the 123954-byte bundle).
+
+- GATE at the landed tip `2836591` (tree byte-identical to merge `92ec9a6`),
+  cluster, both backends: **suite-330 784/784** (js 392/392, wasm 392/392),
+  all 24 arms exit 0, recount-confirmed. Receipt:
+  `design/cs35-research/kube-runs/cs-suite-330-2836591-gm7s/`.
+- 48-town matrix on that same tree
+  (`design/cs35-research/kube-runs/cs-matrix-triple16-2836591-gpjt/`):
+  **baseline 0/48, growth 24/48** (sb0 6, sb16 9, sb32 9), workersDied 0.
+  The survived counts were **byte-identical across all three trunk re-merges**
+  (6/9/9 every time) — direct evidence that the intervening main work AND the
+  tariff itself are inert to the growth matrix; the headless bot never
+  campaigns, so it never moves the TARIFF dial.
+- Mutation demo (rule 2): `fishCeil` lift halved → parity scenario RED
+  ("875c, expected 1050c"); `importDuty` base doubled → collection scenario
+  RED ("350c, expected 175c"). Both reverted.
+
+### Measured earlier (branch `tariff-fifth-purse`, 9394feb, off main f48bdd3)
+
+- Suite **381/381 js and 381/381 wasm** at `9394feb` (378 + 3 tariff
+  scenarios), main realm, in-pod. Receipt:
+  `design/cs35-research/kube-runs/inpod-suite-9394feb-tariff/`.
+- 48-town matrix, ADJACENT vs `f48bdd3` on the same instrument (30 days,
+  `--seedbase 0,16,32`, in-pod): **byte-identical, both arms** — baseline
+  0/48 pre → 0/48 post, growth `--buy chef,table` 21/48 pre → 21/48 post
+  (7·7·7), every eviction day list identical. And the post tree is provably
+  live: one growth town organically elected `TARIFF 100% / 3 BOWLS / MIN $32`
+  (a policy string that cannot exist in the pre tree) and still ran to the
+  same eviction outcome. The feature adds a policy OPTION without moving the
+  floor — movement comes only when a town votes it in, which is the intended
+  shape of a civics landing. (The gap against STATE OF PLAY's 26/48 belongs
+  to whatever landed `4af658f..f48bdd3` — the sleep-debt pass is in that
+  window — NOT to the tariff: the byte-identical adjacency bounds the
+  tariff's own contribution at exactly zero.)
+- Grid cost: 5 mechs × 5 rates × 7 pots × 5 floors × 7 limits = **6125
+  platforms** (was 4900); the (mech, rate, bowls) yield cache still shares
+  across the 35 floor/limit combinations.
+
+### THE PURSE RATE AXIS NOW HONOURS THE LADDER (bug kd-ASOmSqbQUr, decision kd-PLM7pe021Z = HONOUR THE LADDER)
+
+The purses had the same asymmetry the tariff rode straight past: `purseRate`
+(the READER) has always clamped to `steps.length-1`, and the ballot dials
+below it derive their bound from the authored ladder (`FLOOR_STEPS`/
+`CAP_STEPS`), but `allPlatforms` (the GENERATOR) and the three save clamps +
+the UI bump hardcoded the top rate index at **4**. So a well-formed purse grid
+longer than five rungs PASSED `civicsLadderProblem` (the ladder EXTENDS, ruling
+4) and was then silently truncated — no platform carrying rate 5+ was ever
+built, so the top rungs could not appear on a ballot, be voted for, or be won.
+That is exactly the silent-drop of a WELL-FORMED document the civics format
+exists to refuse (kd-ASOmSqbQUr; the operator ruled HONOUR, not REFUSE, on
+kd-PLM7pe021Z).
+
+The fix mirrors the ballot dials: `rateSteps(mech) = PURSES[mech].steps.length
+- 1`, used at `allPlatforms`, the two `hall.policy`/`hall.plat` save clamps,
+the ballot-box save clamp, and the two UI rate bumps; cycling the mech chip
+now re-clamps the edited rate into the new mech's grid. **Byte-neutral for all
+shipped content** — every shipped purse grid is exactly five rungs, so
+`rateSteps` returns 4 for every mech today and `allPlatforms` builds the same
+6125 platforms it did before. The axis only grows when an author declares a
+longer grid, and then the grid grows with it (a 6-rung mech adds one rate row:
++7 pots × 5 floors × 7 limits per extra rung). Gated by the scenario *"civics
+purses: an EXTENDED purse grid's top rung is reachable, never silently
+dropped"*: it authors a 6-rung levy grid and asserts the validator ACCEPTS it,
+`allPlatforms` BUILDS a levy platform at rate 5, and `purseRate` reads it — the
+mutation demo reverts `allPlatforms` to `rate<=4` and the scenario goes red
+naming the drop.
+
 ## PAYDAY (Matt, 2026-08-20) — "not making salary needs to be a real alternative to going bankrupt"
 
 His words: *"probably via a choice mechanic at the critical moment, 'take out

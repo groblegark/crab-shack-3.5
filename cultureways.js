@@ -548,6 +548,167 @@ var BUNDLED_CULTUREWAYS = {
      ]
     }
    }
+  },
+  "civics": {
+   "stakes": [
+    {
+     "id": "platform",
+     "terms": [
+      {
+       "name": "potStake",
+       "prog": [
+        [
+         "PUSHI",
+         1725000
+        ],
+        [
+         "LD",
+         "potStake20"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "LD",
+         "pBowls"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "TERM"
+        ]
+       ]
+      },
+      {
+       "name": "roof",
+       "prog": [
+        [
+         "PUSHI",
+         517500
+        ],
+        [
+         "LD",
+         "roofWeight20"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "LD",
+         "roof"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "TERM"
+        ]
+       ]
+      },
+      {
+       "name": "floorRaise",
+       "prog": [
+        [
+         "PUSHI",
+         36000
+        ],
+        [
+         "LD",
+         "fr"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "TERM"
+        ]
+       ]
+      },
+      {
+       "name": "floorBill",
+       "prog": [
+        [
+         "PUSHI",
+         -9200
+        ],
+        [
+         "LD",
+         "fb"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "TERM"
+        ]
+       ]
+      },
+      {
+       "name": "capStake",
+       "prog": [
+        [
+         "PUSHI",
+         414000
+        ],
+        [
+         "LD",
+         "capStake100"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "TERM"
+        ]
+       ]
+      },
+      {
+       "name": "purseCost",
+       "prog": [
+        [
+         "PUSHI",
+         -35
+        ],
+        [
+         "LD",
+         "purseCost100"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "LD",
+         "pTake"
+        ],
+        [
+         "MUL"
+        ],
+        [
+         "TERM"
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "eligibility": {
+    "vote": [
+     [
+      "PUSHI",
+      1
+     ]
+    ],
+    "stand": [
+     [
+      "LD",
+      "owner"
+     ],
+     [
+      "NOT"
+     ]
+    ]
+   }
   }
  },
  "gull": {
@@ -11587,6 +11748,20 @@ var BUNDLED_CRAB_CIVICS = {
     200,
     300,
     400
+   ]
+  },
+  {
+   "id": "tariff",
+   "name": "THE TARIFF",
+   "short": "TARIFF",
+   "unit": "% ON THE LANDED PRICE",
+   "who": "EVERY TILL THAT BUYS AN IMPORTED GOOD - FISH FIRST",
+   "steps": [
+    0,
+    10,
+    25,
+    50,
+    100
    ]
   }
  ],

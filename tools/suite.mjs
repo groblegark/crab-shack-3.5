@@ -12986,7 +12986,10 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
   const platTerms = () => JSON.parse(JSON.stringify(goodCivics.stakes[0].terms));
   const boar = (civics) => {
     const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
-    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    d.meta.id = "boar"; delete d.foodways; delete d.policies; delete d.civics;
+    // civics === undefined is the UNDECLARED case, so the pig fixture's own
+    // civics section is dropped first (the fixture ships one now, kd-NwmSEtppH4);
+    // a passed civics is the section under test.
     if (civics !== undefined) d.civics = civics;
     return d;
   };
@@ -13291,20 +13294,22 @@ scenario("civics purses: the document's rate grids are byte-equal to the PURSES 
   const sim = createSim({ seed: 7 });
   const got = JSON.parse(sim.G(`JSON.stringify({
     levy: PURSES.levy.steps, dues: PURSES.dues.steps, rents: PURSES.rents.steps, tin: PURSES.tin.steps,
+    tariff: PURSES.tariff.steps,
     doc: !!(BUNDLED_CRAB_CIVICS && Array.isArray(BUNDLED_CRAB_CIVICS.purses)),
     ids: (BUNDLED_CRAB_CIVICS.purses || []).map(p => p.id),
     // purseRate resolves the index through the adopted grid
     rateTop: PURSE_KEYS.map(k => purseRate({ mech: k, rate: 4 }))
   })`));
   if (!got.doc) return "the bundled crab civics carries no purses section - slice 4b did not install";
-  if (JSON.stringify(got.ids) !== JSON.stringify(["levy", "dues", "rents", "tin"])) return "the purse ids are " + JSON.stringify(got.ids) + ", not the four PURSE_KEYS";
+  if (JSON.stringify(got.ids) !== JSON.stringify(["levy", "dues", "rents", "tin", "tariff"])) return "the purse ids are " + JSON.stringify(got.ids) + ", not the five PURSE_KEYS";
   if (JSON.stringify(got.levy) !== JSON.stringify([0, 2, 4, 6, 8])) return "the levy rate grid drifted: " + JSON.stringify(got.levy);
   if (JSON.stringify(got.dues) !== JSON.stringify([0, 100, 200, 300, 400])) return "the dues rate grid drifted: " + JSON.stringify(got.dues);
   if (JSON.stringify(got.rents) !== JSON.stringify([0, 10, 20, 30, 40])) return "the rents rate grid drifted: " + JSON.stringify(got.rents);
   if (JSON.stringify(got.tin) !== JSON.stringify([0, 100, 200, 300, 400])) return "the tin rate grid drifted: " + JSON.stringify(got.tin);
-  for (const s of [got.levy, got.dues, got.rents, got.tin]) if (s[0] !== 0) return "a purse's step 0 is not NO TAKE (the founding grid): " + JSON.stringify(s);
+  if (JSON.stringify(got.tariff) !== JSON.stringify([0, 10, 25, 50, 100])) return "the tariff rate grid drifted: " + JSON.stringify(got.tariff);
+  for (const s of [got.levy, got.dues, got.rents, got.tin, got.tariff]) if (s[0] !== 0) return "a purse's step 0 is not NO TAKE (the founding grid): " + JSON.stringify(s);
   // purseRate({rate:4}) must read the adopted top step, not the literal path
-  if (JSON.stringify(got.rateTop) !== JSON.stringify([8, 400, 40, 400])) return "purseRate does not read the adopted top step: " + JSON.stringify(got.rateTop);
+  if (JSON.stringify(got.rateTop) !== JSON.stringify([8, 400, 40, 400, 100])) return "purseRate does not read the adopted top step: " + JSON.stringify(got.rateTop);
   return true;
 });
 
@@ -13347,6 +13352,197 @@ scenario("civics purses: a tampered grid is refused by name and falls back, and 
   if (JSON.stringify(got.fallback) !== JSON.stringify([0, 2, 4, 6, 8])) return "the fallback did not return the levy grid: " + JSON.stringify(got.fallback);
   if (got.adopts !== 22) return "a distinct document grid did not reach purseRate - adoption is a no-op, the purse reads the literal path: " + got.adopts;
   return true;
+});
+
+scenario("civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr)", () => {
+  // THE GATE THE PURSE-RUNG BUG OWES (bug kd-ASOmSqbQUr, decision kd-PLM7pe021Z
+  // = HONOUR THE LADDER). civicsLadderProblem ACCEPTS a purse grid longer than
+  // five rungs - the ladder EXTENDS (ruling 4) - and purseRate has always
+  // clamped a read to steps.length-1, so a longer grid was READABLE. The bug
+  // was that the GENERATORS and the save/UI clamps hardcoded the top rate index
+  // at 4: allPlatforms built no platform carrying rate 5+, so an accepted
+  // 6-rung grid had its top rung silently dropped - it could never appear on a
+  // ballot, be voted for, or be won. That is precisely the silent-truncation of
+  // a WELL-FORMED document the civics format exists to refuse. The fix derives
+  // the rate axis from the adopted grid (rateSteps = steps.length-1) exactly as
+  // FLOOR_STEPS/CAP_STEPS do for the ballot dials. This scenario authors a
+  // 6-rung levy grid and asserts its top rung is REACHABLE end to end.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    const grid6 = [0, 2, 4, 6, 8, 10];   // a well-formed SIXTH rung above today's five
+    out.accepted = civicsLadderProblem(grid6, "PURSE");   // must be null (validator honours it)
+    // adopt the extended levy grid the way boot does, from the live bundle
+    const save = JSON.stringify(BUNDLED_CRAB_CIVICS.purses);
+    BUNDLED_CRAB_CIVICS.purses = [{ id: "levy", steps: grid6 },
+      { id: "dues", steps: [0, 100, 200, 300, 400] }, { id: "rents", steps: [0, 10, 20, 30, 40] },
+      { id: "tin", steps: [0, 100, 200, 300, 400] }, { id: "tariff", steps: [0, 10, 25, 50, 100] }];
+    for (const k of PURSE_KEYS) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
+    // 1) the reader honours the top rung: index 5 resolves to its value, 10
+    out.topRead = purseRate({ mech: "levy", rate: 5 });
+    // 2) rateSteps derives the bound from the grid, per mech (5 for the extended
+    //    levy, 4 for every still-5-rung mech)
+    out.levyBound = rateSteps("levy");
+    out.rentsBound = rateSteps("rents");
+    // 3) THE BUG: does allPlatforms actually BUILD a levy platform at rate 5?
+    //    Before the fix its rate loop stopped at 4 and this max is 4.
+    const levyRates = allPlatforms().filter(p => p.mech === "levy").map(p => p.rate);
+    out.levyRateMax = Math.max.apply(null, levyRates);
+    out.hasTopRung = levyRates.indexOf(5) !== -1;
+    // 4) and the still-5-rung mechs are UNCHANGED - no phantom rate 5 built for them
+    out.rentsRateMax = Math.max.apply(null, allPlatforms().filter(p => p.mech === "rents").map(p => p.rate));
+    // 5) the save clamp keeps the top rung on a round-trip, not truncated to 4
+    out.savedRung = Math.max(0, Math.min(rateSteps("levy"), Math.round(5)));
+    // restore the shipped grids
+    BUNDLED_CRAB_CIVICS.purses = JSON.parse(save);
+    for (const k of PURSE_KEYS) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
+    return out;
+  })())`));
+  if (got.accepted !== null) return "the validator refused a well-formed 6-rung purse grid: " + got.accepted;
+  if (got.topRead !== 10) return "purseRate did not resolve the extended grid's top rung (5->10): " + got.topRead;
+  if (got.levyBound !== 5) return "rateSteps did not derive the extended levy bound (want 5): " + got.levyBound;
+  if (got.rentsBound !== 4) return "rateSteps drifted for a still-5-rung mech (want 4): " + got.rentsBound;
+  if (got.levyRateMax !== 5) return "allPlatforms did not build the extended top rung - it silently dropped rate 5 (levy rate max " + got.levyRateMax + ", the bug)";
+  if (!got.hasTopRung) return "allPlatforms built no levy platform carrying the top rung rate 5 - it is unreachable on a ballot (the bug)";
+  if (got.rentsRateMax !== 4) return "allPlatforms grew a phantom rung for a still-5-rung mech (rents rate max " + got.rentsRateMax + ")";
+  if (got.savedRung !== 5) return "the save clamp truncated the extended top rung to " + got.savedRung + " instead of keeping 5";
+  return true;
+});
+
+scenario("the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none", () => {
+  // THE FIFTH PURSE (Matt, 2026-08-25). A duty on the gangway, collected at
+  // consumeIngredient - the same chokepoint that books the import - so the
+  // charge and the ledger can never disagree about what landed. Direct-drive:
+  // policy set by hand, the chokepoint called by hand, every flow read back.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    hall.policy = { mech: "tariff", rate: 2, bowls: 0, wage: 0, cap: 0 };   // steps[2] = 25%
+    townFund.bal = 0; townFund.arrears = 0;
+    // an imported fish: the pier is dry, the world's $7 was charged upstream,
+    // and the duty rides the same crate - 25% of $7 is $1.75, off the shack
+    townCatch = 0;
+    const c0 = coins, w0 = worldMoney();
+    consumeIngredient("fish_raw", null, "shack");
+    out.fishDuty = townFund.bal;
+    out.tillPaid = c0 - coins;
+    out.conserved = worldMoney() === w0;
+    out.dutyLedger = [trade.duty, trade.dutyDay];
+    out.row = townFund.ledger[townFund.ledger.length - 1];
+    // the pier's own fish: no import, no duty - a tariff never taxes the catch
+    townCatch = 3;
+    const f1 = townFund.bal;
+    consumeIngredient("fish_raw", null, "shack");
+    out.pierDuty = townFund.bal - f1;
+    out.pierCatch = townCatch;
+    // corn is always an import: 25% of $3 is 75c
+    const f2 = townFund.bal;
+    consumeIngredient("corn", null, "shack");
+    out.cornDuty = townFund.bal - f2;
+    // the office's own pot passes no payer and pays no duty
+    townCatch = 0;
+    const f3 = townFund.bal;
+    consumeIngredient("fish_raw", null);
+    out.potDuty = townFund.bal - f3;
+    // ...and the duty never leaks into the import bill: spent stays the world price
+    out.spentClean = trade.spentBy.fish === trade.total.fish * 700;
+    return out;
+  })())`));
+  if (got.fishDuty !== 175) return "an imported $7 fish at 25% paid " + got.fishDuty + "c, expected 175c";
+  if (got.tillPaid !== 175) return "the shack's till paid " + got.tillPaid + "c, expected the 175c duty";
+  if (!got.conserved) return "the duty minted or destroyed money";
+  if (got.dutyLedger[0] !== 175 || got.dutyLedger[1] !== 175) return "the gangway counters read " + JSON.stringify(got.dutyLedger) + ", expected [175, 175]";
+  if (!got.row || got.row.kind !== "take" || got.row.why !== "TARIFF: FISH") return "the fund's last ledger row is " + JSON.stringify(got.row) + ", not a TARIFF: FISH take";
+  if (got.pierDuty !== 0) return "a pier fish paid " + got.pierDuty + "c duty - the tariff is taxing local catch";
+  if (got.pierCatch !== 2) return "the pier fish did not come off townCatch";
+  if (got.cornDuty !== 75) return "an imported $3 ear at 25% paid " + got.cornDuty + "c, expected 75c";
+  if (got.potDuty !== 0) return "the pot's own fish paid " + got.potDuty + "c - the office is tolling its own relief";
+  return got.spentClean ? true : "the duty leaked into the import bill (spentBy.fish != fish x $7)";
+});
+
+scenario("the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip", () => {
+  const sim = createSim({ seed: 11 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    townCatch = 0; townFund.arrears = 0;
+    // a covered fund charges nothing: the town does not charge tolls it has no use for
+    hall.policy = { mech: "tariff", rate: 4, bowls: 0, wage: 0, cap: 0 };   // 100%
+    townFund.bal = 9999999;
+    const f0 = townFund.bal;
+    consumeIngredient("fish_raw", null, "shack");
+    out.fullFund = townFund.bal - f0;
+    // a nearly-covered fund takes only what the night still needs, never the whole rate
+    townFund.bal = shelterRent() * (1 + SHELTER_FLOAT) + potWant() * bowlCost() + ballotBill() - 250;
+    out.need = fundNeed();
+    const f1 = townFund.bal;
+    consumeIngredient("fish_raw", null, "shack");
+    out.capTake = townFund.bal - f1;
+    // rate 0 is NO TAKE, the founding grid
+    hall.policy = { mech: "tariff", rate: 0, bowls: 0, wage: 0, cap: 0 };
+    townFund.bal = 0;
+    consumeIngredient("fish_raw", null, "shack");
+    out.rate0 = townFund.bal;
+    // ...and under any other purse the gangway is free
+    hall.policy = { mech: "levy", rate: 4, bowls: 0, wage: 0, cap: 0 };
+    consumeIngredient("fish_raw", null, "shack");
+    out.otherMech = townFund.bal;
+    return out;
+  })())`));
+  if (got.fullFund !== 0) return "a covered fund still took " + got.fullFund + "c - the tariff hoards";
+  if (got.need !== 250) return "the staged fund need reads " + got.need + "c, not the 250c the cap test stands on";
+  if (got.capTake !== 250) return "a 100% duty against a 250c need took " + got.capTake + "c, expected exactly the need";
+  if (got.rate0 !== 0) return "rate 0 still took " + got.rate0 + "c";
+  if (got.otherMech !== 0) return "the gangway charged under the levy - the duty ignores the elected mech";
+  // the books roundtrip: the elected tariff and the gangway counters survive a reload
+  const store = new Map();
+  const a = createSim({ seed: 9, storage: store, fresh: false });
+  a.G('hall.mayor = npcs[0].p.name; hall.policy = { mech: "tariff", rate: 3, bowls: 1, wage: 0, cap: 0 };'
+    + ' trade.duty = 1234; trade.dutyDay = 56; save()');
+  const b = createSim({ seed: 10, storage: store, fresh: false });
+  if (b.G("hall.policy.mech") !== "tariff" || b.G("hall.policy.rate") !== 3)
+    return "the elected tariff did not roundtrip: " + b.G("hall.policy.mech") + " rate " + b.G("hall.policy.rate");
+  if (b.G("trade.duty") !== 1234 || b.G("trade.dutyDay") !== 56)
+    return "the gangway counters did not roundtrip: " + b.G("trade.duty") + "/" + b.G("trade.dutyDay");
+  // ...and a pre-tariff save opens with a clean gangway column
+  const s = JSON.parse(store.get(SLOT1));
+  delete s.trade.duty; delete s.trade.dutyDay;
+  store.set(SLOT1, JSON.stringify(s));
+  const c = createSim({ seed: 12, storage: store, fresh: false });
+  if (c.G("trade.duty") !== 0 || c.G("trade.dutyDay") !== 0)
+    return "a pre-tariff save did not open clean: " + c.G("trade.duty") + "/" + c.G("trade.dutyDay");
+  return true;
+});
+
+scenario("the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing", () => {
+  // THE PROTECTION HALF (Matt: "this should increase the price paid for fish
+  // in high tariff scenarios"). $7 was only ever the ceiling because that is
+  // where the world supplies; a 50% duty moves the world's landed price to
+  // $10.50 and the pier may clear up to it - deterministic clearing math,
+  // same direct-drive as the glut scenario.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    hall.policy = { mech: "tariff", rate: 3, bowls: 0, wage: 0, cap: 0 };   // steps[3] = 50%
+    out.ceil = fishCeil();
+    // scarcity walks the price THROUGH the old $7 ceiling to tariffed parity
+    trade.price = 600; trade.landH = []; trade.useH = []; trade.series = []; trade.ceilDays = 0;
+    for (let i = 0; i < 6; i++) { trade.landedDay = 0; trade.useDay = 9; settleFishMarket(); }
+    out.walked = trade.series.slice();
+    out.ceilDays = trade.ceilDays;
+    // the repeal: the town votes the levy back in and the world undercuts
+    // anything above its own landed price in ONE clearing, not by $1 walks
+    hall.policy = { mech: "levy", rate: 2, bowls: 0, wage: 0, cap: 0 };
+    out.base = fishCeil();
+    trade.landedDay = 0; trade.useDay = 9; settleFishMarket();
+    out.reparity = trade.price;
+    return out;
+  })())`));
+  if (got.ceil !== 1050) return "a 50% tariff's ceiling is " + got.ceil + "c, expected 1050c import parity";
+  if (JSON.stringify(got.walked) !== JSON.stringify([700, 800, 900, 1000, 1050, 1050]))
+    return "scarcity walked " + JSON.stringify(got.walked) + ", expected [700,800,900,1000,1050,1050]";
+  if (got.ceilDays !== 2) return "ceilDays reads " + got.ceilDays + " against the tariffed ceiling, expected 2";
+  if (got.base !== 700) return "with the tariff out-voted the ceiling reads " + got.base + "c, not the $7 parity";
+  return got.reparity === 700 ? true : "the repeal left the pier at " + got.reparity + "c - the world is not undercutting it";
 });
 
 scenario("civics calendar/relief: the scalars are byte-equal to the engine constants", () => {
@@ -13623,6 +13819,107 @@ scenario("civics eligibility: a hostile franchise is refused by name at the door
   if (!/NOT A 0\/1 PREDICATE/.test(String(v.notPred))) return "a program that can return 8 slid in as a predicate: " + v.notPred;
   if (!/NOT A 0\/1 PREDICATE/.test(String(v.clampLaunder))) return "a CLAMP-laundered program that returns 50 slid in as a predicate: " + v.clampLaunder;
   if (v.clampGood !== null) return "a genuine clamp(npc,0,1) predicate was refused: " + v.clampGood;
+  return true;
+});
+
+scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites", () => {
+  // THE FORMAT'S OWN ACCEPTANCE BAR (substrate section 5.2 + kd-NwmSEtppH4).
+  // Every scenario above proves civics with a SYNTHETIC "boar" doc built suite-
+  // side; none proved a BUNDLED people declares one. This is the dogfood: the
+  // pig the bundle ships (CULTURES.pig, installed at boot from cultures-pig.json
+  // through the real cultureProblem door) must carry a civics section that
+  // GENUINELY DECIDES its voters and is CHARACTERFUL - not a re-parameterised
+  // crab. Four claims, each an observable a designer would defend, and the last
+  // is the data-must-bite gate: a scenario that MOVES when a pig coefficient does.
+  //
+  // The pig is the PORKRESENTATIVE PIGPUBLIC - a leveller people whose slop pot
+  // is its whole identity. Its civics say so: the communal pot outweighs the
+  // roof (crab: roof 6x the pot; pig: pot 5x, roof a quarter), and its franchise
+  // is "no pigtators" (any non-owner may stand; the crab lets only townsfolk).
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 6) hireCrew();`);   // the game's own recruitment path
+  sim.runDays(20);
+  // the mutant: the SHIPPED pig with its potStake coefficient reverted to the
+  // crab's (1725000 -> 345000). Built from the bundled pig so it drifts with it.
+  const mutant = JSON.parse(sim.G(`JSON.stringify((() => {
+    const d = JSON.parse(JSON.stringify(BUNDLED_CULTUREWAYS.pig));
+    d.meta.id = "flatpig"; delete d.foodways; delete d.policies;
+    const pot = d.civics.stakes[0].terms.find(t => t.name === "potStake");
+    if (!pot || pot.prog[0][0] !== "PUSHI") return null;
+    pot.prog[0][1] = 345000;   // the crab's per-bowl weight - kills the pot-over-roof tilt
+    return d;
+  })())`));
+  if (!mutant) return "the shipped pig's potStake term is not shaped as expected (fixture drift)";
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    // (0) the SHIPPED pig declares civics + a franchise, straight from the bundle
+    const pig = CULTURES.pig;
+    if (!pig || !pig.civicsR || !pig.civicsR.platform) return { err: "the shipped pig declares no civics stakes" };
+    if (pig.civicsR.platform.length !== 6) return { err: "the pig platform stake has " + pig.civicsR.platform.length + " terms, not 6" };
+    if (!pig.eligR || !pig.eligR.stand || !pig.eligR.vote) return { err: "the shipped pig declares no franchise" };
+    installCultures({ flatpig: ${JSON.stringify(mutant)} }, false);
+    if (!CULTURES.flatpig || !CULTURES.flatpig.civicsR) return { err: "the flat-pot mutant did not install" };
+    const crabs = allCrabs(), grid = allPlatforms();
+
+    // (1) THE DISPATCH FIRES for the pig: on some (crab, platform) pair the pig's
+    // stakes disagree with the engine lambda. Prove by construction: score one
+    // pair three ways changing ONLY the culture tag.
+    let dispPair = null;
+    outer: for (const cc of crabs) for (const pp of grid) {
+      const was = cc.p.culture;
+      window._nol1plat = true; cc.p.culture = null; const lam = platValue(cc, pp); window._nol1plat = false;
+      cc.p.culture = "pig"; const asPig = platValue(cc, pp);
+      cc.p.culture = was;
+      if (asPig !== lam) { dispPair = { lam, asPig }; break outer; }
+    }
+
+    // (2) CHARACTERFUL, NOT A CRAB CLONE: a pot-heavy platform vs a roof-only one.
+    // The crab ranks roof above pot (roof term dominates); the pig ranks pot
+    // above roof. So sign(val(POT) - val(ROOF)) must FLIP between the two
+    // cultures on a homeless voter (the one the pot most serves). Pure ordering.
+    const c = crabs.find(x => !x.p.npc && x.p.homeless) || crabs.find(x => !x.p.npc) || crabs[0];
+    const potHeavy = grid.filter(p => p.bowls >= 3 && p._bowls >= 1).sort((a, b) => a.rate - b.rate)[0];
+    const roofOnly = grid.filter(p => p.bowls === 0 && p._y >= shelterRent()).sort((a, b) => a.rate - b.rate)[0];
+    if (!potHeavy || !roofOnly) return { err: "this town has no pot-heavy or roof-only platform to rank" };
+    const pref = (cult) => { const was = c.p.culture; c.p.culture = cult;
+      const d = platValue(c, potHeavy) - platValue(c, roofOnly); c.p.culture = was; return d; };
+    const prefCrab = pref(null), prefPig = pref("pig"), prefFlat = pref("flatpig");
+
+    // (3) THE FRANCHISE DECIDES A DIFFERENT ELECTORATE. The pig's "no pigtators"
+    // lets a crew-shaped resident (npc:false, no till) STAND where the crab
+    // franchise (townsfolk-only) forbids it; and it BARS an owner where the crab
+    // would let them. Both dispatch on the tag alone.
+    const crew = crabs.find(x => !x.p.npc && !x.p.owner);
+    const owner = crabs.find(x => x.p.owner);
+    const stand = (cr, cult) => { const was = cr.p.culture; cr.p.culture = cult; const r = canStand(cr); cr.p.culture = was; return r; };
+    const franchise = crew && owner ? {
+      crewCrab: stand(crew, null), crewPig: stand(crew, "pig"),
+      ownerCrab: stand(owner, null), ownerPig: stand(owner, "pig"),
+    } : null;
+
+    window._nol1plat = false;
+    loadCultures(null);
+    return { dispPair, prefCrab, prefPig, prefFlat, franchise, homeless: !!c.p.homeless };
+  })())`));
+  if (got.err) return got.err;
+  // (1) the pig's own stakes decided its voter somewhere - the dispatch fired
+  if (!got.dispPair) return "the shipped pig's stakes never diverged from the engine lambda - the dispatch never fired (a civics that decides nothing)";
+  // (2) the ranking INVERTS: crab prefers the roof, pig prefers the pot
+  if (!(got.prefCrab < 0)) return "the crab did not rank the roof above the pot as expected (prefCrab " + got.prefCrab + ") - fixture/engine drift";
+  if (!(got.prefPig > 0)) return "the SHIPPED pig did not rank its own slop pot above the roof (prefPig " + got.prefPig + ") - the pig votes the crab's priorities, not its own";
+  // (3) THE BITE (substrate 5.2): the pot-over-roof margin is largely the pig's
+  // potStake coefficient. Revert it to the crab's (1725000 -> 345000) and the
+  // margin must SHRINK hard - the pig's OWN coefficient is what tilted it. A
+  // scenario that moves when a pig coefficient moves is the whole point of the
+  // gate; a potStake defect that halved the weight would be caught here.
+  if (!(got.prefFlat < got.prefPig)) return "bending the pig's potStake coefficient did not move the ranking (flat " + got.prefFlat + " vs pig " + got.prefPig + ") - a pig coefficient defect would hide, the data does not bite";
+  // (4) the franchise decides a different electorate on the tag alone
+  if (!got.franchise) return "the town grew no crew/owner pair to test the franchise on";
+  const f = got.franchise;
+  if (f.crewCrab !== false) return "a crew crab could stand under the crab franchise (should be townsfolk-only)";
+  if (f.crewPig !== true) return "the pig's leveller franchise did not let a crew resident stand - the dispatch never fired";
+  if (f.ownerCrab !== true) return "an owner could not stand under the crab franchise (should be townsfolk)";
+  if (f.ownerPig !== false) return "the pig's 'no pigtators' clause did not bar an owner from standing";
   return true;
 });
 
