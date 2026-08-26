@@ -9408,6 +9408,7 @@ var BUNDLED_CRAB_TRAITS = {
    "move20": 28,
    "work20": 20,
    "tip20": 20,
+   "thrift": 18,
    "quips": {
     "commute": [
      "GOTTA GO FAST",
@@ -9430,6 +9431,7 @@ var BUNDLED_CRAB_TRAITS = {
    "move20": 17,
    "work20": 17,
    "tip20": 20,
+   "thrift": 6,
    "lateMin": 45,
    "quips": {
     "commute": [
@@ -9454,6 +9456,7 @@ var BUNDLED_CRAB_TRAITS = {
    "move20": 20,
    "work20": 20,
    "tip20": 25,
+   "thrift": 20,
    "quips": {
     "commute": [
      "WHAT A MORNING!",
@@ -9476,6 +9479,7 @@ var BUNDLED_CRAB_TRAITS = {
    "move20": 20,
    "work20": 23,
    "tip20": 18,
+   "thrift": 24,
    "quips": {
     "commute": [
      "TRAFFIC. GREAT.",
@@ -9498,6 +9502,7 @@ var BUNDLED_CRAB_TRAITS = {
    "move20": 20,
    "work20": 22,
    "tip20": 21,
+   "thrift": 28,
    "quips": {
     "commute": [
      "CLAWS WASHED",
@@ -9519,6 +9524,7 @@ var BUNDLED_CRAB_TRAITS = {
    "move20": 19,
    "work20": 18,
    "tip20": 23,
+   "thrift": 4,
    "pauses": true,
    "quips": {
     "commute": [

@@ -5733,6 +5733,93 @@ function loadSlot(i) {
 // is stuck with - see WAGE_STD / bizWage / wageRate. Kept as the name the rest
 // of the file (and the tools) already say when they mean "the town's wage".
 const CRAB_WAGE = WAGE_STD, HOUSE_RENT = 1000;   // cents   // wage raised 22 -> 23 with T2 thirst: crews drink at retail, the wage keeps their wallets liquid
+// ---- WHAT A CRAB KEEPS BACK (the spend reserve) ---------------------------
+// Every affordability gate in pickErrand used to read `wallet >= price + 200`:
+// a flat $2, written when the only thing a crab could run out of was lunch
+// money. HOUSE_RENT is 1000 - five times that - so a housed crab would spend
+// down to $2 with $10 due at midnight and lose the house for want of a dollar.
+// MEASURED before this change (seed 909, 40 days): 18 evictions, and THREE of
+// them were crabs holding $9 of the $10 they needed. SCUTTLE on d16 is the
+// clean case - $22 in pocket, buys a $13 soak, keeps $9, evicted that night.
+// The diary read like a character flaw; it was an off-by-800-cents.
+//
+// SO THE FLOOR IS NOW WHAT THE NIGHT ACTUALLY COSTS: pocket money, plus the
+// roof if this crab is paying for one. Read through ONE helper so the reserve
+// can never drift between the twelve gates that ask.
+//
+// AND IT IS A TEMPERAMENT, NOT A RULE (this is the part that keeps the town
+// funny). A uniform reserve makes every crab identically prudent, which is
+// safer and much duller - measured, it flattened exactly the differently-wrong
+// behaviour the town's comedy comes from. `thrift` is twentieths of the roof a
+// crab thinks to keep back: LAZY and DREAMY barely plan, TIDY is careful, and
+// the rest sit near 1.0. It rides the TRAIT the persona already carries, so it
+// is deterministic from the town seed, needs no new registry, and SUDSY is
+// constitutionally feckless while PINCHY saves - which is the per-individual
+// axis ruling 6 h2 declared and left unsourced.
+//
+// AND IT IS CAPPED AT THE ROOF, which is a correction the suite extracted from
+// me. TIDY was authored at 28 twentieths - $16 held against a $10 rent - and
+// that is not prudence, it is hoarding: measured on seed 909, CLAWDIA's median
+// AFTERNOON HEADROOM (wallet minus reserve) ran to MINUS $7, so she could
+// afford nothing after noon whatever she wanted. It surfaced as the brain
+// save-round-trip scenario going quiet - a temperament corrupted to act
+// compulsively changed nothing, because the crab it rode had no affordable
+// candidate to act ON (12/12 seeds bit on main, 1/12 on the uncapped build).
+// A reserve is for the bill that is actually coming; anything past it just
+// stops a crab living. So the term is min(thrift, 20)/20 of the roof - the
+// AXIS still runs 0..8 x quarters for authors, the EFFECT saturates at one
+// night's rent.
+const POCKET_KEEP = 200;      // cents - the original flat float, unchanged
+function rentDue(c) {         // what tonight's roof costs THIS crab, 0 if none
+  const p = c && c.p;
+  if (!p || p.homeless) return 0;         // a cot is billed to the fund, not the sleeper
+  if (p.boat != null) return MOORING_FEE; // a boat runs a tab, but they still plan for it
+  return HOUSE_RENT;
+}
+// WHEN a crab starts holding the rent back, and this half is load-bearing.
+// A reserve that runs all day is too blunt: at 9am there are still hours of
+// wages to come, so refusing a $7 rinse at breakfast protects a roof that was
+// never at risk and costs the town a sale. MEASURED (6 towns, 40 days): the
+// all-day version cut evictions 97 -> 74 but drove seed 4242 to rep 15,
+// through exactly the demand-collapse chain the earlier harness experiment
+// found - crab spend 154 -> 105, BRASS's till starves, she misses payroll on
+// d37/d38, SALTY and KELP quit to the pier, and the hotel ends UNOWNED.
+// Thrift that closes the shops is not thrift.
+//
+// So the reserve switches on at MIDDAY, when what is in the pocket is most of
+// what tonight has to work with. Morning crabs spend like crabs.
+//
+// THE HOUR IS MEASURED, NOT GUESSED. Swept on the UNCAPPED build (6 towns x 40
+// days: evictions / summed rep / serves / non-fishing jobs / worst town rep):
+//     off      97   355   5486   39   33
+//     all day  74   331   5642   37   15   <- best evictions, 4242 still dies
+//     NOON     78   354   5610   42   42   <- nearly all the win, no damage
+//     3pm      88   361   5465   40   54   <- too late to save many houses
+// My first guess was 3pm and the sweep overruled it: by mid-afternoon the money
+// a crab would have kept is already spent. Noon it is.
+//
+// THE LANDED BUILD IS THE CAPPED ONE, and it is gentler than that sweep - the
+// cap removes the hoarding half, so the reserve now only ever holds back a
+// bill that is really coming. Re-measured after the cap (3 towns x 25 days,
+// same instrument, thrift 0 as the off-arm):
+//     off   evict 35   rep 166   serves 1744   jobs 21   worst-town rep 42
+//     ON    evict 31   rep 177   serves 1671   jobs 20   worst-town rep 56
+// Evictions down ~11%, total reputation UP, and the worst town in the block
+// improves 42 -> 56: no town is left worse off, which is the property the
+// uncapped build could not hold (4242 fell to rep 15 there).
+const KEEP_FROM = 12 * 60;   // noon - after the morning trade, before the 8pm settle
+function keepFrom() {        // a harness hatch, so the hour can be swept
+  return typeof window !== "undefined" && window._keepFrom != null ? window._keepFrom : KEEP_FROM;
+}
+// the reserve a gate must clear on top of the price
+function spendKeep(c) {
+  if (tmin < keepFrom()) return POCKET_KEEP;   // the morning is for spending
+  const t = traitOf(c), raw = t && t.thrift != null ? t.thrift : 20;   // twentieths, 20 = x1
+  const th = raw > 20 ? 20 : raw;   // capped at the roof: see the note above
+  return POCKET_KEEP + Math.floor(rentDue(c) * th / 20);
+}
+// ...and the gate itself, so a call site reads as the question it is asking.
+function canAfford(c, price) { return c.p.wallet >= price + spendKeep(c); }
 // RENT IS DUE FROM NIGHT ONE, and the question was re-opened and re-closed
 // with a number on 2026-08-19. CS3 shipped its first commit with a rent-free
 // opening night (`day <= 1 ? 0 : rent`); e6e3476 deleted it - "no more
@@ -8682,6 +8769,11 @@ function traitsProblem(t) {
     if (!line(r.label) || r.label.length > 20) return "A BAD TRAIT LABEL";
     for (const k of ["move20", "work20", "tip20"]) if (!m20(r[k])) return "A BAD TRAIT MULTIPLIER";
     if (r.lateMin != null && !(Number.isInteger(r.lateMin) && r.lateMin >= 0 && r.lateMin <= 240)) return "A LATENESS PAST ALL PATIENCE";
+    // thrift: twentieths of tonight's roof this trait keeps back. Optional -
+    // an old table that predates the reserve is a valid table, and buildTraits
+    // defaults it to the identity 20. Capped at 60 like the other twentieths:
+    // a crab may reserve up to three nights, never an unbounded hoard.
+    if (r.thrift != null && !(Number.isInteger(r.thrift) && r.thrift >= 0 && r.thrift <= 60)) return "A THRIFT NOBODY COULD KEEP";
     if (r.pauses != null && typeof r.pauses !== "boolean") return "A BAD TRAIT";
     if (!r.quips || typeof r.quips !== "object" || Array.isArray(r.quips)) return "A TRAIT WITH NOTHING TO SAY";
     for (const q in r.quips) {
@@ -8708,6 +8800,11 @@ function buildTraits(src) {
     };
     if (r.lateMin != null) out[id].lateMin = r.lateMin;
     if (r.pauses) out[id].pauses = true;
+    // thrift stays in TWENTIETHS (spendKeep divides by 20 in ints) rather than
+    // becoming a double like move/work/tip - the reserve is money, and money
+    // in this engine is integer cents. A table that predates the reserve gets
+    // the identity, so an old document keeps its crabs' pockets unchanged.
+    out[id].thrift = r.thrift != null ? r.thrift : 20;
     out[id].moveQ8 = Math.round(40 * out[id].move * Q8);
   }
   return out;
@@ -9350,8 +9447,18 @@ const NEURO_PARAM_OBS = {
   // ...and the citizen-priced trio: a resident pays localPrice, not the
   // tourist menu, and reads staffing where a guest reads opening hours.
   "cit.staffed":      { units: "flag*4096", read: (b) => () => nclamp((bizStaffed(b) ? 1 : 0) * 4096) },
+  // PERCEPTION, NOT POLICY - and this one deliberately did NOT move when the
+  // spend reserve landed. `canAfford` now holds back tonight's rent by
+  // temperament, but that is a crab DECIDING what to allow itself; this
+  // observable answers the prior question of what is purchasable at all, which
+  // is what a crab can SEE on the board. Keeping the two apart is what lets a
+  // brain learn "I could have had the soak and saved anyway" instead of being
+  // told the soak was never there. It also keeps the shipped artifact's input
+  // semantics stable - a reserve-aware feature would silently change what
+  // every trained weight means under an unchanged REGISTRY_VERSION, which is
+  // the exact trap that field exists to prevent. POCKET_KEEP, not spendKeep().
   "cit.afford.count": { units: "n<<10",
-    read: (b) => (c) => nclamp(bizRecipes(b).filter(r => c.p.wallet >= localPrice(b, r) + 200).length * 1024) },
+    read: (b) => (c) => nclamp(bizRecipes(b).filter(r => c.p.wallet >= localPrice(b, r) + POCKET_KEEP).length * 1024) },
   "cit.dist.px":      { units: "px<<3", read: (b) => (c) => nclamp(Math.floor(Math.abs(c.x - BIZ[b].queueX) * 8)) },
 };
 // THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
@@ -12460,7 +12567,7 @@ function dataErrand(d) {
     gather: (c, take, X) => {
       if ((needOf(c, d.need) || 0) < (X.off ? offAt : at) - nudgeRelax(c, d.need)) return;
       if (!X.staffed(d.biz)) return;
-      const rs = bizRecipes(d.biz).filter(r => c.p.wallet >= localPrice(d.biz, r) + 200);
+      const rs = bizRecipes(d.biz).filter(r => canAfford(c, localPrice(d.biz, r)));
       if (!rs.length) return;
       rs.sort((a, b) => a.pay - b.pay);
       take({ biz: d.biz, recipe: rs[0], need: d.need, ap100 });
@@ -12476,7 +12583,7 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
   if (X.wantFood && !X.staffed("shack") && c.p.job === "shack" && !c.p.npc) {
-    const affordable = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
+    const affordable = bizRecipes("shack").filter(r => canAfford(c, staffMealCharge("shack", r)));
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
       const r = c.p.wallet > 4000 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
@@ -12486,7 +12593,7 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
 } });
 registerErrand({ id: "meal.counter", need: "food", kind: "biz", gather: (c, take, X) => {
   if (X.wantFood && X.staffed("shack")) {
-    const affordable = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
+    const affordable = bizRecipes("shack").filter(r => canAfford(c, localPrice("shack", r)));
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
       affordable.sort((a, b) => a.pay - b.pay);
@@ -12559,7 +12666,7 @@ registerErrand({ id: "drink", need: "drink", kind: "biz", gather: (c, take, X) =
   if ((c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink")) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
-      const drinks = bizRecipes(drinkAt).filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
+      const drinks = bizRecipes(drinkAt).filter(r => DRINKS[r.id] && canAfford(c, localPrice(drinkAt, r)));
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         const r = c.p.wallet > 4000 ? drinks[drinks.length - 1] : drinks[0];   // a COOLER when flush
@@ -12567,7 +12674,7 @@ registerErrand({ id: "drink", need: "drink", kind: "biz", gather: (c, take, X) =
       }
     } else if (!c.p.npc && (c.p.job === "shack" || c.p.job === "juicebar")
         && bizUnlocked(c.p.job) && !staffed(c.p.job)) {
-      const drinks = bizRecipes(c.p.job).filter(r => DRINKS[r.id] && c.p.wallet >= staffMealCharge(c.p.job, r) + 200);
+      const drinks = bizRecipes(c.p.job).filter(r => DRINKS[r.id] && canAfford(c, staffMealCharge(c.p.job, r)));
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         take({ selfCook: true, biz: c.p.job, recipe: drinks[0], need: "drink" });
@@ -12657,7 +12764,7 @@ registerErrand({ id: "fun.arcade", need: "fun", kind: "biz", gather: (c, take, X
   // bed rest otherwise: no arcade nights while ill
   if (!c.p.sick && (c.p.bored || 0) >= (X.off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && X.staffed("arcade")) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
-    if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
+    if (canAfford(c, localPrice("arcade", r))) take({ biz: "arcade", recipe: r, need: "fun" });
   }
 } });
 function pickErrand(c) {
@@ -12687,7 +12794,7 @@ function pickErrand(c) {
   // while you're the one handing out the kits".
   const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
   const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
-  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
+  const canShower = showerOpen && canAfford(c, localPrice("showers", rinseR));
   const X = { staffed, cand, off, wantFood, needsBath, rinseR, showerOpen, canShower };
   for (const e of ERRANDS) e.gather(c, take, X);
   // THE CITIZEN BRAIN SEAM (cit_errand.candidate). Candidates and their draws
@@ -13421,12 +13528,12 @@ function forcedErrand(c, b) {
   if (b === "shack") {
     if (!bizStaffed("shack")) {
       if (c.p.job === "shack" && !c.p.npc) {   // staff privilege: cook your own, at the shop's meal policy
-        const aff = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
+        const aff = bizRecipes("shack").filter(r => canAfford(c, staffMealCharge("shack", r)));
         if (aff.length) { aff.sort((a, b2) => a.pay - b2.pay); return { selfCook: true, recipe: aff[0] }; }
       }
       return null;
     }
-    const aff = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
+    const aff = bizRecipes("shack").filter(r => canAfford(c, localPrice("shack", r)));
     if (!aff.length) return null;
     aff.sort((a, b2) => a.pay - b2.pay);
     return { biz: "shack", recipe: c.p.wallet > 4000 ? aff[(srand() * aff.length) | 0] : aff[0], need: "food" };
@@ -13434,12 +13541,12 @@ function forcedErrand(c, b) {
   if (!bizStaffed(b)) return null;
   if (b === "showers") {
     const r = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];
-    return c.p.wallet >= localPrice(b, r) + 200 ? { biz: b, recipe: r, need: "spa" } : null;
+    return canAfford(c, localPrice(b, r)) ? { biz: b, recipe: r, need: "spa" } : null;
   }
   if (b === "arcade") {
     if (c.p.sick) return null;   // bed rest: no game nights while ill
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];
-    return c.p.wallet >= localPrice(b, r) + 200 ? { biz: b, recipe: r, need: "fun" } : null;
+    return canAfford(c, localPrice(b, r)) ? { biz: b, recipe: r, need: "fun" } : null;
   }
   return null;
 }

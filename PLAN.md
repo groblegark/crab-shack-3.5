@@ -149,6 +149,68 @@ blocks ranging 2 to 8. Any single block is a coin. This is why the old "2/16 vs
 3/16" framing was noise being read as signal, and why 8 seeds is never enough
 to defend a change.
 
+**THE SPEND RESERVE (2026-08-26, branch `cs-rent-reserve`, task kd-yd0WWFFQk9).**
+Every affordability gate in `pickErrand` read `wallet >= price + 200` — a flat
+$2 — against a `HOUSE_RENT` of **1000**. A housed crab spent down to $2 with $10
+due at midnight, so `COULDN'T MAKE RENT - LOST THE HOUSE` read like a character
+flaw and was an off-by-800-cents. Measured on seed 909/40d before the change:
+18 evictions, **3 of them holding $9 of the $10** (SCUTTLE d16: $22 in pocket,
+buys a $13 soak, keeps $9, evicted that night). Twelve gates now ask
+`canAfford(c, price)`; the reserve is `POCKET_KEEP` plus the roof *this* crab
+pays for (a shelter cot adds nothing — the fund bills it).
+
+**It is a TEMPERAMENT, not a rule, and that is the load-bearing half.** A
+uniform reserve is safer and much duller — it flattens exactly the
+differently-wrong behaviour the comedy comes from. `thrift` (twentieths of the
+roof, DREAMY 4 / LAZY 6 / TIDY 28) rides the TRAIT the town seed already deals,
+so it needs no new registry and it **sources the per-individual axis ruling 6 h2
+declared and left empty** (`needW`'s third axis is still identity; this is the
+same idea on the spend side).
+
+**And it only runs from NOON — the half that keeps the tills alive.** An all-day
+reserve cut evictions hardest and drove seed 4242 to **rep 15** via a demand
+collapse: crab spend 154→105, BRASS's till starves, she misses payroll d37/d38,
+SALTY and KELP quit to the pier, hotel ends UNOWNED. *Thrift that closes the
+shops is not thrift.* The hour is MEASURED, 6 towns × 40 days on the UNCAPPED
+build (evict / summed rep / serves / shop jobs / worst single-town rep):
+
+```
+off      97   355   5486   39   33
+all day  74   331   5642   37   15
+NOON     78   354   5610   42   42     <- hour chosen here
+3pm      88   361   5465   40   54
+```
+
+The first guess was 3pm and the sweep overruled it.
+
+**AND IT IS CAPPED AT THE ROOF — a correction the suite extracted.** TIDY was
+authored at 28 twentieths ($16 against a $10 rent) and that is hoarding, not
+prudence: measured on seed 909, CLAWDIA's median *afternoon headroom* (wallet
+minus reserve) ran to **minus $7**, so she could afford nothing after noon
+whatever she wanted. It surfaced two scenarios away — the brain save-round-trip
+went quiet, because a temperament corrupted to act compulsively changed nothing
+when the crab had no affordable candidate to act ON (**12/12 seeds bit on main,
+1/12 uncapped, 10/12 capped**). The term is now `min(thrift,20)/20` of the roof:
+the authoring axis still runs 0..8 × quarters, the *effect* saturates at one
+night's rent. Re-measured after the cap (3 towns × 25 days):
+
+```
+off   evict 35   rep 166   serves 1744   jobs 21   worst-town rep 42
+ON    evict 31   rep 177   serves 1671   jobs 20   worst-town rep 56
+```
+
+Evictions down ~11%, total reputation UP, and the worst town in the block
+improves 42→56 — **no town is left worse off**, which the uncapped build could
+not hold. The cap also made the change byte-neutral on all three frozen
+fingerprints (early towns are homeless, so `rentDue` is 0), so the landing
+touches **no existing scenario**: the suite diff is 5 new scenarios and nothing
+else. Gate: **848/848 both backends, 24 arms** at `8d56606`.
+`cit.afford.count` deliberately did NOT move:
+that observable is *perception* (what is on the board), not *policy* (what I
+allow myself), and changing it would silently redefine every trained weight
+under an unchanged `REGISTRY_VERSION`. This is step 1 of the self-interest
+ladder in kd-E0J0UwUB4H; the RL post-training step is kd-3SBphWajVm.
+
 **THE DIFFICULTY IS NOT A TARGET TO HIT** — ruled by Matt, 2026-08-20 at 1/16:
 *"1/16 is ok, we'll do better than the tests, as players."* The ruling is about
 the POSTURE, not the number: do not tune toward any figure on this page.

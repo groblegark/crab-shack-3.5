@@ -18726,6 +18726,150 @@ scenario("the arcade's occupancy is the JS chain's alone, on both backends", () 
   return true;
 });
 
+scenario("spend reserve: a housed crab keeps tonight's rent back, by temperament", () => {
+  const sim = createSim({ seed: 909 });
+  // THE ARITHMETIC, asserted per trait rather than in aggregate: spendKeep is
+  // POCKET_KEEP + rent*thrift/20, and the whole point of the change is that
+  // the second term DIFFERS BETWEEN CRABS. An aggregate check would pass on a
+  // build where every crab reserved the same amount, which is the exact
+  // flattening this feature exists not to do.
+  sim.runUntil("tmin >= 16 * 60", { maxSteps: 400000 });   // afternoon: the reserve is on
+  const rows = JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => ({
+    n: c.p.name, th: traitOf(c).thrift, keep: spendKeep(c),
+    housed: !c.p.homeless && c.p.boat == null })))`));
+  if (rows.length < 4) return "not enough crabs to read a spread";
+  const P = sim.G("POCKET_KEEP"), R = sim.G("HOUSE_RENT");
+  for (const r of rows) {
+    if (!Number.isInteger(r.th)) return r.n + " has no thrift: " + r.th;
+    // the CAP is part of the arithmetic: a thrift above 20 twentieths saturates
+    // at one night's roof (an uncapped TIDY reserved $16 against a $10 rent and
+    // could afford nothing after noon - see spendKeep's note).
+    const th = Math.min(r.th, 20);
+    const want = r.housed ? P + Math.floor(R * th / 20) : P;
+    if (r.keep !== want) return `${r.n} keeps ${r.keep}, the table says ${want}`;
+  }
+  // ...and a shelter crab reserves NOTHING extra: the cot is billed to the
+  // fund, so holding rent back for it would starve the poorest for no roof.
+  const homeless = rows.filter(r => !r.housed);
+  if (homeless.some(r => r.keep !== P)) return "a crab with no rent to pay is still reserving for one";
+  return true;
+});
+
+scenario("spend reserve: the morning is for spending, the afternoon is for the rent", () => {
+  // The time gate is the half that keeps the town's tills alive - measured,
+  // an all-day reserve drove seed 4242's crab spend down far enough that an
+  // owner missed payroll and the hotel ended UNOWNED. So it is behaviour, and
+  // behaviour gets a scenario: the SAME crab, the same wallet, two clocks.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2", { maxSteps: 400000 });
+  const probe = `(() => {
+    const c = allCrabs().find(k => !k.p.homeless && k.p.boat == null && traitOf(k).thrift > 0);
+    if (!c) return null;
+    const t0 = tmin;
+    tmin = 9 * 60;  const morn = spendKeep(c);
+    tmin = 18 * 60; const eve  = spendKeep(c);
+    tmin = t0;
+    return JSON.stringify({ n: c.p.name, morn, eve, th: traitOf(c).thrift });
+  })()`;
+  const raw = sim.G(probe);
+  if (raw === "null" || raw == null) return "no housed crab with a thrift to read";
+  const r = JSON.parse(raw);
+  const P = sim.G("POCKET_KEEP");
+  if (r.morn !== P) return `${r.n} was already hoarding at 9am: ${r.morn} (pocket money is ${P})`;
+  if (!(r.eve > r.morn)) return `${r.n} reserves ${r.eve} in the evening, no more than the ${r.morn} of the morning`;
+  return true;
+});
+
+scenario("spend reserve: the affordability gates read the reserve, and it BINDS", () => {
+  // The mutation half. It is not enough that spendKeep returns a number -
+  // canAfford must be what the errand gates actually ask, or the reserve is
+  // a decoration on a wallet nobody consults. Stage a crab holding exactly
+  // enough for a rinse and NOT enough for rinse+rent, and prove the answer
+  // flips with the reserve and not with anything else.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2 && tmin >= 16 * 60", { maxSteps: 400000 });
+  const out = sim.G(`(() => {
+    const c = allCrabs().find(k => !k.p.homeless && k.p.boat == null);
+    if (!c) return null;
+    const price = localPrice("showers", BIZ.showers.recipes[0]);
+    const th = traitOf(c).thrift, keep = spendKeep(c);
+    if (!(keep > POCKET_KEEP)) return JSON.stringify({ skip: "this crab reserves nothing" });
+    const w0 = c.p.wallet;
+    // enough for the rinse, a dollar short of the rinse AND the reserve
+    c.p.wallet = price + keep - 100;
+    const refused = canAfford(c, price);
+    c.p.wallet = price + keep;
+    const allowed = canAfford(c, price);
+    c.p.wallet = w0;
+    return JSON.stringify({ refused, allowed, price, keep, th });
+  })()`);
+  if (out === "null" || out == null) return "no housed crab to stage";
+  const r = JSON.parse(out);
+  if (r.skip) return "the staged crab reserves nothing - the gate cannot be read";
+  if (r.refused) return `a crab $1 short of rinse+reserve was allowed to buy (price ${r.price}, keep ${r.keep})`;
+  if (!r.allowed) return `a crab holding rinse+reserve exactly was refused (price ${r.price}, keep ${r.keep})`;
+  return true;
+});
+
+scenario("spend reserve: a hoarding thrift saturates at one night's roof", () => {
+  // THE CAP, and it is here because its absence was a real regression the
+  // suite caught rather than a hypothetical. TIDY shipped at 28 twentieths for
+  // one gate run - $16 held against a $10 rent - and on seed 909 CLAWDIA's
+  // median AFTERNOON headroom (wallet minus reserve) was MINUS $7: she could
+  // afford nothing after noon whatever she wanted. It surfaced two scenarios
+  // away, as the brain save-round-trip going quiet (a temperament corrupted to
+  // act compulsively changed nothing, because the crab had no affordable
+  // candidate to act ON - 12/12 seeds bit before the cap, 1/12 after). A
+  // reserve is for the bill that is actually coming; past that it just stops a
+  // crab living.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2 && tmin >= 16 * 60", { maxSteps: 400000 });
+  const out = sim.G(`(() => {
+    const c = allCrabs().find(k => !k.p.homeless && k.p.boat == null);
+    if (!c) return null;
+    const t = traitOf(c), was = t.thrift;
+    t.thrift = 20;  const atRoof = spendKeep(c);
+    t.thrift = 60;  const hoard  = spendKeep(c);   // the validator's ceiling
+    t.thrift = was;
+    return JSON.stringify({ atRoof, hoard, pocket: POCKET_KEEP, rent: HOUSE_RENT });
+  })()`);
+  if (out === "null" || out == null) return "no housed crab to read";
+  const r = JSON.parse(out);
+  if (r.atRoof !== r.pocket + r.rent)
+    return `thrift 20 should reserve pocket+rent (${r.pocket + r.rent}), got ${r.atRoof}`;
+  if (r.hoard !== r.atRoof)
+    return `thrift 60 reserved ${r.hoard} - it must saturate at one roof (${r.atRoof}), not hoard`;
+  return true;
+});
+
+scenario("spend reserve: an old trait table without thrift still loads, at the identity", () => {
+  // The compat clause. A cultureway authored before the reserve is a VALID
+  // document - buildTraits defaults thrift to 20 - and the validator must not
+  // start refusing tables that were fine yesterday. Both halves asserted,
+  // because "it loads" and "it loads meaning the right thing" differ.
+  const sim = createSim({ seed: 909 });
+  const out = sim.G(`(() => {
+    const src = JSON.parse(JSON.stringify(BUNDLED_CRAB_TRAITS.traits));
+    for (const k in src) delete src[k].thrift;             // the pre-reserve document
+    const why = traitsProblem(src);
+    if (why) return JSON.stringify({ why });
+    const built = buildTraits(src);
+    return JSON.stringify({ thrifts: Object.keys(built).map(k => built[k].thrift) });
+  })()`);
+  const r = JSON.parse(out);
+  if (r.why) return "a trait table without thrift was refused: " + r.why;
+  if (!r.thrifts.length || r.thrifts.some(t => t !== 20))
+    return "an undeclared thrift did not default to the identity 20: " + JSON.stringify(r.thrifts);
+  // ...and a thrift outside the band is still refused BY NAME.
+  const bad = sim.G(`(() => {
+    const src = JSON.parse(JSON.stringify(BUNDLED_CRAB_TRAITS.traits));
+    src[Object.keys(src)[0]].thrift = 999;
+    return String(traitsProblem(src));
+  })()`);
+  if (!/THRIFT/.test(bad)) return "a thrift of 999 was not refused by name: " + bad;
+  return true;
+});
+
 // ---- runner
 // Everything that isn't a flag is a name-substring filter, as ever. Flags:
 // --jobs N (worker pool), --timings-out FILE, and the internal --_run used
