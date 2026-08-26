@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "wasm-10",
+  "index": 22,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 152134,
+  "verdict": "32/32 passed in slice 10/12 (152.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (1347ms)\n  PASS  housing: npcs sleep at the shelter, then move up (451ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (508ms)\n  PASS  credit: the town is warned before it goes under (30817ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (498ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (1615ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (36117ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (14ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (4440ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1052ms)\n  PASS  the title's credit block never lands on the science button (15ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (51907ms)\n  PASS  visitors: the wallet is real money, and it runs out (297ms)\n  PASS  the town fund moves money and never mints it (10737ms)\n  PASS  an old save with no town hall opens with an office, not a hole (918ms)\n  PASS  departures: nobody on the boat knows the town's name (504ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (1254ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (77ms)\n  PASS  the help card teaches the machine and does not spoil the ending (7ms)\n  PASS  nothing paints over an open card except another card (534ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (940ms)\n  PASS  crab voice: two whole days with the table off are the same town (1189ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (572ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (6ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (11ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (9ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (23ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (952ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (147ms)\n  PASS  science: one recipe lives the same town twice (4946ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (8ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (87ms)\n32/32 passed in slice 10/12 (152.0s)\n"
+}

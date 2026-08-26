@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 78566,
+  "verdict": "32/32 passed in slice 6/12 (78.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (1804ms)\n  PASS  save guard: an empty slot still receives the first town (18ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (940ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (6025ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (109ms)\n  PASS  fishers feed themselves: breaks + the beach roast (3075ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (156ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (823ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (19837ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (3228ms)\n  PASS  ferry: the arming tap times out, and an old save never won (14ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (11ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (5460ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (3719ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (16888ms)\n  PASS  departures: the card waits behind the day report, then pages itself (764ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (3440ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1269ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (8ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (11ms)\n  PASS  a crab may stand in the cabana it has come to clean (10ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (10ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (9ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (10ms)\n  PASS  cultureways: a save without cultures changes nothing (762ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (11ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (323ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2063ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (7608ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (37ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (11ms)\n32/32 passed in slice 6/12 (78.5s)\n"
+}
