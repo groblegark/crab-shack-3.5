@@ -23150,10 +23150,14 @@ function toastOffset(s, age) {
 // second toast at the moment of the change (gone if you were reading a card)
 // and opening the box.
 //
-// WHERE: the strip between the shop tooltip's floor (y156) and the nav map's
-// ceiling (PANEL_Y-7), hard against the left margin. That band is sand in every
-// canvas mode and nothing else claims it - measured against shopTipRect and
-// NAV_MAP rather than eyeballed, because both move with H.
+// WHERE: the LEFT END OF THE NAV CHIP ROW - y159..167 hard against the left
+// margin, between the shop tooltip's floor (156) and the nav map's ceiling
+// (PANEL_Y-7 = 169). That row is eleven pixels of HUD whose only tenants are
+// MANAGE / TOWN / GUESTS, and those hold the RIGHT end from x214 (see the note
+// at NAV_CHIPS: they were moved there precisely to leave the world alone). The
+// ticker ends at x78, so the two cannot meet at any crew count or canvas
+// height. Derived from NAV_MAP rather than typed, because that whole stack
+// moves with H - VERIFIED at both 240 and 288.
 //
 // CHARACTER-GRAINED, LIKE THE TOAST, and for the same reason: neither the sim's
 // ctx stub nor mcp/canvas.mjs implements ctx.clip(), so a pixel-grained scroll

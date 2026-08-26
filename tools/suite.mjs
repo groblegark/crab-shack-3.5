@@ -12852,6 +12852,33 @@ scenario("the now-playing ticker names what is audible and scrolls only when it 
   return true;
 });
 
+scenario("the ticker sits in free HUD space at both canvas heights", () => {
+  // A NEW HUD ELEMENT HAS TO PROVE IT IS NOT ON TOP OF SOMETHING. The bottom-left
+  // band looks empty and is not: the nav chip row lives there (MANAGE / TOWN /
+  // GUESTS, right-aligned from x214), the nav map is directly under it, and the
+  // shop tooltip hangs down to its ceiling. All of it is derived from PANEL_Y,
+  // so it MOVES WITH H - and the portrait-phone canvas (288) is the mode nobody
+  // is looking at when they place a rect. Both are checked here.
+  for (const H of [240, 288]) {
+    const sim = createSim({ seed: 43, screenH: H });
+    const got = JSON.parse(sim.G(`JSON.stringify({
+      h: H, tick: musTickRect(), map: NAV_MAP,
+      chipX: navRects().manage.x, chipY: navRects().manage.y,
+      tipBottom: shopTipRect().y + shopTipRect().h,
+    })`));
+    if (got.h !== H) return `asked for a ${H}-row canvas and got ${got.h} - the fixture is not testing what it says`;
+    const t = got.tick;
+    if (t.x < 0 || t.y < 0) return `H=${H}: the ticker is off the top/left of the canvas`;
+    if (t.y + t.h > got.map.y)
+      return `H=${H}: the ticker (${t.y}..${t.y + t.h}) runs into the nav map at ${got.map.y}`;
+    if (t.y < got.tipBottom)
+      return `H=${H}: the ticker (${t.y}) runs into the shop tooltip, which reaches ${got.tipBottom}`;
+    if (t.x + t.w > got.chipX)
+      return `H=${H}: the ticker reaches x${t.x + t.w} and the MANAGE chip starts at x${got.chipX}`;
+  }
+  return true;
+});
+
 scenario("the shipped catalog builds a rotation of every track, with its moments intact", () => {
   // THE REAL FILES, not a fixture. This is the build a player gets: 1,201
   // catalog rows, 22 of them stamped same-origin by the shipmap, two of those
