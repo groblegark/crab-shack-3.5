@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-d3dad69-mkuq",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "d3dad6930ee7da26b34e090235b4186c2d4afe95",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 284492,
+  "verdict": "36/36 passed in slice 1/12 (284.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (118229ms)\n  PASS  disease: care cures, neglect can kill (35365ms)\n  PASS  job board: unpaid staff quit back to the pier (553ms)\n  PASS  crew never staff npc-owned shops (471ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (1204ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (68604ms)\n  PASS  hours: shortened hours really close the shop (799ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (1896ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (4414ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (10791ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (4691ms)\n  PASS  ferry: the arming tap times out, and an old save never won (19ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (12ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1035ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (2024ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (5523ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1508ms)\n  PASS  departures: nobody on the boat knows the town's name (917ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (2097ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (149ms)\n  PASS  the help card teaches the machine and does not spoil the ending (8ms)\n  PASS  nothing paints over an open card except another card (912ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (0ms)\n  PASS  the house limit stops a hire and never fires anybody (6051ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (11ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (7165ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (8ms)\n  PASS  cultureways: a save without cultures changes nothing (930ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (364ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (400ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (1981ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (11ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1507ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (249ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (50ms)\n  PASS  the arcade: the chore is named for the shop it happens in (4427ms)\n36/36 passed in slice 1/12 (284.4s)\n"
+}
