@@ -7494,6 +7494,35 @@ coexist in the 123954-byte bundle).
   platforms** (was 4900); the (mech, rate, bowls) yield cache still shares
   across the 35 floor/limit combinations.
 
+### THE PURSE RATE AXIS NOW HONOURS THE LADDER (bug kd-ASOmSqbQUr, decision kd-PLM7pe021Z = HONOUR THE LADDER)
+
+The purses had the same asymmetry the tariff rode straight past: `purseRate`
+(the READER) has always clamped to `steps.length-1`, and the ballot dials
+below it derive their bound from the authored ladder (`FLOOR_STEPS`/
+`CAP_STEPS`), but `allPlatforms` (the GENERATOR) and the three save clamps +
+the UI bump hardcoded the top rate index at **4**. So a well-formed purse grid
+longer than five rungs PASSED `civicsLadderProblem` (the ladder EXTENDS, ruling
+4) and was then silently truncated — no platform carrying rate 5+ was ever
+built, so the top rungs could not appear on a ballot, be voted for, or be won.
+That is exactly the silent-drop of a WELL-FORMED document the civics format
+exists to refuse (kd-ASOmSqbQUr; the operator ruled HONOUR, not REFUSE, on
+kd-PLM7pe021Z).
+
+The fix mirrors the ballot dials: `rateSteps(mech) = PURSES[mech].steps.length
+- 1`, used at `allPlatforms`, the two `hall.policy`/`hall.plat` save clamps,
+the ballot-box save clamp, and the two UI rate bumps; cycling the mech chip
+now re-clamps the edited rate into the new mech's grid. **Byte-neutral for all
+shipped content** — every shipped purse grid is exactly five rungs, so
+`rateSteps` returns 4 for every mech today and `allPlatforms` builds the same
+6125 platforms it did before. The axis only grows when an author declares a
+longer grid, and then the grid grows with it (a 6-rung mech adds one rate row:
++7 pots × 5 floors × 7 limits per extra rung). Gated by the scenario *"civics
+purses: an EXTENDED purse grid's top rung is reachable, never silently
+dropped"*: it authors a 6-rung levy grid and asserts the validator ACCEPTS it,
+`allPlatforms` BUILDS a levy platform at rate 5, and `purseRate` reads it — the
+mutation demo reverts `allPlatforms` to `rate<=4` and the scenario goes red
+naming the drop.
+
 ## PAYDAY (Matt, 2026-08-20) — "not making salary needs to be a real alternative to going bankrupt"
 
 His words: *"probably via a choice mechanic at the critical moment, 'take out

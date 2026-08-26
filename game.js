@@ -1254,6 +1254,18 @@ function canVote(c) {
 }
 function purseOf(p) { return PURSES[p.mech] || PURSES.rents; }
 function purseRate(p) { const s = purseOf(p).steps; return s[Math.max(0, Math.min(s.length - 1, p.rate | 0))]; }
+// THE PURSE RATE AXIS IS AS LONG AS THE ADOPTED GRID, exactly the way
+// FLOOR_STEPS/CAP_STEPS derive the ballot dials' bound from their own ladder.
+// purseRate already clamps a read to steps.length-1, so a longer grid was
+// always READABLE; the bug was that the GENERATORS (allPlatforms) and the
+// save/UI clamps hardcoded the top index at 4, so no platform carrying rate 5+
+// was ever built - a well-formed extended grid passed civicsLadderProblem and
+// then had its top rungs silently dropped, the one failure the civics format
+// exists to refuse. Deriving the bound here honours the authored ladder (Matt's
+// ruling 4: ladders EXTEND) and is byte-neutral for every shipped 5-rung grid.
+// Per mech, because each purse carries its own grid (unlike the one town floor
+// and one town limit).
+function rateSteps(mech) { const P = PURSES[mech] || PURSES.rents; return P.steps.length - 1; }
 // A rate READS in its own unit - DUES and TIN are dollars a head, everything
 // else (levy, rents, tariff) is a percentage. One helper, because the policy
 // line and the platform chip both print it and drifted once already.
@@ -1818,7 +1830,7 @@ function platValue(c, p) {
 function allPlatforms() {
   const out = [];
   for (const mech of PURSE_KEYS)
-    for (let rate = 0; rate <= 4; rate++)
+    for (let rate = 0, rmax = rateSteps(mech); rate <= rmax; rate++)
       for (let bowls = 0; bowls <= POT_MAX; bowls++) {
         const base = { mech, rate, bowls };
         const _y = purseYield(base), _take = platTake(base), _bowls = platBowls(base);
@@ -10200,8 +10212,9 @@ function load(slot, envIn) {
     hall.mayor = typeof H.mayor === "string" ? H.mayor.slice(0, 14) : null;
     // `wage` defaults to 0 = NO FLOOR, so a town saved before the fifth dial
     // existed reloads on exactly the payroll it went to sleep on.
-    hall.policy = { mech: PURSES[pol.mech] ? pol.mech : "rents",
-      rate: Math.max(0, Math.min(4, Math.round(+pol.rate || 0))),
+    const polMech = PURSES[pol.mech] ? pol.mech : "rents";
+    hall.policy = { mech: polMech,
+      rate: Math.max(0, Math.min(rateSteps(polMech), Math.round(+pol.rate || 0))),
       bowls: Math.max(0, Math.min(POT_MAX, Math.round(+pol.bowls || 0))),
       wage: Math.max(0, Math.min(FLOOR_STEPS, Math.round(+pol.wage || 0))),
       cap: Math.max(0, Math.min(CAP_STEPS, Math.round(+pol.cap || 0))) };
@@ -10209,8 +10222,9 @@ function load(slot, envIn) {
     hall.stand = !!H.stand;
     hall.nominee = typeof H.nominee === "string" ? H.nominee.slice(0, 14) : null;
     const pl = H.plat || {};
-    hall.plat = { mech: PURSES[pl.mech] ? pl.mech : "levy",
-      rate: Math.max(0, Math.min(4, Math.round(+pl.rate || 0))),
+    const platMech = PURSES[pl.mech] ? pl.mech : "levy";
+    hall.plat = { mech: platMech,
+      rate: Math.max(0, Math.min(rateSteps(platMech), Math.round(+pl.rate || 0))),
       bowls: Math.max(0, Math.min(POT_MAX, Math.round(+pl.bowls || 0))),
       wage: Math.max(0, Math.min(FLOOR_STEPS, Math.round(+pl.wage || 0))),
       cap: Math.max(0, Math.min(CAP_STEPS, Math.round(+pl.cap || 0))) };
@@ -10237,9 +10251,10 @@ function load(slot, envIn) {
     if (B && typeof B === "object" && Array.isArray(B.cands)) {
       const cands = B.cands.slice(0, 6).map(k => {
         const pl = (k && k.plat) || {};
+        const boxMech = PURSES[pl.mech] ? pl.mech : "rents";
         return { name: String((k && k.name) || "").slice(0, 14),
-          plat: { mech: PURSES[pl.mech] ? pl.mech : "rents",
-            rate: Math.max(0, Math.min(4, Math.round(+pl.rate || 0))),
+          plat: { mech: boxMech,
+            rate: Math.max(0, Math.min(rateSteps(boxMech), Math.round(+pl.rate || 0))),
             bowls: Math.max(0, Math.min(POT_MAX, Math.round(+pl.bowls || 0))),
             wage: Math.max(0, Math.min(FLOOR_STEPS, Math.round(+pl.wage || 0))),
             cap: Math.max(0, Math.min(CAP_STEPS, Math.round(+pl.cap || 0))) },
@@ -16140,11 +16155,16 @@ cv.addEventListener("click", (ev) => {
         const bump = (k, d, lo, hi) => { ed[k] = Math.max(lo, Math.min(hi, (ed[k] | 0) + d)); apply(); };
         if (hit(R.pmech)) {
           ed.mech = PURSE_KEYS[(PURSE_KEYS.indexOf(ed.mech) + 1) % PURSE_KEYS.length];
+          // grids can differ in length now that the rate axis honours the
+          // authored ladder - clamp the index into the new mech's grid so
+          // cycling never leaves a rung the new purse cannot carry (byte-neutral
+          // while every shipped grid is 5 rungs; matters for an extended one).
+          ed.rate = Math.min(ed.rate | 0, rateSteps(ed.mech));
           toast = { text: purseOf(ed).name + " - " + purseOf(ed).who, t: 5 };
           apply(); return;
         }
-        if (hit(R.prm)) { bump("rate", -1, 0, 4); return; }
-        if (hit(R.prp)) { bump("rate", 1, 0, 4); return; }
+        if (hit(R.prm)) { bump("rate", -1, 0, rateSteps(ed.mech)); return; }
+        if (hit(R.prp)) { bump("rate", 1, 0, rateSteps(ed.mech)); return; }
         if (hit(R.pbm)) { bump("bowls", -1, 0, POT_MAX); return; }
         if (hit(R.pbp)) { bump("bowls", 1, 0, POT_MAX); return; }
         if (hit(R.pwm)) { bump("wage", -1, 0, FLOOR_STEPS); return; }
