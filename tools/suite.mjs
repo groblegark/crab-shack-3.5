@@ -13173,6 +13173,61 @@ scenario("civics purses: a tampered grid is refused by name and falls back, and 
   return true;
 });
 
+scenario("civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr)", () => {
+  // THE GATE THE PURSE-RUNG BUG OWES (bug kd-ASOmSqbQUr, decision kd-PLM7pe021Z
+  // = HONOUR THE LADDER). civicsLadderProblem ACCEPTS a purse grid longer than
+  // five rungs - the ladder EXTENDS (ruling 4) - and purseRate has always
+  // clamped a read to steps.length-1, so a longer grid was READABLE. The bug
+  // was that the GENERATORS and the save/UI clamps hardcoded the top rate index
+  // at 4: allPlatforms built no platform carrying rate 5+, so an accepted
+  // 6-rung grid had its top rung silently dropped - it could never appear on a
+  // ballot, be voted for, or be won. That is precisely the silent-truncation of
+  // a WELL-FORMED document the civics format exists to refuse. The fix derives
+  // the rate axis from the adopted grid (rateSteps = steps.length-1) exactly as
+  // FLOOR_STEPS/CAP_STEPS do for the ballot dials. This scenario authors a
+  // 6-rung levy grid and asserts its top rung is REACHABLE end to end.
+  const sim = createSim({ seed: 7 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const out = {};
+    const grid6 = [0, 2, 4, 6, 8, 10];   // a well-formed SIXTH rung above today's five
+    out.accepted = civicsLadderProblem(grid6, "PURSE");   // must be null (validator honours it)
+    // adopt the extended levy grid the way boot does, from the live bundle
+    const save = JSON.stringify(BUNDLED_CRAB_CIVICS.purses);
+    BUNDLED_CRAB_CIVICS.purses = [{ id: "levy", steps: grid6 },
+      { id: "dues", steps: [0, 100, 200, 300, 400] }, { id: "rents", steps: [0, 10, 20, 30, 40] },
+      { id: "tin", steps: [0, 100, 200, 300, 400] }, { id: "tariff", steps: [0, 10, 25, 50, 100] }];
+    for (const k of PURSE_KEYS) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
+    // 1) the reader honours the top rung: index 5 resolves to its value, 10
+    out.topRead = purseRate({ mech: "levy", rate: 5 });
+    // 2) rateSteps derives the bound from the grid, per mech (5 for the extended
+    //    levy, 4 for every still-5-rung mech)
+    out.levyBound = rateSteps("levy");
+    out.rentsBound = rateSteps("rents");
+    // 3) THE BUG: does allPlatforms actually BUILD a levy platform at rate 5?
+    //    Before the fix its rate loop stopped at 4 and this max is 4.
+    const levyRates = allPlatforms().filter(p => p.mech === "levy").map(p => p.rate);
+    out.levyRateMax = Math.max.apply(null, levyRates);
+    out.hasTopRung = levyRates.indexOf(5) !== -1;
+    // 4) and the still-5-rung mechs are UNCHANGED - no phantom rate 5 built for them
+    out.rentsRateMax = Math.max.apply(null, allPlatforms().filter(p => p.mech === "rents").map(p => p.rate));
+    // 5) the save clamp keeps the top rung on a round-trip, not truncated to 4
+    out.savedRung = Math.max(0, Math.min(rateSteps("levy"), Math.round(5)));
+    // restore the shipped grids
+    BUNDLED_CRAB_CIVICS.purses = JSON.parse(save);
+    for (const k of PURSE_KEYS) PURSES[k].steps = crabCivicsSteps("purses", k, "PURSE", PURSES[k].steps);
+    return out;
+  })())`));
+  if (got.accepted !== null) return "the validator refused a well-formed 6-rung purse grid: " + got.accepted;
+  if (got.topRead !== 10) return "purseRate did not resolve the extended grid's top rung (5->10): " + got.topRead;
+  if (got.levyBound !== 5) return "rateSteps did not derive the extended levy bound (want 5): " + got.levyBound;
+  if (got.rentsBound !== 4) return "rateSteps drifted for a still-5-rung mech (want 4): " + got.rentsBound;
+  if (got.levyRateMax !== 5) return "allPlatforms did not build the extended top rung - it silently dropped rate 5 (levy rate max " + got.levyRateMax + ", the bug)";
+  if (!got.hasTopRung) return "allPlatforms built no levy platform carrying the top rung rate 5 - it is unreachable on a ballot (the bug)";
+  if (got.rentsRateMax !== 4) return "allPlatforms grew a phantom rung for a still-5-rung mech (rents rate max " + got.rentsRateMax + ")";
+  if (got.savedRung !== 5) return "the save clamp truncated the extended top rung to " + got.savedRung + " instead of keeping 5";
+  return true;
+});
+
 scenario("the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none", () => {
   // THE FIFTH PURSE (Matt, 2026-08-25). A duty on the gangway, collected at
   // consumeIngredient - the same chokepoint that books the import - so the

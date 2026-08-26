@@ -8,7 +8,43 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-26, latest — THE TARIFF, OR: THE FIFTH ANSWER TO WHO PAYS FOR THE POT
+## 2026-08-26, latest — THE LADDER GOES ALL THE WAY UP
+
+The civics format makes one promise above the rest: *a bad document fails the
+build, never the town.* Type a nonsense purse name and the import refuses it
+by that name; delete step 0 and the validator says so out loud. The whole
+point is that nothing gets dropped in silence.
+
+Except one thing did. Author a purse whose rate ladder ran to a sixth rung —
+a levy of `[0, 2, 4, 6, 8, 10]` — and the validator waved it through, because
+extending a ladder is exactly what the format is *for* (Matt's ruling: the
+ladder grows, it never deletes step 0). The reader could see the sixth rung
+fine. But the thing that actually BUILDS the ballot only ever counted to five.
+`allPlatforms` — the function that lays out every platform a crab could stand
+on — had `rate <= 4` written into it by hand, back when five rungs was all
+there was. So the town accepted your sixth rung and then never built a single
+platform that carried it. It could not appear on a ballot, could not be voted
+for, could not be won. Two rungs, gone, no error, no toast, no console line.
+
+Which is the one failure the format exists to prevent, aimed at the format's
+own author. And it was the mirror image of a hazard the code already warned
+about two lines away: the ballot's OTHER dials — the wage floor, the house
+limit — had learned this lesson already. They derive their length from the
+ladder they were handed (`FLOOR_STEPS`, `CAP_STEPS`), so when the house limit
+grew from four rungs to seven, nothing had to be told twice. The purses just
+never got the same treatment.
+
+Now they have. `rateSteps(mech)` reads the length off the adopted grid, and
+the generator, the save clamps, and the +/- buttons all ask it instead of
+counting to four from memory. Cycle the mech chip onto a shorter purse and
+your rate clamps down to fit; author a longer one and the ballot builds every
+rung of it. For every purse that ships today — all five, all five rungs long —
+not one byte moves: `rateSteps` returns four, `allPlatforms` builds the same
+6,125 platforms it built yesterday. The ladder only grows when someone means
+it to. The operator was asked whether purse ladders should be extensible at
+all, or capped at five forever; the ruling was *honour them.* So we do.
+
+## 2026-08-26 — THE TARIFF, OR: THE FIFTH ANSWER TO WHO PAYS FOR THE POT
 
 Matt asked for the ability to tariff incoming goods — *"especially fish"* —
 and the architecture answered the design question before any code did. The
