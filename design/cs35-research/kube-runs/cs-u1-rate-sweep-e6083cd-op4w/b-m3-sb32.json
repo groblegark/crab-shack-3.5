@@ -1,0 +1,88 @@
+{
+  "release": "cs-u1-rate-sweep-e6083cd-op4w",
+  "armId": "b-m3-sb32",
+  "index": 17,
+  "sha": "e6083cda7effae2b06b1aa4cab81443b699ce08c",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "3",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 26423,
+  "verdict": "{\"towns\":16,\"seedbase\":32,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --citdecay 3 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"4\":3,\"6\":1,\"7\":5,\"8\":7},\"median\":7,\"min\":4,\"max\":8},\"lifetime\":{\"median\":1989,\"p10\":671,\"p90\":2142,\"mean\":1694},\"throughput\":{\"livedSimDays\":109,\"wallSec\":26.38,\"simDaysPerSec\":4.1,\"loadavg\":[5.5,2.5,1]},\"rep\":{\"list\":[0,8,35,36,36,37,39,41,41,41,44,44,45,46,46,48],\"median\":41}}",
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 32,
+    "jobs": 7,
+    "cores": 8,
+    "workload": "--days 30 --citdecay 3 --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 0,
+    "evicted": 16,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "4": 3,
+        "6": 1,
+        "7": 5,
+        "8": 7
+      },
+      "median": 7,
+      "min": 4,
+      "max": 8
+    },
+    "lifetime": {
+      "median": 1989,
+      "p10": 671,
+      "p90": 2142,
+      "mean": 1694
+    },
+    "throughput": {
+      "livedSimDays": 109,
+      "wallSec": 26.38,
+      "simDaysPerSec": 4.1,
+      "loadavg": [
+        5.5,
+        2.5,
+        1
+      ]
+    },
+    "rep": {
+      "list": [
+        0,
+        8,
+        35,
+        36,
+        36,
+        37,
+        39,
+        41,
+        41,
+        41,
+        44,
+        44,
+        45,
+        46,
+        46,
+        48
+      ],
+      "median": 41
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":32,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --citdecay 3 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"4\":3,\"6\":1,\"7\":5,\"8\":7},\"median\":7,\"min\":4,\"max\":8},\"lifetime\":{\"median\":1989,\"p10\":671,\"p90\":2142,\"mean\":1694},\"throughput\":{\"livedSimDays\":109,\"wallSec\":26.38,\"simDaysPerSec\":4.1,\"loadavg\":[5.5,2.5,1]},\"rep\":{\"list\":[0,8,35,36,36,37,39,41,41,41,44,44,45,46,46,48],\"median\":41}}\n"
+}

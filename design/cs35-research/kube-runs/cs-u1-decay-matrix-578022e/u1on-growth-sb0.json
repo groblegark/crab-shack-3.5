@@ -1,0 +1,86 @@
+{
+  "release": "cs-u1-decay-matrix-578022e-vnu5",
+  "armId": "u1on-growth-sb0",
+  "index": 3,
+  "sha": "578022ec941801c39567e233e0f1690f9fed49f9",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 14010,
+  "verdict": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"3\":8,\"4\":8},\"median\":4,\"min\":3,\"max\":4},\"lifetime\":{\"median\":637,\"p10\":420,\"p90\":898,\"mean\":625},\"throughput\":{\"livedSimDays\":56,\"wallSec\":13.96,\"simDaysPerSec\":4,\"loadavg\":[3.4,1.1,0.4]},\"rep\":{\"list\":[21,23,23,26,31,35,36,36,37,40,40,41,42,43,44,44],\"median\":37}}",
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 0,
+    "jobs": 7,
+    "cores": 8,
+    "workload": "--days 30 --buy chef,table --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 0,
+    "evicted": 16,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "3": 8,
+        "4": 8
+      },
+      "median": 4,
+      "min": 3,
+      "max": 4
+    },
+    "lifetime": {
+      "median": 637,
+      "p10": 420,
+      "p90": 898,
+      "mean": 625
+    },
+    "throughput": {
+      "livedSimDays": 56,
+      "wallSec": 13.96,
+      "simDaysPerSec": 4,
+      "loadavg": [
+        3.4,
+        1.1,
+        0.4
+      ]
+    },
+    "rep": {
+      "list": [
+        21,
+        23,
+        23,
+        26,
+        31,
+        35,
+        36,
+        36,
+        37,
+        40,
+        40,
+        41,
+        42,
+        43,
+        44,
+        44
+      ],
+      "median": 37
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":0,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"3\":8,\"4\":8},\"median\":4,\"min\":3,\"max\":4},\"lifetime\":{\"median\":637,\"p10\":420,\"p90\":898,\"mean\":625},\"throughput\":{\"livedSimDays\":56,\"wallSec\":13.96,\"simDaysPerSec\":4,\"loadavg\":[3.4,1.1,0.4]},\"rep\":{\"list\":[21,23,23,26,31,35,36,36,37,40,40,41,42,43,44,44],\"median\":37}}\n"
+}

@@ -1,0 +1,96 @@
+{
+  "release": "cs-u1-workpause-cal-07570d1-jjbw",
+  "armId": "wp-g-m8-sb16",
+  "index": 10,
+  "sha": "07570d137c4216075aae28ea494634f3a5070763",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "8",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 52243,
+  "verdict": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --citdecay 8 --citworkpause --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":1,\"evicted\":15,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"6\":1,\"8\":1,\"9\":3,\"11\":3,\"12\":1,\"13\":2,\"14\":1,\"16\":2,\"22\":1},\"median\":11,\"min\":6,\"max\":22},\"lifetime\":{\"median\":3452,\"p10\":2054,\"p90\":8785,\"mean\":4083},\"throughput\":{\"livedSimDays\":211,\"wallSec\":52.19,\"simDaysPerSec\":4,\"loadavg\":[5.3,1.8,0.6]},\"rep\":{\"list\":[44,46,46,46,48,48,49,52,54,56,56,57,59,61,61,64],\"median\":54}}",
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 16,
+    "jobs": 7,
+    "cores": 8,
+    "workload": "--days 30 --citdecay 8 --citworkpause --buy chef,table --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 1,
+    "evicted": 15,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "6": 1,
+        "8": 1,
+        "9": 3,
+        "11": 3,
+        "12": 1,
+        "13": 2,
+        "14": 1,
+        "16": 2,
+        "22": 1
+      },
+      "median": 11,
+      "min": 6,
+      "max": 22
+    },
+    "lifetime": {
+      "median": 3452,
+      "p10": 2054,
+      "p90": 8785,
+      "mean": 4083
+    },
+    "throughput": {
+      "livedSimDays": 211,
+      "wallSec": 52.19,
+      "simDaysPerSec": 4,
+      "loadavg": [
+        5.3,
+        1.8,
+        0.6
+      ]
+    },
+    "rep": {
+      "list": [
+        44,
+        46,
+        46,
+        46,
+        48,
+        48,
+        49,
+        52,
+        54,
+        56,
+        56,
+        57,
+        59,
+        61,
+        61,
+        64
+      ],
+      "median": 54
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --citdecay 8 --citworkpause --buy chef,table --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":1,\"evicted\":15,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"6\":1,\"8\":1,\"9\":3,\"11\":3,\"12\":1,\"13\":2,\"14\":1,\"16\":2,\"22\":1},\"median\":11,\"min\":6,\"max\":22},\"lifetime\":{\"median\":3452,\"p10\":2054,\"p90\":8785,\"mean\":4083},\"throughput\":{\"livedSimDays\":211,\"wallSec\":52.19,\"simDaysPerSec\":4,\"loadavg\":[5.3,1.8,0.6]},\"rep\":{\"list\":[44,46,46,46,48,48,49,52,54,56,56,57,59,61,61,64],\"median\":54}}\n"
+}
