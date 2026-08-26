@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-3f84fdb-k2jo",
+  "armId": "wasm-2",
+  "index": 14,
+  "sha": "3f84fdb938496243fe75aba31f6d4a4c20a12e37",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 81727,
+  "verdict": "34/34 passed in slice 2/12 (81.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1825ms)\n  PASS  showers: guests occupy stalls, staff turn them over (1547ms)\n  PASS  save/load: townsfolk keep wallets and houses (942ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1099ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (974ms)\n  PASS  tired: the morning and evening shifts end the week level (50227ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (256ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (8843ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (64ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (61ms)\n  PASS  tips: the counter gets a token, the table gets the lot (9ms)\n  PASS  no card prints text on top of its own text (1365ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (3764ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1217ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (695ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1216ms)\n  PASS  departures: nobody on the boat knows the town's name (610ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (1564ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (92ms)\n  PASS  the help card teaches the machine and does not spoil the ending (8ms)\n  PASS  nothing paints over an open card except another card (643ms)\n  PASS  a crab may stand in the cabana it has come to clean (8ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (7ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (11ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (10ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (16ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (13ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (9ms)\n  PASS  space: every position rides the Q8 grain, all day (568ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (10ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (51ms)\n  PASS  science: a scrub lands on the day the run recorded (3714ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (41ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (107ms)\n34/34 passed in slice 2/12 (81.6s)\n"
+}
