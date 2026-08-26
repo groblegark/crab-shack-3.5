@@ -11021,6 +11021,149 @@ scenario("the playlist is energy-matched, and the event tracks stay out of the r
   return true;
 });
 
+// ONE PAIR OF SPEAKERS, and the whole point of this block is that it counts
+// AUDIO ELEMENTS rather than trusting the handles the game keeps. Matt: the
+// playlist "should never play more than one track at once (current bug)".
+//
+// WHY A STUB CLASS AND NOT THE SIM'S OWN Audio: the sandbox's stub is inert -
+// it cannot tell you whether a track is sounding, which is the only fact in
+// question. This one records every element the game constructs and whether it
+// was last played or paused, so "how many tracks are audible" is a count of
+// objects rather than an argument about control flow.
+const AUDIO_SPY = `
+  globalThis._live = [];
+  const RealAudio = Audio;
+  Audio = class extends RealAudio {
+    constructor(src) { super(src); this._src = src; this._playing = false; _live.push(this); }
+    play() { this._playing = true; return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} }; }
+    pause() { this._playing = false; }
+    addEventListener(k, f) { (this._h || (this._h = {}))[k] = f; }
+    fire(k) { this._h && this._h[k] && this._h[k](); }
+  };
+  globalThis.liveCount = () => _live.filter(a => a._playing).length;
+`;
+scenario("only one track is ever audible at once", () => {
+  // THE BUG THIS PINS, measured on the build before the fix: playTrack paused
+  // the outgoing element but its 'ended' listener stayed attached and still
+  // wrote the GLOBAL `music`. When that stale handler fired - a track ending a
+  // beat after you skipped it - it started a whole second track over the live
+  // one. Reproduced here at 2 audible elements; the guard is a generation
+  // stamp, so a superseded closure returns without touching anything.
+  const sim = createSim({ seed: 3 });
+  sim.G(AUDIO_SPY);
+  const rot = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musicOn = true; muted = false; musicView = false;
+    _live.length = 0;
+    playTrack(0);
+    const first = _live[0];
+    out.one = liveCount();
+    playTrack(1); playTrack(2); playTrack(3);   // rapid skips: every prior element must be dead
+    out.rapid = liveCount();
+    first.fire("ended");                        // the late handler from a track we walked away from
+    out.stale = liveCount();
+    startMusic(); startMusic();                 // must not stack on a live track
+    out.restart = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  for (const [k, v] of Object.entries(rot))
+    if (v !== 1) return `rotation: ${v} tracks audible after "${k}", want exactly 1`;
+  // AND THE BENCH TAKES THE SPEAKERS CLEANLY. The record box interrupts the
+  // rotation while it is up; the failure mode is the rotation restarting
+  // underneath an audition, which is the same "two tracks" complaint wearing a
+  // different hat.
+  const bench = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musicOn = true; muted = false;
+    _live.length = 0;
+    playTrack(0);
+    musOpen();
+    out.openStopsRotation = liveCount();        // 0: the box owns the speakers
+    const list = musFiltered();
+    musPlay(list[0]);
+    out.bench = liveCount();
+    musAdvance(1); musAdvance(1);               // arrow-walking the list
+    out.advance = liveCount();
+    // A BENCH TRACK RUNNING OUT WALKS TO THE NEXT ROW rather than going quiet -
+    // the box is a listening seat, not a one-shot player. The stale-handler
+    // guard is what keeps that from being a second track: an 'ended' from a row
+    // you already arrowed past must do nothing at all.
+    const cur = _live[_live.length - 1], heard = musPreviewId;
+    cur.fire("ended");
+    out.endedAdvances = musPreviewId !== heard && liveCount() === 1 ? 1 : 0;
+    const now = musPreviewId;
+    cur.fire("ended");                          // the SAME element again: stale
+    out.staleEndedIgnored = musPreviewId === now && liveCount() === 1 ? 1 : 0;
+    startMusic();                               // the rotation must not sneak back in
+    out.rotationHeldOff = liveCount();
+    musClose();
+    out.close = liveCount();                    // and it is handed back on the way out
+    return JSON.stringify(out);
+  })()`));
+  if (bench.openStopsRotation !== 0) return `opening the box left ${bench.openStopsRotation} rotation tracks playing`;
+  for (const k of ["bench", "advance", "rotationHeldOff", "close"])
+    if (bench[k] !== 1) return `bench: ${bench[k]} tracks audible after "${k}", want exactly 1`;
+  if (!bench.endedAdvances) return "a bench track running out did not walk to the next row";
+  if (!bench.staleEndedIgnored) return "a stale 'ended' from an already-skipped row moved the bench";
+  return true;
+});
+
+scenario("the music controls answer from outside the record box", () => {
+  // THE FOUR THINGS MATT ASKED FOR, each tested through the door a player uses.
+  const sim = createSim({ seed: 11 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musicOn = false; muted = false; musicView = false; _live.length = 0;
+    // 1. THE PANEL BUTTON turns it on and off without opening the playlist.
+    //    The band it answers on is the MUS label's own, and the box must NOT
+    //    open - that was the old behaviour and the whole complaint.
+    panelTap({ x: 170, y: PANEL_Y + 4 });
+    out.onAfterTap = musicOn; out.boxOpened = musicView;
+    out.playingAfterTap = liveCount();
+    panelTap({ x: 170, y: PANEL_Y + 4 });
+    out.offAfterSecondTap = musicOn;
+    out.silentAfterOff = liveCount();
+    // 2. ...and the chevron beside it still opens the box.
+    panelTap({ x: 184, y: PANEL_Y + 4 });
+    out.chevronOpens = musicView;
+    musClose();
+    // 3. SHIFT+ARROWS step tracks with the box shut.
+    musicOn = true; muted = false; playTrack(0);
+    const at = trackIdx;
+    _key("ArrowRight", true);
+    out.next = trackIdx; out.nextWant = (at + 1) % ROTATION.length;
+    _key("ArrowLeft", true);
+    out.back = trackIdx; out.backWant = at;
+    out.stillOne = liveCount();
+    // an unshifted arrow is still the camera, not a track skip
+    const before = trackIdx;
+    _key("ArrowRight", false);
+    out.plainArrowKeptTrack = trackIdx === before;
+    // 4. SHIFT+K keeps what is playing, in the box's own store.
+    musJudge = {};
+    _key("K", true);
+    const row = musNowRow();
+    out.kept = row ? musState(row) : null;
+    _key("K", true);
+    out.unkept = row ? musState(row) : "gone";
+    return JSON.stringify(out);
+  })()`));
+  if (!got.onAfterTap) return "tapping MUS did not turn the music on";
+  if (got.boxOpened) return "tapping MUS opened the record box - it is a switch now, not a door";
+  if (got.playingAfterTap !== 1) return `tapping MUS on left ${got.playingAfterTap} tracks playing, want 1`;
+  if (got.offAfterSecondTap) return "tapping MUS again did not turn the music off";
+  if (got.silentAfterOff !== 0) return `music off still left ${got.silentAfterOff} tracks audible`;
+  if (!got.chevronOpens) return "the chevron beside MUS did not open the record box";
+  if (got.next !== got.nextWant) return `shift+right went to ${got.next}, want ${got.nextWant}`;
+  if (got.back !== got.backWant) return `shift+left went to ${got.back}, want ${got.backWant}`;
+  if (got.stillOne !== 1) return `stepping tracks left ${got.stillOne} audible, want 1`;
+  if (!got.plainArrowKeptTrack) return "a plain arrow skipped a track - it is the camera pan";
+  if (got.kept !== 1) return `shift+K did not keep the playing track (state ${got.kept})`;
+  if (got.unkept === 1) return "shift+K twice left the track kept - it should toggle back";
+  return true;
+});
+
 scenario("every track in the playlist is a file that exists", () => {
   // Ten tracks arrived from two Suno albums in one go. A playlist entry whose
   // mp3 is missing fails SILENTLY in a browser - the audio element errors, the
