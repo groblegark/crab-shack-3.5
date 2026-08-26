@@ -11985,8 +11985,14 @@ function afterErrand(c, chain) {
     // retail once. A crab going back for seconds has already been served
     // today; the tourist at the gangway has not. So the chainer takes a slot
     // only while one is going spare, and yields the last of the five.
+    // COUNT THE HEADS THE CAP COUNTS. `lineCounts` is `visRoomFor`'s own
+    // reckoning - and it includes `VS.toBiz`, the guests still WALKING to the
+    // line, which `queueLen`'s `inLine` does not see. Gating on the narrower
+    // count yields the slot to a line that is already full while stepping in
+    // front of the tourist crossing the promenade, which is the wrong way
+    // round twice. One reader, so the two can never drift.
     const backForMore = e && !free(e) && !e.selfCook && e.biz === c.errandBiz;
-    const roomToChain = !backForMore || queueLen(e.biz) < QUEUE_MAX - 1;
+    const roomToChain = !backForMore || lineCounts(c, e.biz)[1] < QUEUE_MAX - 1;
     if (e && !e.selfCook && !sameStop && roomToChain && (free(e) || bizOpenNow(e.biz))
         && errandDetour(c, e) <= CHAIN_PX) {
       c.chainN = (c.chainN || 0) + 1; c.errandCd = 0;
