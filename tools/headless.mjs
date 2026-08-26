@@ -94,6 +94,13 @@ const NODORM = args.includes("--nodorm");
 // gives the pre-U1 tree back, so a 48-town matrix can measure the drain as
 // exactly one variable, the --norival / --nohall idiom.
 const NODECAY = args.includes("--nodecay");
+// `--citdecay N` overrides CIT_DECAY_MUL (twentieths of VIS_RATE - the fraction
+// of the tourist's per-frame rate a resident crab drains at). The sweep lever
+// for U1's rate calibration: game.js reads window._citDecayMul through
+// citDecayMul() and never sets it, so a matrix can find the pillar-holding
+// value without a recompile. `--citdecay 0` is a drain of zero (== --nodecay by
+// arithmetic); `--citdecay 20` is full VIS_RATE (the starve-the-town arm).
+const CITDECAY = opt("citdecay", null) != null ? parseInt(opt("citdecay", null)) : null;
 const SEEDS = parseInt(opt("seeds", "1"));
 // `--realm main` (or SIMLIB_REALM=main) runs the game files in the main realm
 // instead of a vm context - the vm escape; simlib.loadGame owns the mechanics.
@@ -185,6 +192,7 @@ if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: E
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
 if (NODECAY) G(`window._noDecay = true;`);
+if (CITDECAY != null) G(`window._citDecayMul = ${CITDECAY};`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
 const buyFn = BUY.length ? mkFn(`
   if (tmin >= 9 * 60 && tmin <= 19 * 60 && Math.abs(tmin - Math.round(tmin / 60) * 60) < ${STEP} * TS / 2) {

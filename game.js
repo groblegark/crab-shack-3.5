@@ -15221,23 +15221,43 @@ function visTick(k, dt) {
 // sleep/nap tired-recovery reads). A DAYTIME crab resting at home still has a
 // body: it gets hungry on the porch just as a roaming tourist does.
 //
-// THE HATCH: crabDecayOn() reads window._noDecay, which the game NEVER sets - so
-// the drain is ON in the real world. The seed matrix sets it (--nodecay) to get
-// the pre-U1 tree back for an adjacent A/B, the _noRival / _noHall attribution
-// idiom. This is a balance-moving change of the first order (it owns its own
-// 48-town receipt); the hatch is what makes that receipt a clean one-variable
-// measurement. Draw-free (no srand), integer Q20, so it moves no RNG cursor
-// itself - but the needs it raises drive more errands, which re-rolls the
+// A RESIDENT IS NOT A TOURIST - THE RATE IS SCALED. A visitor holidays for a day
+// or two; the VIS_RATE clock is paced for that short stay. A crab LIVES here for
+// a season, and the same per-frame rate on a permanent resident starves the
+// whole town in three days: measured, full VIS_RATE on every crab reads 0/48 on
+// BOTH the baseline and growth arms, every town evicted by day 3-4, against the
+// pre-U1 pillar of baseline 0/48 / growth 24/48 (receipt cs-u1-decay-matrix-
+// 578022e). So the citizen drains at a FRACTION of the tourist's rate, and that
+// fraction is CALIBRATED on the 48-town instrument to the value that HOLDS the
+// difficulty pillar - the unification adds the continuous MODEL without moving
+// the game's difficulty as a side effect (the pillar-erosion rule, kd-Wuar80).
+//
+// CIT_DECAY_MUL is that fraction in TWENTIETHS (the house body unit -
+// design/cs35-body.md), applied to bodyOf(c).R at the read so a cultureway body
+// multiplier still composes: a people who declare hunger:26 get 26/20 x the crab
+// scale. Round-half-up per tick (the +10 before the /20), never floor - flooring
+// all four would run the town's needs slow in one direction, the VIS_RATE
+// comment's named 1.19% sin. Draw-free integer Q20, so crabTick moves no RNG
+// cursor itself; the needs it raises drive more errands, which re-rolls the
 // downstream stream, so frozen fingerprints move (a legitimate re-pin, traced).
+const CIT_DECAY_MUL = 4;   // twentieths of VIS_RATE - swept on the cluster, see the receipt
+// THE HATCHES, both the game NEVER sets (the _noRival / _noHall attribution
+// idiom): window._noDecay gives the pre-U1 tree back (--nodecay), and
+// window._citDecayMul overrides the fraction (--citdecay N) so the sweep can
+// find the pillar-holding value without a recompile.
 function crabDecayOn() { return !window._noDecay; }
+function citDecayMul() {
+  return (typeof window !== "undefined" && window._citDecayMul != null) ? window._citDecayMul : CIT_DECAY_MUL;
+}
 function crabAsleep(c) {
   return c.p.rough || (c.dsC === DS.home && darkness() > 0.7);
 }
 function crabTick(c, dt) {
   if (!crabDecayOn() || crabAsleep(c)) return;
   const BR = bodyOf(c).R;   // a crab's own culture body, or the engine's by identity
+  const m = citDecayMul();
   for (const n of ["hunger", "thirst", "dirt", "bored"])
-    c.p[n] = Math.min(Q20, (c.p[n] || 0) + BR[n] * dtT);
+    c.p[n] = Math.min(Q20, (c.p[n] || 0) + idiv(BR[n] * dtT * m + 10, 20));   // round-half-up /20
 }
 function updateVisitor(k, dt) {
   if (k.stC === VS.ashore) {
