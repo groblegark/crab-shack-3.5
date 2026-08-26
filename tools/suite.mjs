@@ -10234,7 +10234,21 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // the same night, the same crabs, with the beds the mayor could have signed
   // for. Nobody is on the step. "Somebody slept rough" on its own is true of
   // any tired town; "somebody slept rough FOR WANT OF A BED" is this feature.
-  sim.G(`dorm.beds = cotRoster().length - 4; for (const c of allCrabs()) c.p.rough = false;`);
+  // THE COUNTER-ARM MUST GRANT THE BEDS **AND** KEEP THE DOOR UNBOLTED, and the
+  // second half was missing. sleepRough has TWO want-of-shelter causes -
+  // `!hasCot(c)` and `shelterShut()` - and this arm only ever controlled the
+  // first. It ran three game-days past the settlement it started from, which is
+  // long enough for the fund to miss the shelter's rent three times and for Mr.
+  // Pincherton to bolt the door; then every crab slept out WITH A BED EACH and
+  // the arm read that as the beds not working. Measured: at the failure the
+  // roster was 4 against 5 beds and hasCot was TRUE for every crab on the step -
+  // shelterShut was the whole story. (And it is a fixture artifact, not a
+  // regression: over 6 seeds x 14d the town takes ZERO shelter shuts either
+  // side of this change.) So the arm pins the door open, the same way it already
+  // pins the exhaustion channel, and for the same reason - it exists to measure
+  // want-of-a-BED alone.
+  sim.G(`dorm.beds = cotRoster().length - 4; for (const c of allCrabs()) c.p.rough = false;
+    townFund.shut = 0; townFund.strikes = 0; townFund.arrears = 0;`);
   if (sim.G("shelterBeds()") !== roll) return "the bought beds did not stand";
   sim.runUntil("tmin < 1 * 60", { maxSteps: 400000 });
   sim.G(`{ for (const c of cotRoster()) { c.p.rough = false; c.x = SHELTER_X + 20; c.y = 155; setT(c, c.x, c.y); } }`);
@@ -10245,8 +10259,9 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // work late and keel over honestly; pinned, the only rough left is bedless.
   // MUTATION-TESTED below: with the beds revoked the same pinned night fails.
   if (!sim.runUntil(bedtime, { maxSteps: 400000,
-    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); }'),
+    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); } townFund.shut = 0; townFund.strikes = 0;'),
     tickEvery: 40 })) return "the counter-arm's roll never got home to the shelter";
+  if (sim.G("shelterShut()")) return "the counter-arm's shelter got bolted - it measures want-of-a-bed, not want-of-rent";
   const out2 = JSON.parse(sim.G(`JSON.stringify(cotRoster().map(c => [c.p.name, !!c.p.rough]))`));
   const rough2 = out2.filter(r => r[1]).map(r => r[0]);
   if (rough2.length) return "a bed each and " + rough2.join(",") + " still slept outside";
@@ -12426,18 +12441,25 @@ scenario("a platform that WINS actually reaches the office, floor and all", () =
     const want = { mech: "levy", rate: 3, bowls: 4, wage: 3, cap: 2 };
     ballotBox = { day, printed: 9, papers: 0, shut: true, declared: false, roll: 6,
       voters: {}, counted: 0, turnedAway: [], lines: [],
-      cands: [{ name: "CORAL", plat: want, votes: 7 },
+      // THE WINNER MUST BE A CRAB WHO IS ACTUALLY IN TOWN. The count now drops
+      // any candidate who is no longer on the roster - a ballot is printed the
+      // night before the poll and a candidate can die or quit before it is
+      // counted, and a departed crab cannot take the office. "CORAL" was a
+      // name this fixture invented, so it was correctly refused; the claim
+      // being tested is about DIALS reaching the office, not about who, so the
+      // winner is now a real resident and the platform rides on them.
+      cands: [{ name: allCrabs()[0].p.name, plat: want, votes: 7 },
               { name: "DRIFT", plat: { mech: "tin", rate: 1, bowls: 0, wage: 0, cap: 0 }, votes: 2 }],
       // A REAL BOX, because declarePoll's first guard is an EMPTY one: no
       // papers cast means nobody got there and the incumbent keeps the hat, so
       // a fixture with a tally and no ballots declares nothing at all.
-      cast: [0,1,2,3,4,5,6].map(i => ({ voter: "V" + i, pick: "CORAL" }))
+      cast: [0,1,2,3,4,5,6].map(i => ({ voter: "V" + i, pick: allCrabs()[0].p.name }))
         .concat([{ voter: "V7", pick: "DRIFT" }, { voter: "V8", pick: "DRIFT" }]) };
     declarePoll();
-    return JSON.stringify({ want, got: hall.policy, mayor: hall.mayor,
+    return JSON.stringify({ want, got: hall.policy, mayor: hall.mayor, winner: ballotBox.cands[0].name,
       line: policyLine(hall.policy), floor: minWage(), wantFloor: floorOf(want) });
   })()`));
-  if (got.mayor !== "CORAL") return "the count did not seat the winner, it seated " + got.mayor;
+  if (got.mayor !== got.winner) return "the count did not seat the winner, it seated " + got.mayor;
   for (const k of ["mech", "rate", "bowls", "wage", "cap"])
     if (got.got[k] !== got.want[k])
       return `the winner ran on ${k}=${JSON.stringify(got.want[k])} and the office got ` +
