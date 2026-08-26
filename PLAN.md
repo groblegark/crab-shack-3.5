@@ -6348,6 +6348,16 @@ copy of them.
     `ctx.clip()`, so a pixel-grained scroll would render fine in a browser and
     be invisible to every test we have. Phased on **wall** time, not `viewT`:
     the music plays at wall speed, so at `>>>>` the label must not crawl 4x.
+  - **THE ROTATION NOW STREAMS, and that is the cost of the ask.** Measured on
+    the shipped pair: **22 of 1,201 rows are same-origin (1.8%)**, so **98.2% of
+    the town's music comes off the release CDN** where it was ~0% before. That
+    is the same path the box's auditions have always taken (median 362 ms cold,
+    worst 553 — see *Streaming, measured* above), and the fallback ladder is
+    unchanged: local mirror → our release → skip on. But a build served to a
+    player with no network now has **22 tracks and a lot of skipping**, where
+    before it had a complete, if small, soundtrack. Worth knowing before anyone
+    reads a "the music keeps cutting out" report as a regression in this code.
+    Total catalog runtime, for scale: **47.9 h, mean 144 s a track**.
   - **Two existing scenarios were amended, each with its reason in place.** The
     bench block asserted `openStopsRotation === 0` — that *is* the behaviour
     Matt asked to change. The dead-`<source>` fixture needed a second row:
