@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-8c64eb7-s3dd",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "8c64eb7a4ca0b1218c81e9bad82fa75e66ec8ee4",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 67933,
+  "verdict": "35/35 passed in slice 5/12 (67.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (11438ms)\n  PASS  save guard: a town born from a rejected save does not bury it (804ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (33ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (866ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (689ms)\n  PASS  days off: everyone rests their weekday and plays customer (4110ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (313ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (783ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (1915ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (677ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (18ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (844ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (12ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (998ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (686ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1256ms)\n  PASS  departures: every character the card prints exists in the font (1050ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (3725ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (59ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (373ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (543ms)\n  PASS  the whole session plays through one audio element (26ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (7033ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (11ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (9506ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (21ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (470ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (69ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (655ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2664ms)\n  PASS  the stamp gate watches every file a player is served (2ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (8696ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (55ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (11ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (7387ms)\n35/35 passed in slice 5/12 (67.8s)\n"
+}

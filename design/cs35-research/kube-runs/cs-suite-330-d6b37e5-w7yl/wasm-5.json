@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-d6b37e5-w7yl",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "d6b37e5ebb110b2d94d03d798ea191f5c8fae3b5",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 65730,
+  "verdict": "35/35 passed in slice 5/12 (65.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (10401ms)\n  PASS  save guard: a town born from a rejected save does not bury it (905ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (41ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (995ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (779ms)\n  PASS  days off: everyone rests their weekday and plays customer (4965ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (337ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (912ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (2174ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (715ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (8ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (734ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (15ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (67ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (3720ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (3548ms)\n  PASS  departures: the card waits behind the day report, then pages itself (771ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (3318ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1253ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (10ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (14ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (14ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (2549ms)\n  PASS  traits: the island's table is the literal, value for value (22ms)\n  PASS  depart programs: a hostile table is refused by name (17ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (20852ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (13ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (13ms)\n  PASS  foodways: the validator names its refusals (11ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (582ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (9ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (4070ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (41ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (24ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (1735ms)\n35/35 passed in slice 5/12 (65.6s)\n"
+}

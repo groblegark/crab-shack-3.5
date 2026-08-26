@@ -954,8 +954,8 @@ var BUNDLED_CULTUREWAYS = {
       "tired": "SLEPT ON A ROOF. FINE."
      },
      "depart": {
-      "hungry": "I CAME FOR FISH AND I GOT FISH. GOOD.",
-      "happy": "A DECENT ROCK, THIS PLACE."
+      "hungry": "I CAME FOR FISH AND NEVER GOT A ONE.",
+      "delight": "A DECENT ROCK, THIS PLACE."
      },
      "refuseHire": "I DON'T PERCH FOR WAGES.",
      "foreign": "NOT A SCRAP OF SEAWEED IN TOWN."
@@ -969,7 +969,7 @@ var BUNDLED_CULTUREWAYS = {
      },
      "depart": {
       "hungry": "I LOG THIS PORT AS UNDERVICTUALLED.",
-      "happy": "A SERVICEABLE PORT. LOGGED."
+      "delight": "A SERVICEABLE PORT. LOGGED."
      },
      "refuseHire": "I HOLD A PILOT'S TICKET, THANK YOU.",
      "foreign": "NO SEAWEED. IN A PORT. REMARKABLE."
@@ -9348,7 +9348,9 @@ var BUNDLED_CRAB_VOICE = {
     "rough": "NO ROOM AT THE HOTEL - SLEPT ON THE BEACH",
     "wokesand": "WOKE UP ON THE SAND - NOT A GREAT NIGHT",
     "turnin": "TURNED IN FOR THE NIGHT",
-    "gaveup": "GAVE UP WAITING AT THE {BIZ}"
+    "gaveup": "GAVE UP WAITING AT THE {BIZ}",
+    "cutshort": "SEEN ENOUGH - CATCHING THE NEXT BOAT HOME",
+    "stayon": "HAVING TOO GOOD A TIME - STAYING ON ANOTHER NIGHT"
    },
    "depart": {
     "foreign": "NOTHING ON THE MENU WAS QUITE MY DISH. I MADE DO.",

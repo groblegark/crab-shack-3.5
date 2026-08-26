@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-cedbe54-5gjr",
+  "armId": "wasm-9",
+  "index": 21,
+  "sha": "cedbe5473a2aac41b1ee4b16a3d4797e925ad3f1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 185629,
+  "verdict": "34/34 passed in slice 9/12 (185.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (413ms)\n  PASS  npc: SUDSY dines at the player shack (2077ms)\n  PASS  slots: the preview card reflects the town it came from (1395ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (35ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (49ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (71ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (6157ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1085ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (8420ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (4822ms)\n  PASS  tip sharing + the table cap roundtrip save/load (461ms)\n  PASS  no surface prints off the canvas (1072ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (136169ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (3710ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1007ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (14ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (12ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (56ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (600ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1003ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (9ms)\n  PASS  the record box scrolls without the drag thumb (8ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (4355ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (12ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (25ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (11ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (12ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (3442ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (2916ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (790ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (111ms)\n  PASS  science: one recipe lives the same town twice (5086ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (23ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (98ms)\n34/34 passed in slice 9/12 (185.5s)\n"
+}

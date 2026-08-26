@@ -2235,8 +2235,26 @@ function declarePoll() {
       policy: policyLine(hall.policy), tally: "-" });
     return;
   }
-  let win = B.cands[0];
-  for (const k of B.cands)
+  // A CANDIDATE WHO IS NO LONGER IN TOWN CANNOT TAKE THE OFFICE. The ballot is
+  // PRINTED THE NIGHT BEFORE (see printBallots, called from runTownHall), and
+  // between the printing and the count a crab can die - this town has universal
+  // mortality - or quit for the pier. Nothing re-checked the field, so a dead
+  // crab could win outright: measured, SALTY died of illness on a day 6 and won
+  // the day-7 ballot with 2 votes, whereupon the never-vacant-office rule
+  // correctly re-seated somebody else and hall.mayor no longer matched
+  // hall.poll.winner - which is exactly what two election gates assert.
+  // The papers still COUNT (they were honestly cast, and the tally is what the
+  // town did); they simply cannot seat a crab who is not there to be seated.
+  // Nothing changes in a town where every candidate survives the night, which
+  // is why this sat latent - 60 seeds of main never caught a candidate out.
+  const standing = B.cands.filter(k => allCrabs().some(c => c.p.name === k.name));
+  if (!standing.length) {   // the whole field is gone: the incumbent stays
+    hall.poll = rec(hall.mayor, false, B.cands, B.cast.map(p => p.line).filter(Boolean));
+    today.moved.push("EVERY CANDIDATE HAS LEFT TOWN - " + (hall.mayor || "NOBODY") + " STAYS IN THE HAT");
+    return;
+  }
+  let win = standing[0];
+  for (const k of standing)
     if (k.votes > win.votes || (k.votes === win.votes && !win.inc && (k.inc || k.name < win.name))) win = k;
   hall.mayor = win.name;
   // FIELD BY FIELD, AND THAT IS THE HAZARD: a platform that grows a dial and
@@ -6062,10 +6080,60 @@ refreshHatches();
 const patOff = (k) => !!(_fOff && _fOff[k]);
 
 // ---- IDLE HANDS (the wander-off) -----------------------------------------
-const WANDER_AT = qn(0.6);        // restless enough to leave the post
+// RESTLESS ENOUGH TO LEAVE THE POST - and this bar is now the WANDER'S OWN,
+// separate from the one the mood ring and the quips read (RESTLESS_AT, below).
+// It was 0.6 for both, and 0.6 was half the bug.
+//
+// WHY THE BAR HAD TO MOVE AT ALL. Boredom arrives in +0.20 lumps at shift END,
+// so a save's first four days carry 0.0 / 0.2 / 0.4 / 0.6-minus-one-Q20-grain
+// into work against a bar of 0.6: the wander was ARITHMETICALLY IMPOSSIBLE
+// before day 5, and by day 5 hunger has pinned at 1.00 so boredYields (rightly)
+// slams the door. The two gates never blocked at once - they own DIFFERENT DAYS,
+// which is exactly why relaxing either alone left the freeze untouched in the
+// intervention table and only relaxing BOTH moved it. Measured, 16/16 seeds took
+// their worst freeze on DAY 1: 11.1 GAME-HOURS at one sub-pixel x in one kstate.
+// That is a new player's first look at the shower house.
+//
+// AND 0.6 CONTRADICTED ITS OWN DESIGN. The design doc (NEEDS THAT FAIL IN THEIR
+// OWN CHARACTER, below) makes idle hands the EARLY stage of boredom and the
+// walk-out its LATE stage - but 0.6 against WALKOUT_AT's 0.95 is a gap of 1.75
+// lumps. "Late" and "slightly later", not "early" and "late". A crab could not
+// be restless without being nearly ready to quit.
+//
+// 0.15 IS UNDER ONE SHIFT'S LUMP, which is what lets the trickle reach it on
+// day 1 (see BORED_IDLE: a zero-net advance can move at most one lump, 0.20, so
+// any bar above that leaves day 1 frozen no matter how fast the trickle runs -
+// measured, an advance trickle at 3.0/shift against the old 0.6 bar: worst
+// still-run 11.1 game-hours, UNCHANGED). Every later day clears it on the
+// settlement lump alone.
+//
+// WHAT THIS IS NOT: it is not a licence to roam. The wander is reachable only
+// when every dispatch above it has declined - no order, no dirty stall, no
+// table to bus - and WANDER_QUIET / WANDER_DWELL / WANDER_CD still bound the
+// share of a dead spell spent off-post to about half. Lowering the bar changes
+// WHEN a crab may drift, never how much of a busy shop's time it can eat.
+const WANDER_AT = qn(0.15);
+// ...and the DISPLAY bar stays where it was, deliberately. "RESTLESS" on the
+// mood ring and the SAME OLD SAME OLD / I'D KILL FOR AN ARCADE quips are how
+// the player reads deep boredom, and they are tuned against WALKOUT_AT - a crab
+// wearing RESTLESS is a crab heading for a walk-out, which is a warning the
+// player can act on. Splitting the two keeps that warning honest and leaves
+// every pixel of the UI exactly as it was. It also reads better, not worse: a
+// mild drift off-post comes with the wander's own quips (NOTHING DOING, JUST
+// STRETCHING MY LEGS), which is the right register for 0.15, while the ARCADE
+// lines stay for a crab who genuinely has had enough.
+const RESTLESS_AT = qn(0.6);
 const WANDER_PX = 340;        // how far off post a wander may take them
-const WANDER_QUIET = 3;       // real seconds the counter must be DEAD first - a
-                              // crab doesn't bolt the instant the queue empties
+const WANDER_QUIET = 3 * SEC; // real seconds the counter must be DEAD first - a
+                              // crab doesn't bolt the instant the queue empties.
+                              // The `* SEC` is NOT cosmetic and it was missing:
+                              // this is compared against c.idleT, which sums
+                              // TICKS, so a bare 3 was 3 ticks = 0.15s - twenty
+                              // times too short, and PLAN documented it as "3s".
+                              // Both siblings below carry the same conversion;
+                              // the bug was visible in the three lines of this
+                              // block. At 0.15s the "counter has to be DEAD
+                              // first" clause below was doing nothing at all.
 const WANDER_DWELL = 14 * SEC;  // ...then 14-24s stood there watching
 const WANDER_CD = 20 * SEC;   // real seconds back at the post before the next one
                               // (a six-hour shift is only 90 REAL seconds, so these
@@ -6091,6 +6159,170 @@ const WANDER_SPOTS = [
 // for the crab's behaviour - and the town sits near 0.7 dirt permanently, so
 // including it would switch the whole pattern off.
 const BORED_YIELD = qn(0.8);
+// A DEAD COUNTER IS THE BORING PART OF THE JOB, and until now the game did not
+// think so: boredom moved in ONE lump at shift END, so nothing about standing
+// at an empty counter for six hours was any more boring than a rush. That is
+// the other half of the freeze (the bar itself is WANDER_AT, above), and it is
+// why the fix needs both - the bar alone still leaves day 1 starting at a flat
+// 0.000 with no way to move until knock-off.
+//
+// THIS IS A RE-TIMING, NOT A NEW CHARGE, and that distinction is the whole
+// reason it is safe. It is an ADVANCE against the +0.20 the shift was going to
+// bill at knock-off anyway: p.boredAdv banks what idleness has already drawn,
+// the settlement pays only the REMAINDER, and a crab who idled a full shift has
+// paid in full and gets no lump. So a crab can never end a day more bored than
+// the old code left them - what changes is WHEN it arrives inside the day, which
+// is the entire bug. The precedent is exactly the tiredness trickle's (see the
+// shift settlement): same total, different timing, because a crab should be at
+// their most tired at the grill rather than the instant they clock off.
+//
+// MEASUREMENT FORCED THIS SHAPE - two wrong versions came first, and both looked
+// fine on the freeze number:
+//   1. AN ADDITIVE TRICKLE. Boredom has NO ambient decay and no free cure (that
+//      is the cure ledger below, and it is arithmetic rather than flavour), so
+//      any permanent addition raises the WHOLE later trajectory forever. At
+//      0.75/shift, 2 seeds x 8d: the freeze came 11.1 -> 8.0 game-hours while
+//      boredom pinned >= WALKOUT_AT on DAY 2 instead of day 5 and mean on-shift
+//      boredom went 0.571 -> 0.840. A fifth of the fix for a walk-out ladder
+//      pulled in by three days, town-wide, forever.
+//   2. CAPPING IT. Also no: the +0.20 lump stacks on top of any cap, so
+//      settlement boredom still read 0.82 / 1.00 / 1.00 against as-shipped's
+//      0.20 / 0.40 / 0.60, and the ladder still moved to day 2.
+// Only bounding it BY THE LUMP leaves the ladder where it was - which is the
+// version that survives, and the version that spends no pillar.
+//
+// AND IT IS STILL PAID FOR BY IDLENESS. It accrues only while a crab is on shift
+// with nothing to do - applied at the bottom of the idle branch, past every
+// dispatch - so a crab who is working pays nothing, and a SHACK THAT IS GROWING
+// is busy. The town the growth matrix measures pays this least, which is the
+// same argument the wander itself makes one screen down: "it lands hardest
+// exactly when the shop is quiet, which is when it costs the town least."
+//
+// THE CURE LEDGER IS THEREFORE EXACTLY AS AUTHORED: at most +0.20 a shift
+// against 0.12 of chat relief, so a gossiping crew still drifts upward across a
+// week and only the arcade buys the bar back.
+//
+// Read as "a whole standard shift spent idle would cost this much boredom" - the
+// units TIRED_SHIFT is quoted in. Above 1.0 is not a typo: the ADVANCE CAP, not
+// this number, sets how much a crab ends up with, so this only sets how FAST an
+// empty shop gets them off the wall. 3.0 spends the whole advance in about a
+// third of a shift. Measured against the freeze, cap fixed and only this moving:
+// 0.75 -> 8.0 game-hours; 3.0 -> 2.0; 6.0 -> 1.5 on day 1 but 6.6 overall,
+// because a crab who exhausts the advance in the first hour has nothing left to
+// draw and stands still through the rest of a dead day. 3.0 is the knee.
+const BORED_IDLE = qn(3.0);
+// ONE BOUND, AND IT IS THE LUMP ITSELF. An earlier version carried a second,
+// separate ceiling on the LEVEL as well; it was redundant once the advance is
+// bounded (the draw can never exceed what the settlement would have charged) and
+// two interacting caps on one quantity is how a balance number stops being
+// readable. Keep this equal to the shift-end lump - they are two halves of one
+// charge, and a drift between them would silently start adding or forgiving
+// boredom.
+//
+// p.boredAdv IS "HOW MUCH OF TODAY'S LUMP HAS ALREADY BEEN CHARGED", by either
+// half, and p.boredAdvDay STAMPS WHICH DAY "TODAY" MEANS. The stamp is what
+// makes the bound provable, and it took two measured bugs to arrive at:
+//
+//   1. CLEARING IT AT CLOCK-IN let a crab who breaks for an errand and clocks
+//      back in draw a SECOND full advance against a lump already paid - REEF,
+//      +0.40 in a day against everyone else's +0.20.
+//   2. CLEARING IT IN THE NIGHTLY BLOCK looked right and was worse, because
+//      that block fires at TMIN 20:00 while REEF's and SALTY's shifts run to
+//      20:30. The reset landed MID-SHIFT, re-opening the budget in time for the
+//      settlement half an hour later to charge a full second lump. Same +0.40,
+//      but now arriving through a path that reads like end-of-day tidy-up.
+//
+// A stamp has no such ordering to get wrong: the advance simply IS NOT VALID on
+// any day but the one it was drawn on, so it self-expires without anyone having
+// to remember to clear it, in any order, on any path - including the paths where
+// a shift never settles at all (a crab called sick mid-shift, a walk-out, a rota
+// reshuffle), which was the third bug in this same family.
+//
+// The lesson generalises past this constant: an expiry that depends on WHEN a
+// reset runs is only as correct as the reset's position relative to every other
+// event, and "the nightly block" is not the end of the night.
+const BORED_ADV_MAX = qn(0.2);
+// ...AND IT STOPS DEAD AT THE SPEED LINE. This is the fifth thing measurement
+// forced, and it is the one that makes the whole change economically inert.
+//
+// Re-timing boredom EARLIER in a day raises its TIME-AVERAGE even when the daily
+// total is identical - and above qn(0.5) every point of boredom is a movement
+// penalty (crabMoveQ8's `over`). Measured: mean on-shift boredom 0.571 -> 0.632,
+// and the consequences were two systems away and entirely in the wage bill -
+// slower crabs run errands worse, so sick-days went 8 -> 13 and 6 -> 13 on two
+// seeds, a sick day pays NO WAGE (crabDueTonight), and the always-open arm of
+// the anti-exploit gate reads takings-per-crew-day 1.06 -> 1.12 against a limit
+// of 1.10. A BOREDOM RE-TIMING RE-OPENED AN ECONOMIC EXPLOIT THROUGH PAYROLL.
+//
+// So the trickle may not cross qn(0.5). It does not need to: its whole job is to
+// get an EARLY-GAME crab (boredom 0.0-0.4, nowhere near the line) over
+// WANDER_AT. Once the settlement lumps have carried a crab past 0.5 the bar is
+// long since cleared and the trickle has nothing left to do - it simply stops.
+// Every crab above the line therefore moves at EXACTLY the speed it did before
+// this change existed, which is what keeps the growth pillar out of it.
+const BORED_IDLE_LEVEL = qn(0.5);
+// how much of TODAY's lump is already spent - 0 on any day we have not drawn on
+function boredAdvOf(c) { return c.p.boredAdvDay === day ? (c.p.boredAdv || 0) : 0; }
+// ...AND THE WALK-OUT LADDER MUST NOT SEE AN UNBILLED ADVANCE. This is the
+// fourth thing measurement forced, and it is a pure ORDERING fact that no
+// amount of "the totals match" reasoning would have caught.
+//
+// The nightly walk-out check runs at TMIN 20:00; a late shift knocks off at
+// 20:30. As-shipped, a lump that pushes a crab over WALKOUT_AT therefore lands
+// AFTER the check and is first counted the FOLLOWING night - one day of grace
+// that is baked into WALKOUT_DAYS' tuning. Re-time part of that same lump into
+// the afternoon and the crossing is counted the SAME night: the 4-settlement
+// ladder quietly becomes 3.
+//
+// MEASURED, seed 4242 x 10d, and it is not subtle: walk-outs 1 -> 3 on normal
+// hours and 2 -> 4 on always-open. A walk-out is a day with NO WAGE, so it
+// inflates takings-per-crew-day MOST in the arm with the most idle hours - which
+// is precisely the always-open arm, and it pushed the anti-exploit gate from
+// 1.06 to 1.12 against a limit of 1.10. A boredom re-timing reopened an
+// ECONOMIC exploit two systems away, through the wage bill.
+//
+// So the ladder reads the boredom the crab would have had at this point in the
+// day WITHOUT the UNBILLED part of the advance. Nothing else uses this: the bar,
+// the quips, the mood ring and the speed penalty all read the real, current
+// value, because for those the whole point is that the crab IS bored now.
+//
+// "UNBILLED" IS THE LOAD-BEARING WORD, and getting it wrong broke the walk-out
+// gate. Once the shift settles, that boredom HAS been charged the way the ladder
+// was tuned on - it must count in full. But the settlement also closes the day's
+// budget by setting boredAdv to the max, so a naive `bored - boredAdv` keeps
+// subtracting a lump that is already paid, and a crab pinned at 1.00 reads 0.80
+// forever: the walk-out never fires at all. p.boredBilled records that the
+// settlement has run, which separates "drawn early" from "drawn early and since
+// accounted for" - two different things that one counter cannot say.
+function boredSettled(c) {
+  if (c.p.boredBilled === day) return c.p.bored || 0;   // the shift settled: it all counts
+  return Math.max(0, (c.p.bored || 0) - boredAdvOf(c));
+}
+// ...and it accrues EXACTLY, by the otPremium remainder pattern the tiredness
+// trickle already uses: add the numerator, move floor(R/D) whole grains, keep
+// R % D for the next tick. Banking a float in a Q20 field would be a spec
+// violation the C port cannot reproduce even though it stays deterministic.
+// The remainder lives at p.boredRem so a mid-shift save carries it.
+function boredIdleTick(c) {
+  if (patOff("boredidle")) return;
+  if ((c.p.bored || 0) >= BORED_IDLE_LEVEL) return;   // never past the speed line
+  const spent = boredAdvOf(c);                        // 0 once the stamp is stale
+  let room = BORED_ADV_MAX - spent;                   // nothing beyond one shift's lump
+  const headroom = BORED_IDLE_LEVEL - (c.p.bored || 0);
+  if (headroom < room) room = headroom;               // ...and never over the line
+  if (room <= 0) return;
+  const den = Math.max(1, ownStdSpan(c)) * GMIN;
+  const R = (c.p.boredRem || 0) + BORED_IDLE * dtT;
+  let move = (R - R % den) / den;
+  c.p.boredRem = R % den;
+  if (move <= 0) return;
+  if (move > room) move = room;
+  const b1 = (c.p.bored || 0) + move;
+  if (b1 >= Q20) { move = Q20 - (c.p.bored || 0); c.p.bored = Q20; c.p.boredRem = 0; }
+  else c.p.bored = b1;
+  c.p.boredAdv = spent + move;                        // banked against today's lump
+  c.p.boredAdvDay = day;
+}
 function boredYields(c) {
   return (c.p.hunger || 0) >= BORED_YIELD || (c.p.thirst || 0) >= BORED_YIELD
     || (c.p.tired || 0) >= BORED_YIELD;
@@ -6587,6 +6819,15 @@ class VisS {
   set stall(v) { C_STL[this.si] = v ? v.fid : -1; }
   get table() { return C_TBL[this.si] >= 0 ? FURN[C_TBL[this.si]] : null; }
   set table(v) { C_TBL[this.si] = v ? v.fid : -1; }
+  // THE TRAY (feature B: one ticket, N plates). A customer holds an ORDER - a
+  // short list of recipes - and the chef works it one plate at a time. `recipe`
+  // is the plate currently under the claws: the head of the tray at orderIdx.
+  // An own `recipe:` data property would SHADOW this accessor (lesson #1), so
+  // every literal writes `order:` and vivifyCust lifts recipe through the
+  // setter. Length-1 is the default and the setter re-wraps a single dish, so
+  // every path that used to set one recipe reads back bit-identical.
+  get recipe() { const o = this.order; return o && o.length ? o[this.orderIdx || 0] : null; }
+  set recipe(r) { this.orderIdx = 0; this.order = r == null ? null : [r]; }
 }
 const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // the boundary for FOREIGN literals: the suite stages customer stubs as plain
@@ -6599,7 +6840,8 @@ function vivifyCust(o) {
   const lift = {};
   for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
                    "hunger", "thirst", "dirt", "bored", "tired",
-                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table"])
+                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table",
+                   "recipe"])   // recipe is the tray's head accessor now: lift off the literal, re-write through the setter (an own property would shadow VisProto's getter)
     if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
@@ -7764,6 +8006,16 @@ var _rtap = null;   // null = the default sim stream (the context's Math.random,
 var _rs = 0;
 var _rOwned = false;   // does the TOWN own the stream, or is it still the host's?
 var _foundSeed = null;   // the recipe that founded this town, when it had one
+// THE OCEAN THIS TOWN GOT (the almanac's per-town seed). The mist is a fact
+// about the CALENDAR alone - the same fog on day 7 for every town in the world
+// - but a SURF break wants its own history per town, or a 48-town matrix would
+// run one ocean 48 times rather than sample 48 (ruling on kd-d4pMPKIiRJ: mix
+// the seed for the almanac's NEW channels only, leaving mist byte-identical).
+// It is a per-town CONSTANT read without ever drawing from the stream, so
+// folding it into swell/wind forks no randomness and moves no shipped pin. Set
+// by the harness to the run's seed, derived from entropy at a fresh browser
+// founding, and carried in the save so a town keeps the ocean it grew up with.
+var _almanacSeed = 0;
 function _jsTap() {
   _rs = (_rs + 0x6D2B79F5) | 0;
   let t = _rs;
@@ -9143,6 +9395,33 @@ registerSurface("cit_errand.candidate", {
   script: "pickErrand",   // candidates, draws and the argmax stay script
   doc: "what a resident does with their next free thought",
 });
+// WHEN A VISITOR GOES HOME, AS A DECISION (Matt, 2026-08-24 ruling 6: "we'd
+// also like for visitors to choose when they depart in their neural-net/
+// decision policy"). Departure timing used to be fixed at spawn - newVisitor
+// pinned leaveT to a sailing before the guest had experienced anything. This
+// makes it a CHOICE the policy re-evaluates: a guest the town is delighting
+// stays on, a guest it is failing cuts the trip short.
+//
+// A SURFACE OF ITS OWN, not a class on vis_pick.candidate, and the reasons are
+// two advice items measured on this project today (kd-kSccbUfcdw, kd-zQB8oRGDeQ):
+//   1. vis_pick.candidate has a SHIPPED trained brain (gullway, 7 classes) and
+//      the loader requires classes==surface N in order - a fourteenth class
+//      would HARD-FAIL that artifact at boot until it is retrained. A new
+//      registration leaves the trained one byte-identical.
+//   2. vis_pick.candidate SCORES THE PRESENT ("what do I fancy now"); departure
+//      READS THE FUTURE ("is this trip worth prolonging"). A decision that
+//      reads the future does not belong in a surface built to score the present.
+// So: three classes (stay put / leave sooner / stay longer), engine-default
+// SCRIPT (visDepartPick), and NO trained artifact - departure is a rare event
+// (a guest decides it a handful of times a stay), so per kd-zQB8oRGDeQ it ships
+// as the heuristic with a stated exit condition rather than a confidently-wrong
+// brain. A future culture whose guests are MEANT to linger or bolt differently
+// declares a "vis_depart.stay" policy here, reading the same needW matrix.
+registerSurface("vis_depart.stay", {
+  classes: ["hold", "sooner", "longer"],
+  script: "visDepartPick",   // the engine default reads needW; no brain ships yet
+  doc: "when a visitor chooses to sail home",
+});
 // Which policy answers for a culture on a surface - the declared one, or the
 // registered engine default. Table/script/brain all resolve here; the brain
 // path keeps its own fast lane (brainOf) and this accessor never replaces it,
@@ -10164,6 +10443,7 @@ function save(hold) {
   // carried for provenance - a lab wants to know which run a town came from.
   if (_rOwned) env.rs = simCursor();
   if (_foundSeed != null) env.sd = _foundSeed >>> 0;
+  env.as = _almanacSeed >>> 0;   // the ocean this town grew up with (almanac's per-town seed)
   env._ver = SAVE_VER;
   env._meta = slotMeta(env);   // written at save time; re-derivable if it ever goes missing
   if (hold) return env;
@@ -10378,6 +10658,12 @@ function load(slot, envIn) {
   // first thing that reads it, not merely before the first thing you notice.
   simStreamAdopt(s.rs != null ? s.rs : cursorFromEnvelope(s));
   if (s.sd != null) _foundSeed = s.sd >>> 0;
+  // ...and the ocean rides in the same way. A pre-almanac save has no `as`, so
+  // one is DERIVED from the envelope's own bytes the way the stream cursor is
+  // (cursorFromEnvelope) - the same old town always lands on the same ocean and
+  // keeps the same surf history, rather than every old town in the world
+  // sharing one. mist does not read it, so no shipped mist pin is disturbed.
+  _almanacSeed = s.as != null ? s.as >>> 0 : cursorFromEnvelope(s);
   // A town loaded FROM A SLOT is that slot's town, so the session owns the
   // slot from here. An envelope handed in directly (the lab's shuttle) earns
   // nothing - a scrubbed keyframe is somebody's town, not this slot's.
@@ -10975,7 +11261,7 @@ function maybeQuip(c, dt) {
       lines = ["DAY OFF!", "BEACH DAY", "THE SAND'S ALL MINE", "NOT COOKING TODAY"];
     if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["THEY'LL COPE", "I NEEDED THIS", "NOT TODAY", "SOMEONE ELSE'S TURN"];
-    if ((c.p.bored || 0) >= WANDER_AT && !isNight && !walkoutToday(c))
+    if ((c.p.bored || 0) >= RESTLESS_AT && !isNight && !walkoutToday(c))
       lines = ["SAME OLD SAME OLD", "IS IT HOME TIME", "NOTHING EVER HAPPENS", "I'D KILL FOR AN ARCADE"];
     if ((c.p.tired || 0) >= qn(0.8) && !isNight)
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
@@ -11303,6 +11589,13 @@ function arriveCommute(c, atWork) {
   if (atWork) {
     c.dsC = DS.working; c.duty = true; c.ksC = KS.idle; c.workBiz = c.p.job;
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
+    // NB: the boredom advance (BORED_IDLE) is deliberately NOT reset here. This
+    // is not the start of a DAY - a crab who breaks for an errand and comes back
+    // clocks in again, and an earlier version of this change did clear it here.
+    // MEASURED: that let one crab draw a second full advance after lunch and
+    // climb +0.40 in a day against everyone else's +0.20, which is the exact
+    // double-charge the advance is supposed to make impossible. The advance is
+    // per-DAY, so it expires at the day boundary and nowhere else.
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
     if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 * SEC + ((srand() * 6 * SEC) | 0); }
@@ -11687,7 +11980,20 @@ function updateSchedule(c, dt) {
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
     c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
-    c.p.bored = Math.min(Q20, (c.p.bored || 0) + qn(0.2));     // all work and no play...
+    // ...all work and no play. STILL +0.20 A SHIFT, but idleness may already
+    // have drawn some of it down during the day (BORED_IDLE): the settlement
+    // pays only what is left owing, so standing about re-times this charge
+    // without ever increasing it. A crab who idled the whole shift has paid in
+    // full already and gets nothing here. boredAdv is cleared either way, so
+    // tomorrow starts with the full lump available to draw against again.
+    c.p.bored = Math.min(Q20, (c.p.bored || 0) + Math.max(0, qn(0.2) - boredAdvOf(c)));
+    // ...and today's boredom budget is now CLOSED rather than cleared, stamped
+    // with today. A crab can clock off, run an errand and clock back in, so
+    // clearing it would let the afternoon draw a second full advance against a
+    // lump already paid (measured: +0.40 in a day). The stamp expires it at
+    // midnight on its own, on every path, including the ones that never settle.
+    c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
+    c.p.boredBilled = day;   // ...and the ladder may now count it in full
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
     // The staff meal counts too: refusing it here was the whole reason a crab
@@ -12408,6 +12714,63 @@ function pickErrand(c) {
   if (bp && bp.mode === "shadow") shadowCitObserve(c, cand, bp, best);
   return best;
 }
+// THE TRAY ASSEMBLER (feature B: one ticket, N plates). pickErrand chose the
+// best single stop; this asks the companion question - "what ELSE does this
+// crab want that THIS shop sells, that they can afford on top?" - so a crab who
+// walked to the shack for a taco and is also thirsty walks away with the juice
+// too, in ONE queue slot, instead of getting back in line (measured 53% of the
+// time into a line already full of guests - the whole case for B, plan
+// kd-NTQvKxSEkA). It reuses the SAME appetite thresholds pickErrand's gathers
+// use and the SAME errandScore, so the tray never assembles a stop the crab
+// would not have made anyway.
+//
+// DRAW-FREE on purpose: it takes the cheapest affordable plate for the addon
+// need (no flush recipe roll), so it consumes no RNG and the second plate is a
+// pure, attributable consequence of the first arrival. The affordability check
+// is against the SUM at full retail (the two traps, plan §"the two traps"):
+// every plate is afforded, debits its own ingredient, and costs its own station
+// time - the tray is never a free need-cure.
+//
+// SCOPE: only where a counter sells across needs - the shack (food + juice).
+// Visitors, rooms, showers, the arcade and self-cook never assemble a tray;
+// this is only ever reached from the local-customer mint below, and only a
+// second need at the SAME biz can qualify. Cap the tray at 2 (the second plate
+// is where nearly all the value is; three-item trays wait on the number).
+const TRAY_MAX = 2;
+function trayAddon(c, primaryRecipe, primaryNeed) {
+  if (window._notray) return null;                 // the arm-off hatch, attribution's friend
+  const b = c.errandBiz;
+  if (!b || !BIZ[b] || !bizStaffed(b)) return null;
+  // the needs a counter can answer, in the errand census's own rank order, each
+  // paired with its appetite gate (the exact bars pickErrand's gathers use) and
+  // the filter that says which of this shop's recipes serve it
+  const off = awayToday(c) && !c.p.sick;
+  const wants = [
+    { need: "food",  want: (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food"),
+      is: (r) => !DRINKS[r.id] },
+    { need: "drink", want: (c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink"),
+      is: (r) => !!DRINKS[r.id] },
+  ];
+  const rs = bizRecipes(b);
+  let best = null, bestN = 0, bestD = 1;
+  for (const w of wants) {
+    if (w.need === primaryNeed || !w.want) continue;
+    // the cheapest plate this shop sells for the addon need - draw-free, and the
+    // one a broke crab could clear; a flush crab's splurge is the primary's job
+    const aff = rs.filter(w.is).sort((a, b2) => a.pay - b2.pay);
+    if (!aff.length) continue;
+    const r = aff[0];
+    const s = errandScore(c, { biz: b, need: w.need, recipe: r });
+    if (s.n <= 0) continue;                         // a refused stop (morning-detour clamp) is not an addon
+    if (!best || ratGt(s.n, s.d, bestN, bestD)) { best = { recipe: r, need: w.need }; bestN = s.n; bestD = s.d; }
+  }
+  if (!best) return null;
+  // AFFORD THE SUM at full local retail, with the same $2 cushion the errand
+  // gathers keep - a crab whose wallet cannot clear both plates gets only the
+  // first (the tray trims), which is re-checked at pay time in payAndBenefit.
+  if (c.p.wallet < localPrice(b, primaryRecipe) + localPrice(b, best.recipe) + 200) return null;
+  return best;
+}
 function startSelfCook(c, e) {
   c.dsC = DS.selfCook; c.cookStep = 0; c.cookRecipe = e.recipe;
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
@@ -12656,14 +13019,26 @@ function updateErrand(c, dt) {
     if (c.tx !== tail) setT(c, tail, 166);
     if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
-      const q = customers.filter(k => k.biz === c.errandBiz && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
+      // (a crab already being served a BONUS plate holds no line slot - feature
+      // B, see inQueueLine; byte-identical while every tray is length 1)
+      const q = customers.filter(k => k.biz === c.errandBiz
+        && (k.stC === VS.waiting || k.stC === VS.arriving) && !(k.isCrab && (k.orderIdx || 0) > 0)).length;
       if (q >= QUEUE_MAX) {
         c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
         c.errandCd = 12 * SEC; c.dsC = DS.home;
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
+      // THE TRAY: the primary plate, plus a companion if this crab wants a
+      // second thing this shop sells and can afford it (feature B). One queue
+      // slot, N plates - see trayAddon. Capped at TRAY_MAX.
+      const order = [c.errand.recipe], orderNeeds = [c.errand.need];
+      if (order.length < TRAY_MAX) {
+        const add = trayAddon(c, c.errand.recipe, c.errand.need);
+        if (add) { order.push(add.recipe); orderNeeds.push(add.need);
+          if (window._stats) window._stats.trayAddon = (window._stats.trayAddon || 0) + 1; }
+      }
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order, orderNeeds, orderIdx: 0, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
@@ -13488,6 +13863,14 @@ function updateKitchen(c, dt) {
     }
     if (c.wanderCd > 0) c.wanderCd -= dtT;
     c.idleT = (c.idleT || 0) + dtT;
+    // A DEAD COUNTER MAKES YOU RESTLESS (BORED_IDLE, and the reasoning is up
+    // there with the constant). Reaching this line means every dispatch above
+    // declined: no order to claim, no stall to scrub, no table to bus. This is
+    // the SAME clock c.idleT counts, so the charge and the "counter has been
+    // dead this long" test can never disagree about what idle means. Not levied
+    // on a crab already on their way out (pendingOff) or off sick, matching the
+    // wander's own gate - a shift that is over is not boring, it is finished.
+    if (!c.pendingOff && !c.p.sick) boredIdleTick(c);
     if (!c.pendingOff && !c.p.sick && !patOff("wander")
         && (c.p.bored || 0) >= WANDER_AT && !boredYields(c)
         && c.idleT >= WANDER_QUIET && c.wanderCd <= 0) {
@@ -13516,7 +13899,17 @@ function updateKitchen(c, dt) {
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe, bizKey);
         c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
-      else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
+      else if (c.stepIdx >= c.cust.recipe.steps.length) {
+        // THE TRAY (feature B): the plate at orderIdx is done and carried out.
+        // If the ticket has another plate, the chef keeps the guest and their
+        // ONE queue slot and walks back to the crate for it (stepIdx -1, which
+        // KS.walk re-aims to sourceSpot next frame) - each plate pays its own
+        // ingredient debit and its own station time as it is made. Only a
+        // COMPLETE tray reaches serve(). Length-1 trays never take the branch,
+        // so this is bit-identical until the assembler puts a second plate on.
+        if (c.cust.orderIdx + 1 < c.cust.order.length) { c.cust.orderIdx++; c.stepIdx = -1; }
+        else serve(c);
+      }
       else {
         const [kind] = c.cust.recipe.steps[c.stepIdx];
         const s = tryAcquire(bizKey, kind);
@@ -13887,20 +14280,53 @@ function visBenefit(k) {
     { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short,
       PRICE: $d(menuPrice(k.biz, r)) }));
 }
+// THE TRAY IS RUNG UP ONE PLATE AT A TIME (feature B). serve() fires once, at
+// the end of a COMPLETE tray, but the ticket is N plates: N sales, N benefits,
+// N serve counts. payAndBenefit already does everything a single plate needs
+// (charge, credit, cure, diary, tip) off cust.recipe/cust.need, so the whole
+// tray is rung up by walking orderIdx and pointing recipe/need at each plate in
+// turn and calling it once per plate. A length-1 tray runs this exactly once
+// with orderIdx already 0, so it is BIT-IDENTICAL to the single-plate serve.
+// The tip is inside payAndBenefit's VISITOR branch, and visitors stay length-1
+// by scope (only crabs get trays), so "one tip roll per guest" still holds.
+function ringUpTray(c, cust) {
+  const n = cust.order && cust.order.length ? cust.order.length : 1;
+  for (let i = 0; i < n; i++) {
+    cust.orderIdx = i;
+    if (cust.orderNeeds && cust.orderNeeds[i] != null) cust.need = cust.orderNeeds[i];
+    // THE TRAY TRIMS AT PAY TIME (feature B, trap #1). An ADDON plate (i>0) a
+    // crab can no longer afford at full local retail is dropped whole - no
+    // charge, no cure, no serve count - so the till is never credited money the
+    // crab did not have (payAndBenefit floors the wallet at 0, which would MINT
+    // the shortfall) and the second helping is never a free need-cure. The
+    // PRIMARY plate (i=0) keeps its existing floor-at-0 contract untouched, so a
+    // length-1 tray is byte-identical to the pre-B serve.
+    if (i > 0 && cust.isCrab && cust.crab && cust.crab.p
+        && cust.crab.p.wallet < localPrice(cust.biz, cust.recipe)) {
+      if (window._stats) window._stats.trayTrim = (window._stats.trayTrim || 0) + 1;
+      continue;
+    }
+    payAndBenefit(c, cust);   // reads cust.recipe (=order[i]) and cust.need
+    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
+    if (window._stats && bizOwner(cust.biz) !== "player")
+      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
+  }
+  // point the ticket back at its headline plate for the dining-room display
+  // (EATING / the ORDER row read cust.recipe). A no-op at length 1.
+  cust.orderIdx = 0;
+  if (cust.orderNeeds && cust.orderNeeds[0] != null) cust.need = cust.orderNeeds[0];
+}
 function serve(c) {
   const cust = c.cust;
   if (cust && cust.stC === VS.toSeat) return;   // guest still walking to the table: wait a beat, retry next frame
   if (cust && cust.stC === VS.seatedWaiting) {
     // table delivery: payment + benefits as usual, then straight to dining
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 800);   // table service impresses - she tells HER people
     cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
     c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
     // CLEAR THE NEXT TABLE ON THE WAY BACK. The server is standing IN the
     // dining room with an empty tray - the one moment in the day when busing
@@ -13913,7 +14339,7 @@ function serve(c) {
     return;
   }
   if (cust && cust.stC === VS.waiting) {
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
@@ -13944,9 +14370,6 @@ function serve(c) {
     }
     else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
     else cust.stC = VS.leaving;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
   }
   c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
 }
@@ -14299,6 +14722,18 @@ const VIS_ARRIVE = {                       // [floor, span], Q20 at the boundary
   bored:  [qn(0.20), qn(0.30)],            // a ferry is a bench
   tired:  [qn(0.10), qn(0.25)],            // depends who slept aboard
 };
+// THE LOADED BAND, named because a gate has to be able to ASK. A fresh body
+// gets one or two needs pushed into this band so the pier is legible - somebody
+// visibly wants something. It was an anonymous pair of literals inside visNeeds,
+// which let a suite gate test for "loaded" with `v[key] > floor + span` instead
+// - and that OVERLAPS: thirst's floor+span is 0.60, ABOVE this band's own floor
+// of 0.55, so a loaded thirst that rolled low was invisible to the check and the
+// scenario read the body as having nothing pressing. Measured on main: 9 of 40
+// seeds fail that way, so the gate had been one stream-shift from red the whole
+// time. `visLoaded()` is now the single definition both the mint and the gate
+// read, which is the only way the two cannot drift apart.
+const VIS_LOADED = [qn(0.55), qn(0.40)];   // [floor, span], Q20
+const visLoaded = (v) => v >= VIS_LOADED[0];
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
@@ -14309,7 +14744,7 @@ function visNeeds() {
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
-    n[key] = qn(0.55) + Math.floor(srand() * qn(0.40));
+    n[key] = VIS_LOADED[0] + Math.floor(srand() * VIS_LOADED[1]);
   }
   return n;
 }
@@ -14349,8 +14784,10 @@ function newVisitor(overnightOnly, cu) {
     si: poolAlloc(), leg: 0,
     // the shop pipeline's own fields, dormant until they join a line
     // (patience/table/stall are PLANE fields now - set through the accessors
-    // below the attach, never in the literal: an own property shadows)
-    biz: null, recipe: null, maxPatience: A.PATQ,
+    // below the attach, never in the literal: an own property shadows). recipe
+    // is the tray's head too, so it rides as order/orderIdx (an own `recipe:`
+    // would shadow the VisProto accessor).
+    biz: null, order: null, orderIdx: 0, maxPatience: A.PATQ,
     claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
@@ -14533,6 +14970,137 @@ function visWalkMins(k) {
   // the ETA divides by the SAME dispatched speed the stepper walks at, or a
   // slow culture misses boats the sign promised (the design doc's named trap)
   return Math.abs(k.x - FERRY.gangway) / mannerOf(k).SPEED * TS + 25;
+}
+// ---- WHEN A VISITOR CHOOSES TO GO HOME (ruling 6, kd-I9fjOBARav) -----------
+// Departure was fixed at spawn; this makes it a DECISION the policy re-reads.
+// The signal is the SAME needW-weighted condition the delight departure card
+// reads (the `delight` rule, visDepartCond below is its live-guest twin): one
+// matrix, two readers, exactly as ruling 6 demands. A guest the town is
+// delighting stays on; a guest it is failing cuts the trip short.
+const DEPART_CAP_NIGHTS = 3;     // the longest a delighted guest extends to -
+                                 // the same ceiling load() already clamps nights
+                                 // to (10661), so a stay never outgrows the save.
+const DEPART_SLACK = 90;         // game-minutes of walk/queue headroom folded
+                                 // into a "leave on the next reachable boat" cut,
+                                 // so a rebook never targets a boat they'd miss.
+const DEPART_SPEND_MIN = 1500;   // cents a guest wants left ABOVE a night's board
+                                 // before choosing to stay on - roughly a meal
+                                 // and a drink, so an extra night is an evening
+                                 // in town, not a night idle in a paid room.
+const DEPART_SOON = 300;         // game-minutes: a guest weighs STAYING ON only
+                                 // when the boat they hold is this close - the
+                                 // choice is made at the dock, not the instant
+                                 // their bars top up after a meal (see the note
+                                 // on visDepartPick's "longer" gate).
+// THE LIVE CONDITION, in needW's weighted-sum space and to the delight gate's
+// own tolerance. delight (game.js:21410) reads a FROZEN departRecord; this reads
+// the LIVE guest for an in-stay decision, but the arithmetic is identical -
+// `sum(w*bar) <= qn(0.45)*sum(w)` is "delighted", and a matching over-line test
+// with the want threshold is "being failed". needW is identity (all-4s) for a
+// crab and every undeclared culture, so for the species that fills every town
+// this is exactly `sum(bar)` against `5*qn(0.45)` / `5*qn(0.85)` - no floats a
+// crab's condition is not already measured against. Draw-free by construction.
+function visDepartCond(k) {
+  // the live guest carries no departRecord row, so hand needW the two fields it
+  // reads (cu for the culture axis, acc for the class register) off the guest.
+  const w = needW({ cu: k.culture && k.culture !== "crab" ? k.culture : null, acc: k.acc });
+  const wsum = w[0] + w[1] + w[2] + w[3] + w[4];
+  const cond = w[0] * (k.hunger || 0) + w[1] * (k.thirst || 0) + w[2] * (k.dirt || 0)
+    + w[3] * (k.bored || 0) + w[4] * (k.tired || 0);
+  return { cond, wsum };
+}
+// DELIGHTED: every bar, weighted, below the want line the delight card uses.
+function visDelighted(k) {
+  const { cond, wsum } = visDepartCond(k);
+  return cond <= qn(0.45) * wsum;
+}
+// FAILING: the town is genuinely losing this guest. The bar is deliberately
+// narrow, and which of the three blocked counters counts is the whole point -
+// the departure card already taught this distinction and the decision must not
+// unlearn it (21232-21237): only a SHUT door is the town failing a guest. FULL
+// is the town being POPULAR (a BUILD signal, not a grievance) and BROKE is the
+// guest's own empty wallet (a guest who spent their money is a SUCCESS, and one
+// who arrived skint was never the town's to lose) - counting either as "failing"
+// makes half a busy growth town bolt in a huff and talk the place down, which
+// measured as a reputation crash that suppressed pig arrival (the mistake this
+// comment exists to not repeat). So:
+//   - slept ROUGH -> failing outright (no bed is the loudest failure, and it
+//     has already docked reputation on its own);
+//   - a SHUT-door want that clearly dominates (shut >= 3, and shut over full and
+//     broke - the card's own dominance rule) AND a real over-the-line unmet
+//     condition -> failing. Hours and staffing are the fix, which the player owns.
+function visFailing(k) {
+  if (k.roughNights > 0) return true;
+  const s = k.stay;
+  if (!s) return false;
+  const shut = s.shut || 0;
+  if (!(shut >= 3 && shut > (s.full || 0) && shut > (s.broke || 0))) return false;
+  const { cond, wsum } = visDepartCond(k);
+  return cond >= qn(0.85) * wsum;
+}
+// THE ENGINE DEFAULT for the vis_depart.stay surface: which way (if any) does
+// this guest want to move their boat? Returns a class name from the surface's
+// list. A brain that ships for this surface returns the same three answers off
+// the same observables; the mechanics of ACTING on the answer stay here in the
+// shared harness (visDepartAct), so whoever decides, the rebooking is identical.
+function visDepartPick(k) {
+  if (window._nodepart) return "hold";              // the arm-off hatch (--nodepart)
+  if (k.nights > 0 && k.nightsHad >= k.nights) return "hold";  // last morning: they are already going
+  if (visFailing(k)) return "sooner";
+  // EXTENDING IS A DECISION MADE AT THE DOCK, NOT MID-STAY. A guest weighs
+  // another night only when the boat they booked is genuinely near - "I'm about
+  // to sail and I'm having too good a time" - not the instant their bars top up
+  // after a meal. Without this the choice fired every think a guest was content,
+  // and a dozen guests each stretching their stay by a night manufactured a bed
+  // shortage a 7-room hotel could not meet: rough nights climbed and the town's
+  // word FELL (measured, seed 1337 growth - MORE homeless tourists, the opposite
+  // of the intent). Gating on "the sailing they hold is within DEPART_SOON"
+  // makes it the occasional considered choice it should be.
+  const soonToSail = k.leaveT - gnow() <= DEPART_SOON;
+  // EXTENDING NEEDS A BED AND THE MONEY FOR IT. Even at the dock, a guest only
+  // stays on if the town can actually PUT THEM UP - a free room, the hotel open,
+  // the board price plus a little left in the wallet - so a "stay on" never
+  // strands somebody on the sand. A FULL house is a BUILD signal, not an
+  // invitation to sleep rough. roomPrice is cents, like the wallet.
+  if (soonToSail && visDelighted(k) && k.nights < DEPART_CAP_NIGHTS
+      && visOpen("hotel") && freeRoom()
+      && k.wallet >= roomPrice() + DEPART_SPEND_MIN) return "longer";
+  return "hold";
+}
+// ACT on the chosen class, always on the sailing grid (nearestSail) so the
+// ferry line never lies, and never crossing a boat the guest could not reach.
+// Both moves generalise an EXISTING engine precedent onto the matrix: "sooner"
+// is sleepOnSand's leaveT=min(leaveT, nearestSail(...)) (14596); "longer" is
+// ferryGo's missed-boat nights bump (14444). Draw-free.
+function visDepartAct(k, cls) {
+  if (cls === "sooner") {
+    const soon = nearestSail(gnow() + DEPART_SLACK);
+    if (soon < k.leaveT) {
+      k.leaveT = soon;
+      visLog(k, "life", vline(k, "cutshort", "SEEN ENOUGH - CATCHING THE NEXT BOAT HOME"));
+    }
+    return;
+  }
+  if (cls === "longer") {
+    const want = k.nights + 1;                        // one more night than planned
+    const later = nearestSail(gnow() + (want - k.nightsHad) * 1440 - DEPART_SLACK);
+    if (later > k.leaveT) {
+      k.nights = Math.min(DEPART_CAP_NIGHTS, want);   // a day-tripper becomes an overnighter, and now wantsRoom
+      k.leaveT = later;
+      visLog(k, "life", vline(k, "stayon", "HAVING TOO GOOD A TIME - STAYING ON ANOTHER NIGHT"));
+    }
+  }
+}
+// WHO DECIDES when this guest leaves. The vis_depart.stay surface ships
+// SCRIPT-ONLY - no trained artifact (per kd-zQB8oRGDeQ: a departure is a rare
+// per-stay event, not trainable yet, so it ships as the heuristic with a stated
+// exit condition). The SEAM is here: when a culture declares a vis_depart.stay
+// brain and a brainDepartPick lands to run it, this is the one line that routes
+// to it - reading the same needW matrix, the same three classes. Until then the
+// engine default answers for everyone, crab and cultured alike.
+function visDepartThink(k) {
+  const cls = visDepartPick(k);
+  if (cls !== "hold") visDepartAct(k, cls);
 }
 // WHO IS GOING HOME ON THIS ONE - and, just as importantly, WHEN THEY SET OFF.
 // `minsLeft` is how long until she sails; a guest leaves when the walk needs
@@ -14778,11 +15346,25 @@ function visOpen(b) {
 }
 // the two line counts, shared verbatim by visRoomFor and the kernel marshal
 // so the compiled scorer and the reference count the same heads
+// A CRAB ON A BONUS PLATE IS NOT IN THE LINE (feature B). A tray-crab keeps its
+// VS.waiting state through the whole ticket - it flips out only at serve(), when
+// the LAST plate is done - so without this a two-plate tray would hold its queue
+// slot for ~2x the kitchen time and turn arriving tourists away (measured: the
+// exact crowding that sank A). But the crab is being SERVED their second plate
+// at the window, not standing in the waiting line: they took ONE slot for plate
+// one (baseline), and the bonus plate is served out of it. So once the kitchen
+// has bumped them onto the addon (orderIdx > 0), they no longer count against
+// the line - which is precisely B's thesis, "one queue slot for N plates,
+// never competing with the tourQ rush." Length-1 trays never reach orderIdx > 0,
+// so this is byte-identical to the pre-B line count.
+function inQueueLine(c) {
+  return (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)
+    && !(c.isCrab && (c.orderIdx || 0) > 0);
+}
 function lineCounts(k, b) {
   const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
-  const allQ = customers.filter(c => c.biz === b && c !== k
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
+    && inQueueLine(c)).length;
+  const allQ = customers.filter(c => c.biz === b && c !== k && inQueueLine(c)).length;
   return [tourQ, allQ];
 }
 function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
@@ -15353,6 +15935,12 @@ function updateVisitor(k, dt) {
       e = KERN ? kernelVisPick(k) : visPick(k);
       if (bp && bp.mode === "shadow") shadowObserve(k, bp, e);
     }
+    // ...and on the SAME free thought, a guest weighs whether the trip is still
+    // worth prolonging (ruling 6: "choose when they depart in their decision
+    // policy"). It runs whether or not they found an errand - a delighted guest
+    // with nothing left to buy is exactly the one who chooses to stay on - and
+    // it is draw-free, so both backends make the identical (zero) draws here.
+    visDepartThink(k);
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
@@ -15504,7 +16092,7 @@ function newCustomer(bizKey) {
   const cul = cuId !== "crab" && CULTURES[cuId] ? CULTURES[cuId] : null;
   const r = bizRecipes(bizKey)[(srand() * bizRecipes(bizKey).length) | 0];
   const spawnX = biz.queueX + 150;
-  const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
+  const w = Object.setPrototypeOf({ biz: bizKey, order: [r], orderIdx: 0,
     culture: cul ? cuId : null,
     name: cul ? freeVisitorName(cul.def.people.names)
       : CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
@@ -17234,6 +17822,86 @@ function mistNowQ16() {
   return mistTodayQ16;
 }
 function mistNow() { return mistNowQ16() / 65536; }   // the DRAW layer's float view
+
+// ── THE ALMANAC ──────────────────────────────────────────────────────────
+// The town's exogenous world state, as NAMED day-hashed channels. Each channel
+// is a PURE INTEGER function of the day (Q16, 65536 = full), with an OPTIONAL
+// intraday envelope - a value that rolls across the day the way the mist rolls
+// in off the sea and burns off by morning; a channel with no envelope is a
+// whole-day fact. The mist is the first entry and the proof of the shape: it is
+// already consumed by the sim (a guest deciding whether to walk home in the
+// fog, visTick), already a kernel input (_ktMist -> vis_tick), and already
+// pinned two ways - its DISTRIBUTION and that it consumes ZERO randomness.
+// swell and wind join it for the surf break. Registration only NAMES the mist's
+// existing functions; the mist's own code above is untouched and byte-identical,
+// so every shipped mist pin still holds. The registry is the door Step 2's
+// forecast and Step 3's break read through, by name.
+const ALMANAC = {};
+function registerChannel(name, peakQ16, nowQ16) {
+  // no envelope => the day's peak is the value all day (a whole-day fact)
+  ALMANAC[name] = { peakQ16, nowQ16: nowQ16 || ((d) => peakQ16(d)) };
+  return ALMANAC[name];
+}
+function channelPeakQ16(name, d) { const c = ALMANAC[name]; return c ? c.peakQ16(d) : 0; }
+function channelNowQ16(name) { const c = ALMANAC[name]; return c ? c.nowQ16(day) : 0; }
+
+// THE SWELL AND THE WIND - the surf break's two exogenous channels, each folded
+// with the town's own ocean (_almanacSeed) so a 48-town matrix samples 48
+// histories rather than running one 48 times. A storm is hashed per 5-day
+// epoch (onset, size, duration); the swell on day d is the sum of the triangle
+// envelopes of the storms that reach it; the wind is an independent per-day
+// roll; surf quality is swell * (1 - wind) - the wind a MULTIPLICATIVE GATE,
+// not a subtraction, which is the one choice that buys the whole texture: two
+// days both at swell 1.00 read 0.19 and 0.95 on wind alone (blown out vs
+// firing) with no rule written for it. PROTOTYPE SHAPE, and the digits are a
+// KNOB I PICKED, not a sim measurement: swell autocorrelation ~0.62 at lag 1,
+// ~0.15 at lag 2, ~0 by lag 5; firing days ~8%, clustered into events rather
+// than scattered singletons. The pins below defend the SHAPE (an autocorrelated
+// swell, a decorrelated wind, a base rate in a band), not the exact 8%.
+const _ALM_EPOCH = 5;   // one storm rolled per 5-day epoch
+// the mist's own mixer family (an imul avalanche), folding a day-or-epoch index
+// with the ocean seed. Reads no stream, so a channel forks no randomness.
+function _almHash(a, seed) {
+  let h = (Math.imul(a | 0, 2654435761) ^ Math.imul((seed | 0) + 0x9e3779b9, 2246822519)) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+  h = Math.imul(h, 3266489917) >>> 0; h ^= h >>> 16;
+  return h >>> 0;
+}
+function windPeakQ16(d) { return _almHash(((d | 0) ^ 0x5715) >>> 0, _almanacSeed) & 0xFFFF; }
+function swellPeakQ16(d) {
+  let acc = 0;   // Q16, clamped to full at the end
+  const e0 = Math.floor((d | 0) / _ALM_EPOCH);
+  for (let e = e0 - 2; e <= e0 + 1; e++) {   // only nearby epochs can still reach day d
+    if (e < 0) continue;
+    const h = _almHash((e ^ 0x503e) >>> 0, _almanacSeed);
+    const onset = e * _ALM_EPOCH + (h & 7);                         // 0..7 days into the window
+    const dur = 2 + ((h >>> 3) & 3);                                // a storm runs 2..5 days
+    const sizeQ16 = 22938 + ((((h >>> 5) & 0xff) * 58982 / 255) | 0);   // amplitude 0.35..1.25
+    const rel = (d | 0) - onset;
+    if (rel < 0 || rel >= dur) continue;
+    // an integer triangle peaking mid-storm, worked in half-days to stay exact
+    const num2 = Math.abs(2 * rel - (dur - 1)), den2 = dur + 1;
+    const triQ16 = 65536 - ((num2 * 65536 / den2) | 0);
+    if (triQ16 <= 0) continue;
+    // Q16 * Q16 OVERFLOWS a signed >>16: the product reaches ~5.5e9 and wraps
+    // to a negative int, silently zeroing the swell. Floored division stays in
+    // double precision, exact for these magnitudes. (Learned the hard way in
+    // the prototype - the >>16 port dropped the mean 8x and killed the shape.)
+    acc += Math.floor(sizeQ16 * triQ16 / 65536);
+  }
+  return Math.min(65536, acc);
+}
+// surf quality: the swell GATED by the wind. Same Q16*Q16 overflow trap as above.
+function surfQualityQ16(d) { return Math.floor(swellPeakQ16(d) * (65536 - windPeakQ16(d)) / 65536); }
+function swellPeak(d) { return swellPeakQ16(d) / 65536; }   // the read/draw layer's float views
+function windPeak(d) { return windPeakQ16(d) / 65536; }
+function surfQuality(d) { return surfQualityQ16(d) / 65536; }
+
+registerChannel("mist", mistPeakQ16, mistNowQ16);   // the calendar's fog - day-only, byte-identical
+registerChannel("swell", swellPeakQ16);             // the surf's size - per-town, no intraday envelope
+registerChannel("wind", windPeakQ16);               // blows the swell out - independent per-day
+// ─────────────────────────────────────────────────────────────────────────
+
 function drawMist() {
   if (window._noMist) return;
   const m = mistNow();
@@ -18145,7 +18813,7 @@ function crabMood(c) {
   if (darkness() > 0.7 && c.dsC !== DS.home) return ["UP LATE", [120, 120, 140]];
   if (darkness() > 0.7 && c.dsC === DS.home) return ["COZY", [180, 120, 60]];
   if (c.dsC === DS.working && c.ksC === KS.work) return ["BUSY", [40, 110, 190]];
-  if ((c.p.bored || 0) >= WANDER_AT) return ["RESTLESS", [125, 135, 180]];
+  if ((c.p.bored || 0) >= RESTLESS_AT) return ["RESTLESS", [125, 135, 180]];
   return ["SUNNY", [40, 150, 70]];
 }
 function custStatus(k) {
@@ -19037,7 +19705,15 @@ function drawPanel() {
     // always the exact per-crab total either way
     const rates = Array.from(new Set(owed.map(c => Math.round(wageRate(c)))));
     const rateTxt = rates.length === 1 ? "$" + $d(rates[0]) : "MIXED";
-    smallText(ctx, "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H" + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : ""), 132, by, [190, 175, 160]);
+    // NOBODY OWED TONIGHT is its own short line, not "0XMIXED/6H (N OUT)": with
+    // an empty `owed` list `rates` is empty so rateTxt falls to "MIXED" (there is
+    // no rate to be mixed), and the full "0X.../ (N OUT)" label overran the $0
+    // total column at x224 by a few pixels. A crew all off tonight has no wage
+    // bill to itemise; say so plainly and the row cannot collide with its total.
+    const wageLabel = owedN === 0 ? "WAGES - NONE DUE"
+      : "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H"
+        + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : "");
+    smallText(ctx, wageLabel, 132, by, [190, 175, 160]);
     smallText(ctx, "$" + $d(baseBill), 224, by, [235, 160, 130]); by += MROW;
     const otBill = owed.reduce((s, c) => s + Math.round(otPayForecast(c)), 0);
     if (otBill > 0) {
@@ -21897,7 +22573,7 @@ function visQuote(r) {
     // behavioural equivalence. If a third path ever appears here, it fires
     // this point too, or the point is a lie.
     if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
-      { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+      { name: r.name, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
         buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
     return { id: best.id, mood: t.mood || best.mood, weight: bw,
       line: departLine(r, best, t, read) };
@@ -21912,7 +22588,7 @@ function visQuote(r) {
   // and ruled - the row an acceptance meter or exposure-drift rule reads.
   // Primitive projection of the stay record, plus the rule that spoke.
   if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
-    { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+    { name: r.name, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
       buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
   return { id: best.id, mood: best.mood, weight: bw, line: departLine(r, best) };
 }
@@ -22968,7 +23644,14 @@ function simClock(dt, rawMs) {
         k.p.roughLast = 0;
       }
       if (walkoutToday(k)) today.moved.push(k.p.name + " NEVER CAME IN - NO WAGE");
-      k.p.boredDays = (k.p.bored || 0) >= WALKOUT_AT ? (k.p.boredDays || 0) + 1 : 0;
+      // (the boredom advance is NOT cleared here - see BORED_ADV_MAX. This block
+      // fires at tmin 20:00 and REEF's shift runs to 20:30, so a reset here
+      // lands mid-shift and hands the settlement a fresh budget to double-charge
+      // against. It carries a day stamp and expires on its own instead.)
+      // boredSettled, NOT k.p.bored: this check runs at tmin 20:00 and a late
+      // shift settles at 20:30, so counting an advance the shift has not billed
+      // yet turns the 4-settlement ladder into 3. See BORED_ADV_MAX.
+      k.p.boredDays = boredSettled(k) >= WALKOUT_AT ? (k.p.boredDays || 0) + 1 : 0;
       if ((k.p.boredDays || 0) < WALKOUT_DAYS || k.p.walkout === day + 1 || patOff("walkout")) continue;
       if (k.p.sick || dayOffIdx(k) === weekdayIdx(day + 1)) continue;   // already off - it'd prove nothing
       k.p.walkout = day + 1; k.p.walkoutWhy = "bored"; k.p.boredDays = 0;
@@ -24270,6 +24953,12 @@ if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
   coins = 15000;   // cents - a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
   dayOpen = coins;   // day one opens on the float, so TODAY starts at +$0
+  // A FRESH TOWN GETS ITS OWN OCEAN. Drawn from the wall clock, not the sim
+  // stream, so a new town's surf history is its own without forking the one
+  // random sequence the fingerprint gates guard. A save restores it (load()
+  // above), a lab/harness run overwrites it with the recipe's seed, and the
+  // fallback 0 is a legitimate ocean too - it just is not a UNIQUE one.
+  _almanacSeed = (Math.imul(nowMs() >>> 0, 2654435761) ^ (nowMs() / 4294967296 | 0)) >>> 0;
 }
 // A NEW TOWN OPENS EMPTY and waits for the 08:00 boat; a SAVED town keeps
 // exactly the guests it was saved with, and nothing is seeded on top of them.

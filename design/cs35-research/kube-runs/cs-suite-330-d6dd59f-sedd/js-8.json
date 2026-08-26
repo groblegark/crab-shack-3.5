@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-d6dd59f-sedd",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "d6dd59f3e09bece640cfeae8b0017788a3a32580",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 112809,
+  "verdict": "34/34 passed in slice 8/12 (112.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (549ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1647ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (10110ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (150ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5368ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (221ms)\n  PASS  roster: the refactor preserves every census ordering (684ms)\n  PASS  sale: the player buys a failed business through the shopfront (3627ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7533ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (38865ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1295ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (16158ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2472ms)\n  PASS  the fund is struck to the bill and does not hoard (1125ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (14ms)\n  PASS  departures: a display card moves nothing in the town (1750ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (3449ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (558ms)\n  PASS  the hire card runs on the wall clock, not the game clock (852ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (385ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1518ms)\n  PASS  idle quips: the island's table is the literal, key for key (7ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (80ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (11ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (2240ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (9ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (28ms)\n  PASS  seam: the view is a reader - two renders move nothing (74ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (10ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (10333ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (61ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (23ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1486ms)\n34/34 passed in slice 8/12 (112.7s)\n"
+}

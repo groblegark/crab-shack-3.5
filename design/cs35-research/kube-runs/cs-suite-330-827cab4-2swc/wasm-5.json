@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-827cab4-2swc",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "827cab46a6d6244438fe9de28348442ca00c09dd",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 38714,
+  "verdict": "34/34 passed in slice 5/12 (38.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (10797ms)\n  PASS  save guard: a town born from a rejected save does not bury it (930ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (50ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (827ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (656ms)\n  PASS  days off: everyone rests their weekday and plays customer (3775ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (337ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (705ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (1666ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (576ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (7ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (595ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (7ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (764ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (650ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1119ms)\n  PASS  departures: every character the card prints exists in the font (842ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2705ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (62ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (362ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (425ms)\n  PASS  BACK hands the town the track you were auditioning (14ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (2726ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (63ms)\n  PASS  civics stakes: a hostile table is refused by name (10ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (12ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (24ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (13ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (12ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1265ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1254ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (3085ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1209ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1056ms)\n34/34 passed in slice 5/12 (38.6s)\n"
+}

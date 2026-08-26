@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-d6dd59f-sedd",
+  "armId": "wasm-0",
+  "index": 12,
+  "sha": "d6dd59f3e09bece640cfeae8b0017788a3a32580",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 226461,
+  "verdict": "35/35 passed in slice 0/12 (226.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (30514ms)\n  PASS  disease: sustained neglect breeds sickness (2167ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (331ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (517ms)\n  PASS  credit: the town is warned before it goes under (32934ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (515ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (1617ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (34683ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (11ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (8440ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (7945ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (516ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (1008ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2324ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (1871ms)\n  PASS  the mayor wears the hat, and nobody else ever does (660ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (389ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (749ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (62060ms)\n  PASS  the shop tooltip promises what the button actually does (499ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (27ms)\n  PASS  every track in the playlist is a file that exists (74ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (6524ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (13ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (8943ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (21ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (435ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (73ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (611ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2568ms)\n  PASS  the stamp gate watches every file a player is served (1ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (8916ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (74ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (18ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (8316ms)\n35/35 passed in slice 0/12 (226.4s)\n"
+}

@@ -782,7 +782,7 @@ vm — never fork game logic into tools/) and perf expectations live there.
 
 - `node tools/headless.mjs --days N --seeds K [--buy list] [--quiet]
   [--jobs J] [--failoff a,b,c]` — CLI; `--failoff` switches individual
-  needs-failure behaviours off (`wander,chat,walkout,nod,rough`) so a matrix can
+  needs-failure behaviours off (`wander,chat,walkout,nod,rough,boredidle`) so a matrix can
   attribute its own movement to one of them at a time; `--jobs` fans seeds out across worker processes
   (default USABLE cores−1, deterministic either way, ~3x faster on 4 seeds).
   "Usable" means the cgroup quota, via `tools/cores.mjs` — NOT `os.cpus().length`,
@@ -802,6 +802,26 @@ vm — never fork game logic into tools/) and perf expectations live there.
   caches game files hard; only index.html gets a `?t=` bust.
 
 ## Gameplay features (recent)
+- **ONE TICKET, N PLATES — the tray** (feature B, Matt's "crabs order multiple
+  things at once"; shipped 2026-08-26, merge `ddcf3fe`, operator ruling
+  `kd-KvIXZtKqPN`). A local who walks to the shack for a taco and is also
+  thirsty leaves with the juice too, in ONE queue slot, instead of getting back
+  in line. `cust.recipe` is now the head of `cust.order` (a tray, VisProto
+  accessor over `order`/`orderIdx`); the kitchen walks the tray plate by plate
+  and only a COMPLETE tray reaches `serve()`, which rings up N sales / N cures /
+  N serve counts in one ticket; the assembler (`trayAddon`) appends a second
+  plate the crab wants and can afford at full retail, trimming it if the wallet
+  moved by pay time. TRAY_MAX=2; visitors/rooms/showers/arcade stay one item by
+  scope. A crab on a BONUS plate (`orderIdx>0`) no longer counts against the
+  queue caps (`inQueueLine`), so the tray is served out of the slot it already
+  holds and never competes with the tourQ rush — which is why its roomLets cost
+  is an order of magnitude below A's. **Measured (40-seed A/B, draw-free
+  feature):** crabServes **+20.7%**, till **+24.5%**, tourRage −1.8%, tourServes
+  flat; roomLets **−3.6%** (near noise, vs A's decisive −25%). A's "get back in
+  line" cut was measured NO-SHIP for exactly the crowding B escapes
+  (`kd-rDoEK45s6l`). Steps 1-3 were bit-identical (the day-2 fingerprint held);
+  step 4 is the one behavior commit. Cluster gate suite-330 828/828 both
+  backends at `8c64eb7`. Report bundle `kd-h6oWpxxvJo`.
 - **THE VISITORS BOOK** (Matt, 2026-08-25: *"need a nice view of all tourists
   like we have for other kinds of citizens, button on main screen i would
   think"* — then, on the first draft: *"unless there's an opportunity to
@@ -4552,7 +4572,7 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   back and nothing else.
   What keeps it CHARMING at saturation (boredom is 0.72–0.85 town-wide with
   everyone touching 1.0, so this fires constantly by design): `WANDER_AT`
-  **0.6**; the counter must be DEAD for `WANDER_QUIET` **3s** first, so nobody
+  **0.15**; the counter must be DEAD for `WANDER_QUIET` **3s** first, so nobody
   bolts the instant the queue empties; and a wander is a **trip**, not a
   posting — `WANDER_DWELL` **14–24s** stood there, then back to the post, then
   `WANDER_CD` **20s** before the next. A six-hour shift is only 90 REAL seconds,
@@ -4565,6 +4585,107 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   **without** (lifetime $30,224 vs $31,319) — inside the documented per-build
   wobble. It is nearly free, and it lands hardest exactly when the shop is
   quiet, which is when it costs the town least.
+
+- **THE DAY-1 FREEZE, and why it needed TWO changes** (Matt, 2026-08-26: "sudsy
+  goes to work and stops doing anything while there"). Reproduced, 16/16 seeds:
+  SUDSY stood **dead still for up to 11.1 GAME-HOURS** of a shift — same
+  sub-pixel x, same `kstate` — and **every one of the 16 worst freezes was on
+  day 1**, a new player's first look at the shower house. She was never *wedged*
+  (1.5% abandonment, ~0.9s pickup): the shop is empty ~92% of her shift and the
+  system meant to move her fired **7 times in 146k on-shift ticks**.
+  Two things were wrong, and neither alone is sufficient:
+  1. `WANDER_AT` was **0.6**, but boredom arrives in **+0.20 lumps at shift
+     END** — so days 1–4 carry 0.0 / 0.2 / 0.4 / 0.6-*minus-one-Q20-grain* into
+     work and the wander is **arithmetically impossible before day 5**. By day 5
+     hunger has pinned at 1.00 and `boredYields` (rightly) shuts it. The two
+     gates **never blocked at once — they own different days**, which is exactly
+     why relaxing either alone left the freeze untouched and only relaxing both
+     moved it. 0.6 also contradicted its own design: it is 1.75 lumps below
+     `WALKOUT_AT` 0.95, making "restless" and "ready to quit" nearly the same
+     state, when the doc calls idle hands the EARLY stage.
+  2. Nothing made an empty counter boring *during* the shift, so day 1 sat at a
+     flat 0.000 with no way to move until knock-off.
+  The fix: `WANDER_AT` **0.15** (under one lump, so day 1 can reach it), a new
+  `RESTLESS_AT` **0.6** carrying the *display* bar so the mood ring and the
+  ARCADE quips stay tuned against the walk-out warning, and `BORED_IDLE`
+  **3.0/idle-shift** as an **ADVANCE** against the shift-end lump — `p.boredAdv`
+  banks what idleness drew, the settlement pays only the remainder, so **no crab
+  can gain more than +0.20 in a day** and the walk-out ladder does not move.
+  Measured, 2 seeds × 12d: worst still-run **11.1 → 3.2 game-hours** (day 1:
+  11.1 → 1.5), wanders 5 → 20, and boredom first pins ≥ 0.95 on **day 5, exactly
+  as before**. Gated by `idle hands: the boredom trickle is an ADVANCE` and
+  `idle hands: a crab can be restless on DAY ONE`.
+  **Three wrong versions came first, and the freeze number improved in all of
+  them** — which is the lesson worth keeping. An *additive* trickle fixed a
+  fifth of the freeze and pulled the walk-out ladder from day 5 to **day 2**,
+  town-wide, forever; *capping* it did not help because the lump stacks on top;
+  and the advance itself broke three times (cleared at clock-in → a crab back
+  from an errand drew a second lump; cleared in the nightly block → that block
+  fires at **tmin 20:00** while REEF's shift runs to **20:30**, so the reset
+  landed mid-shift; not cleared at all → a crab called sick mid-shift kept an
+  unrepaid advance that CANCELLED later lumps, freezing SALTY at 0.54 for four
+  days). Every one of those is invisible to "is she still frozen?". The advance
+  now carries a **day stamp** and self-expires instead of relying on any reset's
+  position. Also fixed here: `WANDER_QUIET` was authored `3` and documented as
+  "3s" but compared against `idleT`, which sums **ticks** — it was 0.15s, 20×
+  too short, so the "counter must be dead first" clause was doing nothing.
+  **AND THE CLUSTER GATE FOUND TWO MORE, both ECONOMIC and both two systems
+  away from boredom** — which is the real argument for the absolute-gate rule,
+  because the suite is what caught them and neither is visible in any freeze
+  number:
+  1. `BORED_IDLE_LEVEL` **0.5** — the trickle may not cross the speed line.
+     Re-timing boredom *earlier* in a day raises its TIME-AVERAGE even when the
+     daily total is provably identical, and above `qn(0.5)` every point of
+     boredom is a movement penalty (`crabMoveQ8`'s `over`). Mean on-shift
+     boredom went 0.571 → 0.632, slower crabs ran errands worse, **sick-days
+     8 → 13** on two seeds, a sick day pays **NO WAGE** (`crabDueTonight`), and
+     the always-open arm of the anti-exploit gate read takings-per-crew-day
+     **1.06 → 1.12 against a 1.10 limit**. A boredom re-timing had re-opened an
+     *economic* exploit through payroll. Capping costs nothing real: the
+     trickle's job is to lift an early-game crab (0.0–0.4) over `WANDER_AT`, and
+     past 0.5 the bar is long cleared — so every crab above the line moves at
+     exactly the speed it did before this existed.
+  2. `boredSettled()` — the walk-out ladder must not see an **unbilled**
+     advance. The nightly check runs at **tmin 20:00**; a late shift settles at
+     **20:30**. As-shipped, a lump crossing `WALKOUT_AT` lands *after* the check
+     and is first counted the following night — a day of grace baked into
+     `WALKOUT_DAYS`' tuning. Moving part of that lump into the afternoon made
+     the 4-settlement ladder a 3-settlement one: **walk-outs 1 → 3 and 2 → 4**.
+     "Unbilled" is load-bearing and the first version got it wrong: the
+     settlement *closes* the budget by setting `boredAdv` to the max, so a naive
+     `bored - boredAdv` keeps subtracting a lump already paid and a crab pinned
+     at 1.00 reads 0.80 forever — the walk-out never fires. `p.boredBilled`
+     separates "drawn early" from "drawn early and since accounted for".
+  The same gate run also turned up **four LATENT defects that were nothing to do
+  with this change** — the stream shift only re-rolled the dice hiding them. One
+  is a real engine hole: a **candidate who has left town could win the
+  election**, because the ballot is printed the night before and nothing
+  re-checked the field (SALTY died on a day 6 and won the day-7 ballot). The
+  other three were fixtures asserting things their data could not support —
+  written up in the commits and worth reading before trusting a green gate.
+  **THE GROWTH PILLAR: ZERO COST, measured on the landing tree** (receipt
+  `design/cs35-research/kube-runs/cs-matrix-idle16-b8fca1e-t8uy`,
+  `experiments/matrix-idle16.json`, 8 arms × 16 towns × 30 days, all exit 0):
+
+  | arm | sb0 | sb16 | total |
+  |---|---|---|---|
+  | growth, as-built | 6/16 | 7/16 | **13/32** |
+  | growth, trickle OFF | 8/16 | 5/16 | **13/32** |
+  | baseline, either | 0/16 | 0/16 | 0/32 |
+
+  The control arms disarm the trickle with the change's **own `--failoff
+  boredidle` hatch**, so this is one tree with one mechanism toggled rather than
+  two commits — which matters, because main moved four times while this branch
+  was in flight. **And the per-block split is the exact trap this file warns
+  about**: the control reads 8 then 5 while the treatment reads 6 then 7, so
+  either 16-town block *alone* would have "shown" a 2-town move, in the opposite
+  direction to the other. Sixteen seeds is the honest number and this is the
+  cleanest demonstration of why yet measured.
+  It costs nothing **by construction, not by luck**: the trickle accrues only
+  while a crab is on shift with nothing dispatchable, it is an ADVANCE against a
+  charge the settlement would have made anyway (so no crab gains more than one
+  lump a day), and `BORED_IDLE_LEVEL` stops it below the speed penalty. A
+  growing shack is busy — so the town the matrix measures barely pays it.
 - **THE WALK-OUT (B3, the late stage).** Pinned past `WALKOUT_AT` **0.95** at
   `WALKOUT_DAYS` settlements running and the crab takes an unauthorised day: no
   commute, no shift, **NO WAGE**, and **nobody covering**, because nobody was
@@ -4751,6 +4872,26 @@ instead, which is honest but weaker, and is noted as such in the scenario.
 fingerprint**, which passes unchanged. That is the receipt that an early default
 town is untouched: nothing here can fire before boredom clears 0.6, and on day 2
 it is 0.2.
+
+> **SUPERSEDED 2026-08-26 — and the sentence above was the BUG, not the
+> receipt.** "Nothing here can fire before boredom clears 0.6, and on day 2 it
+> is 0.2" was written as reassurance that the pass was inert early. It was
+> actually a precise description of a crab standing motionless through her whole
+> first shift: boredom arrives in +0.20 shift-end lumps, so days 1–4 could never
+> reach a 0.6 bar, and 16/16 audited seeds took their worst freeze on **day 1**
+> (11.1 game-hours dead still). See THE DAY-1 FREEZE above. The suite now
+> carries two more gates — `idle hands: the boredom trickle is an ADVANCE -
+> never more than one lump a day` and `idle hands: a crab can be restless on DAY
+> ONE (the bar is under one lump)` — and both were verified to FAIL against
+> mutants before being trusted. The frozen day-2 fingerprint and the rng draw
+> pin DID need re-pointing this time, by VALUE, each with a two-way attribution
+> receipt (the change's own `--failoff boredidle` hatch reads them back to the
+> prior numbers exactly).
+>
+> Worth keeping as a general lesson: **an inertness claim stated as a threshold
+> comparison is one arithmetic step away from being a frozen-behaviour bug
+> report.** Both sentences are true of the same code; only one of them was
+> checked against what a player would see.
 
 ### THE SLEEP DIRECTIVES (owner, 2026-08-19, landed in this same pass)
 Two sentences, both squarely about tiredness: **"we need to be sure the shelter
