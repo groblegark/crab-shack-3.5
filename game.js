@@ -2235,8 +2235,26 @@ function declarePoll() {
       policy: policyLine(hall.policy), tally: "-" });
     return;
   }
-  let win = B.cands[0];
-  for (const k of B.cands)
+  // A CANDIDATE WHO IS NO LONGER IN TOWN CANNOT TAKE THE OFFICE. The ballot is
+  // PRINTED THE NIGHT BEFORE (see printBallots, called from runTownHall), and
+  // between the printing and the count a crab can die - this town has universal
+  // mortality - or quit for the pier. Nothing re-checked the field, so a dead
+  // crab could win outright: measured, SALTY died of illness on a day 6 and won
+  // the day-7 ballot with 2 votes, whereupon the never-vacant-office rule
+  // correctly re-seated somebody else and hall.mayor no longer matched
+  // hall.poll.winner - which is exactly what two election gates assert.
+  // The papers still COUNT (they were honestly cast, and the tally is what the
+  // town did); they simply cannot seat a crab who is not there to be seated.
+  // Nothing changes in a town where every candidate survives the night, which
+  // is why this sat latent - 60 seeds of main never caught a candidate out.
+  const standing = B.cands.filter(k => allCrabs().some(c => c.p.name === k.name));
+  if (!standing.length) {   // the whole field is gone: the incumbent stays
+    hall.poll = rec(hall.mayor, false, B.cands, B.cast.map(p => p.line).filter(Boolean));
+    today.moved.push("EVERY CANDIDATE HAS LEFT TOWN - " + (hall.mayor || "NOBODY") + " STAYS IN THE HAT");
+    return;
+  }
+  let win = standing[0];
+  for (const k of standing)
     if (k.votes > win.votes || (k.votes === win.votes && !win.inc && (k.inc || k.name < win.name))) win = k;
   hall.mayor = win.name;
   // FIELD BY FIELD, AND THAT IS THE HAZARD: a platform that grows a dial and
@@ -14467,6 +14485,18 @@ const VIS_ARRIVE = {                       // [floor, span], Q20 at the boundary
   bored:  [qn(0.20), qn(0.30)],            // a ferry is a bench
   tired:  [qn(0.10), qn(0.25)],            // depends who slept aboard
 };
+// THE LOADED BAND, named because a gate has to be able to ASK. A fresh body
+// gets one or two needs pushed into this band so the pier is legible - somebody
+// visibly wants something. It was an anonymous pair of literals inside visNeeds,
+// which let a suite gate test for "loaded" with `v[key] > floor + span` instead
+// - and that OVERLAPS: thirst's floor+span is 0.60, ABOVE this band's own floor
+// of 0.55, so a loaded thirst that rolled low was invisible to the check and the
+// scenario read the body as having nothing pressing. Measured on main: 9 of 40
+// seeds fail that way, so the gate had been one stream-shift from red the whole
+// time. `visLoaded()` is now the single definition both the mint and the gate
+// read, which is the only way the two cannot drift apart.
+const VIS_LOADED = [qn(0.55), qn(0.40)];   // [floor, span], Q20
+const visLoaded = (v) => v >= VIS_LOADED[0];
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
@@ -14477,7 +14507,7 @@ function visNeeds() {
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
-    n[key] = qn(0.55) + Math.floor(srand() * qn(0.40));
+    n[key] = VIS_LOADED[0] + Math.floor(srand() * VIS_LOADED[1]);
   }
   return n;
 }

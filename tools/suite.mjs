@@ -2564,12 +2564,27 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // cultureways-save fingerprint below to the cent (one town, two readers) -
     // the cross-check that this is the ruled town and not a fixture bug (rule 6).
     // Re-pointed LAST, after every other fixture on this tree was corrected.
-    1337: '{"day":3,"tmin":0,"coins":17544,"rep":42930,"catch":1,"serves":42,"crabServes":3,"rage":3,"till":17485,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17485],["REEF",25791],["SALTY",400],["DRIFT",300],["KELP",400]],"pos":[[520,154],[108,154],[388,154],[646,163],[450,155],[2072,167],[464,167]]}',
+    // RE-POINTED for IDLE HANDS' DAY-1 FIX, and ATTRIBUTED rather than observed:
+    // arming this change's own `boredidle` hatch on these seeds puts the town
+    // back, and the drift reads exactly like the change it is - WANDERS 2 -> 7
+    // on 1337 and 1 -> 7 on 4242. Before the fix a crab could not reach
+    // WANDER_AT until day 5 by arithmetic; now an empty counter gets her off the
+    // wall on day 1, which is the whole point of the change. What moved:
+    //   * POSITIONS, for exactly the crabs who are off-post - SALTY out at the
+    //     pier rail (450 -> 2072), DRIFT and KELP away from home (2072 -> 318,
+    //     464 -> 291.7). Those are WANDER_SPOTS, not a locomotion bug.
+    //   * COINS/SERVES/CATCH re-roll off the shifted sim stream (the rng pin
+    //     below re-points by VALUE with its own two-way attribution: the
+    //     structure is intact, the trickle ADDS wander draws).
+    // Seed 4242 still matches the cultureways-save fingerprint below TO THE
+    // CENT (coins 21117, REEF 25686) - one town, two readers, which is the
+    // cross-check that this is the ruled town and not a fixture bug (rule 6).
+    1337: '{"day":3,"tmin":0,"coins":20319,"rep":42414,"catch":4,"serves":45,"crabServes":3,"rage":2,"till":17885,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",17885],["REEF",26986],["SALTY",200],["DRIFT",300],["KELP",1000]],"pos":[[520,154],[108,154],[388,154],[646,163],[2072,154],[318,167],[291.7,167.2]]}',
     // 4242, re-harvested in the same trio landing and for the same three
     // reasons. This seed's day-3 town is the shared cross-check with the
     // cultureways-save pin: coins 19570, rep 44141, REEF 25688 read identically
     // there, proving one trajectory measured by two scenarios.
-    4242: '{"day":3,"tmin":0,"coins":19570,"rep":44141,"catch":4,"serves":44,"crabServes":5,"rage":4,"till":19055,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",19055],["REEF",25688],["SALTY",100],["DRIFT",0],["KELP",700]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[450,155]]}',
+    4242: '{"day":3,"tmin":0,"coins":21117,"rep":42608,"catch":4,"serves":43,"crabServes":4,"rage":5,"till":18076,"wallets":[["PINCHY",1600],["CLAWDIA",1600],["SUDSY",18076],["REEF",25686],["SALTY",300],["DRIFT",400],["KELP",100]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[450,155],[248,154]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -8239,7 +8254,15 @@ scenario("an election is held on the week, and every voter is accounted for", ()
     return `${p.lines.length} written reasons for ${p.turnout} voters`;
   const win = p.cands.find(k => k.name === p.winner);
   if (!win) return "the winner is not on their own ballot";
-  for (const k of p.cands) if (k.votes > win.votes) return `${k.name} outpolled the winner`;
+  // ...and the top-polling crab takes it, UNLESS they are no longer in town to
+  // take it. A ballot is printed the night before the poll and this town has
+  // universal mortality, so a candidate can be outpolled-but-seated only when
+  // everybody above them has died or quit between the printing and the count
+  // (see the count in game.js). The exception is asserted, not waved through:
+  // anybody who beat the winner has to be genuinely GONE from the roster.
+  const here = new Set(JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => c.p.name))`)));
+  for (const k of p.cands)
+    if (k.votes > win.votes && here.has(k.name)) return `${k.name} outpolled the winner`;
   if (sim.G("hall.mayor") !== p.winner) return "the winner did not take the office";
   return true;
 });
@@ -14518,10 +14541,68 @@ scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coef
     // The crab ranks roof above pot (roof term dominates); the pig ranks pot
     // above roof. So sign(val(POT) - val(ROOF)) must FLIP between the two
     // cultures on a homeless voter (the one the pot most serves). Pure ordering.
-    const c = crabs.find(x => !x.p.npc && x.p.homeless) || crabs.find(x => !x.p.npc) || crabs[0];
-    const potHeavy = grid.filter(p => p.bowls >= 3 && p._bowls >= 1).sort((a, b) => a.rate - b.rate)[0];
-    const roofOnly = grid.filter(p => p.bowls === 0 && p._y >= shelterRent()).sort((a, b) => a.rate - b.rate)[0];
-    if (!potHeavy || !roofOnly) return { err: "this town has no pot-heavy or roof-only platform to rank" };
+    // A HOMELESS VOTER, AND THE FALLBACK USED TO LIE. The pot-over-roof
+    // inversion below is a claim about the crab the pot most serves - somebody
+    // with no roof. The old chain fell back to any crew crab and then to
+    // crabs[0], so on a town where every crew member had housed themselves by
+    // day 23 the scenario silently probed a HOUSED voter, for whom the roof
+    // term legitimately dominates under BOTH cultures, and reported it as
+    // "the pig votes the crab's priorities". Measured: a 6-seed sweep of this
+    // fixture's own shape reads 0 homeless crew on 4 of 6 seeds with this
+    // change's boredidle hatch ARMED - so the premise was already luck, and
+    // any trajectory shift could expose it. Rather than probe the wrong crab,
+    // make the voter the claim needs: take a crew crab and set the one field
+    // the ranking turns on. Named, so a future reader sees the fixture is
+    // CONSTRUCTED rather than found.
+    const c = crabs.find(x => !x.p.npc) || crabs[0];
+    const wasHomeless = c.p.homeless;
+    c.p.homeless = true;
+    // THE PAIR MUST DIFFER ON BOTH AXES, and this is the second way the old
+    // fixture lied. It took the cheapest pot-heavy platform and the cheapest
+    // roof-clearing one, which on a town with LOW shelter rent are the same
+    // roof spend (_y 1800 both) - so the pair differed only in BOWLS and the
+    // crab "preferred the pot" too, reported as engine drift. Measured: rent
+    // 1300 on main gives _y 2400 vs 1800 and the inversion shows; rent 1000
+    // here gives 1800 vs 1800 and it cannot. Rent is an ordinary consequence
+    // of the town's trading, so this was luck, not a claim.
+    // So: pick the roof-only platform that spends the MOST on the roof, and
+    // require it to genuinely out-roof the pot-heavy one. Then "roof vs pot"
+    // is a real trade and the ranking means what the comment says.
+    // ...and the pair is now CONSTRUCTED from one real platform rather than
+    // hunted for in the grid, because the grid cannot be relied on to contain a
+    // clean contrast. Hunting needs a bowls-free platform that spends MORE on
+    // the roof at the SAME levy rate, and this town simply has none: at the pot
+    // platform's rate the only bowls-free roof spends are 0 and 1800, and the
+    // pot platform is itself at 1800. Relaxing the rate instead lets the levy
+    // term swamp the comparison (a pass at that drew _y 3600 vs 1800 but rate 4
+    // vs 2). Either way the fixture was reading a pair that did not isolate the
+    // claim - and which pair it got depended on the town's shelter rent, an
+    // ordinary consequence of trading, so it was luck rather than a claim.
+    // Cloning one platform and moving exactly two fields is the controlled
+    // comparison the comment above always described: same mech, same rate, same
+    // wage and cap, and the ONLY differences are bowls and roof spend.
+    // THE ROOF TERM IS BINARY - roof = (pYield(p) >= shelterRent() ? 1 : 0) -
+    // so "spends more on the roof" is not a magnitude at all, it is CLEARING
+    // THE RENT or not. That is why the old hunt was luck: it sorted platforms
+    // by _y and by rate hoping to find a contrast, when the only thing the
+    // crab's roof term can see is one bit. Both members of its pair cleared the
+    // rent, so the roof term CANCELLED and the crab was left ranking on bowls
+    // alone - which of course prefers the pot. On main the same hunt happened
+    // to draw a pot platform that did NOT clear the rent, purely because rent
+    // was 1300 rather than 1000, and the gate passed for the wrong reason.
+    // So build the pair around that bit: a pot-heavy platform whose yield does
+    // NOT clear the rent, against a bowls-free one that does. Same mech, same
+    // rate, same wage and cap; the only differences are the bowls and the bit.
+    // Take one real platform and clone it twice, moving only what the two terms
+    // read: the POT side carries the bowls and misses the rent; the ROOF side
+    // carries no bowls and clears it. _y is set either side of the real
+    // shelterRent() so the bit is genuinely derived, not stubbed.
+    const base = grid.filter(p => p.bowls >= 3 && p._bowls >= 1).sort((a, b) => a.rate - b.rate)[0];
+    if (!base) return { err: "this town has no pot-heavy platform to rank" };
+    const rent = shelterRent();
+    if (!(rent > 0)) return { err: "the shelter rent is zero - the roof bit cannot vary" };
+    const potHeavy = Object.assign({}, base, { _y: rent - 1 });
+    const roofOnly = Object.assign({}, base, { bowls: 0, _bowls: 0, _y: rent });
     const pref = (cult) => { const was = c.p.culture; c.p.culture = cult;
       const d = platValue(c, potHeavy) - platValue(c, roofOnly); c.p.culture = was; return d; };
     const prefCrab = pref(null), prefPig = pref("pig"), prefFlat = pref("flatpig");
@@ -14540,7 +14621,9 @@ scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coef
 
     window._nol1plat = false;
     loadCultures(null);
-    return { dispPair, prefCrab, prefPig, prefFlat, franchise, homeless: !!c.p.homeless };
+    const probedHomeless = !!c.p.homeless;
+    c.p.homeless = wasHomeless;   // the probe leaves the town as it found it
+    return { dispPair, prefCrab, prefPig, prefFlat, franchise, homeless: probedHomeless };
   })())`));
   if (got.err) return got.err;
   // (1) the pig's own stakes decided its voter somewhere - the dispatch fired
@@ -14608,19 +14691,21 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // day 1 T=2141, push -307 Q8, the push whose residue the fix removed. The
   // scenario's own claim is UNCHANGED and still proven: a save without a
   // cultures key loads onto exactly the trajectory a fresh boot walks.
-  // RE-HARVESTED for THE ECONOMY TRIO (visitor-stats + reputation +
-  // interruptible onto main 537607c). Same two-day 4242 town as the frozen
-  // day-2 fingerprint above, re-rolled by the combined economy for the three
-  // reasons named there. The cross-check is EXACT: this town's coins (19570),
-  // rep (44141) and REEF's wallet (25688) match that fingerprint's 4242 seed
-  // byte for byte - one town, two scenarios, measured vm AND main realm
-  // identically. The scenario's structural claim (no EXTRA draw / no moved pixel
-  // from the registry code when there is no cultures key) still holds - the rng
-  // draw-count pin below is byte-untouched in structure; only the trajectory
-  // re-rolled off the combined economy's own constants.
-  const want = '{"day":3,"coins":19570,"rep":44141,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,19055],["REEF",2136,25688],["SALTY",2072,100],'
-    + '["DRIFT",318,0],["KELP",450,700]],"vis":7,"catch":4}';
+  // RE-HARVESTED for IDLE HANDS' DAY-1 FIX (the boredom trickle). Same two-day
+  // 4242 town as the frozen day-2 fingerprint above, re-rolled because crabs now
+  // leave a dead counter on day 1 instead of standing still until day 5 -
+  // attributed there, both ways, with this change's own `boredidle` hatch.
+  // The cross-check is EXACT and it is the reason this re-point is trustworthy:
+  // this town's coins (21117), rep (42608) and REEF's wallet (25686) match that
+  // fingerprint's 4242 seed byte for byte - one town, two scenarios. The
+  // scenario's structural claim (no EXTRA draw / no moved pixel from the registry
+  // code when there is no cultures key) still holds: the rng draw-count pin below
+  // re-points by VALUE with the structure intact, and every pixel that moved
+  // belongs to a crab standing at a WANDER_SPOT.
+  // PRIOR HOLDER, THE ECONOMY TRIO (visitor-stats + reputation + interruptible).
+  const want = '{"day":3,"coins":21117,"rep":42608,"fund":1000,"crabs":[["PINCHY",520,1600],'
+    + '["CLAWDIA",108,1600],["SUDSY",388,18076],["REEF",2136,25686],["SALTY",2072,300],'
+    + '["DRIFT",450,400],["KELP",248,100]],"vis":8,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
   // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
@@ -16001,7 +16086,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 1859, 2: 2731 };   // RE-POINTED for THE ECONOMY TRIO. The move is ATTRIBUTED cleanly, not just observed: arming interruptible-commitment's own `_norethink` hatch on this exact seed reads day 1 back to 2207 - the visitor-stats-only number - so INTERRUPTIBLE's mid-walk re-think owns the entire day-1 delta (2207 -> 1859) and REPUTATION adds zero net draws on day 1, exactly as its close-out claims (the first sailing pre-dates any earn). A re-think is a pickErrand draw, but a committed guest who switches makes fewer downstream errand decisions, so the day's stream is SHORTER, not longer - a VALUE re-point off a new but attributable mechanism, not a reordered stream. vm AND main realm read 1859/2731 identically. PRIOR HOLDERS, kept because the class is the point: RE-POINTED for VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched - same five arrival draws, same LOADED count), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 1863, 2: 3015 };   // RE-POINTED for IDLE HANDS' DAY-1 FIX (the boredom trickle). ATTRIBUTED BOTH WAYS on this exact seed, not merely observed: arming this change's own `boredidle` hatch reads day 1 back to 1859 - EXACTLY the prior pin - and arming `wander` instead reads 1859/2731, EXACTLY the prior pin on both days. So the trickle ADDS draws (it lets a crab reach WANDER_AT on day 1 at all, and each wander is a spot pick + a quip line + a dwell jitter) rather than REORDERING the stream: day 1 +4 is about one extra wander, and day 2 +284 is where the trickle really bites as boredom climbs 0.2 -> 0.5. A VALUE re-point off a new but attributable mechanism, the same shape as the holders below. PRIOR HOLDER, THE ECONOMY TRIO. The move is ATTRIBUTED cleanly, not just observed: arming interruptible-commitment's own `_norethink` hatch on this exact seed reads day 1 back to 2207 - the visitor-stats-only number - so INTERRUPTIBLE's mid-walk re-think owns the entire day-1 delta (2207 -> 1859) and REPUTATION adds zero net draws on day 1, exactly as its close-out claims (the first sailing pre-dates any earn). A re-think is a pickErrand draw, but a committed guest who switches makes fewer downstream errand decisions, so the day's stream is SHORTER, not longer - a VALUE re-point off a new but attributable mechanism, not a reordered stream. vm AND main realm read 1859/2731 identically. PRIOR HOLDERS, kept because the class is the point: RE-POINTED for VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched - same five arrival draws, same LOADED count), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -17794,15 +17879,27 @@ scenario("the boat lands a citizen's body: arrival needs sit in the hire band", 
   const bad = sim.G(`(() => { const out = [];
     for (let i = 0; i < 12; i++) {
       const v = newVisitor(i % 2 === 0);   // both mint paths: overnight and mixed
-      let over = 0;
+      // FLOORS AND THE CAP are the part that IS a per-need contract: nobody
+      // disembarks at 8% everything, and nobody arrives past the cap.
+      let peak = 0;
       for (const key in VIS_ARRIVE) {
-        const [lo, span] = VIS_ARRIVE[key];
+        const lo = VIS_ARRIVE[key][0];
         if (v[key] < lo) out.push("fresh " + key + " under its floor: " + v[key] + " < " + lo);
         if (v[key] > qn(0.95)) out.push("fresh " + key + " over the loaded cap: " + v[key]);
-        if (v[key] > lo + span) over++;   // a LOADED need
+        if (v[key] > peak) peak = v[key];
       }
-      if (over > 2) out.push("a fresh body with " + over + " loaded needs, max 2");
-      if (over < 1) out.push("a fresh body with nothing pressing - the pier went illegible");
+      // ...and LEGIBILITY is asserted as what it actually is: somebody wants
+      // something visibly. It is deliberately NOT a count of loaded needs,
+      // because that count is UNRECOVERABLE from the values - the unloaded
+      // windows and the loaded band OVERLAP (thirst's window reaches 0.60,
+      // above the band's 0.55 floor; hunger's tops out exactly AT it). The old
+      // check counted "above floor+span" as loaded, which read an unloaded
+      // thirst as loaded and a low-rolled loaded hunger as nothing pressing -
+      // so it failed on 9 of 40 seeds on MAIN, latently red the whole time and
+      // one stream-shift from going red for real. A predicate that cannot be
+      // computed from the data is not a weaker gate, it is a broken one.
+      if (peak < VIS_LOADED[0])
+        out.push("a fresh body with nothing pressing (peak need " + peak + ") - the pier went illegible");
     }
     // the probe visitors join no list, so the next poolReap reclaims the slots
     return out; })()`);
