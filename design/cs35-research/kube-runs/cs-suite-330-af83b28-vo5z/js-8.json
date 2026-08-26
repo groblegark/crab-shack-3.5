@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-af83b28-vo5z",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "af83b28a958ae005a01f2bb67450f8dc47b12941",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 44466,
+  "verdict": "36/36 passed in slice 8/12 (44.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (754ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1897ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (4366ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (110ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5627ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (255ms)\n  PASS  roster: the refactor preserves every census ordering (1001ms)\n  PASS  sale: the player buys a failed business through the shopfront (3650ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4377ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (120ms)\n  PASS  one reading surface owns the screen (1188ms)\n  PASS  almanac: swell is an autocorrelated per-town history, wind an independent gate (18ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1898ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (6982ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1656ms)\n  PASS  departures: the money band prints the manifest's own dollars (597ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (509ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (3915ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (9ms)\n  PASS  a standing offer can be answered from the card that announces it (18ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (21ms)\n  PASS  a crab may stand in the cabana it has come to clean (14ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (55ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (11ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (10ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (16ms)\n  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (8ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (6ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (3055ms)\n  PASS  saves: a ver-3 envelope is the zero delta (1551ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (377ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (79ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (14ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (172ms)\n  PASS  spend reserve: an old trait table without thrift still loads, at the identity (19ms)\n36/36 passed in slice 8/12 (44.4s)\n"
+}
