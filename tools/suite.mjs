@@ -3177,13 +3177,13 @@ scenario("census: rows derive live state, and sort + filter actually move", () =
     // an eligible crab instead of assuming crabs[0].
     { const w = crabs.find(k => !offToday(k) && !k.p.sick) || crabs[0];
       w.p.ot = true; w.p.shift = "M"; }
-    censusSort = 0; censusFilter = 0; censusPage = 0; }`);
+    rosterOpen("CREW"); }`);
   const n = sim.G("allCrabs().length");
   if (n < 12) return "only " + n + " crabs - the census has to scale past a dozen";
-  if (sim.G("censusList().length !== allCrabs().length")) return "the ALL filter dropped somebody";
-  if (sim.G("censusPages() < 2")) return "12+ crabs must page";
+  if (sim.G("rosterList().length !== allCrabs().length")) return "the ALL filter dropped somebody";
+  if (sim.G("rosterPages() < 2")) return "12+ crabs must page";
   // DERIVED, not cached: change the world, the row changes
-  const before = sim.G(`{ const c = censusList().find(k => k.p.ot); JSON.stringify([c.p.name, otMinutes(c), homeTag(c.p)]); }`);
+  const before = sim.G(`{ const c = rosterList().find(k => k.p.ot); JSON.stringify([c.p.name, otMinutes(c), homeTag(c.p)]); }`);
   sim.G(`{ const c = allCrabs().find(k => k.p.ot); c.p.ot = false; c.p.homeless = true; c.p.house = null; c.p.boat = null; }`);
   const after = sim.G(`{ const c = allCrabs().find(k => JSON.parse(${JSON.stringify(before)})[0] === k.p.name);
     JSON.stringify([c.p.name, otMinutes(c), homeTag(c.p)]); }`);
@@ -3191,24 +3191,195 @@ scenario("census: rows derive live state, and sort + filter actually move", () =
   if (af[1] !== 0 || af[2] !== "COT" || b4[1] === 0)
     return "census fields did not follow live state: " + before + " -> " + after;
   // sorts: NAME is alphabetical, WALLET is richest-first, HEALTH sickest-first
-  sim.G("censusSort = 0");
-  const byName = JSON.parse(sim.G("JSON.stringify(censusList().map(c => c.p.name))"));
+  sim.G("rosterSort = 0");
+  const byName = JSON.parse(sim.G("JSON.stringify(rosterList().map(c => c.p.name))"));
   if (byName.join() !== byName.slice().sort().join()) return "NAME sort is not alphabetical";
-  sim.G("censusSort = CENSUS_SORTS.indexOf('WALLET')");
-  const w = JSON.parse(sim.G("JSON.stringify(censusList().map(c => c.p.wallet))"));
+  sim.G("rosterSort = roster().sorts.indexOf('WALLET')");
+  const w = JSON.parse(sim.G("JSON.stringify(rosterList().map(c => c.p.wallet))"));
   for (let i = 1; i < w.length; i++) if (w[i] > w[i - 1]) return "WALLET sort is not descending: " + w;
-  sim.G("censusSort = CENSUS_SORTS.indexOf('HEALTH')");
-  if (!sim.G("censusList()[0].p.sick")) return "HEALTH sort did not float the sick crab to the top";
+  sim.G("rosterSort = roster().sorts.indexOf('HEALTH')");
+  if (!sim.G("rosterList()[0].p.sick")) return "HEALTH sort did not float the sick crab to the top";
   // filters: each one is a strict subset with the right predicate
-  sim.G("censusSort = 0; censusFilter = CENSUS_FILTERS.indexOf('CREW')");
-  if (sim.G("censusList().some(c => c.p.npc)")) return "the CREW filter let a townsfolk through";
-  sim.G("censusFilter = CENSUS_FILTERS.indexOf('TOWN')");
-  if (sim.G("censusList().some(c => !c.p.npc)")) return "the TOWN filter let a crew crab through";
-  sim.G("censusFilter = CENSUS_FILTERS.indexOf('SICK')");
-  if (sim.G("censusList().some(c => !c.p.sick) || censusList().length === 0")) return "the SICK filter is wrong";
-  sim.G("censusFilter = CENSUS_FILTERS.indexOf('OT')");
-  if (sim.G("censusList().some(c => !c.p.ot && otMinutes(c) === 0)")) return "the OT filter is wrong";
-  sim.G("censusFilter = 0");
+  sim.G("rosterSort = 0; rosterFilter = roster().filters.indexOf('CREW')");
+  if (sim.G("rosterList().some(c => c.p.npc)")) return "the CREW filter let a townsfolk through";
+  sim.G("rosterFilter = roster().filters.indexOf('TOWN')");
+  if (sim.G("rosterList().some(c => !c.p.npc)")) return "the TOWN filter let a crew crab through";
+  sim.G("rosterFilter = roster().filters.indexOf('SICK')");
+  if (sim.G("rosterList().some(c => !c.p.sick) || rosterList().length === 0")) return "the SICK filter is wrong";
+  sim.G("rosterFilter = roster().filters.indexOf('OT')");
+  if (sim.G("rosterList().some(c => !c.p.ot && otMinutes(c) === 0)")) return "the OT filter is wrong";
+  sim.G('rosterOpen("CREW")');
+  return true;
+});
+
+// THE VISITORS BOOK is the census's twin and gets the twin's scenario: the
+// same four claims (live derivation, paging, every sort, every filter) asked
+// of the other register. The two books share one list function, so this is
+// also the test that the shared mechanism is genuinely per-book data rather
+// than the census with a different label on it.
+scenario("visitors book: the guest roster sorts, filters and pages on its own terms", () => {
+  const sim = createSim({ seed: 505 });
+  // far enough in that the ferry has run several times and guests are ashore
+  sim.runUntil("day >= 3 && tmin >= 14 * 60", { maxSteps: 600000 });
+  sim.G(`{ while (visitorsInTown().length < 9) ferryDock();
+    const v = visitorsInTown();
+    v[0].wallet = 90000; v[0].purse = 90000; v[0].spent = 0;
+    v[1].wallet = 0; v[1].spent = 44000; v[1].roughNights = 2;
+    v[2].hunger = Q20; v[2].thirst = 0; v[2].dirt = 0; v[2].bored = 0; v[2].tired = 0;
+    v[3].leaveT = gnow() + 30;    // on the next boat
+    v[4].leaveT = gnow() + 6000;  // here for days yet
+    rosterOpen("VISITORS"); }`);
+  const n = sim.G("visitorsInTown().length");
+  if (n < 9) return "only " + n + " visitors ashore - the book has to scale past a page";
+  if (sim.G("rosterList().length !== visitorsInTown().length")) return "the ALL filter dropped a guest";
+  if (sim.G("rosterPages() < 2")) return "9+ guests must page";
+  // the book is the GUESTS, not the crabs - the two registers must not alias
+  if (sim.G("rosterList().some(k => k.p)")) return "a crab got into the visitors book";
+  // DERIVED, not cached: move the guest, the row's facts move with them
+  const spent0 = sim.G("visitorsInTown()[0].spent");
+  sim.G("{ const k = visitorsInTown()[0]; k.spent += 1234; k.wallet -= 1234; }");
+  if (sim.G("visitorsInTown()[0].spent") !== spent0 + 1234)
+    return "the visitor row did not follow live state";
+  // sorts
+  sim.G("rosterSort = roster().sorts.indexOf('NAME')");
+  const names = JSON.parse(sim.G("JSON.stringify(rosterList().map(k => k.name))"));
+  if (names.join() !== names.slice().sort().join()) return "NAME sort is not alphabetical";
+  sim.G("rosterSort = roster().sorts.indexOf('PURSE')");
+  const purses = JSON.parse(sim.G("JSON.stringify(rosterList().map(k => k.wallet))"));
+  for (let i = 1; i < purses.length; i++)
+    if (purses[i] > purses[i - 1]) return "PURSE sort is not fullest-first: " + purses;
+  sim.G("rosterSort = roster().sorts.indexOf('SPENT')");
+  const spent = JSON.parse(sim.G("JSON.stringify(rosterList().map(k => k.spent))"));
+  for (let i = 1; i < spent.length; i++)
+    if (spent[i] > spent[i - 1]) return "SPENT sort is not biggest-first: " + spent;
+  sim.G("rosterSort = roster().sorts.indexOf('LEAVING')");
+  const leave = JSON.parse(sim.G("JSON.stringify(rosterList().map(k => k.leaveT))"));
+  for (let i = 1; i < leave.length; i++)
+    if (leave[i] < leave[i - 1]) return "LEAVING sort is not soonest-first: " + leave;
+  sim.G("rosterSort = roster().sorts.indexOf('NEED')");
+  const need = JSON.parse(sim.G("JSON.stringify(rosterList().map(k => visWorstNeed(k)))"));
+  for (let i = 1; i < need.length; i++)
+    if (need[i] > need[i - 1] + 1e-9) return "NEED sort is not worst-first: " + need;
+  // filters: each is a strict subset with the predicate the chip claims
+  sim.G("rosterSort = 0; rosterFilter = roster().filters.indexOf('SPENDING')");
+  if (sim.G("rosterList().some(k => k.wallet < 600) || rosterList().length === 0"))
+    return "the SPENDING filter let a spent-up guest through";
+  sim.G("rosterFilter = roster().filters.indexOf('ROUGH')");
+  if (sim.G("rosterList().some(k => !(k.roughNights > 0 || k.stC === VS.onSand)) || rosterList().length === 0"))
+    return "the ROUGH filter is wrong";
+  sim.G("rosterFilter = roster().filters.indexOf('SAILING')");
+  if (sim.G("rosterList().some(k => !visSailingSoon(k)) || rosterList().length === 0"))
+    return "the SAILING filter is wrong";
+  sim.G("rosterFilter = roster().filters.indexOf('UNHAPPY')");
+  if (sim.G("rosterList().some(k => !(visWorstNeed(k) > 0.75 || k.roughNights > 0)) || rosterList().length === 0"))
+    return "the UNHAPPY filter is wrong";
+  // the money line is the sum of what is actually ashore, not a stale counter
+  const t = JSON.parse(sim.G("JSON.stringify(visPurseTotals())"));
+  const real = JSON.parse(sim.G(`JSON.stringify(visitorsInTown().reduce((a, k) =>
+    [a[0] + Math.max(0, k.wallet), a[1] + Math.max(0, k.spent)], [0, 0]))`));
+  if (t.n !== n || t.held !== real[0] || t.spent !== real[1])
+    return "visPurseTotals does not sum the live guests: " + JSON.stringify([t, real]);
+  // THE MONEY THE ROW ACTUALLY PRINTS, not just the order it sorts in. fmt()
+  // takes CENTS; wrapping $d() around it divides by 100 twice, and a guest
+  // carrying $68 prints "$0". That shipped in the first draft of this card and
+  // every assertion above still passed - a monotonic bug preserves sort order
+  // perfectly - so the string itself has to be the thing under test.
+  const money = JSON.parse(sim.G(`JSON.stringify(visitorsInTown().slice(0, 6).map(k =>
+    [k.wallet, "$" + fmt(k.wallet)]))`));
+  for (const [cents, printed] of money) {
+    const want = "$" + Math.round(cents / 100);
+    if (cents < 100000 && printed !== want)
+      return "a $" + Math.round(cents / 100) + " purse printed " + printed + " (fmt takes cents, not dollars)";
+    if (cents >= 1000 && printed === "$0")
+      return "a nonzero purse printed $0: " + cents + " cents -> " + printed;
+  }
+  sim.G('rosterOpen("CREW")');
+  return true;
+});
+
+// THE REFACTOR'S OWN GATE. The roster mechanism replaced the census's hand-
+// written comparator with a generic rank+tiebreak, and the ONLY defensible
+// claim for that trade is that the census still sorts the way it always did.
+// So assert it directly: run the ORIGINAL comparator alongside the new one and
+// require identical orderings. WALLET is the one allowed difference - it had
+// no tiebreak, so equal wallets used to sit in arbitrary order and are now
+// alphabetical - and even there the wallets must still descend.
+scenario("roster: the refactor preserves every census ordering", () => {
+  const sim = createSim({ seed: 505 });
+  sim.runUntil("day >= 2 && tmin >= 10 * 60", { maxSteps: 300000 });
+  sim.G(`{ coins = 600000; for (let i = 0; i < 4; i++) { UPS.chef.lvl++; hireCrew(); }
+    for (let i = 0; i < 4; i++) spawnDrifter();
+    crabs[1].p.sick = { days: 3 }; crabs[2].p.wallet = 50000;
+    rosterOpen("CREW"); }`);
+  if (sim.G("allCrabs().length") < 12) return "too few crabs to tell two orderings apart";
+  const legacy = (s) => sim.G(`(() => {
+    const all = allCrabs().slice();
+    const homeRank = (c) => c.p.boat != null ? 0 : c.p.homeless ? 2 : 1;
+    const s = ${JSON.stringify(s)};
+    all.sort((a, b) =>
+      s === "JOB" ? (a.p.job < b.p.job ? -1 : a.p.job > b.p.job ? 1 : a.p.name < b.p.name ? -1 : 1)
+      : s === "HOME" ? (homeRank(a) - homeRank(b) || (a.p.name < b.p.name ? -1 : 1))
+      : s === "HEALTH" ? ((b.p.sick ? (b.p.sick.days || 0) + 1 : 0) - (a.p.sick ? (a.p.sick.days || 0) + 1 : 0)
+          || (a.p.name < b.p.name ? -1 : 1))
+      : s === "WALLET" ? (b.p.wallet - a.p.wallet)
+      : (a.p.name < b.p.name ? -1 : 1));
+    return JSON.stringify(all.map(c => c.p.name));
+  })()`);
+  for (const s of ["NAME", "JOB", "HOME", "HEALTH"]) {
+    sim.G(`rosterSort = roster().sorts.indexOf(${JSON.stringify(s)})`);
+    const now = sim.G("JSON.stringify(rosterList().map(c => c.p.name))");
+    if (now !== legacy(s)) return s + " sort changed in the refactor:\n  was " + legacy(s) + "\n  now " + now;
+  }
+  // WALLET: descending is the contract, the alphabetical tiebreak is the change
+  sim.G('rosterSort = roster().sorts.indexOf("WALLET")');
+  const w = JSON.parse(sim.G("JSON.stringify(rosterList().map(c => [c.p.name, c.p.wallet]))"));
+  for (let i = 1; i < w.length; i++) {
+    if (w[i][1] > w[i - 1][1]) return "WALLET is no longer descending: " + JSON.stringify(w);
+    if (w[i][1] === w[i - 1][1] && w[i][0] < w[i - 1][0])
+      return "equal wallets are not alphabetical: " + w[i - 1][0] + " before " + w[i][0];
+  }
+  sim.G('rosterOpen("CREW")');
+  return true;
+});
+
+// SWITCHING BOOKS RESETS THE VIEW. Sort 3 of the census is not sort 3 of the
+// visitors book and page 4 of a twelve-crab town is off the end of a three-
+// guest one, so the one door that changes register has to clear all three.
+scenario("roster: the book chip swaps register and resets sort, filter and page", () => {
+  const sim = createSim({ seed: 505 });
+  sim.runUntil("day >= 3 && tmin >= 14 * 60", { maxSteps: 600000 });
+  sim.G(`{ coins = 600000; for (let i = 0; i < 4; i++) { UPS.chef.lvl++; hireCrew(); }
+    while (visitorsInTown().length < 4) ferryDock();
+    rosterOpen("CREW"); rosterSort = 3; rosterFilter = 2; rosterPage = 1; }`);
+  if (sim.G("rosterList().some(c => !c.p)")) return "the CREW book is not all crabs";
+  sim.G('rosterOpen("VISITORS")');
+  if (sim.G("rosterSort !== 0 || rosterFilter !== 0 || rosterPage !== 0"))
+    return "swapping book did not reset the view state";
+  if (sim.G("rosterList().some(k => k.p)")) return "the VISITORS book is not all guests";
+  if (sim.G('roster().title !== "THE VISITORS BOOK"')) return "the card did not retitle itself";
+  // every sort and filter named by a book must be one that book can serve:
+  // an out-of-range index would silently read undefined and match nothing
+  for (const book of ["CREW", "VISITORS"]) {
+    sim.G(`rosterOpen(${JSON.stringify(book)})`);
+    const sorts = JSON.parse(sim.G("JSON.stringify(roster().sorts)"));
+    const filters = JSON.parse(sim.G("JSON.stringify(roster().filters)"));
+    if (filters[0] !== "ALL") return book + ": the first filter must be ALL";
+    for (let i = 0; i < sorts.length; i++) {
+      sim.G("rosterSort = " + i);
+      if (sim.G("rosterList().length !== rosterList().length")) return book + ": sort " + sorts[i] + " is unstable";
+      const a = sim.G("JSON.stringify(rosterList().map(o => roster().key(o)))");
+      const b = sim.G("JSON.stringify(rosterList().map(o => roster().key(o)))");
+      if (a !== b) return book + ": sort " + sorts[i] + " is not deterministic";
+    }
+    sim.G("rosterSort = 0");
+    const all = sim.G("rosterList().length");
+    for (let i = 1; i < filters.length; i++) {
+      sim.G("rosterFilter = " + i);
+      if (sim.G("rosterList().length") > all) return book + ": filter " + filters[i] + " is not a subset";
+    }
+    sim.G("rosterFilter = 0");
+  }
+  sim.G('rosterOpen("CREW")');
   return true;
 });
 
@@ -5601,7 +5772,16 @@ scenario("no card prints text on top of its own text", () => {
     run("diary", () => { dossier = c0; dossierTab = "DIARY"; }, () => drawDossier());
     run("manage-hours", () => { dossier = null; manage = "shack"; manageTab = "HOURS"; }, () => drawManage());
     run("manage-sched", () => { manage = "shack"; manageTab = "SCHEDULE"; }, () => drawManage());
-    run("census", () => { manage = "shack"; manageTab = "TOWN"; }, () => drawManage());
+    run("census", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("CREW"); }, () => drawManage());
+    // ...and its twin. Swept on EVERY sort and filter, because the chip row
+    // reflows with the label widths ("SLEEPING OUT" was the string that made
+    // the first draft of this card overflow its own chip).
+    run("visitors", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("VISITORS"); }, () => {
+      const B = roster();
+      for (let f = 0; f < B.filters.length; f++)
+        for (let s2 = 0; s2 < B.sorts.length; s2++) { rosterFilter = f; rosterSort = s2; drawManage(); }
+      rosterOpen("VISITORS");
+    });
     // THE HALL WAS NEVER SWEPT - which is how five raw header lines survived
     // to scroll off the screen. Stuffed with worst-plausible content.
     const hallBounds = () => { const HR = manageRects(); BX = { x0: HR.x, x1: HR.x + HR.w + 2 }; };
@@ -5901,7 +6081,13 @@ scenario("no surface prints off the canvas", () => {
     run("diary", () => { dossier = c0; dossierTab = "DIARY"; }, () => drawDossier());
     run("manage-hours", () => { dossier = null; manage = "shack"; manageTab = "HOURS"; }, () => drawManage());
     run("manage-sched", () => { manage = "shack"; manageTab = "SCHEDULE"; }, () => drawManage());
-    run("census", () => { manage = "shack"; manageTab = "TOWN"; }, () => drawManage());
+    run("census", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("CREW"); }, () => drawManage());
+    run("visitors", () => { manage = "shack"; manageTab = "TOWN"; rosterOpen("VISITORS"); }, () => {
+      const B = roster();
+      for (let f = 0; f < B.filters.length; f++)
+        for (let s2 = 0; s2 < B.sorts.length; s2++) { rosterFilter = f; rosterSort = s2; drawManage(); }
+      rosterOpen("CREW");
+    });
     run("report", () => { manage = null; }, () => drawReport());
     // ...and the DEPARTURE CARD, built from whoever is actually in town (its
     // own scenario runs the adversarial manifest; this is the canonical sweep

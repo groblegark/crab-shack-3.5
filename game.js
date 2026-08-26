@@ -15831,13 +15831,15 @@ cv.addEventListener("click", (ev) => {
         if (hit(R.pcp)) { bump("cap", 1, 0, CAP_STEPS); return; }
       }
     } else {   // TOWN census
-      if (hit(R.csort)) { censusSort = (censusSort + 1) % CENSUS_SORTS.length; censusPage = 0; sfx.ding(); return; }
-      if (hit(R.cfilt)) { censusFilter = (censusFilter + 1) % CENSUS_FILTERS.length; censusPage = 0; sfx.ding(); return; }
-      if (hit(R.cprev)) { censusPage = (censusPage + censusPages() - 1) % censusPages(); sfx.ding(); return; }
-      if (hit(R.cnext)) { censusPage = (censusPage + 1) % censusPages(); sfx.ding(); return; }
-      const list = censusList();
-      for (let i = 0; i < CENSUS_ROWS; i++) {
-        const c = list[censusPage * CENSUS_ROWS + i];
+      // the roster card - whichever book is open, one hit test (see ROSTERS)
+      if (hit(R.cbook)) { rosterOpen(rosterBook === "CREW" ? "VISITORS" : "CREW"); sfx.ding(); return; }
+      if (hit(R.csort)) { rosterSort = (rosterSort + 1) % roster().sorts.length; rosterPage = 0; sfx.ding(); return; }
+      if (hit(R.cfilt)) { rosterFilter = (rosterFilter + 1) % roster().filters.length; rosterPage = 0; sfx.ding(); return; }
+      if (hit(R.cprev)) { rosterPage = (rosterPage + rosterPages() - 1) % rosterPages(); sfx.ding(); return; }
+      if (hit(R.cnext)) { rosterPage = (rosterPage + 1) % rosterPages(); sfx.ding(); return; }
+      const list = rosterList();
+      for (let i = 0; i < ROSTER_ROWS; i++) {
+        const c = list[rosterPage * ROSTER_ROWS + i];
         if (c && hit(R.crows[i])) { dossier = c; sfx.ding(); return; }
       }
     }
@@ -15858,7 +15860,10 @@ cv.addEventListener("click", (ev) => {
   if (boardView) {
     const pt = evPos(ev), r = jobBoardCensusRect();
     if (pt.x >= r.x && pt.x < r.x + r.w && pt.y >= r.y && pt.y < r.y + r.h) {
-      boardView = false; manage = ownedBizList()[0] || null; manageTab = "TOWN"; sfx.ding(); return;
+      // ...and it says CENSUS on the chip, so it opens the CENSUS - not
+      // whichever book the roster card happened to be left on last time.
+      boardView = false; manage = ownedBizList()[0] || null; manageTab = "TOWN";
+      rosterOpen("CREW"); sfx.ding(); return;
     }
     boardView = false; return;
   }
@@ -17725,13 +17730,28 @@ function bigCardUp() {
 }
 // the popped-down selector's one handle: slim, centered where the tab row was
 function crewDockRect() { return { x: 4, y: TAB_Y, w: 40, h: TAB_H }; }
+// THE CHIP COLUMN IS A TABLE, not three hand-placed rects. Each entry owns its
+// label and what it opens; the draw, the hit test and the geometry all walk
+// this one list, so a chip cannot be painted somewhere you can't tap it or be
+// tappable somewhere it was never painted (the manageRects idiom).
+//
+// GUESTS is the third (Matt, 2026-08-25: "button on main screen i would
+// think"). It sits under TOWN because they are the same card - the town's own
+// people and the town's guests - and the chip just says which book to open on
+// it. MEASURED: at H=240 the column runs y199..236 against a 240 bottom, and
+// at H=288 y205..242; the crew tiles stop at x212 and the column starts at
+// x214, so the third chip takes empty panel in both canvas modes.
+const NAV_CHIPS = [
+  { key: "manage", label: "MANAGE" },
+  { key: "town", label: "TOWN", book: "CREW" },
+  { key: "guests", label: "GUESTS", book: "VISITORS" },
+];
 function navRects() {
   const x = W - NAV_CHIP_W - 2;
-  return {
-    map: NAV_MAP,
-    manage: { x, y: ROW_Y, w: NAV_CHIP_W, h: NAV_CHIP_H },
-    town: { x, y: ROW_Y + NAV_CHIP_H + 2, w: NAV_CHIP_W, h: NAV_CHIP_H },
-  };
+  const R = { map: NAV_MAP };
+  NAV_CHIPS.forEach((c, i) =>
+    R[c.key] = { x, y: ROW_Y + i * (NAV_CHIP_H + 2), w: NAV_CHIP_W, h: NAV_CHIP_H });
+  return R;
 }
 // world x <-> strip x. Rounded on the way out so a building's block and its
 // hit test land on the same pixel column.
@@ -17821,12 +17841,15 @@ function navTapChip(p) {
       || (owned.includes("shack") ? "shack" : owned[0]);
     manageTab = "HOURS"; sfx.ding(); return true;
   }
-  if (hit(R.town)) {
-    // THE TOWN IS NOT A PAGE OF A SHOP. It is still drawn on the management
-    // card - one card, three tabs - but you no longer have to go through a
-    // shopfront to reach it, and the card retitles itself when you arrive here.
+  // THE TOWN IS NOT A PAGE OF A SHOP. It is still drawn on the management
+  // card - one card, four tabs - but you no longer have to go through a
+  // shopfront to reach it, and the card retitles itself when you arrive here.
+  // Both roster chips land on the SAME card and differ only in which book
+  // they open, which is why this is one branch and not two.
+  for (const c of NAV_CHIPS) {
+    if (!c.book || !hit(R[c.key])) continue;
     manage = ownedBizList().includes("shack") ? "shack" : ownedBizList()[0];
-    manageTab = "TOWN"; sfx.ding(); return true;
+    manageTab = "TOWN"; rosterOpen(c.book); sfx.ding(); return true;
   }
   return false;
 }
@@ -17913,8 +17936,9 @@ function drawNavChips() {
     rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [235, 225, 205]);
     smallText(ctx, label, r.x + ((r.w - smallTextWidth(label)) >> 1), r.y + 3, [90, 60, 40]);
   };
-  chip(R.manage, "MANAGE");
-  chip(R.town, "TOWN");
+  // one table, one loop - the chips cannot drift from the rects they are
+  // hit-tested against, and a fourth one later is a line in NAV_CHIPS
+  for (const c of NAV_CHIPS) chip(R[c.key], c.label);
   // THE HELP INVITE OUTLIVED ITS CHIP. A player who has never opened the card
   // still gets told once, on day one, that it is there - it just names the KEY
   // now instead of pointing at a button that no longer exists.
@@ -18962,30 +18986,133 @@ const HALL_VIEWS = ["BOOKS", "BALLOT", "ROLL"];
 const HALL_VIEW_LABEL = { BOOKS: "BOOKS", BALLOT: "LAST BALLOT", ROLL: "THE ROLL" };
 const ROLL_ROWS = 8;   // voter lines per page of the roll, at 7px in the card's body
 let hallView = "BOOKS", hallRollPage = 0;
-// census view state (transient: a review surface, not a save concern)
-const CENSUS_SORTS = ["NAME", "JOB", "HOME", "HEALTH", "WALLET"];
-const CENSUS_FILTERS = ["ALL", "CREW", "TOWN", "SICK", "OT"];
-let censusSort = 0, censusFilter = 0, censusPage = 0;
-const CENSUS_ROWS = 6;   // 17px two-line rows: phone-thumb targets, ~2-3 pages for a 12+ crab town
-function censusList() {
-  let all = allCrabs().slice();
-  const f = CENSUS_FILTERS[censusFilter];
-  if (f === "CREW") all = all.filter(c => !c.p.npc);
-  else if (f === "TOWN") all = all.filter(c => c.p.npc);
-  else if (f === "SICK") all = all.filter(c => c.p.sick);
-  else if (f === "OT") all = all.filter(c => otMinutes(c) > 0 || c.p.ot);
-  const homeRank = (c) => c.p.boat != null ? 0 : c.p.homeless ? 2 : 1;
-  const s = CENSUS_SORTS[censusSort];
-  all.sort((a, b) =>
-    s === "JOB" ? (a.p.job < b.p.job ? -1 : a.p.job > b.p.job ? 1 : a.p.name < b.p.name ? -1 : 1)
-    : s === "HOME" ? (homeRank(a) - homeRank(b) || (a.p.name < b.p.name ? -1 : 1))
-    : s === "HEALTH" ? ((b.p.sick ? (b.p.sick.days || 0) + 1 : 0) - (a.p.sick ? (a.p.sick.days || 0) + 1 : 0)
-        || (a.p.name < b.p.name ? -1 : 1))
-    : s === "WALLET" ? (b.p.wallet - a.p.wallet)
-    : (a.p.name < b.p.name ? -1 : 1));
+// ------------------------------------------------------------- THE ROSTERS
+// TWO BOOKS, ONE MECHANISM (Matt, 2026-08-25: "need a nice view of all tourists
+// like we have for other kinds of citizens" - then, on seeing the first draft,
+// "unless there's an opportunity to refactor things into a more symmetrical
+// shape". There was, and this is it.)
+//
+// The town census answered "who LIVES here" and had no counterpart for the
+// people the whole economy is actually about. A tourist was legible ONE AT A
+// TIME - you had to find them on the promenade and tap them - so the question
+// a player actually asks ("who is ashore right now, and is anybody about to
+// sail with a full purse") had no surface at all. The departure card answers
+// it at 20:00, which is far too late to do anything about.
+//
+// The first draft of the fix was a second copy of the census: its own sorts,
+// its own filters, its own pager arithmetic, its own page-clamp, its own
+// six-row loop. That is the shape this table exists to refuse. A ROSTER is now
+// DATA - who is in it, how it sorts, how it filters, how a row paints - and
+// there is exactly ONE list function, ONE pager, ONE hit test and ONE chip
+// row serving both books. Adding a third register later (the departed? the
+// job market?) is a table entry, not another 60 lines of the same code.
+//
+// WHAT IS DELIBERATELY *NOT* SHARED: the row painter. A crab row and a guest
+// row genuinely say different things - a crab has a job, a rota and a house;
+// a guest has a purse, a boat home and a stay - and forcing them through one
+// column schema would flatten both into the intersection. So the frame is
+// shared and the ROW is per-register, which is the seam that actually holds.
+const ROSTERS = {
+  // THE CENSUS - every crab in town, crew, townsfolk and peer owners alike,
+  // all of it DERIVED live (job, employer, housing, health, OT), never cached.
+  CREW: {
+    tab: "TOWN", title: "TOWN CENSUS", unit: "CRABS",
+    list: () => allCrabs(),
+    sorts: ["NAME", "JOB", "HOME", "HEALTH", "WALLET"],
+    filters: ["ALL", "CREW", "TOWN", "SICK", "OT"],
+    legend: "FED SIP CLN FUN ZZZ",
+    key: (c) => c.p.name,
+    keep: (c, f) => f === "CREW" ? !c.p.npc : f === "TOWN" ? c.p.npc
+      : f === "SICK" ? !!c.p.sick : f === "OT" ? (otMinutes(c) > 0 || c.p.ot) : true,
+    rank: (c, s) => s === "JOB" ? c.p.job
+      : s === "HOME" ? (c.p.boat != null ? 0 : c.p.homeless ? 2 : 1)
+      : s === "HEALTH" ? -(c.p.sick ? (c.p.sick.days || 0) + 1 : 0)
+      : s === "WALLET" ? -c.p.wallet : c.p.name,
+    row: (c, r) => censusRow(c, r),
+  },
+  // THE VISITORS BOOK - everybody currently ashore off the ferry. Its row
+  // content comes from the helpers the guest's OWN card already uses
+  // (visCondition, custStatus, visStayLabel, visBars) rather than a second set
+  // of descriptions that could drift from them.
+  //
+  // THE FILTERS ARE THE ACTIONABLE ONES, not a taxonomy. SPENDING still has
+  // money the town could earn; ROUGH is the guest the hotel failed, which is
+  // where reputation leaks; SAILING is who is on the next boat, i.e. your last
+  // chance to sell them anything; UNHAPPY is a need pegged past the point
+  // their own card would call it out. Each one names something to go and do.
+  VISITORS: {
+    tab: "GUESTS", title: "THE VISITORS BOOK", unit: "ASHORE",
+    list: () => visitorsInTown(),
+    sorts: ["NAME", "PURSE", "SPENT", "LEAVING", "NEED"],
+    filters: ["ALL", "SPENDING", "ROUGH", "SAILING", "UNHAPPY"],
+    legend: "FED THR CLN FUN SPA",
+    key: (k) => k.name,
+    keep: (k, f) => f === "SPENDING" ? k.wallet >= 600
+      : f === "ROUGH" ? (k.roughNights > 0 || k.stC === VS.onSand)
+      : f === "SAILING" ? visSailingSoon(k)
+      : f === "UNHAPPY" ? (visWorstNeed(k) > 0.75 || k.roughNights > 0) : true,
+    rank: (k, s) => s === "PURSE" ? -k.wallet : s === "SPENT" ? -k.spent
+      : s === "LEAVING" ? k.leaveT : s === "NEED" ? -visWorstNeed(k) : k.name,
+    row: (k, r) => visitorRow(k, r),
+  },
+};
+const ROSTER_ROWS = 6;   // 16px two-line rows: phone-thumb targets, and the card's own body budget
+// which book the TOWN card is showing, plus its sort/filter/page. Transient by
+// design - a review surface is not a save concern (the census has always been).
+let rosterBook = "CREW", rosterSort = 0, rosterFilter = 0, rosterPage = 0;
+function roster() { return ROSTERS[rosterBook] || ROSTERS.CREW; }
+function rosterSortName() { const R = roster(); return R.sorts[rosterSort % R.sorts.length]; }
+function rosterFilterName() { const R = roster(); return R.filters[rosterFilter % R.filters.length]; }
+// THE ONE LIST FUNCTION. Filter by the book's own predicate, then sort by the
+// book's own rank key - and ALWAYS break a tie by name, so a page cannot
+// shuffle under the player's thumb between two frames that scored equal.
+//
+// THE TIEBREAK IS THE ONE DELIBERATE BEHAVIOUR CHANGE in the roster refactor,
+// and it is worth naming because everything else is byte-identical. VERIFIED
+// against the pre-refactor comparator on a 15-crab town: NAME, JOB, HOME and
+// HEALTH come out in exactly the same order (they all carried a name tiebreak
+// already), and WALLET differs ONLY within equal wallets - a $1000 tie of four
+// crabs used to sit in arbitrary allCrabs() order and is now alphabetical.
+// Wallets are still strictly descending. A roster with an unstable tie is a
+// list that reshuffles while you reach for a row, which is a bug on a phone.
+function rosterList() {
+  const R = roster(), f = rosterFilterName(), s = rosterSortName();
+  const all = R.list().slice().filter(o => R.keep(o, f));
+  all.sort((a, b) => {
+    const ka = R.rank(a, s), kb = R.rank(b, s);
+    if (ka !== kb) return ka < kb ? -1 : 1;
+    const na = R.key(a), nb = R.key(b);
+    return na < nb ? -1 : na > nb ? 1 : 0;
+  });
   return all;
 }
-function censusPages() { return Math.max(1, Math.ceil(censusList().length / CENSUS_ROWS)); }
+function rosterPages() { return Math.max(1, Math.ceil(rosterList().length / ROSTER_ROWS)); }
+// ...and switching book resets the view: sort 3 of the census is not sort 3 of
+// the visitors book, and page 4 of a twelve-crab town is off the end of a
+// three-guest one. One door, so no caller can forget half of it.
+function rosterOpen(book) {
+  rosterBook = ROSTERS[book] ? book : "CREW";
+  rosterSort = 0; rosterFilter = 0; rosterPage = 0;
+}
+// the worst need a guest is carrying, as a fraction - the NEED sort's key and
+// the UNHAPPY filter's predicate, so the chip and the column always agree
+function visWorstNeed(k) {
+  let w = 0;
+  for (const [, key] of VIS_BAR) w = Math.max(w, barFrac(k, key));
+  return w;
+}
+function visSailingSoon(k) { return k.leaveT - gnow() < 180; }   // three hours: time to sell them one more thing
+// what the town has taken off the boat today and what is still walking around
+// unspent. PLAN's visitor pass measured average spend at $29 of an ~$85 purse -
+// "the town is leaving half of every purse on the table" - and until now that
+// number only ever appeared at 20:00, on the way out. Here it is live, while
+// the money is still ashore and can still be earned.
+function visPurseTotals() {
+  let held = 0, spent = 0;
+  const all = visitorsInTown();
+  for (const k of all) { held += Math.max(0, k.wallet || 0); spent += Math.max(0, k.spent || 0); }
+  return { n: all.length, held, spent };
+}
 function manageRects() {
   const x = 16, y = 6, w2 = 224, h2 = 196;
   const R = {
@@ -19017,9 +19144,16 @@ function manageRects() {
     // down to y+78 to make room for both.
     tipTrack: { x: x + 46, y: y + 62, w: 120, h: 12 },
     rows: [], cells: [],
-    // ---- TOWN tab
-    csort: { x: x + 6, y: y + 31, w: 62, h: 13 },
-    cfilt: { x: x + 72, y: y + 31, w: 58, h: 13 },
+    // ---- TOWN tab (the roster card: census OR visitors book, one geometry).
+    // THE BOOK CHIP took the row's left end and pushed SORT/FILTER right. The
+    // COUNT LINE ("10 ASHORE") is printed at x+134 on this same row, so the
+    // three chips have to fit in the 128px BEFORE it - measured, not eyeballed:
+    // 6+40 / 48+42 / 92+40 ends at x+132, two clear of the count. The first
+    // draft gave the filter chip 52px ending at x+166 and printed the count
+    // straight through it (caught in a photograph, not by a test).
+    cbook: { x: x + 6, y: y + 31, w: 40, h: 13 },
+    csort: { x: x + 48, y: y + 31, w: 42, h: 13 },
+    cfilt: { x: x + 92, y: y + 31, w: 40, h: 13 },
     cprev: { x: x + 170, y: y + 31, w: 14, h: 13 },
     cnext: { x: x + 202, y: y + 31, w: 14, h: 13 },
     crows: [],
@@ -19077,7 +19211,7 @@ function manageRects() {
       wage:  { x: x + 170, y: ry, w: 48, h: 11 },
     });
   }
-  for (let i = 0; i < CENSUS_ROWS; i++) R.crows.push({ x: x + 4, y: y + 47 + i * 16, w: w2 - 8, h: 15 });
+  for (let i = 0; i < ROSTER_ROWS; i++) R.crows.push({ x: x + 4, y: y + 47 + i * 16, w: w2 - 8, h: 15 });
   return R;
 }
 function drawManage() {
@@ -19093,7 +19227,7 @@ function drawManage() {
   // management card - one card, three tabs - but the nav strip's TOWN chip
   // opens it directly now, so a player can arrive here without ever choosing a
   // business, and the header has to say what they are actually looking at.
-  text(ctx, manageTab === "TOWN" ? "TOWN CENSUS" : b.name + " - MGMT", x + 6, y + 4, [255, 240, 210]);
+  text(ctx, manageTab === "TOWN" ? roster().title : b.name + " - MGMT", x + 6, y + 4, [255, 240, 210]);
   if (manageBizCycler()) {
     rect(ctx, R.next.x, R.next.y, R.next.w, R.next.h, [96, 170, 220]);
     smallText(ctx, "NEXT>", R.next.x + 9, R.next.y + 3, [255, 255, 255]);
@@ -19280,7 +19414,7 @@ function drawManage() {
     if (staff.length > R.rows.length)
       smallText(ctx, "+" + (staff.length - R.rows.length) + " MORE - SEE THE TOWN TAB", x + 8, y + h2 - 26, [150, 140, 160]);
   } else if (manageTab === "TOWN") {
-    drawCensus(R);
+    drawRoster(R);
   } else {
     drawHall(R, chip);
   }
@@ -19717,69 +19851,162 @@ function handleSaveClick(pt) {
   if (!onCard) closeSaveView();
 }
 
-// ---------------------------------------------------------------- town census
+// --------------------------------------------------------------- the rosters
 // Matt: "need an all-crab character menu to review basic stats of whole pop."
-// Every crab in town - crew, townsfolk, peer owners - one two-line row, all of
-// it DERIVED live (job, employer, housing, health, OT), never a cached copy.
-// Rows are 17px so a thumb can hit them; six to a page with < > paging, which
-// is how the card idiom scales past a dozen crabs without a scrollbar.
-// Tapping a row opens that crab's dossier ON TOP of this card, so closing it
-// drops you back into the census: review here, act there (or on SCHEDULE).
+// ...and then, 2026-08-25: "need a nice view of all tourists like we have for
+// other kinds of citizens". Two registers, one card - see the ROSTERS table.
+// Every body in town - crew, townsfolk, peer owners, and now the guests off
+// the ferry - gets one two-line row, all of it DERIVED live (job, employer,
+// housing, health, OT; purse, boat, what they are doing), never a cached copy.
+// Rows are 16px so a thumb can hit them; six to a page with < > paging, which
+// is how the card idiom scales past a dozen bodies without a scrollbar.
+// Tapping a row opens that body's dossier ON TOP of this card, so closing it
+// drops you back into the roster: review here, act there (or on SCHEDULE).
 function homeTag(p) { return p.boat != null ? "BOAT" : p.homeless ? "COT" : "HOUSE"; }
-function drawCensus(R) {
+// the five meters, right-aligned in a row's tail. Shared by both books because
+// both bodies carry the SAME five needs in the same order - the whole reason a
+// player who learned to read a crab can read a guest (see VIS_BAR).
+function rosterBars(o, r, ry, filled) {
+  for (let bi = 0; bi < VIS_BAR.length; bi++) {
+    const bx = r.x + 156 + bi * 10, f = 1 - filled(VIS_BAR[bi][1]);
+    rect(ctx, bx, ry + 8, 9, 4, [30, 20, 36]);
+    rect(ctx, bx + 1, ry + 9, Math.round(7 * Math.max(0, Math.min(1, f))), 2,
+      f > 0.5 ? [96, 200, 120] : f > 0.25 ? [235, 200, 90] : [235, 90, 90]);
+  }
+}
+// ---- the CENSUS row: who they are, who they work for, what they are worth,
+// and the rota underneath it.
+function censusRow(c, r) {
+  const p = c.p, ry = r.y;
+  // a chunky little shell in their own colors: the row's portrait
+  const pal = CRAB_COLORS[p.color] || CRAB_COLORS[0];
+  rect(ctx, r.x + 2, ry + 4, 8, 7, pal[1]);
+  rect(ctx, r.x + 3, ry + 5, 6, 5, pal[0]);
+  px(ctx, r.x + 4, ry + 6, [255, 255, 255]); px(ctx, r.x + 7, ry + 6, [255, 255, 255]);
+  px(ctx, r.x + 4, ry + 7, [30, 20, 36]); px(ctx, r.x + 7, ry + 7, [30, 20, 36]);
+  // line 1: who they are, who they work for, what they're worth, how they are
+  smallText(ctx, fitSmall(p.name, 38), r.x + 12, ry + 1, [40, 30, 40]);
+  const jobTag = p.job === "fishing" ? "PIER" : BIZ[p.job].short;
+  const boss = p.owner ? "OWNER" : p.job === "fishing" ? "SELF"
+    : p.employer ? ownerName(p.employer) : "YOU";
+  smallText(ctx, jobTag + "/" + boss, r.x + 52, ry + 1, [70, 90, 130]);
+  const wTxt = "$" + fmt(Math.max(0, Math.round(p.wallet)));
+  smallText(ctx, wTxt, r.x + 136 - smallTextWidth(wTxt), ry + 1, p.wallet < 12 ? [190, 80, 80] : [140, 110, 40]);
+  smallText(ctx, homeTag(p), r.x + 140, ry + 1, p.homeless ? [190, 80, 80] : p.boat != null ? [70, 140, 200] : [40, 150, 70]);
+  const hp = p.sick ? "SICK D" + ((p.sick.days || 0) + 1) : offToday(c) ? "DAY OFF" : "WELL";
+  smallText(ctx, hp, r.x + 164, ry + 1, p.sick ? [190, 80, 80] : offToday(c) ? [70, 140, 200] : [40, 150, 70]);
+  // line 2: when they work, how hard, and the five needs at a glance
+  const otM = otMinutes(c);
+  smallText(ctx, (coveringToday(c) ? "CVR " : "") + (p.job === "fishing" ? baseShift(c).label : effShift(c).label),
+    r.x + 12, ry + 8, otM ? [200, 110, 40] : [110, 100, 110]);
+  smallText(ctx, WEEKDAYS[dayOffIdx(c)], r.x + 50, ry + 8, [70, 140, 200]);
+  if (otM) smallText(ctx, "OT", r.x + 66, ry + 8, [255, 150, 40]);
+  const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);
+  smallText(ctx, Math.round(eff * 100) + "%", r.x + 78, ry + 8, eff < 0.8 ? [190, 80, 80] : eff < 0.995 ? [200, 110, 40] : [110, 100, 110]);
+  rosterBars(c, r, ry, (key) => (p[key] || 0) / Q20);
+}
+// ---- the VISITORS row. Same two lines, a guest's own facts: what they still
+// have to spend against what they landed with, when their boat goes, and what
+// they are doing about it RIGHT NOW - the sentence their own card would say.
+function visitorRow(k, r) {
+  const ry = r.y;
+  // THE ROW PORTRAIT IS DRAWN, NOT BLITTED. blitPersonaIn CENTERS art in the
+  // frame you give it but does not CLIP to it, and a crab is 16x12 against a
+  // 10px column - the first draft printed two legs of every guest through
+  // their own name. (Caught in a photograph: the sweep only proves nothing
+  // leaves the CANVAS, and this stayed comfortably inside it.) So the row
+  // uses the census's own 8x7 shell idiom, in the guest's colours, which is
+  // also what makes the two books read as one card.
+  const pal = CRAB_COLORS[k.color % CRAB_COLORS.length] || CRAB_COLORS[0];
+  rect(ctx, r.x + 2, ry + 4, 8, 7, pal[1]);
+  rect(ctx, r.x + 3, ry + 5, 6, 5, pal[0]);
+  px(ctx, r.x + 4, ry + 6, [255, 255, 255]); px(ctx, r.x + 7, ry + 6, [255, 255, 255]);
+  px(ctx, r.x + 4, ry + 7, [30, 20, 36]); px(ctx, r.x + 7, ry + 7, [30, 20, 36]);
+  // ...and a FOREIGN guest is marked, because "who is here" includes where
+  // they are from: a pig's row gets their own body colour and a dot in the
+  // corner rather than a crab's shell silently standing in for them.
+  if (visCulture(k)) px(ctx, r.x + 1, ry + 3, [255, 216, 96]);
+  // line 1: who, how long they have been here, what is left of the purse, boat
+  const cond = visCondition(k);
+  smallText(ctx, fitSmall(k.name, 38), r.x + 12, ry + 1, [40, 30, 40]);
+  smallText(ctx, fitSmall(cond[0], 44), r.x + 52, ry + 1, cond[1]);
+  // fmt() ALREADY TAKES CENTS AND PRINTS DOLLARS (see the census row, which
+  // passes p.wallet straight in). The first draft wrapped $d() around it and
+  // divided by 100 twice, so a guest carrying $68 printed "$0" - every purse
+  // on the card read $0 or $1. The suite could not catch it: it asserts the
+  // SORT ORDER of k.wallet, which a monotonic bug preserves perfectly.
+  const wTxt = "$" + fmt(k.wallet) + "/" + fmt(k.purse);
+  smallText(ctx, wTxt, r.x + 152 - smallTextWidth(wTxt), ry + 1,
+    k.wallet < 600 ? [150, 120, 90] : [140, 110, 40]);
+  // WHEN THE BOAT GOES is the row's action clock: an hour left and a full
+  // purse is the guest to go and serve. Overdue reads as the next sailing
+  // rather than a negative number - the pier does not run on minutes.
+  const hrs = Math.round((k.leaveT - gnow()) / 60);
+  const bTxt = hrs <= 0 ? "BOAT" : hrs + "H";
+  smallText(ctx, bTxt, r.x + 176 - smallTextWidth(bTxt), ry + 1,
+    visSailingSoon(k) ? [200, 110, 40] : [70, 90, 130]);
+  // line 2: how long they have been ashore, what they have spent here, what
+  // they are doing this minute, and the same five meters the crab row carries
+  smallText(ctx, k.arrived >= day ? "TODAY" : "D" + Math.max(1, day - k.arrived + 1),
+    r.x + 12, ry + 8, [110, 100, 110]);
+  const sTxt = "$" + fmt(k.spent);
+  smallText(ctx, sTxt, r.x + 50, ry + 8, k.spent > 0 ? [40, 150, 70] : [150, 140, 160]);
+  smallText(ctx, fitSmall(custStatus(k), 74), r.x + 78, ry + 8, [70, 90, 130]);
+  rosterBars(k, r, ry, (key) => barFrac(k, key));
+}
+// ---- THE FRAME, drawn once for whichever book is open. Chips, pager, count
+// line, six rows and the legend: everything that is the same about the two
+// registers lives here, and the only per-book calls are row() and the labels.
+function drawRoster(R) {
   const { x, y } = R, w2 = R.w, h2 = R.h;
-  const list = censusList(), pages = censusPages();
-  if (censusPage >= pages) censusPage = pages - 1;
+  const B = roster(), list = rosterList(), pages = rosterPages();
+  if (rosterPage >= pages) rosterPage = pages - 1;
   const chip = (r, label, hot) => {
     rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 36]);
     rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, hot ? [190, 140, 80] : [235, 225, 205]);
-    smallText(ctx, label, r.x + ((r.w - smallTextWidth(label)) >> 1), r.y + 4, hot ? [40, 24, 16] : [90, 60, 40]);
+    smallText(ctx, fitSmall(label, r.w - 4), r.x + ((r.w - smallTextWidth(fitSmall(label, r.w - 4))) >> 1),
+      r.y + 4, hot ? [40, 24, 16] : [90, 60, 40]);
   };
-  chip(R.csort, "SORT " + CENSUS_SORTS[censusSort], censusSort > 0);
-  chip(R.cfilt, CENSUS_FILTERS[censusFilter], censusFilter > 0);
+  // THE BOOK CHIP IS THE BUTTON. One tap flips the card between the town's
+  // own people and the town's guests - the two halves of "who is here".
+  chip(R.cbook, ROSTERS[rosterBook === "CREW" ? "VISITORS" : "CREW"].tab + " >", false);
+  // THE WORD "SORT" IS NOT WORTH 20px on a 42px chip: "SORT LEAVING" is 47px
+  // against a 38px budget and fitSmall would print "SORT LEAVI..", which is
+  // worse than useless - the chip would hide the very word it exists to show.
+  // The 3x5 font has no arrow glyph (checked, not assumed: FONT_SMALL in
+  // font.js is 58 characters and every one of them is on this line's budget),
+  // so the mark is a colon and the pixels go to the word that carries meaning.
+  chip(R.csort, ":" + rosterSortName(), rosterSort > 0);
+  chip(R.cfilt, rosterFilterName(), rosterFilter > 0);
   chip(R.cprev, "<", false); chip(R.cnext, ">", false);
-  smallText(ctx, list.length + " CRABS", x + 134, y + 35, [110, 100, 110]);
-  smallText(ctx, (censusPage + 1) + "/" + pages, x + 187, y + 35, [90, 60, 40]);
-  for (let i = 0; i < CENSUS_ROWS; i++) {
-    const c = list[censusPage * CENSUS_ROWS + i];
-    if (!c) break;
-    const p = c.p, r = R.crows[i], ry = r.y;
-    if (i % 2 === 0) rect(ctx, r.x, ry, r.w, 15, [244, 238, 224]);
-    // a chunky little shell in their own colors: the row's portrait
-    const pal = CRAB_COLORS[p.color] || CRAB_COLORS[0];
-    rect(ctx, r.x + 2, ry + 4, 8, 7, pal[1]);
-    rect(ctx, r.x + 3, ry + 5, 6, 5, pal[0]);
-    px(ctx, r.x + 4, ry + 6, [255, 255, 255]); px(ctx, r.x + 7, ry + 6, [255, 255, 255]);
-    px(ctx, r.x + 4, ry + 7, [30, 20, 36]); px(ctx, r.x + 7, ry + 7, [30, 20, 36]);
-    // line 1: who they are, who they work for, what they're worth, how they are
-    smallText(ctx, p.name.slice(0, 9), r.x + 12, ry + 1, [40, 30, 40]);
-    const jobTag = p.job === "fishing" ? "PIER" : BIZ[p.job].short;
-    const boss = p.owner ? "OWNER" : p.job === "fishing" ? "SELF"
-      : p.employer ? ownerName(p.employer) : "YOU";
-    smallText(ctx, jobTag + "/" + boss, r.x + 52, ry + 1, [70, 90, 130]);
-    const wTxt = "$" + fmt(Math.max(0, Math.round(p.wallet)));
-    smallText(ctx, wTxt, r.x + 136 - smallTextWidth(wTxt), ry + 1, p.wallet < 12 ? [190, 80, 80] : [140, 110, 40]);
-    smallText(ctx, homeTag(p), r.x + 140, ry + 1, p.homeless ? [190, 80, 80] : p.boat != null ? [70, 140, 200] : [40, 150, 70]);
-    const hp = p.sick ? "SICK D" + ((p.sick.days || 0) + 1) : offToday(c) ? "DAY OFF" : "WELL";
-    smallText(ctx, hp, r.x + 164, ry + 1, p.sick ? [190, 80, 80] : offToday(c) ? [70, 140, 200] : [40, 150, 70]);
-    // line 2: when they work, how hard, and the five needs at a glance
-    const otM = otMinutes(c);
-    smallText(ctx, (coveringToday(c) ? "CVR " : "") + (p.job === "fishing" ? baseShift(c).label : effShift(c).label),
-      r.x + 12, ry + 8, otM ? [200, 110, 40] : [110, 100, 110]);
-    smallText(ctx, WEEKDAYS[dayOffIdx(c)], r.x + 50, ry + 8, [70, 140, 200]);
-    if (otM) smallText(ctx, "OT", r.x + 66, ry + 8, [255, 150, 40]);
-    const eff = crabEffQ12(c) / 4096 * (p.sick ? 0.5 : 1);
-    smallText(ctx, Math.round(eff * 100) + "%", r.x + 78, ry + 8, eff < 0.8 ? [190, 80, 80] : eff < 0.995 ? [200, 110, 40] : [110, 100, 110]);
-    const bars = [1 - (p.hunger || 0) / Q20, 1 - (p.thirst || 0) / Q20, 1 - (p.dirt || 0) / Q20,
-      1 - (p.bored || 0) / Q20, 1 - (p.tired || 0) / Q20];
-    for (let bi = 0; bi < bars.length; bi++) {
-      const bx = r.x + 156 + bi * 10, f = Math.max(0, Math.min(1, bars[bi]));
-      rect(ctx, bx, ry + 8, 9, 4, [30, 20, 36]);
-      rect(ctx, bx + 1, ry + 9, Math.round(7 * f), 2, f > 0.5 ? [96, 200, 120] : f > 0.25 ? [235, 200, 90] : [235, 90, 90]);
-    }
+  smallText(ctx, list.length + " " + B.unit, x + 134, y + 35, [110, 100, 110]);
+  smallText(ctx, (rosterPage + 1) + "/" + pages, x + 187, y + 35, [90, 60, 40]);
+  for (let i = 0; i < ROSTER_ROWS; i++) {
+    const o = list[rosterPage * ROSTER_ROWS + i];
+    if (!o) break;
+    const r = R.crows[i];
+    if (i % 2 === 0) rect(ctx, r.x, r.y, r.w, 15, [244, 238, 224]);
+    B.row(o, r);
+  }
+  // AN EMPTY BOOK SAYS WHY, rather than showing a blank card and letting the
+  // player wonder whether it is broken. A town before the first sailing has no
+  // guests at all; a filter can also empty a book that is not empty.
+  if (!list.length) {
+    const why = rosterFilter > 0 ? "NOBODY MATCHES " + rosterFilterName()
+      : rosterBook === "VISITORS" ? "NOBODY ASHORE - THE FERRY BRINGS THEM"
+      : "NOBODY IN TOWN YET";
+    smallText(ctx, why, x + 8, y + 56, [150, 140, 160]);
   }
   smallText(ctx, "TAP A ROW", x + 6, y + h2 - 11, [150, 140, 160]);
-  smallText(ctx, "FED SIP CLN FUN ZZZ", x + 52, y + h2 - 11, [150, 140, 160]);
+  smallText(ctx, B.legend, x + 52, y + h2 - 11, [150, 140, 160]);
+  // THE MONEY LINE, visitors only: what is ashore unspent against what the
+  // town has already taken today. This is the number PLAN's visitor pass
+  // measured and the player was never shown while it still mattered.
+  if (rosterBook === "VISITORS") {
+    const t = visPurseTotals();
+    smallText(ctx, "ASHORE $" + fmt(t.held), x + 116, y + h2 - 11, [140, 110, 40]);
+    smallText(ctx, "TOOK $" + fmt(t.spent), x + 172, y + h2 - 11, [40, 150, 70]);
+  }
 }
 
 // The ledger used to spell every row out - "WATER  186 / 1864 GAL AT $1" - and
@@ -20880,6 +21107,13 @@ const HELP_PAGES = [
     ["-"],
     ["h", "TOWN"],
     ["t", "EVERY CRAB IN TOWN. TAP A ROW TO READ ONE."],
+    ["-"],
+    // The guests are half of "who is here" and the money half at that, so the
+    // chip that opens them gets named on the same page as the one that opens
+    // the crabs - the two books are one card and the help says so.
+    ["h", "GUESTS"],
+    ["t", "EVERYBODY ASHORE OFF THE FERRY: WHAT THEY HAVE"],
+    ["t", "LEFT TO SPEND AND WHEN THEIR BOAT GOES HOME."],
     ["-"],
     ["h", "THE SHOP TAB"],
     ["t", "TAP A BUTTON ONCE TO SEE WHAT IT DOES AND WHAT"],

@@ -735,6 +735,51 @@ vm — never fork game logic into tools/) and perf expectations live there.
   caches game files hard; only index.html gets a `?t=` bust.
 
 ## Gameplay features (recent)
+- **THE VISITORS BOOK** (Matt, 2026-08-25: *"need a nice view of all tourists
+  like we have for other kinds of citizens, button on main screen i would
+  think"* — then, on the first draft: *"unless there's an opportunity to
+  refactor things into a more symmetrical shape"*. There was.)
+  - **Two books, one mechanism.** The first draft was a second copy of the
+    census: its own sorts, filters, pager arithmetic, page-clamp and six-row
+    loop. Instead a ROSTER is now **data** — `ROSTERS` in game.js declares who
+    is in a book (`list`), how it filters (`keep`), how it sorts (`rank`), and
+    how a row paints (`row`) — and there is exactly ONE `rosterList()`, one
+    pager, one hit test and one chip row serving both. A third register later
+    is a table entry, not another 60 lines. What is deliberately NOT shared is
+    the row painter: a crab has a job, a rota and a house; a guest has a purse,
+    a boat home and a stay, and one column schema would flatten both into the
+    intersection. Shared frame, per-book row — that is the seam that holds.
+  - **The census is behaviourally unchanged**, and its scenario proves it: the
+    same assertions pass under the new names, untouched except for renames.
+  - **The button** is a third nav chip (GUESTS, under MANAGE/TOWN). `NAV_CHIPS`
+    made the chip column a table too, so draw, hit test and geometry walk one
+    list. Measured for both canvas modes: the column runs y199..236 at H=240
+    and y205..242 at H=288, and the crew tiles stop at x212 against a chip
+    column starting at x214.
+  - **Sorts** NAME/PURSE/SPENT/LEAVING/NEED; **filters** are the actionable
+    ones rather than a taxonomy — SPENDING (money the town can still earn),
+    ROUGH (the guest the hotel failed), SAILING (on the next boat, i.e. your
+    last chance), UNHAPPY. The footer carries `ASHORE $x / TOOK $y` live: this
+    is the half-a-purse number the visitor pass measured (avg spend $29 of an
+    ~$85 purse) and the player could previously only see at 20:00, on the way
+    out. Suite 380→382.
+  - **TWO BUGS THE TESTS COULD NOT SEE, both caught by photographing the card
+    through the game's own renderer** (`mcp/render.mjs`) — worth the habit:
+    - The filter chip was 52px ending at x+166 and the count line prints at
+      x+134, so `10 ASHORE` was drawn straight through it. The off-canvas sweep
+      passed: nothing left the CANVAS, it just overlapped. Chips are now
+      measured to fit the 128px before the count (6+40 / 48+42 / 92+40).
+    - **Every purse read `$0` or `$1`.** `fmt()` already takes cents and prints
+      dollars; the draft wrapped `$d()` around it and divided by 100 twice, so
+      a guest carrying $68 printed `$1`. **Every sort assertion still passed —
+      a monotonic bug preserves ordering perfectly.** The regression test now
+      asserts the printed STRING, not the order. Generalise: a test over
+      derived ordering cannot see a bug in the derivation that is monotonic.
+    - Also fixed pre-photo: `blitPersonaIn` centers art in the frame you give
+      it but does NOT clip to it, and a crab is 16x12 against a 10px row
+      column, so guests printed their legs through their own names. The row
+      uses the census's 8x7 shell idiom instead, with a gold corner pixel
+      marking a foreign guest.
 - **THE FLICKERING HOTEL** (owner report, 2026-08-19, verbatim: *"some kind of
   crazy flashing happens at night at the hotel, where if I click on a crab the
   character panel and the crab flicker like crazy"*). `updateVisitor()` had a
