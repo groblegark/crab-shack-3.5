@@ -330,6 +330,36 @@ compounds or collapses → the landlord collects at 20:00 either way.
   shopfront — see the visitor entry). (SUDS N BUBBLES, the $400 laundromat,
   was removed 2026-08-18 — see the shipped note below.) Each: stations,
   recipes, queue, rent, owner.
+- **THE ARCADE IS AN OCCUPANCY, NOT A KITCHEN** (2026-08-26): the CLAWCADE
+  used to be modelled as a shack — `clawgame` was `[["claw", 3.5, "plush"]]`,
+  so a STAFF crab worked the claw machine like a grill and handed a plush over
+  the prize counter while the customer queued, was handed an item, and left.
+  **Nobody ever played anything.** The defect was a fall-through: the serve
+  dispatch branches on whether a business declares `lodging`, `stalls` or
+  `tables` and names no business, and the arcade declared none of the three,
+  so a crab paid for a game and walked straight back out the door. Now the
+  machines are **`stalls`** — furniture a CUSTOMER occupies for `playT`
+  seconds and leaves DIRTY — which is the shower stalls' cycle one furniture
+  type over, the same argument the hotel's rooms are built on. What the shop
+  SELLS is a token, one step, at the booth. The queue, patience, every abort
+  path and the whole housekeeping dispatch came free, and
+  `HIRE_DUTY.arcade` ("MINDS THE FLOOR AT") is true for the first time.
+  CADE GEAR+ became a FURNITURE upgrade (`setArcadeFloor`, rebuilt from a
+  count like the hotel annexe) because "more machines" now has to mean
+  cabinets a customer can stand at. Arm-off hatch: **`--noplay`** (counter
+  service, no occupancy) for attributing the floor's throughput cost.
+  **THE TRAP, and it is worth knowing before touching any occupancy:** the
+  arcade has its OWN three states (`toMachine`/`waitMachine`/`playing`)
+  rather than reusing `toStall`/`showering`, because those four ARE in
+  `KCUST_STATES` and therefore dispatched by the **compiled wasm kernel**,
+  whose occupancy exit hard-codes the shower — it subtracts a scrub from the
+  visitor DIRT plane with *both* branches nonzero, so no argument JS can pass
+  means "this was not a wash", and a tourist would have walked out of a claw
+  machine cleaner. `VS_NAMES` is append-only (`abi_check` pins the four codes
+  `kernel.c` hard-codes and throws if they move); the arcade's states are
+  appended past `leaving` and absent from `KCUST_STATES`, so its occupancy is
+  the JS chain's alone on both backends **by construction**. Pinned by a
+  mutation-tested scenario that fails the moment they enter the table.
 - **VISITORS, and the ferry that brings them** (2026-08-19): tourist demand is
   a POPULATION, not a timer. Named visitors land in ferry batches (four
   sailings a day, batch size off reputation), walk down the pier into town,
