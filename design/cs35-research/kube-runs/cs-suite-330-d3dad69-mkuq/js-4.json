@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-d3dad69-mkuq",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "d3dad6930ee7da26b34e090235b4186c2d4afe95",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 392584,
+  "verdict": "36/36 passed in slice 4/12 (392.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (2819ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1341ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (18ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1362ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1317ms)\n  PASS  tired: the morning and evening shifts end the week level (78962ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (718ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (13612ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (54ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (56ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (26259ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (2065ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (882ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (230895ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (5678ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1701ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (14ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (10ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (112ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (813ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1538ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (17ms)\n  PASS  a refusal waits for a tap where a 404 skips on (14ms)\n  PASS  missing payday costs the crew, not the lease (7144ms)\n  PASS  crab-as-document: a hostile document is refused by name (15ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (7352ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (38ms)\n  PASS  toast: a message longer than the card CRAWLS, and every character reaches the screen (101ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (1942ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (371ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2054ms)\n  PASS  the title screen ages the build, and keeps ticking (9ms)\n  PASS  load: the same envelope lands the same way however often you land it (1496ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1503ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (8ms)\n  PASS  spend reserve: a housed crab keeps tonight's rent back, by temperament (188ms)\n36/36 passed in slice 4/12 (392.5s)\n"
+}
