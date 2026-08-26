@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-95f0ba0-wipe",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "95f0ba0d75b2f91f5edd15d37ef35287cd17e04d",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 142827,
+  "verdict": "34/34 passed in slice 11/12 (142.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1447ms)\n  PASS  sick crabs can still wash (mobility + cure path) (915ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (304ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1086ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (15ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (13ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (5632ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1124ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (32901ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (4813ms)\n  PASS  ferry: the arming tap times out, and an old save never won (38ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (15ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (9901ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (5769ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (21191ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2306ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1405ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1870ms)\n  PASS  the HALL tab's text is measured, in every state it has (5408ms)\n  PASS  the shack says where the money comes from, and only your shops do (907ms)\n  PASS  the music controls answer from outside the record box (24ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (4013ms)\n  PASS  traits: the island's table is the literal, value for value (9ms)\n  PASS  depart programs: a hostile table is refused by name (14ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (33227ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (27ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (19ms)\n  PASS  foodways: the validator names its refusals (11ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1270ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (12ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (2007ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (356ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (44ms)\n  PASS  the arcade: the chore is named for the shop it happens in (4630ms)\n34/34 passed in slice 11/12 (142.7s)\n"
+}
