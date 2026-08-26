@@ -11976,17 +11976,26 @@ scenario("only one track is ever audible at once", () => {
   for (const [k, v] of Object.entries(rot))
     if (v !== 1) return `rotation: ${v} tracks audible after "${k}", want exactly 1`;
   // AND THE BENCH TAKES THE SPEAKERS CLEANLY. The record box interrupts the
-  // rotation while it is up; the failure mode is the rotation restarting
+  // rotation when it AUDITIONS; the failure mode is the rotation restarting
   // underneath an audition, which is the same "two tracks" complaint wearing a
   // different hat.
+  //
+  // WHAT CHANGED HERE, 2026-08-26: this used to assert `openStopsRotation === 0`
+  // - the box claimed the speakers by EXISTING. Matt: "opening the music box
+  // shouldn't stop the music from playing", so the box now takes them on the
+  // first audition and not before. The invariant this scenario is FOR - never
+  // more than one track audible - is untouched and still checked at every step;
+  // only the moment of handover moved. (The browse-and-leave case has its own
+  // scenario: "an audition still owns the speakers, and BACK does not restart
+  // the town".)
   const bench = JSON.parse(sim.G(`(() => {
     const out = {};
     musicOn = true; muted = false;
     playTrack(0);
     musOpen();
-    out.openStopsRotation = liveCount();        // 0: the box owns the speakers
+    out.openKeepsRotation = liveCount();        // 1: browsing the list is not a claim on the speakers
     const list = musFiltered();
-    musPlay(list[0]);
+    musPlay(list[0], false);
     out.bench = liveCount();
     musAdvance(1); musAdvance(1);               // arrow-walking the list
     out.advance = liveCount();
@@ -12008,7 +12017,7 @@ scenario("only one track is ever audible at once", () => {
     out.close = liveCount();                    // and it is handed back on the way out
     return JSON.stringify(out);
   })()`));
-  if (bench.openStopsRotation !== 0) return `opening the box left ${bench.openStopsRotation} rotation tracks playing`;
+  if (bench.openKeepsRotation !== 1) return `opening the box left ${bench.openKeepsRotation} rotation tracks playing, want 1 - browsing the list must not silence the town`;
   for (const k of ["bench", "advance", "rotationHeldOff", "close"])
     if (bench[k] !== 1) return `bench: ${bench[k]} tracks audible after "${k}", want exactly 1`;
   if (!bench.endedAdvances) return "a bench track running out did not walk to the next row";
@@ -12237,10 +12246,22 @@ scenario("a dead <source> reaches musFail through the child's own listener", () 
   sim.G(AUDIO_SPY);
   const got = JSON.parse(sim.G(`(() => {
     const out = {};
-    // A KEPT CATALOG ROW whose mirror 404s, so the rotation falls through to the
+    // A CATALOG ROW whose mirror 404s, so the rotation falls through to the
     // absolute release url - which builds the <source> we want to kill.
-    MUSCAT = { tracks: [{ id: "d1", name: "DEAD", file: "dead.mp3", secs: 60, tags: "",
-                          url: "https://example.invalid/dead.mp3" }] };
+    //
+    // THE FIXTURE NEEDS A SECOND ROW, and that is a fact about musGiveUp rather
+    // than about this bug. The budget is min(4, ROTATION.length): when the
+    // rotation was PLAYLIST-plus-your-keeps a one-row fixture still inherited
+    // the 22 shipped rows and spent 4, and now that the rotation IS the catalog
+    // a one-row fixture has a budget of ONE - so musSkip's give-up fires on the
+    // first failure and the skip this scenario measures never happens. That
+    // would read as "the child listener is missing" (its own failure message)
+    // when the listener is fine, which is the most expensive kind of red.
+    MUSCAT = { tracks: [
+      { id: "d1", name: "DEAD", file: "dead.mp3", secs: 60, tags: "",
+        url: "https://example.invalid/dead.mp3" },
+      { id: "d2", name: "ALIVE", file: "alive.mp3", secs: 60, tags: "", url: "" },
+    ] };
     musJudge = { d1: { k: 1, e: 1 } };
     rebuildRotation();
     musicOn = true; muted = false; musicView = false; ARCHIVE_OK = null; musFails = 0;
@@ -12591,6 +12612,290 @@ scenario("the record box scrolls without the drag thumb", () => {
   if (got.up !== 3) return `scrolling back up 2 landed at ${got.up}, want 3`;
   if (got.clampLow !== 0) return `scrolling past the top landed at ${got.clampLow}, want 0`;
   if (got.clampHigh !== got.maxWant) return `scrolling past the end landed at ${got.clampHigh}, want ${got.maxWant}`;
+  return true;
+});
+
+// ============================== THE MUSIC BOX IS THE PLAYLIST (Matt, 2026-08-26)
+// Four asks in one message, and the first three are one change of shape:
+//   "opening the music box shouldn't stop the music from playing"
+//   "once the selected song is done playing the next one in the music box
+//    should play, and then the next"
+//   "we should forget about the old playlist of just a few songs and expand"
+// The box used to be a VETTING BENCH feeding a 22-track rotation: it claimed the
+// speakers by existing, the rotation re-shuffled at every track boundary, and a
+// catalog track was inaudible until you personally tapped KEEP on it. It is a
+// jukebox now - the rotation IS the box's list, in the box's order, minus only
+// what you dropped.
+scenario("the box does not stop the music, and a finished track walks to the next row", () => {
+  const sim = createSim({ seed: 23 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // Four catalog rows, none of them judged. Under the old rule NONE of these
+    // would be in the rotation at all.
+    MUSCAT = { tracks: [0, 1, 2, 3].map(i =>
+      ({ id: "q" + i, name: "SONG " + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+
+    // 1. EXPANDED: every unjudged catalog row is audible, no KEEP required.
+    out.rotationN = ROTATION.length;
+    out.keptN = musPool().filter(t => musState(t) === 1).length;
+
+    // 2. OPENING THE BOX LEAVES THE MUSIC ALONE. This is the whole first ask,
+    //    and the old musOpen paused the element and nulled the handle.
+    playTrack(1);
+    const src = theSpeaker().src;
+    musOpen();
+    out.openKeptPlaying = liveCount();
+    out.openKeptHandle = music ? 1 : 0;
+    out.openKeptPlayhead = theSpeaker().src === src ? 1 : 0;
+    // ...and the box scrolls to what you can hear rather than to row 0.
+    out.openShowedNowPlaying = musTop === 0 ? 1 : 0;   // 4 rows, one page: row 0 IS the window
+
+    // 3. A TRACK RUNNING OUT WALKS TO THE NEXT ROW, and then the next - even
+    //    with the box open, which used to be a hard stop (\`!musicView\`).
+    const walk = [];
+    for (let i = 0; i < 3; i++) { theSpeaker().fire("ended"); walk.push(trackIdx); }
+    out.walk = walk.join(",");
+    out.walkAudible = liveCount();
+
+    // ...and with the box SHUT, which is where a player actually hears it.
+    musClose();
+    playTrack(0);
+    const walk2 = [];
+    for (let i = 0; i < 4; i++) { theSpeaker().fire("ended"); walk2.push(trackIdx); }
+    out.walk2 = walk2.join(",");             // 1,2,3,0 - it wraps
+    return JSON.stringify(out);
+  })()`));
+  if (got.rotationN !== 4)
+    return `the rotation holds ${got.rotationN} of 4 unjudged catalog rows - the box is still an opt-in playlist`;
+  if (got.keptN !== 0) return "the expansion wrote KEEP judgements the player never made";
+  if (got.openKeptPlaying !== 1) return `opening the box left ${got.openKeptPlaying} tracks playing, want 1 - it still silences the town`;
+  if (!got.openKeptHandle) return "opening the box nulled the rotation handle, so nothing knows a track is playing";
+  if (!got.openKeptPlayhead) return "opening the box moved the playhead - the music must not even flinch";
+  if (!got.openShowedNowPlaying) return "the box did not scroll to the playing row";
+  if (got.walk !== "2,3,0") return `with the box open, three 'ended's walked ${got.walk}, want 2,3,0`;
+  if (got.walkAudible !== 1) return `walking the box left ${got.walkAudible} tracks audible, want 1`;
+  if (got.walk2 !== "1,2,3,0") return `with the box shut, four 'ended's walked ${got.walk2}, want 1,2,3,0`;
+  return true;
+});
+
+scenario("the walk steps over the moments and the dropped rows", () => {
+  // TWO THINGS THE SEQUENTIAL WALK MUST NOT DO. The title theme and the ending
+  // sting are MOMENTS, not rotation - a jukebox that walks into thirty-one
+  // seconds of "here is how it went" is broken - and a track you DROPPED must
+  // stay dropped, which is the one power the box kept once KEEP stopped being
+  // the gate on being heard.
+  const sim = createSim({ seed: 29 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // The role is carried across by FILE, not by name: the catalog spells the
+    // title theme "BEACH VOLLEYBALL START SCREEN" where PLAYLIST says "BEACH
+    // VOLLEYBALL", so a name match would lose it.
+    MUSCAT = { tracks: [
+      { id: "m0", name: "ONE", file: "one.mp3", secs: 30, tags: "", url: "" },
+      { id: "m1", name: "BEACH VOLLEYBALL START SCREEN", secs: 30, tags: "", url: "",
+        shipped: 1, file: "music/beach-volleyball-start-screen.mp3" },
+      { id: "m2", name: "DROPPED ONE", file: "two.mp3", secs: 30, tags: "", url: "" },
+      { id: "m3", name: "TWO", file: "three.mp3", secs: 30, tags: "", url: "" },
+    ] };
+    musJudge = { m2: { k: 0 } };            // dropped
+    rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    out.names = ROTATION.map(r => r.name).join("|");
+    out.roleFound = roleTrack("title") >= 0 ? 1 : 0;
+
+    // The walk from ONE must reach TWO, stepping over both the moment and the
+    // drop - and it must never SOUND the moment on the way past.
+    const at = ROTATION.findIndex(r => r.name === "ONE");
+    playTrack(at);
+    theSpeaker().fire("ended");
+    out.landedOn = ROTATION[trackIdx].name;
+    // ...and the arrow keys agree with it: shift+right is the same walk.
+    playTrack(at);
+    musStep(1);
+    out.stepLandedOn = ROTATION[trackIdx].name;
+    // The title screen can still reach its own theme by NAME - skipping it in
+    // the walk must not make it unreachable.
+    playRole("title");
+    out.roleStillPlays = ROTATION[trackIdx].role === "title" ? 1 : 0;
+    return JSON.stringify(out);
+  })()`));
+  if (got.names !== "ONE|BEACH VOLLEYBALL START SCREEN|TWO")
+    return `the rotation is ${got.names} - a dropped row is still audible, or a moment was evicted`;
+  if (!got.roleFound) return "the title theme lost its role crossing into the catalog rotation - the start screen goes silent";
+  if (got.landedOn !== "TWO") return `a finished track landed on ${got.landedOn}, want TWO - the walk did not step over the moment`;
+  if (got.stepLandedOn !== "TWO") return `shift+right landed on ${got.stepLandedOn}, want TWO`;
+  if (!got.roleStillPlays) return "playRole could not reach the title theme after the walk learned to skip it";
+  return true;
+});
+
+scenario("an audition still owns the speakers, and BACK does not restart the town", () => {
+  // THE OTHER HALF OF "the box doesn't stop the music". Ownership moved from
+  // "the box is open" to "something is auditioning" - so the bench must still
+  // take the speakers cleanly when you tap a row, and BACK must NOT restart a
+  // rotation it never stopped.
+  const sim = createSim({ seed: 31 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [0, 1, 2].map(i =>
+      ({ id: "b" + i, name: "B" + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    playTrack(0);
+    musOpen();
+    // A ROW TAKES OVER: one track audible, and it is the bench's.
+    musPlay(musFiltered()[2], false);
+    out.benchOwns = musPreviewId === "b2" ? 1 : 0;
+    out.benchAudible = liveCount();
+    out.rotationYielded = music ? 0 : 1;
+    // The rotation must not sneak back in underneath it.
+    startMusic();
+    out.stillOne = liveCount();
+    // BACK hands the audition to the town, playhead intact (the old contract).
+    const src = theSpeaker().src;
+    musClose();
+    out.handedOver = ROTATION[trackIdx].name === "B2" ? 1 : 0;
+    out.sameSrc = theSpeaker().src === src ? 1 : 0;
+    out.afterBack = liveCount();
+
+    // AND THE CASE THE NEW musOpen CREATED: open the box, touch nothing, hit
+    // BACK. The music was never stopped, so BACK must not restart it - a
+    // restart mid-bar is exactly the flinch this whole change is about.
+    playTrack(1);
+    const src2 = theSpeaker().src, gen2 = musGen;
+    musOpen(); musClose();
+    out.browseKeptPlayhead = theSpeaker().src === src2 && musGen === gen2 ? 1 : 0;
+    out.browseAudible = liveCount();
+
+    // ...and a box opened over SILENCE still hands the speakers back on the way
+    // out, which is what startMusicTapped is for.
+    musGen++; if (music) { music.pause(); music = null; }
+    musArm();
+    musOpen(); musClose();
+    out.silentBoxStarted = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (!got.benchOwns) return "tapping a row did not start the audition";
+  if (got.benchAudible !== 1) return `an audition left ${got.benchAudible} tracks audible, want 1 - the rotation is playing underneath it`;
+  if (!got.rotationYielded) return "the rotation kept its handle while the bench played - two owners of one speaker";
+  if (got.stillOne !== 1) return `the rotation restarted under an audition (${got.stillOne} audible)`;
+  if (!got.handedOver) return "BACK did not hand the audition to the rotation";
+  if (!got.sameSrc) return "the handover restarted the audio instead of keeping the playhead";
+  if (got.afterBack !== 1) return `${got.afterBack} tracks audible after BACK, want 1`;
+  if (!got.browseKeptPlayhead) return "opening and closing the box without touching a row restarted the track - browsing must not flinch the music";
+  if (got.browseAudible !== 1) return `browsing the box left ${got.browseAudible} tracks audible, want 1`;
+  if (got.silentBoxStarted !== 1) return `a box opened over silence and shut left ${got.silentBoxStarted} playing, want 1 - BACK is a gesture`;
+  return true;
+});
+
+scenario("the now-playing ticker names what is audible and scrolls only when it must", () => {
+  // Matt: "need a tiny scrolling ticker w song name in bottom left corner". With
+  // 1,201 tracks in the rotation "what IS this?" is a real question, and the only
+  // answers before this were a 4-second toast and opening the box.
+  const sim = createSim({ seed: 37 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [
+      { id: "k1", name: "SHORT", file: "a.mp3", secs: 30, tags: "", url: "" },
+      { id: "k2", name: "A VERY LONG SONG TITLE THAT CANNOT FIT", file: "b.mp3", secs: 30, tags: "", url: "" },
+    ] };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    out.fits = musTickFits();
+
+    // A NAME THAT FITS DOES NOT MOVE - a ticker that scrolls "BUTTER POW" for
+    // no reason is a twitch, not a readout.
+    out.shortAt0 = musTickWindow("SHORT", 0);
+    out.shortLater = musTickWindow("SHORT", 9);
+
+    // A LONG ONE CRAWLS, one window-width at a time, and LOOPS rather than
+    // stopping at the end: the name stays true until the track changes.
+    const w0 = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", 0);
+    const w1 = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", 1);
+    out.longMoves = w0 !== w1 ? 1 : 0;
+    out.longWidth = w0.length === out.fits && w1.length === out.fits ? 1 : 0;
+    out.startsAtTheStart = w0 === "A VERY LONG SONG T".slice(0, out.fits) ? 1 : 0;
+    // ...and it comes back round rather than parking on the tail.
+    const loopLen = "A VERY LONG SONG TITLE THAT CANNOT FIT".length + 7;   // + MUS_TICK_GAP
+    out.loops = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", loopLen / 4) === w0 ? 1 : 0;
+
+    // IT NAMES WHAT IS AUDIBLE: the rotation's track, then the bench's when the
+    // bench takes over, and NOTHING when nothing is playing.
+    musGen++; if (music) { music.pause(); music = null; }
+    out.silentName = musTickName();
+    playTrack(0);
+    out.rotName = musTickName();
+    musOpen();
+    musPlay(musFiltered()[1], false);
+    out.benchName = musTickName();
+    // The box is a full-screen surface: the ticker under it would be painted
+    // over anyway, and claiming otherwise is how HUD elements rot.
+    out.hiddenBehindBox = musTickLive() ? 0 : 1;
+    return JSON.stringify(out);
+  })()`));
+  if (!(got.fits >= 12 && got.fits <= 24)) return `the ticker window is ${got.fits} characters - too ${got.fits < 12 ? "narrow to read" : "wide for a corner"}`;
+  if (got.shortAt0 !== "SHORT" || got.shortLater !== "SHORT")
+    return `a short name moved (${got.shortAt0} -> ${got.shortLater}) - it fits and must hold still`;
+  if (!got.longMoves) return "a long name did not crawl";
+  if (!got.longWidth) return "the crawl changed the window width - the strip would strobe";
+  if (!got.startsAtTheStart) return "the crawl did not begin at the start of the name";
+  if (!got.loops) return "the crawl did not come back round - it parks on the tail forever";
+  if (got.silentName !== "") return `the ticker named "${got.silentName}" with nothing playing`;
+  if (got.rotName !== "SHORT") return `the ticker named ${got.rotName} while the rotation played SHORT`;
+  if (got.benchName !== "A VERY LONG SONG TITLE THAT CANNOT FIT") return `the ticker named ${got.benchName} while the bench auditioned another row`;
+  if (!got.hiddenBehindBox) return "the ticker claims to be live under the record box, which paints over it";
+  return true;
+});
+
+scenario("the shipped catalog builds a rotation of every track, with its moments intact", () => {
+  // THE REAL FILES, not a fixture. This is the build a player gets: 1,201
+  // catalog rows, 22 of them stamped same-origin by the shipmap, two of those
+  // stamped rows carrying a ROLE. The failure it guards is silent and total -
+  // a role lost in the crossing means the title screen goes quiet and a win
+  // sting turns up on a Tuesday - and it can only be caught against the shipped
+  // pair, because the catalog and PLAYLIST disagree about five of the titles.
+  const cat = JSON.parse(readFileSync(new URL("../music/catalog.json", import.meta.url), "utf8"));
+  const map = JSON.parse(readFileSync(new URL("../music/shipmap.json", import.meta.url), "utf8"));
+  const sim = createSim({ seed: 41 });
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = ${JSON.stringify({ tracks: cat.tracks })};
+    musJudge = {};
+    out.stamped = musApplyShipmap(${JSON.stringify(map)});
+    rebuildRotation();
+    out.pool = musPool().length;
+    out.rotation = ROTATION.length;
+    out.roles = ROTATION.filter(r => r.role).map(r => r.role).sort().join(",");
+    out.title = roleTrack("title");
+    out.end = roleTrack("end");
+    // ENERGY: every row must carry one, or targetEnergy has nothing to match.
+    out.noEnergy = ROTATION.filter(r => r.e == null).length;
+    const spread = { 0: 0, 1: 0, 2: 0 };
+    for (const r of ROTATION) spread[r.e] = (spread[r.e] || 0) + 1;
+    out.spread = spread;
+    // A hand-tagged shipped track keeps ITS energy, not the tag guess - and
+    // these are the rows whose catalog title differs from PLAYLIST's, which is
+    // the lookup that used to fall through silently.
+    const dance = ROTATION.find(r => r.cat && r.cat.file === "music/dance-up.mp3");
+    out.danceE = dance ? dance.e : null;
+    return JSON.stringify(out);
+  })()`));
+  if (got.stamped !== 22) return `the shipmap stamped ${got.stamped} rows, want 22`;
+  if (got.rotation !== got.pool)
+    return `the rotation holds ${got.rotation} of ${got.pool} catalog rows - with nothing judged it must be the whole box`;
+  if (got.rotation < 1000) return `a ${got.rotation}-track rotation is not "expanded" - the catalog did not reach it`;
+  if (got.roles !== "end,title") return `the rotation carries roles [${got.roles}], want end,title - a moment was lost or duplicated crossing into the catalog`;
+  if (got.title < 0 || got.end < 0) return "roleTrack cannot find a moment in the catalog rotation";
+  if (got.noEnergy !== 0) return `${got.noEnergy} rotation rows carry no energy - targetEnergy has nothing to match them on`;
+  for (const e of [0, 1, 2])
+    if (!(got.spread[e] > 50))
+      return `only ${got.spread[e]} tracks at energy ${e} - the town has nothing to reach for at that hour`;
+  if (got.danceE !== 2) return `DANCE UP came through at energy ${got.danceE}, want its hand-tagged 2 - the shipped-row energy lookup is matching on a title the catalog spells differently`;
   return true;
 });
 
