@@ -8313,11 +8313,12 @@ scenario("the HALL tab draws, and nothing lands under anything else", () => {
     for (const tab of MANAGE_TABS) { manageTab = tab; t("draw " + tab, () => drawManage()); }
     manageTab = "HALL";
     for (const v of HALL_VIEWS) { hallView = v; t("HALL " + v, () => drawManage()); }
-    // ...and every page of the roll, including one past the end (the chip is
-    // the pager, so a stale hallRollPage after a smaller ballot is reachable)
+    // ...and the roll scrolled to every offset, INCLUDING one past the end: a
+    // smaller ballot after a big one leaves the stored offset beyond the new
+    // list, and hallWindow has to clamp it rather than draw a blank card.
     hallView = "ROLL";
-    for (hallRollPage = 0; hallRollPage < 4; hallRollPage++) t("HALL roll p" + hallRollPage, () => drawManage());
-    hallRollPage = 0;
+    for (let o = 0; o < 4; o++) { HALL_SCROLL.ROLL = o * 8; t("HALL roll @" + HALL_SCROLL.ROLL, () => drawManage()); }
+    HALL_SCROLL.ROLL = 0;
     hall.poll = null;
     for (const v of HALL_VIEWS) { hallView = v; t("HALL " + v + ", no ballot yet", () => drawManage()); }
     hallView = "BOOKS";
@@ -8364,6 +8365,148 @@ scenario("the HALL tab draws, and nothing lands under anything else", () => {
     return JSON.stringify(e);
   })()`));
   return errs.length ? errs.join(" / ") : true;
+});
+
+scenario("the hall's lists scroll: every row of every one of them is reachable", () => {
+  // THE BUG THIS EXISTS FOR (Matt, 2026-08-26: "the whole political UX has
+  // displayed problems, maybe we need scrollable inner lists? Like we have in
+  // the music player"). Five of the six lists on the hall card truncated, and
+  // the worst of them lied about it: the ledger kept 48 rows, drew 4, and
+  // printed "+44 EARLIER" beside a control that did not exist. TRADE clipped
+  // PAPER with no indicator at all. The live ballot drew 4 of up to 6 while
+  // buildBallot PUSHES the player's own nominee last - so on a full ballot the
+  // clipped candidate was always yours.
+  //
+  // THE QUESTION A DRAW TEST CANNOT ASK: not "does it fit" but "can a player
+  // GET there". So this captures the actual strings each surface prints, walks
+  // the scroll the way a wheel does, and demands that the union of what was
+  // drawn covers every row the data holds. A `slice(0, 4)` passes every bounds
+  // sweep in this file and fails this.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(8, { tickEvery: 200, onTick: (G) => { if (G("coins") < 40000) G("coins = 90000"); } });
+  const out = JSON.parse(sim.G(`(() => {
+    const e = [];
+    const S = smallText;
+    let seen = [];
+    smallText = (c, str, x, y, col, sz) => { seen.push(String(str)); return S(c, str, x, y, col, sz); };
+    // WALK THE WHOLE LIST the way the wheel does - draw, collect, scroll one,
+    // repeat - and stop when the offset stops moving, which is how a real
+    // gesture finds the bottom. A cap of 200 so a clamp bug is a failure and
+    // not a hang.
+    const sweep = (view) => {
+      hallView = view; HALL_SCROLL[view] = 0; seen = [];
+      let last = -1, guard = 0;
+      while (HALL_SCROLL[view] !== last && guard++ < 200) {
+        last = HALL_SCROLL[view];
+        drawManage();
+        hallScroll(1);
+      }
+      return seen.join(" | ");
+    };
+    manage = "shack"; manageTab = "HALL";
+    // EVERY MARKER NAME BELOW IS MEASURED TO FIT ITS COLUMN, because the card
+    // trims by width (fitSmall) and a marker wider than its budget comes back
+    // truncated - which reads exactly like the row was never drawn. The first
+    // cut of this scenario used "THE VERY FIRST PAYER" in a 57px column and
+    // reported six phantom failures against a working scroll.
+    const fits = (s, w, where) => { if (smallTextWidth(s) > w) e.push("MARKER " + s + " overruns " + where); return s; };
+    // ---- 1. THE LEDGER. 48 rows kept; a distinctive payer in the OLDEST one,
+    // which is the row that was 44 deep and unreachable from anywhere. The who
+    // column is 116-44 minus the amount and a gap = 57px at these amounts.
+    townFund.ledger.length = 0;
+    fundRow("take", 3, fits("FIRST PAYER", 57, "the ledger"), "OLDEST ROW");
+    for (let i = 0; i < 30; i++) fundRow("take", 3, "FILLER " + i, "PADDING");
+    fundRow("pay", 3, fits("LAST PAYER", 57, "the ledger"), "NEWEST ROW");
+    const books = sweep("BOOKS");
+    if (books.indexOf("LAST PAYER") < 0) e.push("the ledger never showed its NEWEST row");
+    if (books.indexOf("FIRST PAYER") < 0) e.push("the ledger never reached its OLDEST row");
+    // ...and the newest row is on the FIRST page, not down a 32-row scroll:
+    // a fund's latest movement is what you open the books to see.
+    HALL_SCROLL.BOOKS = 0; hallView = "BOOKS"; seen = []; drawManage();
+    if (seen.join(" | ").indexOf("LAST PAYER") < 0)
+      e.push("the ledger's newest row was not on the first page");
+    // ---- 2. TRADE. Six goods, and PAPER was the one silently dropped.
+    const trades = sweep("TRADE");
+    for (const k of Object.keys(IMPORTS))
+      if (trades.indexOf(IMPORTS[k].name) < 0) e.push("TRADE never showed " + k);
+    // ---- 3. THE LIVE BALLOT, with the player's nominee pushed last exactly as
+    // buildBallot does it. SIX candidates: four drawn, and it used to be the
+    // player's own that fell off.
+    // The live rows carry a "* " or "  " prefix and the player's also " (YOURS)",
+    // inside a 76px budget - so the markers are short and the prefix is measured.
+    const names = ["CAND1", "CAND2", "CAND3", "CAND4", "CAND5", "MYCRAB"];
+    for (const n of names) fits("* " + n + " (YOURS)", 76, "the live ballot");
+    ballotBox = { day, want: 9, roll: 9, counted: 0, countT: 0, declared: false, shut: false,
+      cands: names.map((n, i) => ({ name: n, plat: hall.plat, inc: i === 0, you: i === 5 })),
+      papers: 9, printed: 9, cast: [], voters: {}, lines: [], turnedAway: [], late: [] };
+    const live = sweep("BALLOT");
+    for (const n of names) if (live.indexOf(n) < 0) e.push("the live ballot never showed " + n);
+    ballotBox = null;
+    // ---- 4. THE RESULT, six candidates deep, and 24 roll lines behind it. Its
+    // name column is 46px and also carries the "* " winner mark.
+    const won = ["WIN1", "WIN2", "WIN3", "WIN4", "WIN5", "WIN6"];
+    for (const n of won) fits("* " + n, 46, "the result");
+    hall.poll = { day: 9, turnout: 6, roll: 6, away: 0, winner: "WIN1",
+      cands: won.map((n, i) => ({ name: n, votes: 9 - i, line: "RAN ON SOMETHING" })),
+      lines: Array.from({ length: 24 }, (_, i) => "VOTER " + i + " HAD A REASON") };
+    const res = sweep("BALLOT");
+    for (const k of hall.poll.cands) if (res.indexOf(k.name) < 0) e.push("the result never showed " + k.name);
+    // ---- 5. THE ROLL. 24 lines, 8 to a window.
+    const roll = sweep("ROLL");
+    for (const l of hall.poll.lines) if (roll.indexOf(l) < 0) e.push("the roll never reached " + l);
+    // ---- 6. AND IT CLAMPS. A stale offset from a big ballot must not blank a
+    // small one - the previous chip-pager left exactly this state reachable.
+    hall.poll.lines = ["THE ONLY LINE"];
+    HALL_SCROLL.ROLL = 99; hallView = "ROLL"; seen = []; drawManage();
+    if (seen.join(" | ").indexOf("THE ONLY LINE") < 0) e.push("a stale offset blanked a shortened roll");
+    if (HALL_SCROLL.ROLL !== 0) e.push("hallWindow did not clamp the stale offset, left " + HALL_SCROLL.ROLL);
+    // ---- 7. ...AND SCROLLING ONE SURFACE DOES NOT MOVE ANOTHER. Four
+    // readings, four places in them; the ledger must not walk when you read
+    // the roll.
+    HALL_SCROLL.BOOKS = 5; HALL_SCROLL.ROLL = 0;
+    hallView = "ROLL"; drawManage(); hallScroll(1);
+    if (HALL_SCROLL.BOOKS !== 5) e.push("scrolling the roll moved the ledger to " + HALL_SCROLL.BOOKS);
+    smallText = S; manage = null;
+    return JSON.stringify(e);
+  })()`));
+  return out.length ? out.join(" / ") : true;
+});
+
+scenario("the hall's rate dial reads in its unit, never as a step index", () => {
+  // A dial reads as the THING VOTED FOR, never as a step index - the card's own
+  // rule, stated beside the floor and cap dials and broken by the rate dial
+  // next to them, which printed "RATE 3" under a chip saying "TARIFF 50%".
+  // The tariff is where it shows: its ladder is 0/10/25/50/100, so the index
+  // bears no arithmetic relation at all to the number it stands for.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    const e = [], S = smallText;
+    let seen = [];
+    smallText = (c, str, x, y, col, sz) => { seen.push(String(str)); return S(c, str, x, y, col, sz); };
+    manage = "shack"; manageTab = "HALL"; hallView = "BOOKS";
+    for (const mech of PURSE_KEYS) {
+      for (let r = 0; r <= rateSteps(mech); r++) {
+        hall.plat = { mech: mech, rate: r, bowls: 2, wage: 0, cap: 0 };
+        seen = []; drawManage();
+        const want = purseRateTxt(hall.plat);
+        if (seen.indexOf(want) < 0) e.push(mech + " rate " + r + " never printed " + want);
+        if (seen.indexOf("RATE " + r) >= 0) e.push(mech + " rate " + r + " printed a raw step index");
+      }
+    }
+    // ...and the TRADE page names BOTH numbers when they differ, because the
+    // dials write the PLATFORM and that page used to read only the live POLICY:
+    // a candidate who had just set TARIFF 50% read "NO TARIFF" above their own
+    // tariff dial and could only conclude the dial was broken.
+    hall.policy = { mech: "levy", rate: 2, bowls: 2, wage: 0, cap: 0 };
+    hall.plat = { mech: "tariff", rate: 3, bowls: 2, wage: 0, cap: 0 };
+    hallView = "TRADE"; seen = []; drawManage();
+    const t = seen.join(" | ");
+    if (t.indexOf("50%") < 0) e.push("TRADE never named the platform's own tariff rate");
+    smallText = S; manage = null;
+    return JSON.stringify(e);
+  })()`));
+  return out.length ? out.join(" / ") : true;
 });
 
 scenario("the town hall survives a save and a reload, ledger and all", () => {
@@ -10246,10 +10389,15 @@ scenario("the HALL tab's text is measured, in every state it has", () => {
     run("as-played", () => {});
     run("no-ballot-yet", () => { hall.poll = null; });
     run("full-ledger", () => { for (let i = 0; i < 16; i++) fundRow("take", 3, "PLANKTON PETE", "RENT CUT"); });
-    // A STALE PAGER is reachable: the chip pages the roll, and a later, smaller
-    // ballot leaves hallRollPage past the end of it.
-    run("roll-page-past-end", () => { hallRollPage = 3; });
-    hallRollPage = 0;
+    // A STALE OFFSET is reachable: a later, smaller ballot leaves the stored
+    // scroll past the end of the new list, on every surface at once.
+    run("scrolled-past-end", () => { for (const v of HALL_VIEWS) HALL_SCROLL[v] = 99; });
+    for (const v of HALL_VIEWS) HALL_SCROLL[v] = 0;
+    // ...AND SCROLLED HALFWAY, which is the state a player is actually in and
+    // the one no bounds pass had ever drawn: a window with rows above AND below
+    // it, so every list's LAST drawn row has to stop clear of the strip below.
+    run("scrolled-mid", () => { for (const v of HALL_VIEWS) HALL_SCROLL[v] = 2; });
+    for (const v of HALL_VIEWS) HALL_SCROLL[v] = 0;
     run("standing", () => { hall.stand = true; hall.nominee = crabs[0].p.name; });
     // IN OFFICE is a different card: the purse chip lights, the STAND chip
     // reads IN OFFICE, and the status line gains a clause about billing you.
