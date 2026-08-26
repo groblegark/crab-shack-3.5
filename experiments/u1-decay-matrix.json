@@ -1,0 +1,21 @@
+{
+  "name": "u1-decay-matrix",
+  "note": "U1 (task kd-CC5yBIzjFt): give citizens the visitor's per-frame need decay. ADJACENT A/B on ONE branch (cs-u1-citizen-decay) - crabTick is a pure early-return under window._noDecay, so `default` = U1 ON and `--nodecay` = the pre-U1 tree BYTE-FOR-BYTE, same harness, one variable. Shape = the E4-ladder matrix: baseline (buy nothing) and growth (--buy chef,table), x seedbase {0,16,32}, 30 days, 16 towns/block. Growth is the difficulty pillar; baseline confirms the lose-by-default floor holds at 0/48. batch.mjs sets SIMLIB_KERNEL=wasm, SIMLIB_REALM=main.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "u1on-baseline-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "u1on-baseline-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "u1on-baseline-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "u1on-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "u1on-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "u1on-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "preu1-baseline-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--nodecay","--json"] },
+    { "id": "preu1-baseline-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--nodecay","--json"] },
+    { "id": "preu1-baseline-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--nodecay","--json"] },
+    { "id": "preu1-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--nodecay","--buy","chef,table","--json"] },
+    { "id": "preu1-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--nodecay","--buy","chef,table","--json"] },
+    { "id": "preu1-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--nodecay","--buy","chef,table","--json"] }
+  ]
+}
