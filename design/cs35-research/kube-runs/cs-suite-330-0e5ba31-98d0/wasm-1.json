@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-0e5ba31-98d0",
+  "armId": "wasm-1",
+  "index": 13,
+  "sha": "0e5ba31beec72c967bafd399fa4487c199ee6174",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 223705,
+  "verdict": "34/34 passed in slice 1/12 (223.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (95441ms)\n  PASS  disease: care cures, neglect can kill (17429ms)\n  PASS  job board: unpaid staff quit back to the pier (305ms)\n  PASS  crew never staff npc-owned shops (278ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (630ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (36708ms)\n  PASS  hours: shortened hours really close the shop (309ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (836ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (2469ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (6216ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (26ms)\n  PASS  the beach ball is LIMITED fun (241ms)\n  PASS  a town saved mid-errand reloads and keeps running (332ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (672ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (3918ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (705ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (7ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (2443ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (978ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (276ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (44528ms)\n  PASS  BACK hands the town the track you were auditioning (15ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (2368ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (62ms)\n  PASS  civics stakes: a hostile table is refused by name (10ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (8ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (14ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (10ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (14ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1147ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (111ms)\n  PASS  science: one recipe lives the same town twice (5056ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (9ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (45ms)\n34/34 passed in slice 1/12 (223.6s)\n"
+}
