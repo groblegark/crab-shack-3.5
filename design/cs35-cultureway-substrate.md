@@ -96,9 +96,15 @@ as the format's acceptance bar: if the island's own ways cannot be written
 in these sections, the format is wrong** — but the crab migration itself is
 the capstone (phase E), not now.
 
-The worked example — the pig culture as a complete v2 instance drawn from
-the live fixture's actual values — is `design/cultureways/pigway.json`; the
-machine-checkable schema is `design/cultureways/cultureway.schema.json`.
+The worked example — the pig culture as a complete, valid v2 instance,
+authored to *illustrate* the whole format (it declares more than the shipped
+pig does — e.g. a `businesses.mudspa`, to show those optional sections) — is
+`design/cultureways/pigway.json`. It is a teaching artifact, **not** the
+document the game ships: the shipped pig is generated from
+`tools/fixtures/cultures-pig.json` (mkcultureways.mjs), and the two have
+drifted, so read pigway.json for the *shape* and the fixture for what the
+live pig *is*. The machine-checkable schema is
+`design/cultureways/cultureway.schema.json`.
 
 ## 2. THE HOOK-TABLE REGISTRY (Layer 0 meets the kernel)
 

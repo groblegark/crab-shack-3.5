@@ -1,0 +1,20 @@
+{
+  "release": "cs-suite-330-f694166-ypyu",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 132276,
+  "verdict": "31/31 passed in slice 6/12 (132.2s)",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3581ms)\n  PASS  save guard: an empty slot still receives the first town (17ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1784ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (10100ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (153ms)\n  PASS  fishers feed themselves: breaks + the beach roast (4570ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (252ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1593ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (34914ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (4909ms)\n  PASS  ferry: the arming tap times out, and an old save never won (73ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (21ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (8865ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (6172ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (16992ms)\n  PASS  departures: the card waits behind the day report, then pages itself (1130ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (3743ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1605ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (10ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (11ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1361ms)\n  PASS  traits: the island's table is the literal, value for value (8ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (12183ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (15ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3184ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (6ms)\n  PASS  seam: a headless day never enters the view (874ms)\n  PASS  brains: a town full of thinking heads round-trips its save (7625ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (6322ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (58ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (46ms)\n31/31 passed in slice 6/12 (132.2s)\n"
+}

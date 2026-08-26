@@ -1,0 +1,19 @@
+{
+  "release": "cs-redbar-focus-f694166-sdvk",
+  "armId": "rota",
+  "index": 1,
+  "sha": "f6941661dd93cacc70f4248d2cf17be16f38f582",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "rota pages at seven"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 3556,
+  "verdict": "1/1 passed in 3.5s",
+  "failures": [],
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the rota pages at seven and the twelfth crab keeps her controls (3453ms)\n\n1/1 passed in 3.5s\n"
+}
