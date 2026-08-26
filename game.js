@@ -6587,6 +6587,15 @@ class VisS {
   set stall(v) { C_STL[this.si] = v ? v.fid : -1; }
   get table() { return C_TBL[this.si] >= 0 ? FURN[C_TBL[this.si]] : null; }
   set table(v) { C_TBL[this.si] = v ? v.fid : -1; }
+  // THE TRAY (feature B: one ticket, N plates). A customer holds an ORDER - a
+  // short list of recipes - and the chef works it one plate at a time. `recipe`
+  // is the plate currently under the claws: the head of the tray at orderIdx.
+  // An own `recipe:` data property would SHADOW this accessor (lesson #1), so
+  // every literal writes `order:` and vivifyCust lifts recipe through the
+  // setter. Length-1 is the default and the setter re-wraps a single dish, so
+  // every path that used to set one recipe reads back bit-identical.
+  get recipe() { const o = this.order; return o && o.length ? o[this.orderIdx || 0] : null; }
+  set recipe(r) { this.orderIdx = 0; this.order = r == null ? null : [r]; }
 }
 const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // the boundary for FOREIGN literals: the suite stages customer stubs as plain
@@ -6599,7 +6608,8 @@ function vivifyCust(o) {
   const lift = {};
   for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
                    "hunger", "thirst", "dirt", "bored", "tired",
-                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table"])
+                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table",
+                   "recipe"])   // recipe is the tray's head accessor now: lift off the literal, re-write through the setter (an own property would shadow VisProto's getter)
     if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
@@ -12334,6 +12344,63 @@ function pickErrand(c) {
   if (bp && bp.mode === "shadow") shadowCitObserve(c, cand, bp, best);
   return best;
 }
+// THE TRAY ASSEMBLER (feature B: one ticket, N plates). pickErrand chose the
+// best single stop; this asks the companion question - "what ELSE does this
+// crab want that THIS shop sells, that they can afford on top?" - so a crab who
+// walked to the shack for a taco and is also thirsty walks away with the juice
+// too, in ONE queue slot, instead of getting back in line (measured 53% of the
+// time into a line already full of guests - the whole case for B, plan
+// kd-NTQvKxSEkA). It reuses the SAME appetite thresholds pickErrand's gathers
+// use and the SAME errandScore, so the tray never assembles a stop the crab
+// would not have made anyway.
+//
+// DRAW-FREE on purpose: it takes the cheapest affordable plate for the addon
+// need (no flush recipe roll), so it consumes no RNG and the second plate is a
+// pure, attributable consequence of the first arrival. The affordability check
+// is against the SUM at full retail (the two traps, plan §"the two traps"):
+// every plate is afforded, debits its own ingredient, and costs its own station
+// time - the tray is never a free need-cure.
+//
+// SCOPE: only where a counter sells across needs - the shack (food + juice).
+// Visitors, rooms, showers, the arcade and self-cook never assemble a tray;
+// this is only ever reached from the local-customer mint below, and only a
+// second need at the SAME biz can qualify. Cap the tray at 2 (the second plate
+// is where nearly all the value is; three-item trays wait on the number).
+const TRAY_MAX = 2;
+function trayAddon(c, primaryRecipe, primaryNeed) {
+  if (window._notray) return null;                 // the arm-off hatch, attribution's friend
+  const b = c.errandBiz;
+  if (!b || !BIZ[b] || !bizStaffed(b)) return null;
+  // the needs a counter can answer, in the errand census's own rank order, each
+  // paired with its appetite gate (the exact bars pickErrand's gathers use) and
+  // the filter that says which of this shop's recipes serve it
+  const off = awayToday(c) && !c.p.sick;
+  const wants = [
+    { need: "food",  want: (c.p.hunger || 0) >= (off ? qn(0.4) : qn(0.5)) - nudgeRelax(c, "food"),
+      is: (r) => !DRINKS[r.id] },
+    { need: "drink", want: (c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink"),
+      is: (r) => !!DRINKS[r.id] },
+  ];
+  const rs = bizRecipes(b);
+  let best = null, bestN = 0, bestD = 1;
+  for (const w of wants) {
+    if (w.need === primaryNeed || !w.want) continue;
+    // the cheapest plate this shop sells for the addon need - draw-free, and the
+    // one a broke crab could clear; a flush crab's splurge is the primary's job
+    const aff = rs.filter(w.is).sort((a, b2) => a.pay - b2.pay);
+    if (!aff.length) continue;
+    const r = aff[0];
+    const s = errandScore(c, { biz: b, need: w.need, recipe: r });
+    if (s.n <= 0) continue;                         // a refused stop (morning-detour clamp) is not an addon
+    if (!best || ratGt(s.n, s.d, bestN, bestD)) { best = { recipe: r, need: w.need }; bestN = s.n; bestD = s.d; }
+  }
+  if (!best) return null;
+  // AFFORD THE SUM at full local retail, with the same $2 cushion the errand
+  // gathers keep - a crab whose wallet cannot clear both plates gets only the
+  // first (the tray trims), which is re-checked at pay time in payAndBenefit.
+  if (c.p.wallet < localPrice(b, primaryRecipe) + localPrice(b, best.recipe) + 200) return null;
+  return best;
+}
 function startSelfCook(c, e) {
   c.dsC = DS.selfCook; c.cookStep = 0; c.cookRecipe = e.recipe;
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
@@ -12582,14 +12649,26 @@ function updateErrand(c, dt) {
     if (c.tx !== tail) setT(c, tail, 166);
     if (routedStep(c, crabMoveQ8(c), dt)) {
       // the 5-slot line is a hard cap for locals too: full line, come back later
-      const q = customers.filter(k => k.biz === c.errandBiz && (k.stC === VS.waiting || k.stC === VS.arriving)).length;
+      // (a crab already being served a BONUS plate holds no line slot - feature
+      // B, see inQueueLine; byte-identical while every tray is length 1)
+      const q = customers.filter(k => k.biz === c.errandBiz
+        && (k.stC === VS.waiting || k.stC === VS.arriving) && !(k.isCrab && (k.orderIdx || 0) > 0)).length;
       if (q >= QUEUE_MAX) {
         c.quip = { text: "LINE'S TOO LONG", t: 2.4 * SEC };
         c.errandCd = 12 * SEC; c.dsC = DS.home;
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
+      // THE TRAY: the primary plate, plus a companion if this crab wants a
+      // second thing this shop sells and can afford it (feature B). One queue
+      // slot, N plates - see trayAddon. Capped at TRAY_MAX.
+      const order = [c.errand.recipe], orderNeeds = [c.errand.need];
+      if (order.length < TRAY_MAX) {
+        const add = trayAddon(c, c.errand.recipe, c.errand.need);
+        if (add) { order.push(add.recipe); orderNeeds.push(add.need);
+          if (window._stats) window._stats.trayAddon = (window._stats.trayAddon || 0) + 1; }
+      }
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order, orderNeeds, orderIdx: 0, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
@@ -13442,7 +13521,17 @@ function updateKitchen(c, dt) {
         consumeIngredient(c.cust.recipe.raw, c.cust.recipe, bizKey);
         c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
-      else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
+      else if (c.stepIdx >= c.cust.recipe.steps.length) {
+        // THE TRAY (feature B): the plate at orderIdx is done and carried out.
+        // If the ticket has another plate, the chef keeps the guest and their
+        // ONE queue slot and walks back to the crate for it (stepIdx -1, which
+        // KS.walk re-aims to sourceSpot next frame) - each plate pays its own
+        // ingredient debit and its own station time as it is made. Only a
+        // COMPLETE tray reaches serve(). Length-1 trays never take the branch,
+        // so this is bit-identical until the assembler puts a second plate on.
+        if (c.cust.orderIdx + 1 < c.cust.order.length) { c.cust.orderIdx++; c.stepIdx = -1; }
+        else serve(c);
+      }
       else {
         const [kind] = c.cust.recipe.steps[c.stepIdx];
         const s = tryAcquire(bizKey, kind);
@@ -13813,20 +13902,53 @@ function visBenefit(k) {
     { ITEM: ITEM_NAMES[r.icon] || "SOMETHING", BIZ: BIZ[k.biz].short,
       PRICE: $d(menuPrice(k.biz, r)) }));
 }
+// THE TRAY IS RUNG UP ONE PLATE AT A TIME (feature B). serve() fires once, at
+// the end of a COMPLETE tray, but the ticket is N plates: N sales, N benefits,
+// N serve counts. payAndBenefit already does everything a single plate needs
+// (charge, credit, cure, diary, tip) off cust.recipe/cust.need, so the whole
+// tray is rung up by walking orderIdx and pointing recipe/need at each plate in
+// turn and calling it once per plate. A length-1 tray runs this exactly once
+// with orderIdx already 0, so it is BIT-IDENTICAL to the single-plate serve.
+// The tip is inside payAndBenefit's VISITOR branch, and visitors stay length-1
+// by scope (only crabs get trays), so "one tip roll per guest" still holds.
+function ringUpTray(c, cust) {
+  const n = cust.order && cust.order.length ? cust.order.length : 1;
+  for (let i = 0; i < n; i++) {
+    cust.orderIdx = i;
+    if (cust.orderNeeds && cust.orderNeeds[i] != null) cust.need = cust.orderNeeds[i];
+    // THE TRAY TRIMS AT PAY TIME (feature B, trap #1). An ADDON plate (i>0) a
+    // crab can no longer afford at full local retail is dropped whole - no
+    // charge, no cure, no serve count - so the till is never credited money the
+    // crab did not have (payAndBenefit floors the wallet at 0, which would MINT
+    // the shortfall) and the second helping is never a free need-cure. The
+    // PRIMARY plate (i=0) keeps its existing floor-at-0 contract untouched, so a
+    // length-1 tray is byte-identical to the pre-B serve.
+    if (i > 0 && cust.isCrab && cust.crab && cust.crab.p
+        && cust.crab.p.wallet < localPrice(cust.biz, cust.recipe)) {
+      if (window._stats) window._stats.trayTrim = (window._stats.trayTrim || 0) + 1;
+      continue;
+    }
+    payAndBenefit(c, cust);   // reads cust.recipe (=order[i]) and cust.need
+    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
+    if (window._stats && bizOwner(cust.biz) !== "player")
+      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
+  }
+  // point the ticket back at its headline plate for the dining-room display
+  // (EATING / the ORDER row read cust.recipe). A no-op at length 1.
+  cust.orderIdx = 0;
+  if (cust.orderNeeds && cust.orderNeeds[0] != null) cust.need = cust.orderNeeds[0];
+}
 function serve(c) {
   const cust = c.cust;
   if (cust && cust.stC === VS.toSeat) return;   // guest still walking to the table: wait a beat, retry next frame
   if (cust && cust.stC === VS.seatedWaiting) {
     // table delivery: payment + benefits as usual, then straight to dining
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 800);   // table service impresses - she tells HER people
     cust.stC = VS.dining; cust.dineT = 6 * SEC + ((srand() * 4 * SEC) | 0);
     if (cust.table) cust.table.dishes = 1;   // plate on the table while they eat
     if (window._stats) window._stats.seated = (window._stats.seated || 0) + 1;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
     c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
     // CLEAR THE NEXT TABLE ON THE WAY BACK. The server is standing IN the
     // dining room with an empty tray - the one moment in the day when busing
@@ -13839,7 +13961,7 @@ function serve(c) {
     return;
   }
   if (cust && cust.stC === VS.waiting) {
-    payAndBenefit(c, cust);
+    ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 400);
     const tables = bizTables(cust.biz), stalls = BIZ[cust.biz].stalls;
@@ -13870,9 +13992,6 @@ function serve(c) {
     }
     else if (seat) { seat.occupant = cust; cust.stC = VS.toTable; cust.table = seat; }
     else cust.stC = VS.leaving;
-    if (window._stats) window._stats[cust.isCrab ? "crabServes" : "tourServes"]++;
-    if (window._stats && bizOwner(cust.biz) !== "player")
-      window._stats.npcServes = (window._stats.npcServes || 0) + 1;
   }
   c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
 }
@@ -14275,8 +14394,10 @@ function newVisitor(overnightOnly, cu) {
     si: poolAlloc(), leg: 0,
     // the shop pipeline's own fields, dormant until they join a line
     // (patience/table/stall are PLANE fields now - set through the accessors
-    // below the attach, never in the literal: an own property shadows)
-    biz: null, recipe: null, maxPatience: A.PATQ,
+    // below the attach, never in the literal: an own property shadows). recipe
+    // is the tray's head too, so it rides as order/orderIdx (an own `recipe:`
+    // would shadow the VisProto accessor).
+    biz: null, order: null, orderIdx: 0, maxPatience: A.PATQ,
     claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
@@ -14704,11 +14825,25 @@ function visOpen(b) {
 }
 // the two line counts, shared verbatim by visRoomFor and the kernel marshal
 // so the compiled scorer and the reference count the same heads
+// A CRAB ON A BONUS PLATE IS NOT IN THE LINE (feature B). A tray-crab keeps its
+// VS.waiting state through the whole ticket - it flips out only at serve(), when
+// the LAST plate is done - so without this a two-plate tray would hold its queue
+// slot for ~2x the kitchen time and turn arriving tourists away (measured: the
+// exact crowding that sank A). But the crab is being SERVED their second plate
+// at the window, not standing in the waiting line: they took ONE slot for plate
+// one (baseline), and the bonus plate is served out of it. So once the kitchen
+// has bumped them onto the addon (orderIdx > 0), they no longer count against
+// the line - which is precisely B's thesis, "one queue slot for N plates,
+// never competing with the tourQ rush." Length-1 trays never reach orderIdx > 0,
+// so this is byte-identical to the pre-B line count.
+function inQueueLine(c) {
+  return (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)
+    && !(c.isCrab && (c.orderIdx || 0) > 0);
+}
 function lineCounts(k, b) {
   const tourQ = customers.filter(c => c.biz === b && !c.isCrab && c !== k && c.stC !== VS.leaving
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
-  const allQ = customers.filter(c => c.biz === b && c !== k
-    && (c.stC === VS.arriving || c.stC === VS.waiting || c.stC === VS.toBiz)).length;
+    && inQueueLine(c)).length;
+  const allQ = customers.filter(c => c.biz === b && c !== k && inQueueLine(c)).length;
   return [tourQ, allQ];
 }
 function visRoomFor(k, b) {   // is there a slot left in that line for a tourist?
@@ -15430,7 +15565,7 @@ function newCustomer(bizKey) {
   const cul = cuId !== "crab" && CULTURES[cuId] ? CULTURES[cuId] : null;
   const r = bizRecipes(bizKey)[(srand() * bizRecipes(bizKey).length) | 0];
   const spawnX = biz.queueX + 150;
-  const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
+  const w = Object.setPrototypeOf({ biz: bizKey, order: [r], orderIdx: 0,
     culture: cul ? cuId : null,
     name: cul ? freeVisitorName(cul.def.people.names)
       : CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
