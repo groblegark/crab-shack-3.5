@@ -4663,6 +4663,29 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   re-checked the field (SALTY died on a day 6 and won the day-7 ballot). The
   other three were fixtures asserting things their data could not support —
   written up in the commits and worth reading before trusting a green gate.
+  **THE GROWTH PILLAR: ZERO COST, measured on the landing tree** (receipt
+  `design/cs35-research/kube-runs/cs-matrix-idle16-b8fca1e-t8uy`,
+  `experiments/matrix-idle16.json`, 8 arms × 16 towns × 30 days, all exit 0):
+
+  | arm | sb0 | sb16 | total |
+  |---|---|---|---|
+  | growth, as-built | 6/16 | 7/16 | **13/32** |
+  | growth, trickle OFF | 8/16 | 5/16 | **13/32** |
+  | baseline, either | 0/16 | 0/16 | 0/32 |
+
+  The control arms disarm the trickle with the change's **own `--failoff
+  boredidle` hatch**, so this is one tree with one mechanism toggled rather than
+  two commits — which matters, because main moved four times while this branch
+  was in flight. **And the per-block split is the exact trap this file warns
+  about**: the control reads 8 then 5 while the treatment reads 6 then 7, so
+  either 16-town block *alone* would have "shown" a 2-town move, in the opposite
+  direction to the other. Sixteen seeds is the honest number and this is the
+  cleanest demonstration of why yet measured.
+  It costs nothing **by construction, not by luck**: the trickle accrues only
+  while a crab is on shift with nothing dispatchable, it is an ADVANCE against a
+  charge the settlement would have made anyway (so no crab gains more than one
+  lump a day), and `BORED_IDLE_LEVEL` stops it below the speed penalty. A
+  growing shack is busy — so the town the matrix measures barely pays it.
 - **THE WALK-OUT (B3, the late stage).** Pinned past `WALKOUT_AT` **0.95** at
   `WALKOUT_DAYS` settlements running and the crab takes an unauthorised day: no
   commute, no shift, **NO WAGE**, and **nobody covering**, because nobody was
