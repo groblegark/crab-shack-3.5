@@ -15186,6 +15186,59 @@ function visTick(k, dt) {
   for (const n of ["hunger", "thirst", "dirt", "bored", "tired"])
     k[n] = Math.min(Q20, (k[n] || 0) + BR[n] * dtT);
 }
+// U1 - THE UNIFICATION: give the CITIZEN the visitor's continuous need decay.
+// Until now a crab who idled all day got hungry exactly once, at dusk (the nine
+// discrete events - the shift-end bumps, errand legwork, the dry-night thirst,
+// the night's tired catch-up, the NPC hunger tick); a visitor got hungry every
+// frame at their own body's rate. bodyOf(c).R - the rate vector the body table
+// is named after (BODY = { R: VIS_RATE, ... }) - was NEVER consumed for a crab.
+// So a cultureway's body multipliers silently did nothing to citizens. This
+// closes that: bodyOf(c).R now runs the citizen's clock exactly as it runs the
+// tourist's, so a crab left to loaf gets hungry, thirsty, grubby and bored on
+// the same continuous drain a tourist does - and a body document colours both.
+//
+// FOUR NEEDS, NOT FIVE - and this is a deliberate, documented scoping line, not
+// an oversight. hunger/thirst/dirt/bored are the needs a crab has NO continuous
+// model for (they were static between discrete events). TIRED is the one need a
+// crab already models fully and well: it accrues through the shift proportional
+// to the work done (the tiredRem accumulator in updateSchedule), on errand
+// legwork (T.errand), and as the night's catch-up (T.night); it recovers on the
+// housing ladder (TIRED_DRAIN bed/cot, TIRED_NAP). Laying a base per-frame tired
+// drain ON TOP of that would double-charge every working crab's awake hours and
+// - the measured landmine - break shift fairness: the ball errand DECLINES to
+// charge TIRED_ERRAND for exactly this reason (a leisure cost pushed the
+// morning/evening fairness gap past its gate, receipt at startBallStop). So
+// tired keeps its own model untouched; the four needs that lacked one get the
+// tourist's loop. Folding tired in (retiring the shift accrual for one unified
+// clock) is a real future unification, but a separate and larger change - doing
+// it here would make any matrix move un-attributable between the drain and the
+// tired-model swap.
+//
+// ASLEEP PAUSES IT, exactly as an in-room visitor's needs pause (visTick returns
+// early on VS.inRoom, draining only the bed's tired recovery). A crab is asleep
+// when they slept rough (down for the night wherever they fell) or when they are
+// bedded down at home for the night (DS.home past nightfall - the same gate the
+// sleep/nap tired-recovery reads). A DAYTIME crab resting at home still has a
+// body: it gets hungry on the porch just as a roaming tourist does.
+//
+// THE HATCH: crabDecayOn() reads window._noDecay, which the game NEVER sets - so
+// the drain is ON in the real world. The seed matrix sets it (--nodecay) to get
+// the pre-U1 tree back for an adjacent A/B, the _noRival / _noHall attribution
+// idiom. This is a balance-moving change of the first order (it owns its own
+// 48-town receipt); the hatch is what makes that receipt a clean one-variable
+// measurement. Draw-free (no srand), integer Q20, so it moves no RNG cursor
+// itself - but the needs it raises drive more errands, which re-rolls the
+// downstream stream, so frozen fingerprints move (a legitimate re-pin, traced).
+function crabDecayOn() { return !window._noDecay; }
+function crabAsleep(c) {
+  return c.p.rough || (c.dsC === DS.home && darkness() > 0.7);
+}
+function crabTick(c, dt) {
+  if (!crabDecayOn() || crabAsleep(c)) return;
+  const BR = bodyOf(c).R;   // a crab's own culture body, or the engine's by identity
+  for (const n of ["hunger", "thirst", "dirt", "bored"])
+    c.p[n] = Math.min(Q20, (c.p[n] || 0) + BR[n] * dtT);
+}
 function updateVisitor(k, dt) {
   if (k.stC === VS.ashore) {
     // down the planks and into town: along the deck, then onto the promenade
@@ -22984,10 +23037,13 @@ function simTown(dt) {
   for (const c of allCrabs()) {
     c.animT += dt;
     c._stepped = false;
+    crabTick(c, dt);   // U1: the citizen's needs decay every frame, awake, like a tourist's
     // A CONVERSATION STOPS THE DAY. Nothing else runs while two crabs talk -
     // not the schedule, not the kitchen, not the commute. That is the price of
     // boredom's only free cure, and it is the whole reason the cure is allowed
     // to exist at all (PLAN, THE SELF-HEALING RULE: it costs time, never money).
+    // (Needs still drain through a chat - a chatting crab is awake - so crabTick
+    //  runs above the early-out, matching visTick running for a queuing tourist.)
     if (c.dsC === DS.chat) { updateChat(c, dt); maybeQuip(c, dt); continue; }
     updateSchedule(c, dt);
     if (c.dsC === DS.toWork || c.dsC === DS.toHome) updateCommute(c, dt);

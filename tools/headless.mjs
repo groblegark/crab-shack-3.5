@@ -87,6 +87,13 @@ if (BODYMUL) JSON.parse(BODYMUL);
 //               first. (dormExtra() clamps at MAX - BASE, so the rent stays $10.)
 const NOANNEXE = args.includes("--noannexe");
 const NODORM = args.includes("--nodorm");
+// `--nodecay` switches THE CITIZEN'S CONTINUOUS NEED DECAY off (game.js reads
+// window._noDecay through crabDecayOn() and never sets it): a crab's hunger,
+// thirst, dirt and boredom go back to the nine discrete events, no per-frame
+// drain. This is the attribution arm for U1 (the unification) - `--nodecay`
+// gives the pre-U1 tree back, so a 48-town matrix can measure the drain as
+// exactly one variable, the --norival / --nohall idiom.
+const NODECAY = args.includes("--nodecay");
 const SEEDS = parseInt(opt("seeds", "1"));
 // `--realm main` (or SIMLIB_REALM=main) runs the game files in the main realm
 // instead of a vm context - the vm escape; simlib.loadGame owns the mechanics.
@@ -177,6 +184,7 @@ if (NOPLAY) G(`window._noPlay = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
+if (NODECAY) G(`window._noDecay = true;`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
 const buyFn = BUY.length ? mkFn(`
   if (tmin >= 9 * 60 && tmin <= 19 * 60 && Math.abs(tmin - Math.round(tmin / 60) * 60) < ${STEP} * TS / 2) {
