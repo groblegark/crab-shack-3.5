@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-68c03ad-nzbi",
+  "armId": "wasm-7",
+  "index": 19,
+  "sha": "68c03ad70f1a874a95db8fbc12063d6ee3d3718f",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 204005,
+  "verdict": "33/33 passed in slice 7/12 (203.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (3659ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1343ms)\n  PASS  slots: the preview card reflects the town it came from (1452ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (35ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (108ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (112ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (8235ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1001ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (12068ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (5130ms)\n  PASS  tip sharing + the table cap roundtrip save/load (362ms)\n  PASS  no surface prints off the canvas (949ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (148199ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (3674ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1241ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (1488ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1336ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1241ms)\n  PASS  the HALL tab's text is measured, in every state it has (3419ms)\n  PASS  the shack says where the money comes from, and only your shops do (412ms)\n  PASS  the music controls answer from outside the record box (9ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (2393ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (57ms)\n  PASS  civics stakes: a hostile table is refused by name (13ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (15ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (13ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (10ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (11ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (981ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (85ms)\n  PASS  science: one recipe lives the same town twice (4738ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (12ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (103ms)\n33/33 passed in slice 7/12 (203.9s)\n"
+}
