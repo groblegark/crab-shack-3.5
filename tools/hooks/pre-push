@@ -1,0 +1,104 @@
+#!/bin/sh
+# tools/hooks/pre-push — the receipt gate, mechanized (task kd-GNL3o76EhB).
+#
+# THE HOLE THIS FILLS. Nothing in the push path ever asked whether the tree
+# being pushed to main owns a gate verdict. The gate was a CONVENTION: run the
+# cluster suite, then merge. The convention's own author pushed 8926e7c — the
+# commit that TIGHTENED the kube policy — WITHOUT gating it (kd-IHhEW6zDu2). If
+# the agent most focused on the gate can miss it, prose cannot be the mechanism.
+# This hook is the mechanism: it fires at the exact moment of the mistake, a
+# `git push` that would land an UNGATED gameplay change on main, and refuses it.
+#
+# WHAT IT DECIDES ON. It does not re-run the suite (that is a 7-minute cluster
+# job, not a pre-push check). It asks tools/gatecheck.mjs — pure git plumbing,
+# sub-second — whether the pushed tip already OWNS (GREEN) or INHERITS (AMBER) a
+# gate verdict, or LACKS one (RED). See that tool's header for the three states.
+#
+#   GREEN / AMBER  -> allow. AMBER means the 11 gate-relevant files are
+#                    byte-identical to a gated ancestor, so a stamp/tooling/
+#                    receipt-only push carries a verdict forward on EVIDENCE.
+#   RED            -> REFUSE. A gate-relevant file changed and no receipt's
+#                    verdict reaches this tree. This is the ungated-gameplay
+#                    push the hole let through.
+#
+# WHY NO ESCAPE HATCH. The bead that scoped this feared a hook would misfire on
+# doc/receipt pushes and get ripped out, so it wanted a --force-with-reason
+# hatch — "the thing most likely to be abused." gatecheck's AMBER state retires
+# that fear by construction: a receipt or stamp commit does not touch the 11
+# gate files, so it reads AMBER and is never refused. There is nothing to
+# hatch, so there is no hatch to abuse. This hook refuses ONLY on RED.
+#
+# WHY IT FAILS OPEN ON A BROKEN CHECKER. If gatecheck cannot produce a verdict
+# at all — node missing, the tool moved, a crash — this hook WARNS loudly and
+# ALLOWS the push. A checker that blocks every push (receipts, docs, its own
+# installation) the moment node hiccups is exactly the misfire that gets a hook
+# disabled, and then we are worse off than with no hook. It fails closed on a
+# real RED (the mistake it exists to catch) and open on its own breakage (a
+# separate bug to fix, loudly surfaced, not a reason to wedge the whole fleet).
+#
+# ONLY MAIN. Feature-branch pushes are never gated — you gate a branch, then
+# merge it. So the hook acts only on refs whose REMOTE side is refs/heads/main.
+#
+# INSTALL. A hook in .git/hooks is not version-controlled and not installed by
+# cloning, so it would protect one workstation and no fresh pod — theatre. This
+# file lives IN the repo and is wired up by `git config core.hooksPath
+# tools/hooks`. tools/mkversion.mjs (run at every merge ritual, immediately
+# before every push to main) self-installs that config if it is unset, so any
+# agent about to push main has already crossed the install path. To wire it by
+# hand: `git config core.hooksPath tools/hooks`.
+
+set -u
+
+TARGET="refs/heads/main"
+ZERO="0000000000000000000000000000000000000000"
+
+toplevel=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+cd "$toplevel" || exit 0
+
+if ! command -v node >/dev/null 2>&1; then
+  printf '\npre-push WARNING: node not found — the receipt gate cannot run. Push allowed.\n\n' >&2
+  exit 0
+fi
+
+refused=0
+
+# stdin carries one line per ref being pushed:
+#   <local ref> <local sha> <remote ref> <remote sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Only guard pushes that land on main.
+  [ "$remote_ref" = "$TARGET" ] || continue
+  # A branch deletion pushes the zero sha on the local side — nothing to gate.
+  [ "$local_sha" = "$ZERO" ] && continue
+
+  short=$(git rev-parse --short "$local_sha" 2>/dev/null || echo "$local_sha")
+
+  # </dev/null so gatecheck cannot consume the remaining ref lines on our stdin.
+  out=$(node tools/gatecheck.mjs --ref "$local_sha" </dev/null 2>&1)
+  rc=$?
+  verdict=$(printf '%s\n' "$out" | head -n1 | awk '{print $1}')
+
+  case "$verdict" in
+    GREEN | AMBER)
+      : # tip owns or inherits a gate verdict — allow.
+      ;;
+    RED)
+      printf '\n' >&2
+      printf 'PRE-PUSH REFUSED: %s is UNGATED for a push to main.\n' "$short" >&2
+      printf '%s\n' "$out" | sed 's/^/  /' >&2
+      printf '\n' >&2
+      printf 'Gate it on the cluster before landing (per KUBE POLICY):\n' >&2
+      printf '  node tools/kube.mjs run experiments/suite-330.json --ref %s --wait\n' "$short" >&2
+      printf 'A stamp/tooling/receipt-only push reads AMBER and is NOT refused.\n\n' >&2
+      refused=1
+      ;;
+    *)
+      # No verdict word: gatecheck crashed / is missing / was moved. Fail OPEN,
+      # loudly — do not wedge every push on a broken checker (see header).
+      printf '\npre-push WARNING: gatecheck produced no verdict (exit %s) for %s — NOT gating this push.\n' "$rc" "$short" >&2
+      printf '%s\n' "$out" | sed 's/^/  /' >&2
+      printf 'The receipt gate is OFF until tools/gatecheck.mjs runs again. Push allowed.\n\n' >&2
+      ;;
+  esac
+done
+
+exit $refused
