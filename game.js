@@ -17554,6 +17554,92 @@ function surfQuality(d) { return surfQualityQ16(d) / 65536; }
 registerChannel("mist", mistPeakQ16, mistNowQ16);   // the calendar's fog - day-only, byte-identical
 registerChannel("swell", swellPeakQ16);             // the surf's size - per-town, no intraday envelope
 registerChannel("wind", windPeakQ16);               // blows the swell out - independent per-day
+
+// ── THE FORECAST ─────────────────────────────────────────────────────────
+// A channel is a pure function of day, so forecast(day + n) is a CALL, not a
+// simulation - the swell N days out is not predicted, it is looked up. That is
+// the whole reason the board can be confident. But the board is deliberately
+// HONEST about what it does not know: quality = swell * (1 - wind), and the
+// wind is an INDEPENDENT per-day roll with zero memory (measured against the
+// LANDED channels @ a34bd73, 2000 days x 64 towns: wind lag-1 autocorrelation
+// ~0.00). So the board reveals the SWELL forecast - the groundswell a real
+// forecaster genuinely can see coming off distant storms - and refuses to name
+// the QUALITY of any future day, because the local wind that decides clean-vs-
+// blown is not knowable until that morning.
+//
+// MEASURED, and the pins below defend these bands (not the digits): when the
+// board names a coming swell, that day turns out CLEAN only ~36% of the time -
+// CONSTANT across lead time, because the wind is iid. So "A BIG SWELL THU" is
+// true and confident and useful, and "THU WILL FIRE" is a promise the sea has
+// not made. Interface opacity - hiding a swell the engine could show - would be
+// a bug; this economic uncertainty is the game.
+const FC_BIG   = 32768;   // Q16 0.50 - a swell worth walking a shift off for
+const FC_CLEAN = 29491;   // Q16 0.45 - quality at/above this is a CLEAN, firing day
+const FC_HORIZON = 4;     // days ahead the board looks - names a coming swell on ~63% of days
+// TODAY, as one of three states the sea is actually in (a read you CAN make -
+// you are standing on the beach). Quality decides first: a clean day is clean
+// however big; only once the wind has NOT blown it out does size get a word -
+// a swell below FC_BIG that never fired is just a FLAT day, nothing to say.
+function surfToday(d) {
+  d = d | 0;
+  if (surfQualityQ16(d) >= FC_CLEAN) return "FIRING";
+  if (swellPeakQ16(d) >= FC_BIG)     return "BLOWN OUT";
+  return "FLAT";
+}
+// THE COMING SWELL, or null. Looks FC_HORIZON days out for the first day whose
+// swell tops FC_BIG and reports { n, day } - the lead, never the quality. Only
+// the swell is a function of a day the board can see; the wind on that day is
+// not, so it is not returned and cannot be printed.
+function surfForecast(d) {
+  d = d | 0;
+  for (let n = 1; n <= FC_HORIZON; n++)
+    if (swellPeakQ16(d + n) >= FC_BIG) return { n, day: d + n };
+  return null;
+}
+// The board's three short rows, cut for a narrow sign (WEEKDAYS is the town's
+// week). SURF heads it; TODAY is the fact you can verify by looking at the sea;
+// the COMING SWELL under it is the value the board adds over that glance. Every
+// string is kept to <=8 chars so it fits a 32px slot at BOTH ends without a
+// trim - the pier head has less room than the promenade (the deck is at 1856).
+function forecastLines(d) {
+  d = d | 0;
+  const today = surfToday(d);            // FIRING / BLOWN / FLAT (one of three)
+  const fc = surfForecast(d);
+  // the coming swell names a WEEKDAY when it is inside the town's own week, else
+  // a plain "+Nd" - a lead a fisher can plan a day off around either way. The
+  // horizon is 4, so it is always a weekday, but the fallback is honest anyway.
+  const when = fc ? (fc.n <= 6 ? WEEKDAYS[weekdayIdx(fc.day)] : "+" + fc.n + "D") : null;
+  const todayShort = today === "BLOWN OUT" ? "BLOWN" : today;   // "BLOWN OUT" is the read; "BLOWN" is what fits
+  return {
+    today: todayShort,
+    forecast: fc ? "BIG " + when : "NO SWELL",   // "BIG THU" - true and confident; the quality is NOT named
+    firing: today === "FIRING",
+    swellComing: !!fc,
+  };
+}
+// The colours are the three states of the sea, plus whether a swell is named:
+// a firing day is green, a blown-out day dim, a flat day the sea's own blue;
+// and the forecast row lights amber when there is a swell to walk a shift for.
+const FC_COL = {
+  FIRING: [130, 235, 150], BLOWN: [170, 175, 190], FLAT: [150, 200, 240],
+  swell: [255, 216, 96], nada: [150, 150, 160], head: [235, 248, 255],
+};
+// The two boards, and the width of each - TOP-LEVEL consts (drawForecast is
+// nested in drawTown like drawPollingPlaces, so these must live outside it or
+// they land in the temporal dead zone when the draw runs; POLL_PLACES sits at
+// top level for the same reason). A line on existing furniture, never a new
+// object: the coast is full - "there is NOT ONE 74px gap left on 2512px", the
+// ballot-box block - so the forecast hangs in the clear air above two anchors.
+// Same reason the town gave for two ballot boxes and two standpipes: with one
+// board on the promenade the whole D-shift fishing fleet, who work the pier
+// 1200px away and would have to sprint, could not read it. So it hangs where
+// the people are, TWICE: over the town notice board (the housing row and the
+// promenade) and at the pier head (the fleet and the east end).
+const FORECAST_PLACES = [
+  { x: 712 },    // over the town notice board (716): the gap east of the west poll table's board and west of the juice-bar lot (752)
+  { x: 1808 },   // the pier head: in the clear band above the ferry-office roofline (114), west of the plank deck (1856)
+];
+const FC_BW = 36;   // 34px of text + a 1px frame each side - fits "NO SWELL" (31px) with room, at BOTH ends
 // ─────────────────────────────────────────────────────────────────────────
 
 function drawMist() {
@@ -17861,6 +17947,7 @@ function drawTown() {
       wblit(TAP_FLOW[((viewT * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
   }
   drawPollingPlaces();
+  drawForecast();
 // THE POLLING PLACE. A trestle, a box with a slot cut in the lid, and a board
 // saying when it shuts. It is set up on polling day and gone by morning, which
 // is the right amount of permanence for a thing this town does once a week.
@@ -17908,6 +17995,32 @@ function drawPollingPlaces() {
     smallText(ctx, fitSmall(b[0], POLL_BW - 4), sx + 1, sy + 1, [255, 250, 235]);
     smallText(ctx, fitSmall(b[1], POLL_BW - 4), sx + 1, sy + 8, b[3]);
     if (b[2]) smallText(ctx, fitSmall(b[2], POLL_BW - 4), sx + 1, sy + 15, b[3]);
+  }
+}
+
+// THE SURF FORECAST, on TWO boards (FORECAST_PLACES/FC_BW/FC_COL above). It
+// grows UPWARD from a fixed bottom like the dorm notice, into the clear air
+// above each anchor, so a taller state never lands on the furniture's own label
+// below it. Three rows: SURF; TODAY (a read you can make by looking at the sea -
+// FIRING/BLOWN/FLAT); and the COMING SWELL, the value the board adds. It names a
+// future day's SWELL with confidence (forecast(day+n) is a function call, not a
+// guess) and NEVER names that day's quality, because the wind that decides
+// clean-vs-blown is an iid per-day roll nobody can see coming. "BIG THU" is
+// true; "THU WILL FIRE" is a promise the sea has not made.
+function drawForecast() {
+  if (window._noFcast) return;   // arm-off hatch, in the idiom of _noMist/_noHall (draw-only, no CLI flag: a matrix cannot read a board)
+  const L = forecastLines(day);
+  for (let i = 0; i < FORECAST_PLACES.length; i++) {
+    const px = FORECAST_PLACES[i].x;
+    if (px - camX < -FC_BW - 10 || px - camX > W + 10) continue;
+    // three rows of 7px, bottom pinned at y=112 (clear of the ferry roof at
+    // 114 and the notice board's own JOBS label), growing upward.
+    const rows = 3, sy = 112 - 7 * rows, sx = px + 1 - camX;
+    wrect(px - 1, sy - 2, FC_BW + 2, 7 * rows + 4, [30, 20, 36]);      // the board's dark edge
+    wrect(px, sy - 1, FC_BW, 7 * rows + 2, [46, 58, 74]);             // ...and its slate-blue face (a sea board, not a paper one)
+    smallText(ctx, "SURF", sx + 1, sy + 1, FC_COL.head);
+    smallText(ctx, fitSmall(L.today, FC_BW - 2), sx + 1, sy + 8, FC_COL[L.today] || FC_COL.FLAT);
+    smallText(ctx, fitSmall(L.forecast, FC_BW - 2), sx + 1, sy + 15, L.swellComing ? FC_COL.swell : FC_COL.nada);
   }
 }
   // the crab shelter
