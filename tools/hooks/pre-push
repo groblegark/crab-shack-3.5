@@ -39,6 +39,37 @@
 # ONLY MAIN. Feature-branch pushes are never gated — you gate a branch, then
 # merge it. So the hook acts only on refs whose REMOTE side is refs/heads/main.
 #
+# THE SECOND CHECK: DOES THE STAMP MISNAME THE BYTES A PLAYER GETS?
+# (bug kd-c7tbNghG7k, criterion corrected here — see below.)
+#
+# version.js is runtime-loaded at index.html:87 regardless of what a merge
+# touched, so a push can change the build a player is served. Neither existing
+# surface can ask whether the stamp still matches, both for CORRECT reasons the
+# bead spells out: the suite checks the stamp's SHAPE, not its identity
+# (sha-equality with HEAD is impossible by construction — committing the stamp
+# moves the sha), and gatecheck DELIBERATELY excludes version.js so a stamp-only
+# push can read AMBER. This hook is the only place the question can be asked.
+#
+# WHAT THIS DOES *NOT* CHECK, AND WHY — the correction. The obvious test is
+# "does the stamp name the tip's parent?" That test is WRONG, and measuring it
+# against real history is how we found out: it fires on 5 of 5 receipt-only
+# pushes (8927f76, d595ecd, f3cae72, 8772d67, ab82f69). A receipt push changes
+# no file index.html loads, so its stamp is not misnaming anything a player can
+# see — the warning would be pure noise on the exact case the scoping bead
+# feared ("the thing most likely to be abused"), and a noisy hook gets deleted.
+#
+# So the criterion is PLAYER-SERVED BYTES, taken from index.html's own load
+# list: if the tree the stamp NAMES and the tree being PUSHED are identical
+# across those files, the stamp is honest no matter which commit it names.
+# Measured over main's last 40 first-parent commits, this reads 4 hits where the
+# parent test read 12 — and all 4 are real merges whose stamp landed seconds
+# later (8s, 17s, 26s), i.e. correctly-followed ritual caught mid-sequence.
+#
+# WARNS, DOES NOT REFUSE, and refusing would be actively wrong here: the fix for
+# a stale stamp is itself a push, so refusing wedges the repair. A stale stamp
+# also ships a CORRECT game under a wrong name — bad, but categorically not the
+# ungated-gameplay push this hook exists to refuse.
+#
 # INSTALL. A hook in .git/hooks is not version-controlled and not installed by
 # cloning, so it would protect one workstation and no fresh pod — theatre. This
 # file lives IN the repo and is wired up by `git config core.hooksPath
@@ -99,6 +130,39 @@ while read -r local_ref local_sha remote_ref remote_sha; do
       printf 'The receipt gate is OFF until tools/gatecheck.mjs runs again. Push allowed.\n\n' >&2
       ;;
   esac
+
+  # --- SECOND CHECK: does the stamp misname the player's bytes? -----------
+  # PLAYER_SERVED is index.html's own load list (the <script src>/<link href>
+  # set, minus version.js itself and the data: favicon). If this list and
+  # index.html ever drift apart, this check quietly narrows — so it is asserted
+  # by the suite scenario "the stamp names the bytes a player gets".
+  PLAYER_SERVED="index.html font.js ppu.js sprites.js crabs.js merge.js game.js cultureways.js tools/kernel/kernel-b64.js"
+
+  # Read the stamp out of the PUSHED tree, not the worktree: the worktree may be
+  # dirty or on another branch, and it is the pushed bytes that reach a player.
+  stamped=$(git show "$local_sha:version.js" 2>/dev/null \
+            | sed -n 's/.*sha: "\([0-9a-f]\{7,\}\)".*/\1/p' | head -n1)
+
+  if [ -z "$stamped" ]; then
+    printf '\npre-push WARNING: %s has no readable stamp in version.js — run node tools/mkversion.mjs.\n\n' "$short" >&2
+  elif ! git cat-file -e "$stamped^{commit}" 2>/dev/null; then
+    # The stamp names a commit this repo does not have (rewritten history, or a
+    # hand-edited stamp). Cannot compare trees; say so rather than guess.
+    printf '\npre-push WARNING: the stamp on %s names %s, which is not a commit in this repo.\n\n' "$short" "$stamped" >&2
+  else
+    drift=$(git diff --name-only "$stamped" "$local_sha" -- $PLAYER_SERVED 2>/dev/null | tr '\n' ' ')
+    if [ -n "$drift" ]; then
+      printf '\n' >&2
+      printf 'pre-push WARNING: the stamp on %s is STALE for the bytes a player gets.\n' "$short" >&2
+      printf '  stamp names: %s\n' "$stamped" >&2
+      printf '  but these player-served files differ from that build: %s\n' "$drift" >&2
+      printf 'The title screen will misreport this build and its age (bug kd-c7tbNghG7k).\n' >&2
+      printf 'Fix before pushing:\n' >&2
+      printf '  node tools/mkcultureways.mjs && node tools/mkversion.mjs\n' >&2
+      printf '  git add version.js && git commit -m "the stamp names <what landed> (%s)"\n' "$short" >&2
+      printf 'Push allowed — a stale stamp misnames a correct build; it does not ship an ungated one.\n\n' >&2
+    fi
+  fi
 done
 
 exit $refused
