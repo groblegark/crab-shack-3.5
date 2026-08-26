@@ -13765,7 +13765,10 @@ function serve(c) {
       // its customer to a MACHINE, and everything else is a shower. Data, not
       // a business name, so a cultureway shop that declares playT gets the
       // arcade's behaviour without this line learning its id.
-      const play = !!(cust.recipe && cust.recipe.playT);
+      // ARM-OFF HATCH (--noplay): the shop still sells, still takes the money
+      // and still zeroes boredom - only the occupancy goes away, so the matrix
+      // can attribute the floor's throughput cost on its own.
+      const play = !!(cust.recipe && cust.recipe.playT) && !window._noPlay;
       if (stall) {
         stall.occupant = cust; cust.stall = stall;
         cust.stC = play ? VS.toMachine : VS.toStall;
