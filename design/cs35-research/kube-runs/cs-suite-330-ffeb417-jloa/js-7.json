@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-ffeb417-jloa",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "ffeb417aa264e9a939e6fd610aa3d3a86b54f017",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 72824,
+  "verdict": "33/33 passed in slice 7/12 (72.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (5146ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (2209ms)\n  PASS  slots: the preview card reflects the town it came from (2113ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (43ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (105ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (156ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (11995ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (23ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (15421ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (9401ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (909ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (1506ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (3868ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2810ms)\n  PASS  the mayor wears the hat, and nobody else ever does (1352ms)\n  PASS  departures: the card waits behind the day report, then pages itself (943ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (5099ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (2008ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (12ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (15ms)\n  PASS  a crab may stand in the cabana it has come to clean (11ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (10ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (11ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (11ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (14ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (22ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (7ms)\n  PASS  space: every position rides the Q8 grain, all day (1289ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (18ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (57ms)\n  PASS  science: a scrub lands on the day the run recorded (5988ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (13ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (117ms)\n33/33 passed in slice 7/12 (72.7s)\n"
+}

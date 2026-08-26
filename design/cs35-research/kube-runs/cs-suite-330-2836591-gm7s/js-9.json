@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-2836591-gm7s",
+  "armId": "js-9",
+  "index": 9,
+  "sha": "28365916b9018c3dc1468f3bede862ac47cf3ca5",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 91685,
+  "verdict": "32/32 passed in slice 9/12 (91.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (560ms)\n  PASS  npc: SUDSY dines at the player shack (4107ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (486ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1154ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (18ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (14ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (5277ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4701ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (26957ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (25319ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (2427ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (763ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (101ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4975ms)\n  PASS  the town hall survives a save and a reload, ledger and all (4016ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2398ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3018ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (862ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  the title screen credits the track that is actually queued (14ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1421ms)\n  PASS  idle quips: the island's table is the literal, key for key (8ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (83ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (10ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (13ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (12ms)\n  PASS  foodways: the validator names its refusals (15ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1052ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (10ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1561ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (210ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (25ms)\n32/32 passed in slice 9/12 (91.6s)\n"
+}

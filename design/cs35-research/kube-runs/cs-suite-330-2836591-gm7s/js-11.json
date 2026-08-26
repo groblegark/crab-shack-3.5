@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-2836591-gm7s",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "28365916b9018c3dc1468f3bede862ac47cf3ca5",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 116140,
+  "verdict": "32/32 passed in slice 11/12 (116.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1895ms)\n  PASS  sick crabs can still wash (mobility + cure path) (1274ms)\n  PASS  crew never staff npc-owned shops (796ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (1621ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (70542ms)\n  PASS  hours: shortened hours really close the shop (900ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (2271ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (49ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (84ms)\n  PASS  tips: the counter gets a token, the table gets the lot (13ms)\n  PASS  no card prints text on top of its own text (2141ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (4896ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1158ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (895ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1538ms)\n  PASS  departures: nobody on the boat knows the town's name (855ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (2280ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (163ms)\n  PASS  the help card teaches the machine and does not spoil the ending (7ms)\n  PASS  nothing paints over an open card except another card (873ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1510ms)\n  PASS  crab voice: two whole days with the table off are the same town (1997ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (950ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (7ms)\n  PASS  cultureways: a save without cultures changes nothing (899ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (30ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (631ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3734ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (11951ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (51ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (10ms)\n32/32 passed in slice 11/12 (116.0s)\n"
+}

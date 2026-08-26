@@ -898,8 +898,22 @@ const PURSES = {
     who: "MR. PINCHERTON, OFF HIS OWN BOOK", steps: [0, 10, 20, 30, 40] },
   tin:   { name: "THE COLLECTION TIN", short: "TIN", unit: "$ ASKED OF EACH",
     who: "WHOEVER CAN SPARE IT", steps: [0, 100, 200, 300, 400] },   // cents
+  // THE TARIFF (Matt, 2026-08-25: "we should have the ability to tariff
+  // incoming goods especially fish; this will be a great platform thing").
+  // The FIFTH purse, and it lands as a purse rather than a seventh dial by
+  // this file's own law: the floor and the cap are separate axes because they
+  // bill a till DIRECTLY, and the purses all answer "who pays for the pot" -
+  // which is exactly what a duty on the gangway answers. It falls on the till
+  // that buys an imported good at the moment it buys one (consumeIngredient,
+  // the same chokepoint that books the import), so a town fed by its own pier
+  // pays nothing and a town living on shipped-in fish pays on every crate -
+  // the tariff is attractive exactly when the town leans on the ferry, and a
+  // fisher never pays it at all. Like every purse it is capped by fundNeed:
+  // the town does not charge tolls it has no use for.
+  tariff: { name: "THE TARIFF", short: "TARIFF", unit: "% ON THE LANDED PRICE",
+    who: "EVERY TILL THAT BUYS AN IMPORTED GOOD - FISH FIRST", steps: [0, 10, 25, 50, 100] },
 };
-const PURSE_KEYS = ["levy", "dues", "rents", "tin"];
+const PURSE_KEYS = ["levy", "dues", "rents", "tin", "tariff"];
 // THE BALLOT DIALS, ADOPTED FROM THE DOCUMENT (phase E4 slice 4a). WAGE_FLOOR
 // and HEAD_CAP are TOWN-LEVEL facts - one town, one floor, one house limit -
 // so unlike the per-voter stakes (slice 3, dispatched on culture) they ride the
@@ -1240,14 +1254,33 @@ function canVote(c) {
 }
 function purseOf(p) { return PURSES[p.mech] || PURSES.rents; }
 function purseRate(p) { const s = purseOf(p).steps; return s[Math.max(0, Math.min(s.length - 1, p.rate | 0))]; }
+// THE PURSE RATE AXIS IS AS LONG AS THE ADOPTED GRID, exactly the way
+// FLOOR_STEPS/CAP_STEPS derive the ballot dials' bound from their own ladder.
+// purseRate already clamps a read to steps.length-1, so a longer grid was
+// always READABLE; the bug was that the GENERATORS (allPlatforms) and the
+// save/UI clamps hardcoded the top index at 4, so no platform carrying rate 5+
+// was ever built - a well-formed extended grid passed civicsLadderProblem and
+// then had its top rungs silently dropped, the one failure the civics format
+// exists to refuse. Deriving the bound here honours the authored ladder (Matt's
+// ruling 4: ladders EXTEND) and is byte-neutral for every shipped 5-rung grid.
+// Per mech, because each purse carries its own grid (unlike the one town floor
+// and one town limit).
+function rateSteps(mech) { const P = PURSES[mech] || PURSES.rents; return P.steps.length - 1; }
+// A rate READS in its own unit - DUES and TIN are dollars a head, everything
+// else (levy, rents, tariff) is a percentage. One helper, because the policy
+// line and the platform chip both print it and drifted once already.
+function purseRateTxt(p) {
+  const r = purseRate(p);
+  return p.mech === "dues" || p.mech === "tin" ? "$" + $d(r) : r + "%";
+}
 function policyLine(p) {
-  const P = purseOf(p), r = purseRate(p), b = p.bowls | 0, f = floorOf(p);
+  const P = purseOf(p), b = p.bowls | 0, f = floorOf(p);
   // The floor is APPENDED rather than woven in, and only when it is set: it is
   // also the ballot's dedup key (buildBallot keys byPlat on this string), so
   // two platforms that differ only in the floor have to read differently here
   // or one of them silently vanishes off the paper.
   const cp = capOf(p);
-  return P.short + " " + (p.mech === "rents" || p.mech === "levy" ? r + "%" : "$" + $d(r))
+  return P.short + " " + purseRateTxt(p)
     + " / " + b + " BOWL" + (b === 1 ? "" : "S") + (f > 0 ? " / MIN $" + $d(f) : "")
     + (cp > 0 ? " / " + cp + " STAFF" : "");
 }
@@ -1446,6 +1479,25 @@ function harbourDues(v) {
   if (purseRate(hall.policy) <= 0) return 0;
   return fundTake({ k: "vis", v }, Math.min(purseRate(hall.policy), fundNeed()), "HARBOUR DUE");
 }
+// THE TARIFF, collected at the gangway's own chokepoint: consumeIngredient
+// books the import and the duty rides the same call, off the till that just
+// bought the crate (fundTake clamps at the balance, so a till at zero pays
+// what it has and never overdraws). The office's own purchases are exempt BY
+// CONSTRUCTION: ballot paper is bought by the fund itself (fundRemit, no
+// till), and the pot's fish passes no payer - the town does not toll its own
+// relief, which keeps bowlCost() the honest price the fund is struck for.
+// Capped by fundNeed like every purse: the fund does not hoard, so the town
+// does not charge tolls it has no use for.
+function importDuty(b, kind, cost) {
+  if (!b || !hallOn() || hall.policy.mech !== "tariff") return 0;
+  const rate = purseRate(hall.policy);
+  if (rate <= 0) return 0;
+  const a = bizAcct(b);
+  if (!a) return 0;
+  const got = fundTake(a, Math.min(cost * rate / 100, fundNeed()), "TARIFF: " + IMPORTS[kind].name);
+  if (got > 0) { trade.duty += got; trade.dutyDay += got; }
+  return got;
+}
 // One pass at settlement for the purses collected in the evening: the LEVY off
 // the day's takings, and the TIN off whoever can spare it. (RENTS rides the
 // house-rent payment and DUES ride the gangway - both are taken where the
@@ -1544,7 +1596,8 @@ function stockPot() {
   fundPay(SOUP_BIZ, n * each, n + " BOWLS FROM " + BIZ[SOUP_BIZ].short);
   for (let i = 0; i < n; i++) {                    // ...and the shack buys the fish for them
     debitBiz(SOUP_BIZ, ingredientCost("fish_raw"), BIZ[SOUP_BIZ].door, 118, "POT");
-    consumeIngredient("fish_raw", null);
+    consumeIngredient("fish_raw", null);   // no payer: the pot's fish is the office's own, never tariffed
+
   }
   townFund.bowls += n;
   popText(n + " BOWLS FOR THE POT", SHELTER_X + 4, 120, [255, 210, 140]);
@@ -1603,6 +1656,11 @@ function purseCost100(c, mech) {   // int hundredths
   if (mech === "levy") return owns ? 100 : paid ? 28 : 4;
   if (mech === "dues") return owns ? 50 : paid ? 12 : 2;
   if (mech === "tin") return (c.p.wallet || 0) >= TIN_KEEP ? 34 : 3;
+  // THE TARIFF falls on fewer tills than the levy (only the ones that buy
+  // imports - a food counter, never the arcade's power or a fisher's own
+  // catch), so an owner prices it about half a levy; a wage crab feels it
+  // only through the till that pays them. A fisher SELLS what it protects.
+  if (mech === "tariff") return owns ? 55 : paid ? 10 : 2;
   return 4;   // RENTS: Mr. Pincherton pays, and Mr. Pincherton does not vote
 }
 // WHAT A PLATFORM WOULD ACTUALLY RAISE, off what the town did today. This is
@@ -1620,6 +1678,13 @@ function purseYield(p) {
     return allCrabs().filter(c => !c.p.homeless && c.p.boat == null).length * HOUSE_RENT * rate / 100;
   if (p.mech === "dues") return (today.heads || 0) * rate;
   if (p.mech === "tin") return allCrabs().filter(c => (c.p.wallet || 0) >= TIN_KEEP + rate).length * rate;
+  // THE TARIFF raises off what the gangway landed TODAY - the two priced
+  // commercial flows (fish the pier didn't supply, corn for the tortillas),
+  // never the office's own ballot paper. A town whose pier keeps up imports
+  // nothing and the estimate honestly reads zero, which is why nobody
+  // campaigns on a tariff until the town actually leans on the ferry.
+  if (p.mech === "tariff")
+    return (trade.day.fish * IMPORTS.fish.price + trade.day.corn * IMPORTS.corn.price) * rate / 100;
   return 0;
 }
 // ...and what it would actually TAKE, which is not the same thing, because the
@@ -1765,7 +1830,7 @@ function platValue(c, p) {
 function allPlatforms() {
   const out = [];
   for (const mech of PURSE_KEYS)
-    for (let rate = 0; rate <= 4; rate++)
+    for (let rate = 0, rmax = rateSteps(mech); rate <= rmax; rate++)
       for (let bowls = 0; bowls <= POT_MAX; bowls++) {
         const base = { mech, rate, bowls };
         const _y = purseYield(base), _take = platTake(base), _bowls = platBowls(base);
@@ -5211,6 +5276,11 @@ const IMPORTS = {
 };
 let trade = { total: { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 },
   day: { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }, spent: 0,
+  // ...AND WHAT THE GANGWAY RAISED. The tariff's own running counters (cents,
+  // all-time and today), kept on the ledger rather than the fund because the
+  // TRADE view answers "what did the duty do" next to the goods it was
+  // charged on. fundTake's rows carry the same money under "TARIFF: <GOOD>".
+  duty: 0, dutyDay: 0,
   // ...AND WHAT WE SPENT IT ON. `spent` was a single number back when FISH was
   // the only import that actually charged money, and "spent / fish landed = the
   // world price" was a fair thing for a test to assert. BALLOT PAPER is the
@@ -5230,6 +5300,21 @@ function tradeImport(kind, qty, dollars) {
     trade.spentBy[kind] = (trade.spentBy[kind] || 0) + dollars;
   }
 }
+// THE CEILING IS IMPORT PARITY, and a tariff RAISES it (Matt, 2026-08-25:
+// "this should increase the price paid for fish in high tariff scenarios").
+// $7 was only ever the ceiling because that is where the world supplies; a
+// duty on the gangway moves the world's effective price to $7 + duty, so the
+// pier may clear up to it. That is the protection a fishing town votes a
+// tariff FOR: on the scarce weeks - exactly when the tariff bites - every
+// cast pays more, and the fleet is the one bloc with nothing to pay and
+// everything to gain. The POSTED rate moves the market, not tonight's
+// collection: fundNeed may wave a crate through the booth once the shelter
+// is covered, but a merchant prices off the schedule, not off whether the
+// office happens to be flush.
+function fishCeil() {
+  return FISH_IMPORT + (hallOn() && hall.policy.mech === "tariff"
+    ? FISH_IMPORT * purseRate(hall.policy) / 100 : 0);   // rates are 10/25/50/100: whole cents by construction
+}
 // One clearing a day, at midnight: the last 3 days' landings vs the fish the
 // town actually ate (local, shipped-in, and beach roasts alike - an import IS
 // unmet local demand). $1 steps inside a deadband, so the price walks rather
@@ -5243,9 +5328,13 @@ function settleFishMarket() {
   // decided by arithmetic, not by which numerator rounded luckier.
   const sum = (a) => a.reduce((s, v) => s + v, 0);
   const sumS = sum(trade.landH), sumD = sum(trade.useH), len = trade.landH.length;
-  if (sumD > sumS + len) trade.price = Math.min(FISH_IMPORT, trade.price + 100);        // fish ran short: the pier price firms
+  if (sumD > sumS + len) trade.price = Math.min(fishCeil(), trade.price + 100);        // fish ran short: the pier price firms
   else if (sumS > sumD + 2 * len) trade.price = Math.max(FISH_FLOOR, trade.price - 100);    // fish piled up: the pier price sags
-  trade.ceilDays = trade.price >= FISH_IMPORT ? (trade.ceilDays || 0) + 1 : 0;
+  // a REPEALED (or out-voted) duty re-parities in one clearing, not by $1
+  // walks: the world undercuts anything above its own landed price, so a pier
+  // price the schedule no longer protects cannot clear tomorrow.
+  trade.price = Math.min(trade.price, fishCeil());
+  trade.ceilDays = trade.price >= fishCeil() ? (trade.ceilDays || 0) + 1 : 0;
   trade.series.push(trade.price);
   if (trade.series.length > 60) trade.series.shift();
   trade.useDay = 0;
@@ -5254,9 +5343,15 @@ function ingredientCost(raw) {
   if (raw === "fish_raw") return townCatch > 0 ? trade.price : FISH_IMPORT;
   return 100 * INGREDIENT_COST[raw];   // author-dollars table; the cent is born here
 }
-function consumeIngredient(raw, recipe) {
+// `payer` is the biz whose till just bought the ingredient - the tariff's
+// whole address book. Omitted (the pot's fish), no duty is owed: the office
+// does not toll its own relief.
+function consumeIngredient(raw, recipe, payer) {
   if (raw === "fruit") tradeImport("fruit", 1);                   // every drink counts its fruit (T1 tracking)
-  if (raw === "corn") tradeImport("corn", 1, IMPORTS.corn.price); // no corn grows here: every ear is a priced import, like a fish the pier didn't land
+  if (raw === "corn") {
+    tradeImport("corn", 1, IMPORTS.corn.price); // no corn grows here: every ear is a priced import, like a fish the pier didn't land
+    importDuty(payer, "corn", IMPORTS.corn.price);
+  }
   if (recipe && recipe.raw2 === "water") {
     tradeImport("water", 1); // the COOLER's gallon of fresh water
     if (window._stats) window._stats.coolersMade = (window._stats.coolersMade || 0) + 1;
@@ -5265,7 +5360,10 @@ function consumeIngredient(raw, recipe) {
   if (raw !== "fish_raw") return;
   trade.useDay++;   // every fish eaten is the market's demand signal
   if (townCatch > 0) townCatch--;
-  else tradeImport("fish", 1, FISH_IMPORT);   // shipped in - the $7 was already charged upstream
+  else {
+    tradeImport("fish", 1, FISH_IMPORT);   // shipped in - the $7 was already charged upstream
+    importDuty(payer, "fish", FISH_IMPORT);   // ...and the duty rides the same crate
+  }
 }
 const ITEM_NAMES = {
   fish_raw: "FISH", fish_cut: "CUT FISH", fruit: "FRUIT",
@@ -7181,7 +7279,24 @@ const sfx = {
 
 // ---------------------------------------------------------------- economy
 function fmt(c) {   // cents in, whole dollars out - every caller is money
-  let n = $d(c);
+  return fmtD($d(c));
+}
+// ...and the same abbreviation for a number that is ALREADY dollars.
+//
+// THE REGRESSION THIS EXISTS TO PREVENT. The card shipped CORRECT on 2026-08-20
+// - the devlog screenshot reads BROUGHT $1190 / SPENT $368 / TOOK HOME $822.
+// Then 2e84c1e ("every balance is integer cents") moved the whole game to cents
+// and gave `departRecord` a `$d` on the way in, so the row speaks DOLLARS -
+// every reader of it is a voice line or a printed label. It converted the
+// PER-GUEST rows correctly and left the money band calling `fmt`, which divides
+// by 100 again. For four days the card contradicted itself on its own face:
+// BROUGHT $7 sitting directly above SPENT $42 OF $71.
+//
+// The unit that a `fmt` protects is invisible at the call site - `fmt(x)` looks
+// right whatever x is - so the guard is a SECOND DOOR with the unit in its
+// name, and a scenario that reads the DRAWN string. The old scenario checked
+// the record's arithmetic, which was right the whole time.
+function fmtD(n) {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
   if (n >= 1e4) return (n / 1e3).toFixed(1) + "K";
   return String(n);
@@ -10097,8 +10212,9 @@ function load(slot, envIn) {
     hall.mayor = typeof H.mayor === "string" ? H.mayor.slice(0, 14) : null;
     // `wage` defaults to 0 = NO FLOOR, so a town saved before the fifth dial
     // existed reloads on exactly the payroll it went to sleep on.
-    hall.policy = { mech: PURSES[pol.mech] ? pol.mech : "rents",
-      rate: Math.max(0, Math.min(4, Math.round(+pol.rate || 0))),
+    const polMech = PURSES[pol.mech] ? pol.mech : "rents";
+    hall.policy = { mech: polMech,
+      rate: Math.max(0, Math.min(rateSteps(polMech), Math.round(+pol.rate || 0))),
       bowls: Math.max(0, Math.min(POT_MAX, Math.round(+pol.bowls || 0))),
       wage: Math.max(0, Math.min(FLOOR_STEPS, Math.round(+pol.wage || 0))),
       cap: Math.max(0, Math.min(CAP_STEPS, Math.round(+pol.cap || 0))) };
@@ -10106,8 +10222,9 @@ function load(slot, envIn) {
     hall.stand = !!H.stand;
     hall.nominee = typeof H.nominee === "string" ? H.nominee.slice(0, 14) : null;
     const pl = H.plat || {};
-    hall.plat = { mech: PURSES[pl.mech] ? pl.mech : "levy",
-      rate: Math.max(0, Math.min(4, Math.round(+pl.rate || 0))),
+    const platMech = PURSES[pl.mech] ? pl.mech : "levy";
+    hall.plat = { mech: platMech,
+      rate: Math.max(0, Math.min(rateSteps(platMech), Math.round(+pl.rate || 0))),
       bowls: Math.max(0, Math.min(POT_MAX, Math.round(+pl.bowls || 0))),
       wage: Math.max(0, Math.min(FLOOR_STEPS, Math.round(+pl.wage || 0))),
       cap: Math.max(0, Math.min(CAP_STEPS, Math.round(+pl.cap || 0))) };
@@ -10134,9 +10251,10 @@ function load(slot, envIn) {
     if (B && typeof B === "object" && Array.isArray(B.cands)) {
       const cands = B.cands.slice(0, 6).map(k => {
         const pl = (k && k.plat) || {};
+        const boxMech = PURSES[pl.mech] ? pl.mech : "rents";
         return { name: String((k && k.name) || "").slice(0, 14),
-          plat: { mech: PURSES[pl.mech] ? pl.mech : "rents",
-            rate: Math.max(0, Math.min(4, Math.round(+pl.rate || 0))),
+          plat: { mech: boxMech,
+            rate: Math.max(0, Math.min(rateSteps(boxMech), Math.round(+pl.rate || 0))),
             bowls: Math.max(0, Math.min(POT_MAX, Math.round(+pl.bowls || 0))),
             wage: Math.max(0, Math.min(FLOOR_STEPS, Math.round(+pl.wage || 0))),
             cap: Math.max(0, Math.min(CAP_STEPS, Math.round(+pl.cap || 0))) },
@@ -10169,9 +10287,12 @@ function load(slot, envIn) {
     day: Object.assign({ fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }, s.trade.day), spent: s.trade.spent || 0,
     spentBy: Object.assign({ fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }, s.trade.spentBy),
     landed: s.trade.landed || 0, landedDay: s.trade.landedDay || 0,
+    duty: s.trade.duty || 0, dutyDay: s.trade.dutyDay || 0,   // pre-tariff saves open with a clean gangway column
     // fish market state; pre-market saves open at the old $4 with a blank chart
+    // ...clamped to the CURRENT ceiling: hall.policy loads above, so a saved
+    // tariff town keeps its protected price and a tampered price re-parities
     price: typeof s.trade.price === "number"
-      ? Math.max(FISH_FLOOR, Math.min(FISH_IMPORT, Math.round(s.trade.price))) : FISH_START,
+      ? Math.max(FISH_FLOOR, Math.min(fishCeil(), Math.round(s.trade.price))) : FISH_START,
     useDay: s.trade.useDay || 0,
     landH: Array.isArray(s.trade.landH) ? s.trade.landH.slice(-3) : [],
     useH: Array.isArray(s.trade.useH) ? s.trade.useH.slice(-3) : [],
@@ -10858,7 +10979,7 @@ function runJobBoard() {
       // nobody in town is free to take it (the jobless already fish), so the
       // posting reaches a drifter after a day on the board - who fishes for
       // themselves at market price, like every fisher
-      if (trade.price < FISH_IMPORT) {
+      if (trade.price < fishCeil()) {
         jobBoard.splice(jobBoard.indexOf(j), 1);   // price came back down; so does the posting
       } else if (j.day < day && npcs.length < 8) {
         const hire = spawnDrifter();
@@ -11210,7 +11331,7 @@ function updateSchedule(c, dt) {
     const e = pickErrand(c);
     if (e && e.need === "food" && townCatch > 2) {
       c.errandCd = 3 * SEC;   // lunch is in the crate - updateFishing roasts it at 0.55
-    } else if (e && e.need === "fun" && trade.price >= FISH_IMPORT - 100) {   // within a dollar of the ceiling
+    } else if (e && e.need === "fun" && trade.price >= fishCeil() - 100) {   // within a dollar of the ceiling
       // opportunity cost: skip the fun break while the water's paying
       if (c.priceQuipDay !== day) {
         c.priceQuipDay = day;
@@ -11921,7 +12042,7 @@ function updateSelfCook(c, dt) {
       c.p.wallet = Math.max(0, c.p.wallet - pay);
       if (pay > 0) creditBiz(sb, pay, c.x, FLOOR_Y - 40);      // the charge into the till
       debitBiz(sb, ingredientCost(r.raw), c.x, FLOOR_Y - 34);  // till buys the ingredients either way
-      consumeIngredient(r.raw, r);
+      consumeIngredient(r.raw, r, sb);
       if (window._stats) {
         window._stats.staffMealPaid = (window._stats.staffMealPaid || 0) + pay;
         window._stats.staffMealCost = (window._stats.staffMealCost || 0) + ingredientCost(r.raw);   // cents, like the paid column
@@ -12743,7 +12864,7 @@ function updateFishing(c, dt) {
       by[c.p.name] = (by[c.p.name] || 0) + haul;
     }
     if (srand() < 0.25) c.quip = {
-      text: trade.price >= FISH_IMPORT
+      text: trade.price >= fishCeil()
         ? ["THE WATER'S MONEY TODAY", "EVERY CAST PAYS", "TOP DOLLAR TODAY"][(srand() * 3) | 0]
         : ["BIG ONE!", "THEY'RE BITING", "SEA PROVIDES"][(srand() * 3) | 0], t: 2.2 * SEC };
   }
@@ -12979,7 +13100,7 @@ function updateKitchen(c, dt) {
       if (c.stepIdx === -1) {
         if (ownerFunds(bizKey) < ingredientCost(c.cust.recipe.raw)) { c.ksC = KS.waitCash; return; }
         debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
-        consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
+        consumeIngredient(c.cust.recipe.raw, c.cust.recipe, bizKey);
         c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
       }
       else if (c.stepIdx >= c.cust.recipe.steps.length) serve(c);
@@ -13027,7 +13148,7 @@ function updateKitchen(c, dt) {
       stepTo(c, c.tx, spd, dt, c.ty); }
     if (ownerFunds(bizKey) >= ingredientCost(c.cust.recipe.raw)) {
       debitBiz(bizKey, ingredientCost(c.cust.recipe.raw), c.x, FLOOR_Y - 40);
-      consumeIngredient(c.cust.recipe.raw, c.cust.recipe);
+      consumeIngredient(c.cust.recipe.raw, c.cust.recipe, bizKey);
       c.ksC = KS.work; c.workMax = c.workT = 0.6 * SEC; c.slotKind = null; c.slot = -1;
     }
   } else if (c.ksC === KS.waitSlot) {
@@ -16034,11 +16155,16 @@ cv.addEventListener("click", (ev) => {
         const bump = (k, d, lo, hi) => { ed[k] = Math.max(lo, Math.min(hi, (ed[k] | 0) + d)); apply(); };
         if (hit(R.pmech)) {
           ed.mech = PURSE_KEYS[(PURSE_KEYS.indexOf(ed.mech) + 1) % PURSE_KEYS.length];
+          // grids can differ in length now that the rate axis honours the
+          // authored ladder - clamp the index into the new mech's grid so
+          // cycling never leaves a rung the new purse cannot carry (byte-neutral
+          // while every shipped grid is 5 rungs; matters for an extended one).
+          ed.rate = Math.min(ed.rate | 0, rateSteps(ed.mech));
           toast = { text: purseOf(ed).name + " - " + purseOf(ed).who, t: 5 };
           apply(); return;
         }
-        if (hit(R.prm)) { bump("rate", -1, 0, 4); return; }
-        if (hit(R.prp)) { bump("rate", 1, 0, 4); return; }
+        if (hit(R.prm)) { bump("rate", -1, 0, rateSteps(ed.mech)); return; }
+        if (hit(R.prp)) { bump("rate", 1, 0, rateSteps(ed.mech)); return; }
         if (hit(R.pbm)) { bump("bowls", -1, 0, POT_MAX); return; }
         if (hit(R.pbp)) { bump("bowls", 1, 0, POT_MAX); return; }
         if (hit(R.pwm)) { bump("wage", -1, 0, FLOOR_STEPS); return; }
@@ -19271,8 +19397,10 @@ let learnArm = null;   // foodways: the dish id armed on the manage card (view s
 // a page of its own because it is the legibility bar for the whole feature and
 // three lines of fourteen was underselling it: sharing the card with the
 // candidate rows left 34px, and a 3x5 font needs 7 of them per line.
-const HALL_VIEWS = ["BOOKS", "BALLOT", "ROLL"];
-const HALL_VIEW_LABEL = { BOOKS: "BOOKS", BALLOT: "LAST BALLOT", ROLL: "THE ROLL" };
+// FOUR now, not three: TRADE is the gangway's page (the tariff purse reads
+// off the ledger, so the hall owns a view of it - Matt's "bigger civics UX").
+const HALL_VIEWS = ["BOOKS", "TRADE", "BALLOT", "ROLL"];
+const HALL_VIEW_LABEL = { BOOKS: "BOOKS", TRADE: "TRADE", BALLOT: "LAST BALLOT", ROLL: "THE ROLL" };
 const ROLL_ROWS = 8;   // voter lines per page of the roll, at 7px in the card's body
 let hallView = "BOOKS", hallRollPage = 0;
 // ------------------------------------------------------------- THE ROSTERS
@@ -19792,6 +19920,46 @@ function drawHall(R, chip) {
     if (townFund.ledger.length > LEDG)
       smallText(ctx, "+" + (townFund.ledger.length - LEDG) + " EARLIER",
         x + w2 - 6 - smallTextWidth("+" + (townFund.ledger.length - LEDG) + " EARLIER"), y + 93, [150, 140, 160]);
+  } else if (hallView === "TRADE") {
+    // THE GANGWAY (Matt, 2026-08-25: the tariff wants "a bigger civics UX").
+    // The office's own reading of the trade ledger: what the ferry lands,
+    // what the town spent on it, and what the duty raised - beside the BOOKS
+    // it feeds rather than off on the notice board. Rendered even when no
+    // tariff is on: a player weighing the TARIFF dial reads THIS page to see
+    // what it would fall on.
+    const T = hallOn() && hall.policy.mech === "tariff";
+    const tr = T ? purseRate(hall.policy) : 0;
+    smallText(ctx, "THE GANGWAY - OFF THE FERRY", x + 8, y + 66, [58, 42, 38]);
+    { const v = "PIER $" + $d(trade.price);
+      smallText(ctx, v, x + w2 - 8 - smallTextWidth(v), y + 66,
+        trade.price >= fishCeil() ? [200, 110, 40] : [140, 110, 40]); }
+    smallText(ctx, fitSmall(tr > 0
+      ? "TARIFF " + tr + "% - RAISED $" + fmt(trade.dutyDay) + " TODAY, $" + fmt(trade.duty) + " ALL TIME"
+      : trade.duty > 0 ? "NO TARIFF TODAY - $" + fmt(trade.duty) + " RAISED ALL TIME"
+      : "NO TARIFF - THE GANGWAY IS FREE", w2 - 16), x + 8, y + 75,
+      tr > 0 ? [40, 150, 70] : [110, 100, 110]);
+    const cDay = x + 128, cTot = x + 162, cSp = x + w2 - 8;
+    smallText(ctx, "GOOD", x + 8, y + 84, [150, 140, 160]);
+    smallText(ctx, "TODAY", cDay - smallTextWidth("TODAY"), y + 84, [150, 140, 160]);
+    smallText(ctx, "ALL", cTot - smallTextWidth("ALL"), y + 84, [150, 140, 160]);
+    smallText(ctx, "SPENT", cSp - smallTextWidth("SPENT"), y + 84, [150, 140, 160]);
+    let ly = y + 92;
+    // fish and corn lead the key order, and they are the two the duty rides -
+    // when the strip below squeezes a row off, it is the office's own paper
+    // that goes, same rule as the notice board ("stops at its own frame").
+    for (const kind of Object.keys(IMPORTS)) {
+      if (ly > y + h2 - 72) break;   // the candidacy strip owns the bottom of the card
+      const im = IMPORTS[kind];
+      smallText(ctx, fitSmall(im.name + (tr > 0 && (kind === "fish" || kind === "corn") ? " +DUTY" : ""), 110),
+        x + 8, ly, [90, 90, 105]);
+      const d = String(trade.day[kind]), t = String(trade.total[kind]);
+      const sp = "$" + fmt(trade.spentBy[kind] || 0);
+      smallText(ctx, d, cDay - smallTextWidth(d), ly, [110, 110, 130]);
+      smallText(ctx, t, cTot - smallTextWidth(t), ly, [110, 110, 130]);
+      smallText(ctx, sp, cSp - smallTextWidth(sp), ly,
+        (trade.spentBy[kind] || 0) > 0 ? [140, 110, 40] : [150, 140, 160]);
+      ly += 7;
+    }
   } else if (hallView === "ROLL") {
     // ONE LINE PER VOTER, in their own terms, with the whole card body to do it
     // in. This is the bar the owner set for the elections - "emergent,
@@ -19878,7 +20046,7 @@ function drawHall(R, chip) {
   // LIT ONLY WHILE IT IS THE TOWN'S POLICY. It used to be hot unconditionally,
   // which is what made a manifesto look like a lever on the town - see the
   // note beside `apply` in the click handler.
-  chip(R.pmech, EP.short + " " + (ed.mech === "rents" || ed.mech === "levy" ? purseRate(ed) + "%" : "$" + $d(purseRate(ed))), null, mine);
+  chip(R.pmech, EP.short + " " + purseRateTxt(ed), null, mine);
   chip(R.prm, "-", null, false); chip(R.prp, "+", null, false);
   smallText(ctx, "RATE " + (ed.rate | 0), R.prm.x + 20, R.prm.y + 4, [40, 30, 40]);
   chip(R.pbm, "-", null, false); chip(R.pbp, "+", null, false);
@@ -20399,16 +20567,18 @@ function drawJobBoard() {
     // the pier price + its history: a tiny sparkline, floor $2 to ceiling $7
     smallText(ctx, "PIER FISH PRICE", x + 6, ly, [140, 110, 40]);
     {
-      const v = "$" + $d(trade.price) + (trade.price >= FISH_IMPORT ? " AT CEILING" : "");
+      const v = "$" + $d(trade.price) + (trade.price >= fishCeil() ? " AT CEILING" : "");
       smallText(ctx, v, x + 140 - smallTextWidth(v), ly,
-        trade.price >= FISH_IMPORT ? [200, 110, 40] : [140, 110, 40]);
+        trade.price >= fishCeil() ? [200, 110, 40] : [140, 110, 40]);
     } ly += 7;
     {
-      const s = trade.series.slice(-30), sh = 8, sx = x + 6;
+      // the sparkline normalizes to TODAY'S ceiling (a tariff raises it), and
+      // clamps: bars drawn under an older, higher schedule stay in the box
+      const s = trade.series.slice(-30), sh = 8, sx = x + 6, ceil = fishCeil();
       rect(ctx, sx - 1, ly - 1, 30 * 3 + 2, sh + 2, [235, 225, 205]);
       for (let i = 0; i < s.length; i++) {
-        const hh = 2 + Math.round((s[i] - FISH_FLOOR) / (FISH_IMPORT - FISH_FLOOR) * (sh - 2));
-        rect(ctx, sx + i * 3, ly + sh - hh, 2, hh, s[i] >= FISH_IMPORT ? [200, 110, 40] : [40, 150, 70]);
+        const hh = Math.min(sh, 2 + Math.round((s[i] - FISH_FLOOR) / (ceil - FISH_FLOOR) * (sh - 2)));
+        rect(ctx, sx + i * 3, ly + sh - hh, 2, hh, s[i] >= ceil ? [200, 110, 40] : [40, 150, 70]);
       }
       ly += sh + 3;
     }
@@ -21142,8 +21312,10 @@ function drawDepart() {
   // incentive since the visitor pass and has never once been printed anywhere.
   // Here it is, every night, in the player's own arithmetic.
   {
-    const a = "BROUGHT $" + fmt(D.purse), b = "SPENT $" + fmt(D.spent),
-      c = "TOOK HOME $" + fmt(D.left);
+    // fmtD, not fmt: the manifest speaks DOLLARS already (departRecord runs
+    // $d on the way in), and fmt would divide by 100 a second time.
+    const a = "BROUGHT $" + fmtD(D.purse), b = "SPENT $" + fmtD(D.spent),
+      c = "TOOK HOME $" + fmtD(D.left);
     smallText(ctx, a, x + 6, y + 25, [110, 100, 110]);
     smallText(ctx, b, x + 86, y + 25, [40, 110, 60]);
     smallText(ctx, c, x + w2 - 6 - smallTextWidth(c), y + 25,
@@ -21721,6 +21893,7 @@ function simClock(dt, rawMs) {
     for (const cid in repC) repC[cid] = repC[cid] + idiv((30000 - repC[cid]) * 6, 100);   // every people's word cools the same way (reputation pass)
     for (const c of allCrabs()) { c.workedToday = false; c.otMin = 0; }   // a new day's ledger
     trade.day = { fish: 0, corn: 0, water: 0, power: 0, fruit: 0, paper: 0 }; trade.landedDay = 0;
+    trade.dutyDay = 0;   // the gangway's day column resets with the rest of the ledger
     townFund.dayIn = 0; townFund.dayOut = 0; townFund.youPaid = 0; townFund.youGot = 0;   // the fund's own day book
     today = newDayLog(); today.repStart = rep;
   }

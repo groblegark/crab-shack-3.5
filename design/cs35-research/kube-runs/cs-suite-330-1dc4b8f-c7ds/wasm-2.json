@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-1dc4b8f-c7ds",
+  "armId": "wasm-2",
+  "index": 14,
+  "sha": "1dc4b8fec8c0b6b85ee407199c54a5798b646689",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 116550,
+  "verdict": "33/33 passed in slice 2/12 (116.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1446ms)\n  PASS  showers: guests occupy stalls, staff turn them over (1273ms)\n  PASS  save/load: townsfolk keep wallets and houses (976ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (803ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (854ms)\n  PASS  tired: the morning and evening shifts end the week level (48935ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (432ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (9372ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1076ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (1169ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (642ms)\n  PASS  a science run is silent and the mind panel banks at the fold (615ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (9689ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1455ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (825ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (14ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (370ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1159ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (585ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (766ms)\n  PASS  only one track is ever audible at once (11ms)\n  PASS  missing payday costs the crew, not the lease (5767ms)\n  PASS  crab-as-document: a hostile document is refused by name (14ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (7184ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (25ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4868ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (8ms)\n  PASS  seam: a headless day never enters the view (927ms)\n  PASS  brains: a town full of thinking heads round-trips its save (6052ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (8061ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (92ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (11ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (977ms)\n33/33 passed in slice 2/12 (116.5s)\n"
+}

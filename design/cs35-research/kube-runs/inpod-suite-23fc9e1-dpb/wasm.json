@@ -1,0 +1,20 @@
+{
+  "release": "inpod-suite-23fc9e1-dpb",
+  "backend": "wasm",
+  "sha": "23fc9e1fbc137ba34a56359374483bc39a27a4ba",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--jobs",
+    "3"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 962800,
+  "verdict": "380/380 passed in 962.8s",
+  "failures": [],
+  "runner": "in-pod (gasboat fleet pod, project cs) — NOT tools/kube.mjs",
+  "stdoutTail": "  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (241ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (20261ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (15146ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (3908ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (3801ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (22155ms)\n  PASS  load: the same envelope lands the same way however often you land it (3649ms)\n  PASS  load: the new town's desk is clear of the last town's books (9496ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (9368ms)\n  PASS  science: one recipe lives the same town twice (14484ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (281ms)\n  PASS  science: the seed is the town - a different one lives differently (11230ms)\n  PASS  science: a scrub lands on the day the run recorded (9773ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (455ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (476ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (814ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (165ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (453ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (3325ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (166ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (3923ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (200ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (209ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (175ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (200ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (170ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (266ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (340ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (194ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (197ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (152ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (2688ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (3481ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (473ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (535ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (511ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (570ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (2418ms)\n\n380/380 passed in 962.8s"
+}

@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-5e56b33-g33o",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "5e56b33f6927755e7319baa76b31e88960c13aa7",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 69349,
+  "verdict": "32/32 passed in slice 6/12 (69.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (1920ms)\n  PASS  save guard: an empty slot still receives the first town (17ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1004ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (5717ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (120ms)\n  PASS  fishers feed themselves: breaks + the beach roast (2935ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (144ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (872ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (18986ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (2714ms)\n  PASS  ferry: the arming tap times out, and an old save never won (11ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (11ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (4761ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (3225ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (15528ms)\n  PASS  departures: the money band prints the manifest's own dollars (297ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (369ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (1896ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (10ms)\n  PASS  a standing offer can be answered from the card that announces it (13ms)\n  PASS  the cabana row leaves both travel lanes a real margin (10ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (10ms)\n  PASS  need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name (11ms)\n  PASS  civics: a people's voters score a platform on THEIR OWN declared stakes (5913ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (13ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (247ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (262ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (1325ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (8ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (890ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (7ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (6ms)\n32/32 passed in slice 6/12 (69.3s)\n"
+}
