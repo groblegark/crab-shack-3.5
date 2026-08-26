@@ -14826,23 +14826,53 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // moved pixel. The cross-check with the frozen day-2 fingerprint's 4242 seed
   // is EXACT and unchanged (coins 19570, rep 44141, REEF 25688) - one town, two
   // scenarios, and both agree it did not move.
-  const want = '{"day":3,"coins":19570,"rep":44141,"fund":1000,"crabs":[["PINCHY",520,1600],'
-    + '["CLAWDIA",108,1600],["SUDSY",388,19055],["REEF",2136,25688],["SALTY",2072,100],'
-    + '["DRIFT",318,0],["KELP",450,700]],"vis":7,"catch":4}';
+  // RE-BASELINED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task
+  // kd-CC5yBIzjFt), in LOCKSTEP with the frozen day-2 fingerprint's 4242 seed:
+  // this town's coins (21966), rep (43845), SUDSY (21053) and REEF (28166) match
+  // that fixture's 4242 byte for byte - one town, two scenarios, both re-rolled
+  // by the same continuous drain. crabTick is draw-free so the structural claim
+  // still holds (a save without a cultures key loads onto the fresh-boot
+  // trajectory, no extra draw, the rng pin re-points by VALUE) - this is a pure
+  // trajectory re-roll off the new demand. Arm-off: --nodecay restores 19570.
+  const want = '{"day":3,"coins":21966,"rep":43845,"fund":1000,"crabs":[["PINCHY",520,3600],'
+    + '["CLAWDIA",108,2600],["SUDSY",388,21053],["REEF",2136,28166],["SALTY",2072,2600],'
+    + '["DRIFT",318,2600],["KELP",248,2200]],"vis":9,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
   // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
-  // the invariant sharpened: no culture comes ASHORE unearned (the fingerprint
-  // above is byte-proof of that), and the save carries the town's formed
-  // opinions (a `repc` key) but never a bundled `cultures` document. On this
-  // frozen seed rep peaks ~45 - above the gull gate's structural crossing (34 +
-  // hearsay = ~39), so a gull COULD have drawn its 12.8% and none did; the pig
-  // gate (45 + hearsay = ~50 effective) stayed shut outright. The pinned town is
-  // the receipt that no non-crab walked down the gangway here.
+  // the invariant is: no culture comes ASHORE UNEARNED (its rep gate must be
+  // open), and the save carries the town's formed opinions (a `repc` key) but
+  // never a bundled `cultures` document.
+  // RE-BASELINED for U1 (task kd-CC5yBIzjFt): the OLD form of this check asserted
+  // "zero non-crabs ashore on this seed", which was a TRAJECTORY COINCIDENCE, not
+  // the invariant. U1's continuous crab drain re-rolls the arrival stream, and on
+  // this seed a GULL now wins its roll where none did before - and that is
+  // CORRECT, EARNED behaviour: measured on the landing tree, the gull's gate is
+  // OPEN (gate 34000 millirep, heard 38845 = crab rep 43845 - REP_HEARSAY 5000),
+  // so the gull is talked aboard on hearsay exactly as designed, while the PIG's
+  // higher gate (45000 > 38845) stays SHUT - the pig, unearned, does not come.
+  // So the sharp invariant is asserted directly: no UNEARNED culture ashore (a
+  // pig here), and the gull only if its gate is genuinely open. Arm-off:
+  // --nodecay restores the pre-U1 stream (gull draw not won, zero non-crabs).
   if (sim.G("Object.keys(CULTURES).sort().join()") !== "crab,gull,pig")
     return "the bundled peoples are not in the registry: " + sim.G("Object.keys(CULTURES).join()");
-  if (sim.G("customers.some(k => k.culture && k.culture !== 'crab')"))
-    return "a non-crab came ashore on the frozen seed - the fingerprint above is stale";
+  // no UNEARNED culture ashore - a pig (gate shut on this seed) must never appear
+  if (sim.G("customers.some(k => k.culture === 'pig')"))
+    return "a PIG came ashore with its rep gate shut - a culture arrived unearned";
+  // ...and any non-crab that IS ashore must have its gate genuinely open (earned)
+  const unearned = sim.G(`(() => {
+    for (const k of customers) {
+      if (!k.visitor || !k.culture || k.culture === 'crab') continue;
+      const ar = (CULTURES[k.culture].def.arrival) || {};
+      const gateM = 1000 * (ar.repGate != null ? ar.repGate : 80);
+      const own = repC[k.culture];
+      const heard = (own != null && own < 30000) ? own : Math.max(own != null ? own : 30000, rep - REP_HEARSAY);
+      if (heard <= gateM) return k.culture;   // ashore with a shut gate = unearned
+    }
+    return null;
+  })()`);
+  if (unearned && unearned !== "null")
+    return "a non-crab came ashore with a shut gate (unearned): " + unearned;
   // a bundled document is the ENGINE's, never the save's: it must not be
   // written into a town, or improving it later would never reach that save
   if (sim.G("rawCultures") !== null) return "rawCultures is set on a plain town";
@@ -14850,7 +14880,14 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   sim.G("save()");
   const env = JSON.parse(store.get(SLOT1));
   if ("cultures" in env) return "a plain save grew a cultures key";
-  if ((env.visitors || []).some(v => "cu" in v)) return "a crab visitor grew a cu field";
+  // a CRAB visitor must not grow a spurious cu field (the crab is the default,
+  // cu-less). RE-BASELINED for U1: a legitimately-earned GULL is now ashore on
+  // this seed (see above), and a gull visitor DOES carry cu:"gull" - that is the
+  // record doing its job, not a leak. So the check is scoped to crabs: any
+  // visitor with a cu field must name a real non-crab culture, never a crab.
+  const known = sim.G("Object.keys(CULTURES).filter(id => id !== 'crab')");   // gull,pig
+  const badCu = (env.visitors || []).find(v => "cu" in v && (v.cu === "crab" || v.cu == null || !known.includes(v.cu)));
+  if (badCu) return "a visitor grew a bad cu field: " + JSON.stringify(badCu.cu);
   // ...but reputation's spill DID form the town's opinions, so the save carries
   // a `repc` key (the loader clears-then-fills it, so this cannot leak between
   // towns). This is the one thing that legitimately changed in the reputation
