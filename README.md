@@ -4,7 +4,7 @@ A simulation-style beach-town economy, built on the snescat toy PPU
 (character-map pixel art, the snescat 5x7 font plus a 3x5 micro font,
 256x240 canvas, scanlines) — no libraries, no build step.
 
-Play: https://groblegark.github.io/crab-shack-3/
+Play: https://groblegark.github.io/crab-shack-3.5/
 
 ## The town
 
