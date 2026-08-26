@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5810720-n132",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "5810720df1fb75f9d2b82e7d7264102618993a4b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 137136,
+  "verdict": "35/35 passed in slice 4/12 (137.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3318ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1476ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (23ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1504ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1461ms)\n  PASS  tired: the morning and evening shifts end the week level (78645ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (430ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (12494ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (74ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (72ms)\n  PASS  tips: the counter gets a token, the table gets the lot (12ms)\n  PASS  no card prints text on top of its own text (2021ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (4800ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1186ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (6210ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (987ms)\n  PASS  departures: the money band prints the manifest's own dollars (360ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (445ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (2964ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (7ms)\n  PASS  a standing offer can be answered from the card that announces it (11ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (9ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1553ms)\n  PASS  idle quips: the island's table is the literal, key for key (7ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (149ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (15ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (2984ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (13ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (28ms)\n  PASS  seam: the view is a reader - two renders move nothing (138ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (7ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (12272ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (170ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (39ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1152ms)\n35/35 passed in slice 4/12 (137.0s)\n"
+}

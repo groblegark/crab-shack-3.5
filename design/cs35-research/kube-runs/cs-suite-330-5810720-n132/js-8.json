@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5810720-n132",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "5810720df1fb75f9d2b82e7d7264102618993a4b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 118370,
+  "verdict": "35/35 passed in slice 8/12 (118.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (858ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1705ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (531ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (158ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5467ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (360ms)\n  PASS  roster: the refactor preserves every census ordering (1162ms)\n  PASS  sale: the player buys a failed business through the shopfront (4934ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (6728ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (39790ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1107ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (2385ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1122ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (868ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1534ms)\n  PASS  departures: every character the card prints exists in the font (897ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (3468ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (68ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (442ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (414ms)\n  PASS  the whole session plays through one audio element (8ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (8203ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (8ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (12401ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (14ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (403ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (56ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (634ms)\n  PASS  brains: a live brain spends the script's own draws, no more (3674ms)\n  PASS  the stamp gate watches every file a player is served (1ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (11957ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (47ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (11ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (6853ms)\n35/35 passed in slice 8/12 (118.3s)\n"
+}
