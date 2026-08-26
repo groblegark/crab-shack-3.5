@@ -11086,17 +11086,45 @@ scenario("the playlist is energy-matched, and the event tracks stay out of the r
 // question. This one records every element the game constructs and whether it
 // was last played or paused, so "how many tracks are audible" is a count of
 // objects rather than an argument about control flow.
+//
+// THE GAME NOW BUILDS EXACTLY ONE ELEMENT AND SWAPS ITS src (see `speaker` in
+// game.js: iOS grants playback to the ELEMENT a tap touched, so a fresh
+// `new Audio` per track is silent on a phone). That does not weaken this spy -
+// "how many are audible" is still a count over `_live` - but the element is no
+// longer a proxy for the track, so a `src` setter records what is loaded and
+// `fire` reaches the one element rather than a per-attempt closure.
+//
+// A SETTER, NOT A FIELD, because the failure it guards is real: the game sets
+// `.src` to change tracks, and a spy that only saw the constructor argument
+// would report every track as the first one and cheerfully pass a build where
+// the src never moved.
 const AUDIO_SPY = `
   globalThis._live = [];
   const RealAudio = Audio;
   Audio = class extends RealAudio {
-    constructor(src) { super(src); this._src = src; this._playing = false; _live.push(this); }
+    constructor(src) {
+      super(src);
+      this._src = src; this._playing = false; this._h = {};
+      _live.push(this);
+    }
+    get src() { return this._src; }
+    set src(v) { this._src = v; }
     play() { this._playing = true; return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} }; }
     pause() { this._playing = false; }
-    addEventListener(k, f) { (this._h || (this._h = {}))[k] = f; }
-    fire(k) { this._h && this._h[k] && this._h[k](); }
+    addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+    fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
   };
+  // CUMULATIVE, NEVER RESET, and that is the point of it now. The list used to
+  // be cleared between blocks because each track built its own element and the
+  // old ones were noise. With one shared element that idiom counts to zero
+  // forever - so instead every element the game EVER constructs stays on it,
+  // and "how many tracks are audible" is how many of them are playing. That
+  // still catches the regression this scenario exists for: a stray extra
+  // element sounding over the top of the shared one reads as 2.
   globalThis.liveCount = () => _live.filter(a => a._playing).length;
+  // THE ONE ELEMENT, for a scenario that wants to fire an event at it. Built
+  // lazily on the first play, so this is null until something sounds.
+  globalThis.theSpeaker = () => _live[_live.length - 1] || null;
 `;
 scenario("only one track is ever audible at once", () => {
   // THE BUG THIS PINS, measured on the build before the fix: playTrack paused
@@ -11110,13 +11138,15 @@ scenario("only one track is ever audible at once", () => {
   const rot = JSON.parse(sim.G(`(() => {
     const out = {};
     musicOn = true; muted = false; musicView = false;
-    _live.length = 0;
     playTrack(0);
-    const first = _live[0];
     out.one = liveCount();
-    playTrack(1); playTrack(2); playTrack(3);   // rapid skips: every prior element must be dead
+    playTrack(1); playTrack(2); playTrack(3);   // rapid skips: nothing may stack up
     out.rapid = liveCount();
-    first.fire("ended");                        // the late handler from a track we walked away from
+    // THE LATE HANDLER FROM A TRACK WE WALKED AWAY FROM. With one shared
+    // element the stale 'ended' is no longer a dangling closure - it is the
+    // live element's own listener, firing for a src that has already been
+    // replaced - so it must advance the rotation exactly once and never stack.
+    theSpeaker().fire("ended");
     out.stale = liveCount();
     startMusic(); startMusic();                 // must not stack on a live track
     out.restart = liveCount();
@@ -11131,7 +11161,6 @@ scenario("only one track is ever audible at once", () => {
   const bench = JSON.parse(sim.G(`(() => {
     const out = {};
     musicOn = true; muted = false;
-    _live.length = 0;
     playTrack(0);
     musOpen();
     out.openStopsRotation = liveCount();        // 0: the box owns the speakers
@@ -11144,12 +11173,14 @@ scenario("only one track is ever audible at once", () => {
     // the box is a listening seat, not a one-shot player. The stale-handler
     // guard is what keeps that from being a second track: an 'ended' from a row
     // you already arrowed past must do nothing at all.
-    const cur = _live[_live.length - 1], heard = musPreviewId;
+    const cur = theSpeaker(), heard = musPreviewId;
     cur.fire("ended");
     out.endedAdvances = musPreviewId !== heard && liveCount() === 1 ? 1 : 0;
     const now = musPreviewId;
-    cur.fire("ended");                          // the SAME element again: stale
-    out.staleEndedIgnored = musPreviewId === now && liveCount() === 1 ? 1 : 0;
+    // 'ended' again, with nothing having advanced the row in between: the box
+    // must walk on by one, not two, and never sound a second track.
+    cur.fire("ended");
+    out.secondEndedWalksOne = musPreviewId !== now && liveCount() === 1 ? 1 : 0;
     startMusic();                               // the rotation must not sneak back in
     out.rotationHeldOff = liveCount();
     musClose();
@@ -11160,7 +11191,7 @@ scenario("only one track is ever audible at once", () => {
   for (const k of ["bench", "advance", "rotationHeldOff", "close"])
     if (bench[k] !== 1) return `bench: ${bench[k]} tracks audible after "${k}", want exactly 1`;
   if (!bench.endedAdvances) return "a bench track running out did not walk to the next row";
-  if (!bench.staleEndedIgnored) return "a stale 'ended' from an already-skipped row moved the bench";
+  if (!bench.secondEndedWalksOne) return "a second 'ended' did not walk the bench on by one";
   return true;
 });
 
@@ -11234,6 +11265,156 @@ scenario("every track in the playlist is a file that exists", () => {
     if (!/^music\/[a-z0-9-]+\.mp3$/.test(src)) return "odd playlist path: " + src;
     if (!existsSync(new URL("../" + src, import.meta.url))) return "playlist names a file that is not there: " + src;
   }
+  return true;
+});
+
+// THE DEPLOYED-BUILD SILENCE (Matt, 2026-08-26): "I can't play music tracks in
+// the deployed release", then "not working in mobile in particular, seems to be
+// working on my machine". Two defects wearing one symptom, and BOTH of them are
+// invisible to a developer with the 4.3 GB archive on disk - which is exactly
+// why they shipped.
+scenario("a kept catalog track reaches the CDN, and a dead track does not kill the rotation", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // A CATALOG ROW THE PLAYER KEPT. Its mirror path is gitignored, so on every
+    // build but the downloading machine it 404s - and the rotation, unlike the
+    // record box, never learned to fall through to the release we host.
+    MUSCAT = { tracks: [{ id: "z1", name: "ZED", file: "zed.mp3", secs: 60, tags: "",
+                          url: "https://example.invalid/zed.mp3" }] };
+    musJudge = { z1: { k: 1, e: 1 } };
+    rebuildRotation();
+    musicOn = true; muted = false; musicView = false; ARCHIVE_OK = null; musFails = 0;
+    const at = ROTATION.findIndex(r => r.cat && r.cat.id === "z1");
+    out.keptJoinedRotation = at >= 0 ? 1 : 0;
+    playTrack(at);
+    out.triedMirrorFirst = theSpeaker().src.indexOf("music/archive/") === 0 ? 1 : 0;
+    // The mirror is not there. The element reports it the way a browser does.
+    theSpeaker().fire("error");
+    out.fellThroughToCdn = theSpeaker().src === "https://example.invalid/zed.mp3" ? 1 : 0;
+    out.learned = ARCHIVE_OK === false ? 1 : 0;
+    out.audible = liveCount();
+
+    // AND A TRACK WITH NOWHERE LEFT TO GO MUST NOT TAKE THE TOWN WITH IT. The
+    // old catch nulled the handle, so 'ended' never fired, nothing scheduled a
+    // successor, and one bad track meant silence for the rest of the session.
+    musJudge = {}; MUSCAT = null; rebuildRotation();
+    musFails = 0; musicOn = true; muted = false;
+    playTrack(0);
+    const wasAt = trackIdx;
+    theSpeaker().fire("error");                 // a shipped track that will not load
+    out.skippedOn = trackIdx !== wasAt ? 1 : 0;
+    out.stillAudible = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (!got.keptJoinedRotation) return "a KEPT catalog track never reached the rotation";
+  if (!got.triedMirrorFirst) return "the rotation did not try the local mirror first";
+  if (!got.fellThroughToCdn) return "a 404 on the mirror did not fall through to the hosted release";
+  if (!got.learned) return "the 404 did not latch ARCHIVE_OK, so every later track pays it again";
+  if (got.audible !== 1) return `after the fallback ${got.audible} tracks are audible, want 1`;
+  if (!got.skippedOn) return "an unplayable track did not skip on - the rotation died with it";
+  if (got.stillAudible !== 1) return `after the skip ${got.stillAudible} tracks are audible, want 1`;
+  return true;
+});
+
+scenario("the whole session plays through one audio element", () => {
+  // THE MOBILE HALF, and the reason "it works on my machine" was true and
+  // useless. A desktop browser unlocks audio per ORIGIN, so the second
+  // `new Audio` inherits the first one's permission and a per-track element
+  // costs nothing. iOS unlocks the ELEMENT the tap touched - so the track you
+  // started by tapping played, and the one the 'ended' handler started, with no
+  // gesture anywhere near it, was blocked. Music that stops after one song.
+  //
+  // Counting CONSTRUCTIONS is the only honest test: the handles would look
+  // identical either way.
+  const sim = createSim({ seed: 7 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    musicOn = true; muted = false; musicView = false; musFails = 0;
+    playTrack(0);
+    for (let i = 0; i < 5; i++) theSpeaker().fire("ended");   // five tracks run out back to back
+    musStep(1); musStep(-1);                                  // and two deliberate skips
+    const afterRotation = _live.length;
+    // the bench must share it too: an audition is a src swap, not a new element
+    musOpen();
+    MUSCAT = { tracks: [{ id: "b1", name: "BEE", file: "bee.mp3", secs: 30, tags: "", url: "" },
+                        { id: "b2", name: "SEE", file: "see.mp3", secs: 30, tags: "", url: "" }] };
+    const list = musFiltered();
+    musPlay(list[0], false); musPlay(list[1], false);
+    musClose();
+    return JSON.stringify({ afterRotation, total: _live.length, audible: liveCount() });
+  })()`));
+  if (got.afterRotation !== 1) return `the rotation built ${got.afterRotation} audio elements, want exactly 1 (iOS blocks every one after the first)`;
+  if (got.total !== 1) return `the session built ${got.total} audio elements, want exactly 1 - the bench must share the rotation's speaker`;
+  if (got.audible !== 1) return `${got.audible} tracks audible, want 1`;
+  return true;
+});
+
+scenario("BACK hands the town the track you were auditioning", () => {
+  // Matt: "when you pick a song and hit 'back' the playlist for the game should
+  // now just be wherever you are at in the record player". BACK used to stop the
+  // bench dead and start the rotation on a RANDOM track, so the one song you had
+  // just chosen was the one thing you were guaranteed not to hear.
+  const sim = createSim({ seed: 11 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [{ id: "c1", name: "CHOSEN", file: "chosen.mp3", secs: 44, tags: "", url: "" }] };
+    musJudge = {}; rebuildRotation();
+    musicOn = false; muted = false; musFails = 0;
+    musOpen();
+    const row = musFiltered().find(t => t.id === "c1");
+    musPlay(row, false);
+    out.auditioning = musPreviewId === "c1" ? 1 : 0;
+    const el = theSpeaker(), src = el.src;
+    musClose();
+    out.closed = musicView ? 0 : 1;
+    out.rotationPlaysIt = ROTATION[trackIdx] && ROTATION[trackIdx].name === "CHOSEN" ? 1 : 0;
+    out.sameElement = theSpeaker() === el ? 1 : 0;   // seamless: the speaker never stopped
+    out.sameSrc = theSpeaker().src === src ? 1 : 0;
+    out.audible = liveCount();
+    out.turnedMusicOn = musicOn ? 1 : 0;
+    // ...and it is a PLAY, not a KEEP: choosing a song must not silently write
+    // a judgement the player never made.
+    out.judgementUntouched = musState(row) === null ? 1 : 0;
+    return JSON.stringify(out);
+  })()`));
+  if (!got.auditioning) return "the bench never started the chosen track";
+  if (!got.closed) return "BACK did not close the box";
+  if (!got.rotationPlaysIt) return "BACK did not hand the chosen track to the rotation";
+  if (!got.sameElement || !got.sameSrc) return "the handover restarted the audio instead of keeping the playhead";
+  if (got.audible !== 1) return `${got.audible} tracks audible after BACK, want 1`;
+  if (!got.turnedMusicOn) return "choosing a song and hitting BACK left the music off";
+  if (!got.judgementUntouched) return "BACK wrote a KEEP judgement the player never made";
+  return true;
+});
+
+scenario("the record box scrolls without the drag thumb", () => {
+  // Matt: "it really needs to respect browser scroll". 1,201 rows behind a
+  // 10px-wide thumb is a cruelty on a desktop and about two millimetres of
+  // glass on a phone - and it was the ONLY way to move. The wheel did nothing;
+  // a swipe did nothing, and fell through to the camera pan under the box.
+  const sim = createSim({ seed: 13 });
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: Array.from({ length: 400 }, (_, i) =>
+      ({ id: "t" + i, name: "TRACK " + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musOpen();
+    out.top0 = musTop;
+    musScroll(5);  out.down = musTop;
+    musScroll(-2); out.up = musTop;
+    musScroll(-999); out.clampLow = musTop;                       // never above the first row
+    musScroll(99999); out.clampHigh = musTop;
+    out.maxWant = musFiltered().length - MUS_ROWS;                // never past the last page
+    return JSON.stringify(out);
+  })()`));
+  if (got.top0 !== 0) return "the box did not open at the top";
+  if (got.down !== 5) return `scrolling down 5 rows landed at ${got.down}`;
+  if (got.up !== 3) return `scrolling back up 2 landed at ${got.up}, want 3`;
+  if (got.clampLow !== 0) return `scrolling past the top landed at ${got.clampLow}, want 0`;
+  if (got.clampHigh !== got.maxWant) return `scrolling past the end landed at ${got.clampHigh}, want ${got.maxWant}`;
   return true;
 });
 

@@ -7038,6 +7038,18 @@ function toggleMute() {
   else if (musPreview) musPreview.play().catch(() => {});   // the bench keeps the speakers it owns
   else if (musicOn) { if (music) music.play().catch(() => {}); else startMusic(); }
 }
+// WHETHER THE ARCHIVE MIRROR IS THERE, and it is declared UP HERE with the
+// rotation rather than beside the record box that named it - the same hazard
+// `musGen` was moved up for. `playTrack` reads it through `musSrc` on the
+// title screen's very first track, which is long before the box's own block
+// down at the bottom of this file has run; a `let` in its temporal dead zone
+// would throw rather than read false.
+//
+// TRI-STATE, and the middle one matters: null means "not yet known". Starting
+// at false would send every play to the network even on the machine that has
+// the archive; starting at true would cost a stranger one 404 per track. So
+// the first play tries local, and its result decides for the rest.
+let ARCHIVE_OK = null;
 let trackIdx = (srand() * PLAYLIST.length) | 0;
 // ONE TRACK AT A TIME, AND THE GENERATION IS WHY. Every play is asynchronous:
 // `play()` hands back a promise, and 'ended' fires from an element we may have
@@ -7045,39 +7057,144 @@ let trackIdx = (srand() * PLAYLIST.length) | 0;
 // promise settling for a track we had already replaced nulled the handle to the
 // one now playing, and the next `startMusic()` saw an empty speaker and started
 // a SECOND track over the top of it. Matt: "should never play more than one
-// track at once". Each attempt now carries the generation it was started in and
-// a direct reference to its own element, and a stale closure returns without
-// touching anything. Bumping `musGen` is also how a caller says "whatever is
-// loading, it is not ours any more".
+// track at once". Each attempt carries the generation it was started in, and a
+// stale one returns without touching anything. Bumping `musGen` is also how a
+// caller says "whatever is loading, it is not ours any more".
 //
-// BOTH COUNTERS ARE DECLARED HERE, beside the audio they guard, even though
-// `musPrevGen` belongs to the record box a thousand lines below. `playTrack`
-// calls `musStopPreview`, which writes `musPrevGen`, and a `let` is in its
-// temporal dead zone until its own line has run - so declaring it down there
-// makes the first track of a session throw a ReferenceError whenever anything
-// plays before the box's block is reached, which on the title screen is always.
-let musGen = 0, musPrevGen = 0;
+// THERE USED TO BE TWO COUNTERS - one for the rotation, one for the bench -
+// because there were two elements and either could be mid-flight. There is one
+// element now (see `speaker`), so there is one counter, and the ownership
+// handles say which of the two is driving it.
+//
+// IT IS DECLARED HERE, beside the audio it guards, rather than down in the
+// record box's block a thousand lines below: `playTrack` writes it on the
+// title screen's first track, and a `let` is in its temporal dead zone until
+// its own line has run, so declaring it down there made that first track throw
+// a ReferenceError.
+let musGen = 0;
+// ONE ELEMENT, AND ON A PHONE IT IS THE WHOLE BUG. Every play used to build a
+// fresh `new Audio()`. A desktop browser does not care, because it unlocks
+// audio per ORIGIN and the second element inherits the first one's permission -
+// which is exactly why this looked fine on the machine it was written on. iOS
+// unlocks the ELEMENT the tap touched. So the track you started by tapping
+// played, and the one the 'ended' handler started - seconds later, with no
+// gesture anywhere near it - was blocked: music that stops after one song.
+// The CDN fallback had the same shape and the same fate, building its retry
+// element inside a `.catch()` long after the gesture was gone.
+//
+// So there is ONE element for the whole game. It is unlocked once, by whatever
+// tap starts the first track, and every track after that is a src swap on an
+// element that already has permission. The rotation and the bench take turns
+// owning it - they were never allowed to sound at once anyway - and `music` /
+// `musPreview` keep their old job: the handle that says who owns it now.
+//
+// It also makes the bench-to-town handover free, which is what `musClose`
+// spends: the speaker never stops, only the handle changes.
+let SPEAKER = null;
+// THE GENERATION THAT OWNS THE SRC CURRENTLY ON THE ELEMENT. A failed load
+// reaches us TWICE - once as the 'error' event, once as the play() rejection -
+// and both would otherwise start their own fallback. Stamping the attempt lets
+// the second one see it has been superseded and return.
+let musSrcGen = -1;
+function speaker() {
+  if (SPEAKER) return SPEAKER;
+  const a = SPEAKER = new Audio();
+  a.volume = 0.55;
+  // BOUND ONCE, TO THE ELEMENT, and they read the ownership handles at fire
+  // time instead of closing over one attempt. That is the other thing a shared
+  // element buys: there is no longer a stale closure that can null the handle
+  // of the track now playing (the race the generation counter was invented for).
+  a.addEventListener("ended", () => {
+    if (musPreview) { musAdvance(1); return; }        // the bench walks its own list
+    if (!music) return;
+    music = null;
+    // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
+    // match what the town is doing when this one runs out - see pickTrack.
+    if (musicOn && !musicView) playTrack(pickTrack());
+  });
+  a.addEventListener("error", () => musFail(musSrcGen));
+  return a;
+}
+// HOW MANY TRACKS IN A ROW HAVE FAILED. A rotation whose every source is
+// unreachable must not recurse forever through pickTrack, so it gives up and
+// goes quiet; any deliberate play - a tap, a skip, MUSIC ON - clears it.
+let musFails = 0;
 function playTrack(i) {
   musStopPreview();          // the rotation and the bench never share the speakers
-  const gen = ++musGen;
-  if (music) { music.pause(); music = null; }
+  const gen = musSrcGen = ++musGen;
   trackIdx = ((i % ROTATION.length) + ROTATION.length) % ROTATION.length;
   const t = ROTATION[trackIdx];
   // A KEPT CATALOG TRACK RESOLVES LIKE THE BOX RESOLVES IT - local mirror if
   // this machine has one, our release if it does not - rather than carrying a
   // baked src that would be wrong on the other kind of machine.
-  const a = new Audio(t.cat ? musSrc(t.cat) : t.src);
+  const a = speaker();
+  a.pause();
+  a.src = t.cat ? musSrc(t.cat) : t.src;
   music = a;
-  a.volume = 0.55;
-  // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
-  // match what the town is doing when this one runs out - see pickTrack.
-  a.addEventListener("ended", () => {
-    if (musGen !== gen) return;   // superseded: someone else owns the speakers
-    music = null;
-    if (musicOn && !musicView) playTrack(pickTrack());
-  });
-  a.play().then(() => { if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
-    .catch(() => { if (musGen === gen) music = null; });
+  musMeta(t.name);
+  a.play().then(() => { musFails = 0; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
+    .catch(() => musFail(gen));
+}
+// A TRACK THAT WILL NOT PLAY MUST NOT TAKE THE ROTATION WITH IT. That is the
+// half of the deployed-build bug that turned one bad track into a silent town:
+// the old catch just nulled the handle, so 'ended' never fired, nothing
+// scheduled a successor, and the music was over for the session.
+//
+// The archive mirror is the EXPECTED miss. It is gitignored (4.3 GB of it), so
+// it is absent from every build except the machine that did the downloading -
+// and the rotation, unlike the bench, never learned to fall through to the
+// release we host ourselves. Now it does, on the same ARCHIVE_OK latch the box
+// uses, so one 404 teaches the whole session.
+function musFail(gen) {
+  const a = SPEAKER;
+  if (!a || gen !== musGen) return;      // superseded, or already handled
+  if (musPreview) return musPrevFail(gen);
+  if (!music) return;
+  const t = ROTATION[trackIdx], cat = t && t.cat;
+  if (cat && cat.url && a.src.indexOf("music/archive/") >= 0) {
+    ARCHIVE_OK = false;                  // learned once; later tracks go straight to the CDN
+    const g = musSrcGen = ++musGen;
+    a.pause();
+    a.src = cat.url;
+    a.play().then(() => { musFails = 0; }).catch(() => musSkip(g));
+    return;
+  }
+  musSkip(gen);
+}
+// PAST THE TRACK, NOT INTO SILENCE.
+function musSkip(gen) {
+  if (gen !== musGen) return;
+  music = null;
+  if (++musFails >= Math.min(4, ROTATION.length)) return;   // nothing is reachable: stop trying
+  if (musicOn && !musicView) playTrack(pickTrack());
+}
+// THE LOCK SCREEN, THE CAR, AND THE HEADPHONE BUTTON. Matt: "we should have
+// 'next' and 'last' tracks available if we can in the browser, esp if i can go
+// thru to car play". Media Session is how a page says "I am a music player" to
+// the OS: it puts the track name on the lock screen and wires the hardware
+// transport - CarPlay's steering-wheel buttons, a headset's double-tap, the
+// notification-shade controls - to handlers of our choosing.
+//
+// It is a progressive enhancement in the truest sense: absent on browsers that
+// do not implement it, and free where it exists, so the whole thing sits
+// behind one guard and never has a fallback path to maintain.
+// `typeof` rather than a truthiness test on the property: the headless sim has
+// no `navigator` AT ALL, and a bare read of an undeclared global throws rather
+// than yielding undefined - which would take every track in the suite down
+// with it, on a line that exists only to light up a lock screen.
+function musMeta(name) {
+  const ms = typeof navigator !== "undefined" && navigator.mediaSession;
+  if (!ms) return;
+  try {
+    if (window.MediaMetadata) ms.metadata = new MediaMetadata({ title: name, artist: "CRAB SHACK 3", album: "A BEACH ECONOMY" });
+    ms.playbackState = "playing";
+    // The transport maps onto the verbs the game already has, so a wheel
+    // button and the keyboard's shift+arrow are the same gesture.
+    ms.setActionHandler("play", () => { if (!musicOn || muted) toggleMusic(); else startMusic(); });
+    ms.setActionHandler("pause", () => { if (SPEAKER) SPEAKER.pause(); ms.playbackState = "paused"; });
+    ms.setActionHandler("nexttrack", () => musStep(1));
+    ms.setActionHandler("previoustrack", () => musStep(-1));
+  } catch (e) {}   // a browser with a partial implementation must not take the music down
 }
 // THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
 // underneath a track you are auditioning - which is what the box's own MUSIC ON
@@ -15661,6 +15778,14 @@ cv.addEventListener("touchstart", (ev) => {
     if (SCI.days.length && sciHit(p, sciBarRect())) SCI.drag = sciBarIndex(p);
     return;
   }
+  // THE BOX TAKES THE FINGER BEFORE THE TOWN DOES. Without this the swipe fell
+  // straight through to the camera pan below - so dragging the list panned the
+  // promenade behind it, invisibly, while the list itself never moved.
+  if (musicView) {
+    if (hitRect(p, musBarRect())) { musDrag = true; musTop = musBarIndex(p, musFiltered().length); return; }
+    musSwipeY = p.y; musSwipeTop = musTop; musSwiped = false;
+    return;
+  }
   if (window.MergeMode && MergeMode.touchStart(p)) return;
   if (tipTrackHit(p)) { tipDrag = true; return; }
   if (navTrackHit(p)) { navDrag = true; navDragX = p.x; return; }
@@ -15668,7 +15793,18 @@ cv.addEventListener("touchstart", (ev) => {
 }, { passive: true });
 cv.addEventListener("touchmove", (ev) => {
   if (musicView) {
-    if (musDrag) { ev.preventDefault(); musTop = musBarIndex(evPos(ev.touches[0]), musFiltered().length); }
+    ev.preventDefault();
+    const p = evPos(ev.touches[0]);
+    if (musDrag) { musTop = musBarIndex(p, musFiltered().length); return; }
+    if (musSwipeY == null) return;
+    // A ROW IS 20px, so the finger moves the list a row per row - the content
+    // tracks the thumb the way a native list does, rather than at some invented
+    // gain. Past 3px it is a scroll and not a tap, which is what musSwiped says
+    // to the click that follows.
+    const dy = p.y - musSwipeY;
+    if (Math.abs(dy) > 3) musSwiped = true;
+    const n = musFiltered().length;
+    musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS), musSwipeTop - Math.round(dy / 20)));
     return;
   }
   if (screen === "sci") {
@@ -15695,7 +15831,14 @@ cv.addEventListener("touchcancel", () => {
   if (window.MergeMode && MergeMode.touchCancel) MergeMode.touchCancel();
 }, { passive: true });
 cv.addEventListener("touchend", (ev) => {
-  if (musicView && musDrag) { musDrag = false; return; }
+  if (musicView) {
+    musDrag = false; musSwipeY = null;
+    // A SCROLL MUST NOT ALSO PLAY A TRACK. The click arrives after touchend, so
+    // the flag is cleared on the same 50ms delay the camera pan uses for
+    // exactly this - see dragMoved.
+    if (musSwiped) setTimeout(() => { musSwiped = false; }, 50);
+    return;
+  }
   // COMMIT ON RELEASE: one town materialized per gesture, not one per pixel
   if (screen === "sci") {
     if (SCI.drag >= 0) { const i = SCI.drag; SCI.drag = -1; sciGoto(i); sfx.ding(); }
@@ -15709,6 +15852,15 @@ cv.addEventListener("touchend", (ev) => {
 });
 // horizontal wheel / trackpad swipe pans the town (shift+wheel too)
 cv.addEventListener("wheel", (ev) => {
+  // THE BOX ANSWERS FIRST, and it takes the VERTICAL wheel the town has no use
+  // for. A row is 20px, so the delta divides down to rows; a line-mode browser
+  // reports 1 per notch, which is one row - about right for a notch.
+  if (musicView) {
+    if (!ev.deltaY) return;
+    ev.preventDefault();
+    musScroll(ev.deltaMode === 1 ? Math.sign(ev.deltaY) : Math.round(ev.deltaY / 20) || Math.sign(ev.deltaY));
+    return;
+  }
   if (screen !== "play") return;
   const dx = Math.abs(ev.deltaX) > Math.abs(ev.deltaY) ? ev.deltaX : (ev.shiftKey ? ev.deltaY : 0);
   if (!dx) return;
@@ -15799,7 +15951,7 @@ cv.addEventListener("click", (ev) => {
   // THE HELP CARD SWALLOWS EVERYTHING, and it is tested first because it draws
   // last: it is reachable from the title screen, from play, and from game over,
   // so there is no screen it can be under.
-  if (musicView) { musTap(evPos(ev)); return; }   // the box swallows every click
+  if (musicView) { if (!musSwiped) musTap(evPos(ev)); return; }   // the box swallows every click
   if (helpView) { tapHelp(evPos(ev)); return; }
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
   if (screen === "sci") { sciTap(evPos(ev)); return; }
@@ -16312,6 +16464,13 @@ addEventListener("keydown", (e) => {
   if (musicView) {   // the box owns the up/down arrows: they walk it and play as they go
     if (e.key === "ArrowDown") { e.preventDefault(); musAdvance(1); return; }
     if (e.key === "ArrowUp") { e.preventDefault(); musAdvance(-1); return; }
+    // PAGE KEYS SCROLL WITHOUT PLAYING, which is the other half of "respect
+    // browser scroll": moving your eye down a long list is not the same
+    // gesture as auditioning every row you pass.
+    if (e.key === "PageDown") { e.preventDefault(); musScroll(MUS_ROWS); return; }
+    if (e.key === "PageUp") { e.preventDefault(); musScroll(-MUS_ROWS); return; }
+    if (e.key === "Home") { e.preventDefault(); musTop = 0; return; }
+    if (e.key === "End") { e.preventDefault(); musScroll(musFiltered().length); return; }
   }
   if (e.key === "m") { toggleMute(); if (!muted) sfx.ding(); }
   if (e.key === "n") toggleMusic();
@@ -22327,6 +22486,18 @@ let MUSCAT = null;                        // the candidate catalog, or null
 // which is also the only honest way to judge whether a track fits a town.
 let musicView = false;
 let musTop = 0, musFilter = 0, musDrag = false, musPreview = null, musPreviewId = "";
+// THE BOX SCROLLS THE WAY EVERYTHING ELSE SCROLLS. Matt: "it really needs to
+// respect browser scroll". 1,201 rows behind a 10-pixel drag thumb is a
+// cruelty on a desktop and very nearly impossible on a phone, where that thumb
+// is about two millimetres of glass - and it was the ONLY way to move: the
+// wheel did nothing, a finger swipe did nothing (worse, it fell through to the
+// camera pan under the box). The thumb stays, because dragging it is still the
+// fastest way to cross a hundred pages; it is just no longer the only way.
+let musSwipeY = null, musSwipeTop = 0, musSwiped = false;
+function musScroll(rows) {
+  const n = musFiltered().length;
+  musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS), musTop + rows));
+}
 // id -> { k: 1 kept / 0 dropped / undefined unjudged, e: energy 0-2 }
 // ITS OWN STORE, not the save. A player's taste in music is not a property of
 // one town, and Matt's vetting pass must not evaporate with a save slot - so
@@ -22383,14 +22554,12 @@ function musSrc(t) {
   // not - which is what lets the WHOLE archive be a playlist instead of only
   // the slice that fits in the repo.
   if (t.shipped) return t.file;
-  // TRI-STATE, and the middle one matters: null means "not yet known". Starting
-  // at false would send every play to the network even on the machine that has
-  // the archive; starting at true would cost a stranger one 404 per track. So
-  // the first play tries local, and its result decides for the rest.
+  // ARCHIVE_OK is the tri-state latch; it is declared up beside the rotation
+  // (see the note there) because the title screen's first track reads it long
+  // before this block of the file has run.
   if (ARCHIVE_OK === false && t.url) return t.url;
   return "music/archive/" + t.file;
 }
-let ARCHIVE_OK = null;
 function musState(t) { const j = musJudge[t.id]; return j && j.k != null ? j.k : null; }
 function musEnergy(t) {
   const j = musJudge[t.id];
@@ -22410,46 +22579,56 @@ function musFiltered() {
 // that open-coded it was a chance to forget the generation bump - which is
 // exactly how a stopped preview came back to life over a rotation track.
 function musStopPreview() {
-  musPrevGen++;
+  musGen++;
   if (musPreview) { musPreview.pause(); musPreview = null; }
   musPreviewId = "";
 }
 // `toggle` false forces a play (the arrow keys, which must never land on a row
 // and go silent); the default keeps the tap gesture, where the playing row
 // stops.
+//
+// It drives the SHARED element now (see `speaker`), so an audition is a src
+// swap on something already unlocked rather than a fresh `new Audio` that iOS
+// would refuse. The 'ended' and 'error' listeners live on the element and
+// dispatch on who owns it, so there are none to bind here.
 function musPlay(t, toggle = true) {
   const wasPlaying = musPreviewId === t.id;
   musStopPreview();
   if (toggle && wasPlaying) return;   // tapping the playing row stops it
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
-  musGen++;
-  if (music) { music.pause(); music = null; }
-  const gen = musPrevGen;
-  const done = () => { if (musPrevGen === gen) { musPreview = null; musPreviewId = ""; } };
-  const a = new Audio(musSrc(t));
+  music = null;
+  const gen = musSrcGen = ++musGen;
+  const a = speaker();
+  a.pause();
+  a.src = musSrc(t);
   musPreview = a;
-  a.volume = 0.55;
   musPreviewId = t.id;
-  a.addEventListener("ended", () => { if (musPrevGen === gen) musAdvance(1); });
-  a.addEventListener("playing", () => {
-    if (ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
-  });
-  a.play().catch(() => {
-    if (musPrevGen !== gen) return;   // superseded while it was loading
-    // The mirror was not there. Fall through to the CDN once, and remember, so
-    // the next track goes straight to the network.
-    if (!t.shipped && t.url && a.src.indexOf("music/archive/") >= 0) {
-      ARCHIVE_OK = false;   // learned once; every later track goes straight to the CDN
-      const b = new Audio(t.url);
-      musPreview = b;
-      b.volume = 0.55;
-      b.addEventListener("ended", () => { if (musPrevGen === gen) musAdvance(1); });
-      b.play().catch(() => { done(); toast = { text: "NO AUDIO FOR " + t.name, t: 3 }; });
-      return;
-    }
-    done(); toast = { text: "NO AUDIO FOR " + t.name, t: 3 };
-  });
+  musMeta(t.name);
+  a.play().then(() => {
+    if (musGen === gen && ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
+  }).catch(() => musFail(gen));
+}
+// THE BENCH'S HALF OF THE FALLBACK, reached through `musFail` so the rotation
+// and the bench share one policy: try the mirror, learn from the 404, take the
+// release we host ourselves, and only then admit defeat out loud.
+function musPrevFail(gen) {
+  const a = SPEAKER;
+  if (!a || gen !== musGen || !musPreview) return;
+  const t = musPool().find(r => r.id === musPreviewId);
+  const giveUp = () => {
+    musPreview = null; musPreviewId = "";
+    toast = { text: "NO AUDIO FOR " + (t ? t.name : "THAT TRACK"), t: 3 };
+  };
+  if (t && !t.shipped && t.url && a.src.indexOf("music/archive/") >= 0) {
+    ARCHIVE_OK = false;   // learned once; every later track goes straight to the CDN
+    const g = musSrcGen = ++musGen;
+    a.pause();
+    a.src = t.url;
+    a.play().catch(() => { if (musGen === g) giveUp(); });
+    return;
+  }
+  giveUp();
 }
 // UP/DOWN IN THE BOX MOVE THE SELECTION AND PLAY IT. Matt: "the playlist needs
 // up/down [arrows] that auto-play the track". The row that plays is the row you
@@ -22498,10 +22677,43 @@ function musExport() {
     toast = { text: "EXPORT IS IN THE CONSOLE", t: 5 };
   }
 }
+// WHAT YOU WERE AUDITIONING IS WHAT THE TOWN PLAYS. Matt: "when you pick a
+// song and hit 'back' the playlist for the game should now just be wherever
+// you are at in the record player". BACK used to stop the bench dead and start
+// the rotation on a RANDOM track - so the one song you had just gone to the
+// trouble of choosing was the one thing you were guaranteed not to hear.
+//
+// The handover is seamless because there is only one element: the speaker
+// keeps going mid-bar and all that changes is which handle owns it. A track
+// you never KEPT still plays - it joins the rotation as its current track for
+// this session - because picking it in the box is already the clearest
+// statement of intent a player can make, and making them also tap KEEP to be
+// obeyed is the interface bug this whole pass is about.
 function musClose() {
-  musStopPreview();
+  const row = musPreviewId ? musPool().find(t => t.id === musPreviewId) : null;
+  const live = row && musPreview && !musPreview.paused;
   musicView = false;
-  if (musicOn && !muted) startMusic();   // hand the speakers back to the rotation
+  if (live) {
+    musPreview = null; musPreviewId = "";
+    music = SPEAKER;                       // same element, same playhead, new owner
+    musicOn = true;                        // you chose a song: that is MUSIC ON
+    trackIdx = rotIndexFor(row);
+    return;
+  }
+  musStopPreview();
+  if (musicOn && !muted) startMusic();     // nothing was playing: hand the speakers back
+}
+// WHERE A CHOSEN TRACK SITS IN THE ROTATION, making room for it if it is not
+// there yet. A shipped track is already a row. A catalog track you have not
+// kept is not, so it is spliced in after the cursor for this session rather
+// than being quietly promoted to a KEPT judgement - BACK means "play this",
+// not "remember this", and the two are different promises.
+function rotIndexFor(row) {
+  const at = ROTATION.findIndex(r => (r.cat && r.cat.id === row.id) || r.name === row.name);
+  if (at >= 0) return at;
+  const e = musEnergy(row);
+  ROTATION.splice(trackIdx + 1, 0, { cat: row, name: row.name, e: e == null ? 1 : e });
+  return trackIdx + 1;
 }
 function musOpen() {
   musicView = true; musTop = 0;
