@@ -8,7 +8,136 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-26, latest — THE LADDER GOES ALL THE WAY UP
+## 2026-08-26, latest — THE MUSIC WORKED ON MY MACHINE
+
+Matt, from the deployed build: *"I can't play music tracks in the deployed
+release"* — then, a beat later, *"not working in mobile in particular, seems
+to be working on my machine."* That second sentence is the whole story. There
+were two different silences wearing one complaint, and both of them were
+invisible to the one person who could never hit them: anyone with the 4.3 GB
+music archive sitting on their own disk. Which is to say, the machine that
+built the game.
+
+**The first silence was the release's.** The record box — where you audition
+tracks — already knew a trick: it reaches first for the local archive mirror,
+and when that 404s (it's gitignored, it was never on the published site) it
+shrugs, remembers the miss, and plays the copy we host ourselves off the
+release. The *rotation* — the town's ambient music, the thing that just plays
+while you run the shack — asked for the same file through the same door and did
+none of that. So a track you'd kept was reachable in the box and silent in the
+town, on every build but the one downloading machine. Worse, when the rotation
+hit that 404 it didn't just skip the track — it dropped the speaker on the
+floor. Nothing scheduled the next song, and the town stayed silent for the
+rest of the session over one unreachable file. Now the rotation learns the
+same fallback the box always knew, and a track it still can't reach gets
+skipped past, not mourned — bounded, so an unreachable playlist goes quiet
+instead of spinning forever.
+
+**The second silence was the phone's, and it is why "works on my machine" was
+both true and useless.** A desktop browser unlocks sound once per site: the
+first track you play buys permission for every track after, so spinning up a
+fresh speaker per song costs nothing and nobody notices. A phone doesn't work
+that way. iOS unlocks the *exact element your finger touched* — so the song
+you started by tapping played, and the very next one, handed off by the
+"this track ended" bookkeeping with no finger anywhere near it, was blocked
+cold. Music that stops after precisely one song. The fix is to stop making new
+speakers: there is now a single audio element for the entire game, unlocked
+once by your first tap, and every track after it is a swap of what's loaded.
+The rotation and the record box take turns holding the one speaker.
+
+Three things Matt asked for on top, all of which fall out of that one speaker
+almost for free:
+
+- **BACK now hands the town whatever you were listening to.** Leave the record
+  box and the ambient music picks up *your* track, mid-bar, same playhead —
+  it used to stop your song and start the rotation on some random other one,
+  so the one track you'd just chosen was the one thing you wouldn't hear. And
+  it stays a *play*, not a *keep*: choosing to listen doesn't secretly file
+  the track into your permanent rotation behind your back.
+- **The record box scrolls like a list should.** Twelve hundred rows behind a
+  ten-pixel drag thumb, and dragging that thumb used to be the only way to
+  move — the wheel did nothing, and a swipe fell straight through the list to
+  pan the camera underneath it. Now the wheel, a finger swipe, and
+  PageUp/PageDown/Home/End all walk it, and a swipe that actually moved the
+  list no longer plays whatever row it happens to land on.
+- **The lock screen and CarPlay get the music.** Track name and transport
+  buttons on the phone's lock screen and the car's steering wheel — Matt asked
+  *"esp if i can go thru to car play."* Pure garnish, wrapped so the headless
+  simulation (which has no such hardware to speak of) never trips over it.
+
+**One honest caveat, stated plainly because it matters.** The mobile half of
+this is *unproven on an actual phone.* The single-speaker unlock is the
+standard, well-worn remedy for exactly the iOS behaviour above, and it matches
+Matt's symptom to the letter — but every test we ran was desktop Chromium.
+No phone has played this build. It could not, until now: the live site serves
+trunk, so there was no deployed build carrying the fix for Matt to load on his
+phone until this landed. Landing it is strictly better than the silence that
+was already deployed, and it is the only way anyone gets to find out. Matt, if
+you're reading this: please try the music on your phone again.
+
+## 2026-08-26 — ONE ROSTER, TWO BOOKS
+
+Matt: *"need a nice view of all tourists like we have for other kinds of
+citizens, button on main screen i would think."* Then, on the first draft:
+*"unless there's an opportunity to refactor things into a more symmetrical
+shape."* There was, and chasing it made the feature smaller and the whole
+screen better.
+
+The button is a third navigation chip — **GUESTS**, sitting under MANAGE and
+TOWN — and it opens THE VISITORS BOOK: every tourist ashore, in a list you can
+sort and filter, the same kind of view the residents have always had. That was
+the ask. The symmetry is what happened underneath.
+
+The first draft was, honestly, a second photocopy of the residents' census —
+its own sorting, its own filtering, its own page arithmetic, its own row loop,
+all of it duplicated a few functions over. Matt's nudge turned that into one
+mechanism. A **roster** is now just a little bundle of answers: who's in the
+book, how it filters, how it sorts, how one row paints. There is exactly one
+list engine, one pager, one tap-target test, and one row of filter chips, and
+the census and the visitors book both ask it for what they need. A third
+register — some future ledger of somebody — is a few lines of data, not a
+third copy of the machine.
+
+The one thing deliberately *not* shared is how a row is drawn, because that's
+where the two registers genuinely differ: a resident has a job, a rota, and a
+house; a guest has a purse, a boat home, and a length of stay. Forcing both
+into one set of columns would have flattened each into the boring overlap of
+the two. Shared frame, its own painter per book.
+
+The filters are the ones that name something to go and *do*, not a tidy
+taxonomy: **SPENDING** is money the town could still earn off a guest;
+**ROUGH** is the guest the hotel failed and left on the sand, which is exactly
+where your reputation leaks; **SAILING** is who's on the next boat out — your
+last chance to sell them anything; **UNHAPPY** is a need pushed past the point
+the guest's own card would start complaining about it. And along the bottom,
+live, the book carries **ASHORE $x / TOOK $y** — how much purse walked into
+town against how much of it the town actually took. That's the half-a-purse
+number the shack has always half-known and never shown you until 20:00, when
+the guest was already on the plank.
+
+Two things are worth putting on the record, because they're the kind of bug
+that hides. First: the residents' census had to come out *behaviourally
+identical*, and a test now proves it — it runs the old ordering next to the new
+one and demands the same order for name, job, house, and health. The one
+allowed difference is the wallet sort, which never had a tiebreak, so a table
+of crabs all holding a thousand dollars used to sit in whatever arbitrary order
+they were born in and now sits alphabetically. A list that reshuffles under
+your thumb between two frames is a bug the moment you're playing on a phone.
+
+Second: the two bugs the automated tests were structurally blind to, both
+caught only by *photographing the card through the game's own renderer.* Every
+purse in the first draft printed **$0 or $1** — the money formatter already
+speaks in cents, and the draft wrapped a second dollars-conversion around it
+and divided by a hundred twice, so a sixty-eight-dollar purse rendered as a
+dollar. Every sort test still passed, because dividing everything by a hundred
+preserves the order perfectly; the numbers were all wrong and all wrong
+*in the same direction.* The test now checks the printed string, not just the
+ranking. And the guests were printing their own legs through their names — the
+portrait art centres in its frame but doesn't clip to it, and a crab is taller
+than a list row — so the row now uses the census's tighter portrait shell, with
+a single gold corner pixel to mark a face that came in off the boat.
+
+## 2026-08-26 — THE LADDER GOES ALL THE WAY UP
 
 The civics format makes one promise above the rest: *a bad document fails the
 build, never the town.* Type a nonsense purse name and the import refuses it
