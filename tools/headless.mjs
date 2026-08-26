@@ -8,7 +8,7 @@
 import { fork } from "child_process";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { loadGame } from "./simlib.mjs";
+import { loadGame, mkAudioStub } from "./simlib.mjs";
 import { defaultJobs, coresNote } from "./cores.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -138,10 +138,14 @@ const sandbox = {
   document: { createElement: () => mkCanvas(), getElementById: () => mkCanvas(), addEventListener: noop, hidden: false },
   location: { search: "?fresh" },
   localStorage: { getItem: () => null, setItem: noop, removeItem: noop },
-  // A REAL PROMISE, and an addEventListener, for the same reason simlib's stub
-  // has them: the game writes `.play().then(...)` and attaches an 'ended'
-  // handler, so a stub missing either one throws rather than staying quiet.
-  Audio: class { constructor() { this.loop = false; this.volume = 0; } play() { return Promise.resolve(); } pause() {} addEventListener() {} },
+  // A REAL PROMISE, an addEventListener, and a minimal DOM, for the same reason
+  // simlib's stub has them: the game writes `.play().then(...)`, attaches an
+  // 'ended' handler, and routes an absolute url through a `<source>` child. The
+  // stub is the SAME factory simlib exports, so the pair the sim contract keeps
+  // in step cannot drift. Matrix runs set `musicOn = false` (below), so the DOM
+  // is inert here and fingerprints are unchanged - it exists so a headless run
+  // that DOES play a catalog url is routed the way a browser routes it.
+  Audio: mkAudioStub(),
   AudioContext: undefined,
   addEventListener: noop,
   console,

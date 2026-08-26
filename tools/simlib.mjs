@@ -39,6 +39,70 @@ export function mulberry32(a) {
   };
 }
 
+// THE `Audio` STUB, with just enough DOM to be ROUTED HONESTLY. Shared by
+// createSim and tools/headless.mjs so the pair the sim contract requires to
+// stay in step cannot drift - it is one factory, called from both.
+//
+// `musSetSrc` in game.js sends an ABSOLUTE url (a GitHub release catalog asset)
+// down a `<source>`-child path - the Safari fix, because WebKit takes the
+// server's content type at its word and GitHub serves every asset as
+// octet-stream - and OUR OWN relative paths down the plain `.src` write it has
+// always used. It picks between them by feeling for exactly the members below:
+// `ownerDocument.createElement`, `appendChild`, `removeChild`, `firstChild`,
+// `removeAttribute`, `load`. The old inert stub had none of them, so it fell
+// through the guard and took the plain-`src` branch for EVERY url - and the
+// `<source>` half could not be reached by any scenario. A defect armed inside
+// it (a dropped `s.type`, a missing `removeAttribute`) stayed green.
+//
+// So this is the browser API the game now uses, stubbed to be routed the same
+// way a browser would route it - no more. It is deliberately NOT a general DOM:
+// - `load()` re-reads the children the way a real element does. It fires no
+//   event on its own (a live source is silent until it decodes, which off-
+//   browser is never); a scenario drives failure with `theSource().fire('error')`.
+// - the element's own 'error' NEVER fires for a `<source>` failure (rule 5): a
+//   dead source child dispatches to the source, and `musSetSrc`'s
+//   `s.addEventListener('error', ...)` is the ONLY path to `musFail` for an
+//   absolute url. The stub keeps element and child listeners strictly separate
+//   so a scenario can prove that.
+// - `_kids` and the empty-after-removeAttribute `src` are the spy surface: a
+//   scenario reads `.children`/`theSource()` to prove the `<source>` branch ran
+//   and reads `.src === ""` to prove the element's own attribute was cleared.
+export function mkAudioStub() {
+  class SourceStub {
+    constructor(doc) { this.ownerDocument = doc; this.src = ""; this.type = ""; this.nodeName = "SOURCE"; this._h = {}; }
+    addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+    fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
+  }
+  // ONE document per stub-class, so `createElement` and the element that owns it
+  // agree on identity - `s.ownerDocument === a.ownerDocument` the way a real
+  // page's do, which is what lets a source made here be appended there.
+  const doc = { createElement: (tag) => (tag === "source" ? new SourceStub(doc) : { nodeName: String(tag).toUpperCase() }) };
+  return class AudioStub {
+    constructor(src) {
+      this.loop = false; this.volume = 0;
+      this._src = src == null ? "" : src;
+      this.ownerDocument = doc;
+      this._kids = [];
+      this._h = {};
+    }
+    // `src` is a real getter/setter: the game reads it back, and the suite's
+    // spy (which subclasses this) counts assignments. Empty string is the
+    // browser default and what `removeAttribute('src')` leaves behind.
+    get src() { return this._src; }
+    set src(v) { this._src = v == null ? "" : v; }
+    removeAttribute(k) { if (k === "src") this._src = ""; }
+    get firstChild() { return this._kids[0] || null; }
+    get children() { return this._kids.slice(); }
+    appendChild(n) { this._kids.push(n); return n; }
+    removeChild(n) { const i = this._kids.indexOf(n); if (i >= 0) this._kids.splice(i, 1); return n; }
+    load() {}                                       // children are re-read; no event of its own off-browser
+    play() { return Promise.resolve(); }            // resolved: silence in a sandbox is a track that played
+    pause() {}
+    addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+    fire(k) { (this._h[k] || []).slice().forEach(f => f()); }   // the ELEMENT's own listeners only
+  };
+}
+
 // Load the game files against a fully-built sandbox and return the drivers:
 //   G(expr)      evaluate an expression/statements in the game's scope
 //   mkFn(body)   compile a STATEMENT body once; returns a directly-callable fn
@@ -120,7 +184,23 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
     // harness lying about the API, and the sim contract says the stubs stand in
     // for the browser rather than for the subset we happened to call first.
     // Resolved (not rejected): silence in a sandbox is a track that played.
-    Audio: class { constructor() { this.loop = false; this.volume = 0; } play() { return Promise.resolve(); } pause() {} addEventListener() {} },
+    //
+    // A MINIMAL DOM, because `musSetSrc` routes an ABSOLUTE url (a catalog
+    // release asset) down a `<source>`-child path and OUR OWN relative paths
+    // down the plain `.src` write - and it chooses between them by feeling for
+    // exactly these members: `ownerDocument.createElement`, `appendChild`,
+    // `removeChild`, `firstChild`, `removeAttribute`, `load`. A stub without
+    // them fell through the guard and took the plain-`src` branch for EVERY
+    // url, so the `<source>` half - the whole Safari record-box fix - could
+    // not be reached by any scenario, and a defect inside it stayed green.
+    // This is the browser API the game now uses (sim contract): give it enough
+    // of a DOM to be routed honestly, no more. The factory (mkAudioStub) is
+    // shared with headless.mjs so the pair cannot drift; see its own comment
+    // for the spy surface (`_kids`, the empty-after-removeAttribute `src`) and
+    // why a dead `<source>` fires its own 'error' (the element's never fires
+    // for a source child - rule 5), the only path to `musFail` for an
+    // absolute url.
+    Audio: mkAudioStub(),
     AudioContext: undefined, console,
     Math: seededMath, JSON, rafCb: null, simNow: 0,
   };
