@@ -1800,30 +1800,76 @@ function idealPlatform(c, grid) {
   }
   return best || { mech: "rents", rate: 0, bowls: 0, wage: 0, cap: 0 };
 }
+// THE HOUSE-LIMIT CLAUSE, shared by both voteReason paths. It is a SITUATION,
+// not a valuation magnitude - who is pinned at the limit, who is out looking -
+// so it reads off the roster and the cap step, exactly as it always has, and is
+// byte-identical whether the receipt is derived from the terms or the lambda.
+function capClause(c, p) {
+  const cp = capOf(p);
+  if (cp <= 0) return null;
+  const mine = c.p.owner && Object.keys(BIZ).some(b => bizUnlocked(b)
+    && bizOwner(b) === c.p.owner && bizHeads(b) >= cp);
+  if (mine) return "AND CANNOT HIRE AGAIN";
+  if (!BIZ[c.p.job] && !c.p.owner) return "AND IS LOOKING FOR WORK";
+  return null;
+}
 // ONE LINE PER VOTER, in their own terms. This is the whole legibility bar for
 // the feature: a result has to be arguable from the roster, not just watched.
+// THE RECEIPT READS THE SAME TERMS THE VOTE SUMMED (substrate section 3's
+// legibility ruling: the formula and its explanation come from ONE definition).
+// We gather platReads ONCE and run this voter's compiled stake terms against it
+// - the identical list, dispatch and reads platValue sums - so the valuation
+// clauses gate on the TERM VALUES: a stranger culture that bends a coefficient
+// gives a DIFFERENT sentence, which the old hardcoded if-chain provably could
+// not. The dollar/bowl figures stay the engine facts platReads already gathered
+// (pBowls/fr/fb, PLAT_BUNDLE indices 1/4/5), so the crab's line is byte-equal;
+// WHETHER a clause appears, and how the purse is judged, is the term's own
+// verdict. When no civics is compiled (the lambda platform path, or _nol1plat)
+// the direct-helper body below is the byte-equal fallback, exactly as platValue
+// keeps its lambda - a broken bundle costs a suite red, never a town.
 function voteReason(c, p) {
+  const cul = c && c.p && c.p.culture ? CULTURES[c.p.culture] : null;
+  const civ = (typeof window !== "undefined" && window._nol1plat) ? null
+    : (cul ? cul.civicsR : CRABCIV);
   const bits = [c.p.homeless ? "SLEEPS AT THE SHELTER"
     : c.p.owner ? "KEEPS A TILL"
     : !c.p.npc ? "ON YOUR PAYROLL"
     : c.p.fisher ? "FISHES FOR THEMSELF" : "HAS A WAGE AND A ROOF"];
   if (c.p.sick) bits.push("ILL");
+  if (civ && civ.platform) {
+    const read = platReads(c, p);
+    const tv = {};
+    for (const t of civ.platform) tv[t.name] = l1Run(t.code, read);
+    const b = read[1];   // pBowls: the bowls this pot funds
+    bits.push(b > 0 ? b + " BOWL" + (b === 1 ? "" : "S") : "NO POT");
+    // THE FLOOR, ONLY WHEN ITS TERM MOVES THIS CRAB. The dollar figure is the
+    // engine fact (what it puts in the day / takes off the payroll); WHETHER it
+    // is mentioned is the sign of the culture's own floorRaise/floorBill term,
+    // so a culture that zeroes or flips a floor coefficient stops crediting the
+    // raise (or the bill), and the sentence follows.
+    if (tv.floorRaise > 0) bits.push("$" + $d(read[4]) + " MORE A DAY");
+    if (tv.floorBill < 0) bits.push("$" + $d(Math.round(read[5])) + " MORE ON THE PAYROLL");
+    const cap = capClause(c, p);
+    if (cap) bits.push(cap);
+    // THE PURSE, JUDGED IN THIS CULTURE'S OWN UTILS. 82800 = the crab's -69
+    // purseCost coefficient x the 1200 raw-cost line the receipt always drew, so
+    // for the crab this is byte-equal to `purseCost100*pTake >= 1200`. In term
+    // space it reads "this policy costs me at least that many utils of purse",
+    // so a culture that weights the purse differently draws the line differently.
+    bits.push(tv.purseCost <= -82800 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");
+    return bits.join(", ");
+  }
+  // THE LAMBDA FALLBACK (no compiled civics): the receipt reads the engine
+  // helpers directly, byte-equal to the derived path above by the suite's
+  // transcription sweep. This is the pre-E4 body, unchanged.
   const b = pBowls(p);
   bits.push(b > 0 ? b + " BOWL" + (b === 1 ? "" : "S") : "NO POT");
-  // THE FLOOR, ONLY WHEN IT MOVES THIS CRAB. A wage earner says what it puts
-  // in their day; whoever signs the cheques says what it takes out. A floor
-  // that binds on nobody is not mentioned, because it did not decide anything.
   const f = floorOf(p), raise = floorRaise(c, f);
   const bill = Math.round(floorBill(c, f));
   if (raise > 0) bits.push("$" + $d(raise) + " MORE A DAY");
   if (bill > 0) bits.push("$" + $d(bill) + " MORE ON THE PAYROLL");
-  const cp = capOf(p);
-  if (cp > 0) {
-    const mine = c.p.owner && Object.keys(BIZ).some(b => bizUnlocked(b)
-      && bizOwner(b) === c.p.owner && bizHeads(b) >= cp);
-    if (mine) bits.push("AND CANNOT HIRE AGAIN");
-    else if (!BIZ[c.p.job] && !c.p.owner) bits.push("AND IS LOOKING FOR WORK");
-  }
+  const cap = capClause(c, p);
+  if (cap) bits.push(cap);
   bits.push(purseCost100(c, p.mech) * pTake(p) >= 1200 ? "AND PAYS FOR IT" : "AND PAYS LITTLE");   // same line, x100 both sides
   return bits.join(", ");
 }

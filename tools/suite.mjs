@@ -12584,6 +12584,99 @@ scenario("civics stakes: a coefficient defect is caught (the mutation the sweep 
     if (got[name] !== true) return "a +1 defect in " + name + " went undetected";
   return true;
 });
+scenario("civics receipt: voteReason is byte-equal to the lambda receipt on every voter, every platform", () => {
+  // THE TRANSCRIPTION-EQUALITY GATE for the RECEIPT (the E3/E4 ceremony applied
+  // to voteReason). The receipt now reads the SAME compiled stake terms the vote
+  // summed - the largest-magnitude naming the substrate demands, honored as a
+  // per-clause gate on the term VALUES (a single dominant clause could not carry
+  // the crab's multi-clause line, and would fail this very bar). So the derived
+  // path (CRABCIV compiled) must reproduce the lambda-fallback path (_nol1plat)
+  // BYTE-FOR-BYTE, over the grown town x every platform. Same town-staging as the
+  // stakes sweep, so the roster carries owners, wage earners, the homeless and
+  // the sick, and a funded pot.
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);
+  sim.runDays(15);
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    if (!CRABCIV || !CRABCIV.platform) return { err: "the bundled crab civics stakes did not install" };
+    const crabs = allCrabs(), grid = allPlatforms();
+    let pairs = 0;
+    // per-clause both-sided counts: each term-gated clause must appear AND be
+    // absent somewhere in this town, or a gate stuck on/off would hide (the
+    // vacuity lesson, applied to the receipt's clauses rather than the terms).
+    const raise = [0, 0], bill = [0, 0], pot = [0, 0], pays = [0, 0];
+    for (const c of crabs) for (const p of grid) {
+      window._nol1plat = true;  const lam = voteReason(c, p);
+      window._nol1plat = false; const der = voteReason(c, p);
+      if (lam !== der)
+        return { err: "diverged on " + c.p.job + "/" + p.mech + " rate " + p.rate
+          + " bowls " + p.bowls + " wage " + p.wage + " cap " + p.cap
+          + ": lambda \\"" + lam + "\\" vs derived \\"" + der + "\\"" };
+      raise[/MORE A DAY/.test(der) ? 0 : 1]++;
+      bill[/MORE ON THE PAYROLL/.test(der) ? 0 : 1]++;
+      pot[/NO POT/.test(der) ? 1 : 0]++;
+      pays[/PAYS FOR IT/.test(der) ? 0 : 1]++;
+      pairs++;
+    }
+    window._nol1plat = false;
+    return { pairs, crabs: crabs.length, raise, bill, pot, pays };
+  })())`));
+  if (got.err) return got.err;
+  if (got.pairs < 30000) return "the sweep shrank: only " + got.pairs + " pairs";
+  // both-sided: a clause that is always present (or always absent) proves nothing
+  for (const [name, c] of [["floor raise", got.raise], ["floor bill", got.bill],
+      ["the pot", got.pot], ["the purse", got.pays]])
+    if (c[0] === 0 || c[1] === 0) return "the " + name + " clause never varies in the sweep town (" + c.join("/") + ") - a stuck gate would hide";
+  return true;
+});
+scenario("civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors)", () => {
+  // THE WHOLE POINT, AND WHAT MAIN PROVABLY COULD NOT DO. The receipt used to be
+  // a hardcoded if-chain that never read `civ`, so two peoples with genuinely
+  // different politics gave the IDENTICAL sentence. Now voteReason dispatches on
+  // the voter's culture and gates its clauses on THAT culture's compiled terms.
+  // Built by construction (the stakes-dispatch scenario's idiom): boar = the
+  // crab's own stakes with purseCost's leading coefficient bent toward 0, so the
+  // pays-threshold moves and "AND PAYS FOR IT" lines become "AND PAYS LITTLE" -
+  // a per-voter, per-SENTENCE divergence. An UNDECLARED culture (gull) and the
+  // crab both fall to the engine lambda, so their sentences are unmoved.
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 4) hireCrew();`);
+  sim.runDays(12);
+  const civ = JSON.parse(sim.G(`JSON.stringify({ stakes: BUNDLED_CRAB_CIVICS.stakes })`));
+  const pc = civ.stakes[0].terms.find(t => t.name === "purseCost");
+  if (!pc || pc.prog[0][0] !== "PUSHI") return "purseCost term not shaped as expected (fixture drift)";
+  pc.prog[0][1] = -1;   // -69 -> -1: the pays line moves for many voters
+  const doc = (() => { const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies; d.civics = civ; return d; })();
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    installCultures({ boar: ${JSON.stringify(doc)} }, false);
+    if (!CULTURES.boar || !CULTURES.boar.civicsR) return { err: "boar civics did not install" };
+    const crabs = allCrabs(), grid = allPlatforms();
+    let diffs = 0, gullMoved = 0, checked = 0, firstDiff = null;
+    for (const c of crabs) for (const p of grid) {
+      const was = c.p.culture;
+      c.p.culture = null;   const asCrab = voteReason(c, p);
+      c.p.culture = "boar"; const asBoar = voteReason(c, p);
+      c.p.culture = "gull"; const asGull = voteReason(c, p);   // undeclared -> lambda
+      c.p.culture = was;
+      checked++;
+      if (asGull !== asCrab) gullMoved++;
+      if (asBoar !== asCrab) { diffs++; if (!firstDiff) firstDiff = { crab: asCrab, boar: asBoar }; }
+    }
+    loadCultures(null);
+    return { checked, diffs, gullMoved, firstDiff };
+  })())`));
+  if (got.err) return got.err;
+  // the receipt of an undeclared people is byte-identical to the crab's (both
+  // the lambda) - the dispatch only moves a people that DECLARED its own stakes.
+  if (got.gullMoved !== 0) return "an undeclared culture's receipt moved on " + got.gullMoved + " pairs - it should fall to the engine lambda";
+  // ...and the culture that bent a coefficient says something different. On main
+  // this count is exactly ZERO, because voteReason never read the terms at all.
+  if (got.diffs === 0) return "a stranger culture's bent stake did not move ANY sentence - the receipt still ignores the terms";
+  return true;
+});
 scenario("civics stakes: a hostile table is refused by name", () => {
   // Every refusal the stakes validator owns, each named - and the good case is
   // the bundled fixture itself, which stakesProblem must accept verbatim. The
