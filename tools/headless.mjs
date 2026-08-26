@@ -169,6 +169,10 @@ if (STAR != null)
   G(`if (crabs.length) setCrabWage(crabs[0], ${STAR} * 100);`);
 
 // ---- run ----------------------------------------------------------------
+// each matrix town gets its own OCEAN (the almanac's per-town seed), the run's
+// seed itself - so a 48-town surf matrix samples 48 swell histories rather than
+// running one 48 times. Symmetric with mulberry32(seed) above; mist ignores it.
+G(`_almanacSeed = ${seed >>> 0};`);
 G('soundOn = false; musicOn = false; screen = "play"; window._headless = true; window._stats = { tourServes: 0, crabServes: 0, tourRage: 0, crabRage: 0, bused: 0 };');
 if (FAILOFF.length) G(`window._failOff = ${JSON.stringify(Object.fromEntries(FAILOFF.map(k => [k, 1])))};`);
 if (NORIVAL) G(`window._noRival = true;`);

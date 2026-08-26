@@ -7700,6 +7700,16 @@ var _rtap = null;   // null = the default sim stream (the context's Math.random,
 var _rs = 0;
 var _rOwned = false;   // does the TOWN own the stream, or is it still the host's?
 var _foundSeed = null;   // the recipe that founded this town, when it had one
+// THE OCEAN THIS TOWN GOT (the almanac's per-town seed). The mist is a fact
+// about the CALENDAR alone - the same fog on day 7 for every town in the world
+// - but a SURF break wants its own history per town, or a 48-town matrix would
+// run one ocean 48 times rather than sample 48 (ruling on kd-d4pMPKIiRJ: mix
+// the seed for the almanac's NEW channels only, leaving mist byte-identical).
+// It is a per-town CONSTANT read without ever drawing from the stream, so
+// folding it into swell/wind forks no randomness and moves no shipped pin. Set
+// by the harness to the run's seed, derived from entropy at a fresh browser
+// founding, and carried in the save so a town keeps the ocean it grew up with.
+var _almanacSeed = 0;
 function _jsTap() {
   _rs = (_rs + 0x6D2B79F5) | 0;
   let t = _rs;
@@ -10127,6 +10137,7 @@ function save(hold) {
   // carried for provenance - a lab wants to know which run a town came from.
   if (_rOwned) env.rs = simCursor();
   if (_foundSeed != null) env.sd = _foundSeed >>> 0;
+  env.as = _almanacSeed >>> 0;   // the ocean this town grew up with (almanac's per-town seed)
   env._ver = SAVE_VER;
   env._meta = slotMeta(env);   // written at save time; re-derivable if it ever goes missing
   if (hold) return env;
@@ -10341,6 +10352,12 @@ function load(slot, envIn) {
   // first thing that reads it, not merely before the first thing you notice.
   simStreamAdopt(s.rs != null ? s.rs : cursorFromEnvelope(s));
   if (s.sd != null) _foundSeed = s.sd >>> 0;
+  // ...and the ocean rides in the same way. A pre-almanac save has no `as`, so
+  // one is DERIVED from the envelope's own bytes the way the stream cursor is
+  // (cursorFromEnvelope) - the same old town always lands on the same ocean and
+  // keeps the same surf history, rather than every old town in the world
+  // sharing one. mist does not read it, so no shipped mist pin is disturbed.
+  _almanacSeed = s.as != null ? s.as >>> 0 : cursorFromEnvelope(s);
   // A town loaded FROM A SLOT is that slot's town, so the session owns the
   // slot from here. An envelope handed in directly (the lab's shuttle) earns
   // nothing - a scrubbed keyframe is somebody's town, not this slot's.
@@ -17459,6 +17476,86 @@ function mistNowQ16() {
   return mistTodayQ16;
 }
 function mistNow() { return mistNowQ16() / 65536; }   // the DRAW layer's float view
+
+// ── THE ALMANAC ──────────────────────────────────────────────────────────
+// The town's exogenous world state, as NAMED day-hashed channels. Each channel
+// is a PURE INTEGER function of the day (Q16, 65536 = full), with an OPTIONAL
+// intraday envelope - a value that rolls across the day the way the mist rolls
+// in off the sea and burns off by morning; a channel with no envelope is a
+// whole-day fact. The mist is the first entry and the proof of the shape: it is
+// already consumed by the sim (a guest deciding whether to walk home in the
+// fog, visTick), already a kernel input (_ktMist -> vis_tick), and already
+// pinned two ways - its DISTRIBUTION and that it consumes ZERO randomness.
+// swell and wind join it for the surf break. Registration only NAMES the mist's
+// existing functions; the mist's own code above is untouched and byte-identical,
+// so every shipped mist pin still holds. The registry is the door Step 2's
+// forecast and Step 3's break read through, by name.
+const ALMANAC = {};
+function registerChannel(name, peakQ16, nowQ16) {
+  // no envelope => the day's peak is the value all day (a whole-day fact)
+  ALMANAC[name] = { peakQ16, nowQ16: nowQ16 || ((d) => peakQ16(d)) };
+  return ALMANAC[name];
+}
+function channelPeakQ16(name, d) { const c = ALMANAC[name]; return c ? c.peakQ16(d) : 0; }
+function channelNowQ16(name) { const c = ALMANAC[name]; return c ? c.nowQ16(day) : 0; }
+
+// THE SWELL AND THE WIND - the surf break's two exogenous channels, each folded
+// with the town's own ocean (_almanacSeed) so a 48-town matrix samples 48
+// histories rather than running one 48 times. A storm is hashed per 5-day
+// epoch (onset, size, duration); the swell on day d is the sum of the triangle
+// envelopes of the storms that reach it; the wind is an independent per-day
+// roll; surf quality is swell * (1 - wind) - the wind a MULTIPLICATIVE GATE,
+// not a subtraction, which is the one choice that buys the whole texture: two
+// days both at swell 1.00 read 0.19 and 0.95 on wind alone (blown out vs
+// firing) with no rule written for it. PROTOTYPE SHAPE, and the digits are a
+// KNOB I PICKED, not a sim measurement: swell autocorrelation ~0.62 at lag 1,
+// ~0.15 at lag 2, ~0 by lag 5; firing days ~8%, clustered into events rather
+// than scattered singletons. The pins below defend the SHAPE (an autocorrelated
+// swell, a decorrelated wind, a base rate in a band), not the exact 8%.
+const _ALM_EPOCH = 5;   // one storm rolled per 5-day epoch
+// the mist's own mixer family (an imul avalanche), folding a day-or-epoch index
+// with the ocean seed. Reads no stream, so a channel forks no randomness.
+function _almHash(a, seed) {
+  let h = (Math.imul(a | 0, 2654435761) ^ Math.imul((seed | 0) + 0x9e3779b9, 2246822519)) >>> 0;
+  h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+  h = Math.imul(h, 3266489917) >>> 0; h ^= h >>> 16;
+  return h >>> 0;
+}
+function windPeakQ16(d) { return _almHash(((d | 0) ^ 0x5715) >>> 0, _almanacSeed) & 0xFFFF; }
+function swellPeakQ16(d) {
+  let acc = 0;   // Q16, clamped to full at the end
+  const e0 = Math.floor((d | 0) / _ALM_EPOCH);
+  for (let e = e0 - 2; e <= e0 + 1; e++) {   // only nearby epochs can still reach day d
+    if (e < 0) continue;
+    const h = _almHash((e ^ 0x503e) >>> 0, _almanacSeed);
+    const onset = e * _ALM_EPOCH + (h & 7);                         // 0..7 days into the window
+    const dur = 2 + ((h >>> 3) & 3);                                // a storm runs 2..5 days
+    const sizeQ16 = 22938 + ((((h >>> 5) & 0xff) * 58982 / 255) | 0);   // amplitude 0.35..1.25
+    const rel = (d | 0) - onset;
+    if (rel < 0 || rel >= dur) continue;
+    // an integer triangle peaking mid-storm, worked in half-days to stay exact
+    const num2 = Math.abs(2 * rel - (dur - 1)), den2 = dur + 1;
+    const triQ16 = 65536 - ((num2 * 65536 / den2) | 0);
+    if (triQ16 <= 0) continue;
+    // Q16 * Q16 OVERFLOWS a signed >>16: the product reaches ~5.5e9 and wraps
+    // to a negative int, silently zeroing the swell. Floored division stays in
+    // double precision, exact for these magnitudes. (Learned the hard way in
+    // the prototype - the >>16 port dropped the mean 8x and killed the shape.)
+    acc += Math.floor(sizeQ16 * triQ16 / 65536);
+  }
+  return Math.min(65536, acc);
+}
+// surf quality: the swell GATED by the wind. Same Q16*Q16 overflow trap as above.
+function surfQualityQ16(d) { return Math.floor(swellPeakQ16(d) * (65536 - windPeakQ16(d)) / 65536); }
+function swellPeak(d) { return swellPeakQ16(d) / 65536; }   // the read/draw layer's float views
+function windPeak(d) { return windPeakQ16(d) / 65536; }
+function surfQuality(d) { return surfQualityQ16(d) / 65536; }
+
+registerChannel("mist", mistPeakQ16, mistNowQ16);   // the calendar's fog - day-only, byte-identical
+registerChannel("swell", swellPeakQ16);             // the surf's size - per-town, no intraday envelope
+registerChannel("wind", windPeakQ16);               // blows the swell out - independent per-day
+// ─────────────────────────────────────────────────────────────────────────
+
 function drawMist() {
   if (window._noMist) return;
   const m = mistNow();
@@ -24503,6 +24600,12 @@ if (!hasSave) {
   crabs = [newCrab(makeCrabPersona(0)), newCrab(makeCrabPersona(1))]; rosterGen++;
   coins = 15000;   // cents - a few bux in your pocket - rent is due tonight: ingredients + first rent buffer
   dayOpen = coins;   // day one opens on the float, so TODAY starts at +$0
+  // A FRESH TOWN GETS ITS OWN OCEAN. Drawn from the wall clock, not the sim
+  // stream, so a new town's surf history is its own without forking the one
+  // random sequence the fingerprint gates guard. A save restores it (load()
+  // above), a lab/harness run overwrites it with the recipe's seed, and the
+  // fallback 0 is a legitimate ocean too - it just is not a UNIQUE one.
+  _almanacSeed = (Math.imul(nowMs() >>> 0, 2654435761) ^ (nowMs() / 4294967296 | 0)) >>> 0;
 }
 // A NEW TOWN OPENS EMPTY and waits for the 08:00 boat; a SAVED town keeps
 // exactly the guests it was saved with, and nothing is seeded on top of them.

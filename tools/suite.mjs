@@ -6527,6 +6527,90 @@ scenario("mist: clear at noon, thick most evenings, and a clear night is news", 
   return true;   // (the merge's suite union clipped this line, so the scenario returned undefined)
 });
 
+scenario("almanac: swell is an autocorrelated per-town history, wind an independent gate", () => {
+  // The SHAPE, not the digits - the ~8% firing rate is a knob, so this pins a
+  // BAND (an autocorrelated swell, a decorrelated wind, a base rate in range),
+  // exactly the way the mist scenario above defends its base rate. Copied from
+  // that idiom on purpose: distribution pins are how you defend a rate.
+  const sim = createSim({ seed: 3 });
+  const arr = (expr) => JSON.parse(sim.G(`JSON.stringify((() => { const a = [];
+    for (let d = 1; d <= 200; d++) a.push(${expr}); return a; })())`));
+  const sw = arr("swellPeak(d)"), wi = arr("windPeak(d)"), q = arr("surfQuality(d)");
+  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+  const ac = (a, lag) => { const m = mean(a); let n = 0, den = 0;
+    for (let i = 0; i < a.length - lag; i++) n += (a[i] - m) * (a[i + lag] - m);
+    for (let i = 0; i < a.length; i++) den += (a[i] - m) ** 2; return den ? n / den : 0; };
+  // the swell CLUSTERS: today's size tells you about tomorrow's, and forgets by
+  // the end of the week - a storm that lasts days, not a fresh coin each dawn
+  const ac1 = ac(sw, 1), ac5 = ac(sw, 5);
+  if (!near(ac1, 0.4, 0.85)) return `swell lag-1 autocorrelation ${ac1.toFixed(2)} outside 0.40-0.85 - it should cluster into storms`;
+  if (Math.abs(ac5) > 0.35) return `swell lag-5 autocorrelation ${ac5.toFixed(2)} too high - a week out should be forgotten`;
+  if (!near(mean(sw), 0.2, 0.5)) return `mean swell ${mean(sw).toFixed(2)} outside 0.20-0.50 - most days are flat, some fire`;
+  // the wind is INDEPENDENT day to day and sits mid-scale - no memory, so it
+  // can blow out a swell that was building for days
+  if (Math.abs(ac(wi, 1)) > 0.3) return `wind lag-1 autocorrelation ${ac(wi, 1).toFixed(2)} - the wind should have no memory`;
+  if (!near(mean(wi), 0.35, 0.65)) return `mean wind ${mean(wi).toFixed(2)} outside 0.35-0.65`;
+  // firing days are RARE but real - a band around the picked ~8%, not the digit
+  const firing = q.filter(x => x > 0.6).length;
+  if (firing < 3 || firing > 40) return `${firing}/200 firing days (surf quality > 0.6) - want rare but present, ~8%`;
+  // THE MULTIPLICATIVE GATE is the whole point: among the days the swell is up,
+  // quality must SPREAD wide on the wind alone - a big-swell day can be blown
+  // out to nothing OR fire, with no rule written for it beyond swell*(1-wind)
+  const up = [];
+  for (let i = 0; i < 200; i++) if (sw[i] > 0.7) up.push(q[i]);
+  if (up.length < 5) return `only ${up.length} big-swell days to test the gate on`;
+  if (Math.min(...up) > 0.2 || Math.max(...up) < 0.7)
+    return `big-swell quality ${Math.min(...up).toFixed(2)}-${Math.max(...up).toFixed(2)} - the wind gate should blow some out and let some fire`;
+  return true;
+});
+
+scenario("almanac: mist is one ocean for the fleet, swell and wind are per-town", () => {
+  // THE RULING (kd-d4pMPKIiRJ): mix the town seed into the NEW channels only.
+  // The mist is a fact about the CALENDAR - the same fog on day 7 for every
+  // town, byte-identical, so every shipped mist pin stays valid. The swell is a
+  // fact about a TOWN - so a 48-town matrix samples 48 oceans, not one 48 times.
+  const days = (expr, seed) => { const s = createSim({ seed });
+    return s.G(`JSON.stringify((() => { const a = [];
+      for (let d = 1; d <= 60; d++) a.push(${expr}); return a; })())`); };
+  const mistA = days("mistPeakQ16(d)", 111), mistB = days("mistPeakQ16(d)", 222);
+  if (mistA !== mistB) return "the mist changed between two towns - it must stay the calendar's one ocean";
+  const swA = days("swellPeakQ16(d)", 111), swB = days("swellPeakQ16(d)", 222);
+  if (swA === swB) return "two towns got the same swell history - the new channels must mix the town seed";
+  const wiA = days("windPeakQ16(d)", 111), wiB = days("windPeakQ16(d)", 222);
+  if (wiA === wiB) return "two towns got the same wind history - the new channels must mix the town seed";
+  // THE REGISTRY IS THE DOOR - the mist, swell and wind are reachable BY NAME
+  // (what Step 2's forecast and Step 3's break read through), and the named
+  // door returns exactly the channel's own function, not a copy that could rot.
+  const s = createSim({ seed: 3 });
+  if (JSON.parse(s.G(`JSON.stringify(Object.keys(ALMANAC).sort())`)).join() !== "mist,swell,wind")
+    return "the almanac registry does not hold exactly mist, swell, wind";
+  for (const [name, fn] of [["mist", "mistPeakQ16"], ["swell", "swellPeakQ16"], ["wind", "windPeakQ16"]])
+    if (!s.G(`(() => { for (let d = 1; d <= 40; d++) if (channelPeakQ16(${JSON.stringify(name)}, d) !== ${fn}(d)) return false; return true; })()`))
+      return `channelPeakQ16(${name}) does not route to ${fn}`;
+  // and the intraday envelope door: mist HAS one (rolls across the day), the
+  // seeded channels do not (a whole-day fact), so channelNow == peak for them
+  if (s.G(`channelNowQ16("swell") !== swellPeakQ16(day)`)) return "swell has no envelope - channelNow should equal its peak";
+  if (s.G(`(setClock(21*60), channelNowQ16("mist") !== mistNowQ16())`)) return "channelNow(mist) does not route to mistNowQ16";
+  return true;
+});
+
+scenario("almanac: the new channels consume ZERO randomness, like the mist", () => {
+  // The proof a new channel did not fork the stream (copied from the mist's own
+  // zero-randomness pin above): burn thousands of calls through swell, wind and
+  // quality inside a running sim and demand the day-2 fingerprint is untouched.
+  const FP = `JSON.stringify({ day, tmin: Math.round(tmin), coins: Math.round(coins*1000)/1000,
+    rep: Math.round(rep*10000)/10000, catch: townCatch, serves: window._stats.tourServes,
+    wallets: allCrabs().map(c => [c.p.name, Math.round(c.p.wallet*100)/100]) })`;
+  const arm = (churn) => {
+    const sim = createSim({ seed: 1337 });
+    sim.runDays(2, { tickEvery: 8, onTick: churn
+      ? (G) => G("for (let i = 1; i < 400; i++) { swellPeak(i); windPeak(i); surfQuality(i); }")
+      : null });
+    return sim.G(FP);
+  };
+  return arm(false) === arm(true) ? true : "swell/wind/surfQuality consumed randomness";
+});
+
 scenario("cycler: < crab > steps the selection AND the camera, and wraps", () => {
   // THE CONTROL: a pictorial next/prev under the little sun. Selection and
   // camera are deliberately separate in this game, so the thing under test is
