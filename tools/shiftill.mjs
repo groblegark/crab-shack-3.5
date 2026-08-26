@@ -59,6 +59,14 @@ const ORGANIC = process.argv.includes("--organic");
 // TIDY: work 1.1, tip 1.05; PINCHY walks and is SPEEDY: move 1.4, work 1.0).
 const SWAP = process.argv.includes("--swap");
 const QUIET = process.argv.includes("--quiet");
+// U1 ATTRIBUTION HATCHES (game.js:15598-15600, all three the game NEVER sets).
+// --nodecay          window._noDecay        pre-U1 control (crabDecayOn() off).
+// --citnoworkpause   window._citNoWorkPause  the on-duty pause OFF, so the drain
+//                    runs live through the shift too — the pause's attribution arm.
+// Set once at the top of each seed (below), before any day runs, so the model
+// they select is in force for the whole town-life the rig measures.
+const NODECAY = process.argv.includes("--nodecay");
+const NOWORKPAUSE = process.argv.includes("--citnoworkpause");
 
 const NEEDS = ["hunger", "thirst", "dirt", "tired"];
 
@@ -67,6 +75,8 @@ const NEEDS = ["hunger", "thirst", "dirt", "tired"];
 function runSeed(seed) {
   const sim = createSim({ seed });
   const rows = [];          // one row per crab-night (prevalence / incidence)
+  if (NODECAY) sim.G("window._noDecay = true;");
+  if (NOWORKPAUSE) sim.G("window._citNoWorkPause = true;");
   sim.G("window._stats.rollLog = [];");
   sim.runUntil("day >= 2 && tmin >= 7 * 60", { maxSteps: 200000 });
   if (!ORGANIC)
@@ -104,11 +114,22 @@ if (DUMP) writeFileSync(DUMP, JSON.stringify(log));
 
 const pct = (a, b) => b === 0 ? "  n/a " : (100 * a / b).toFixed(2).padStart(6);
 const mean = (a, f) => a.length ? a.reduce((s, x) => s + f(x), 0) / a.length : 0;
+// DISPLAY-ONLY need normalisation. The rollLog seam (game.js) stores hunger and
+// thirst in raw Q20 (a full bar = 1048576) but already divides dirt and tired by
+// Q20 — an asymmetry present on BOTH main and this branch, so it is a consistent
+// display quirk, not a cross-arm confound. Put all four on 0..1 here so the needs
+// column reads like the historical table in game.js above illRisk(). The RISK
+// figure is untouched by this — it comes straight from the game's own illRisk().
+const Q20 = 1048576;
+const NEED_DIV = { hunger: Q20, thirst: Q20, dirt: 1, tired: 1 };
+const needMean = (g, n) => mean(g, x => x.now[n] / NEED_DIV[n]);
 
 function report(label, keep) {
   const R = rows.filter(keep), L = log.filter(keep);
   console.log("\n== " + label + "   (" + R.length + " crab-nights, "
     + L.length + " at-risk rolls, " + SEEDS + " seeds x " + DAYS + "d"
+    + (NODECAY ? ", NODECAY (pre-U1 control)" : "")
+    + (NOWORKPAUSE ? ", ON-DUTY PAUSE OFF" : "")
     + (SWAP ? ", FOUNDERS' SHIFTS SWAPPED" : "") + ")");
   console.log("shift  nights   ill%   new  incid%     RISK    "
     + NEEDS.map(n => n.slice(0, 4).padStart(6)).join(""));
@@ -122,7 +143,7 @@ function report(label, keep) {
     console.log(" " + k + "   " + String(r.length).padStart(7) + " " + pct(r.filter(x => x.sick).length, r.length)
       + " " + String(fell).padStart(5) + "  " + pct(fell, atRisk)
       + "  " + out[k].risk.toFixed(5).padStart(8)
-      + "  " + NEEDS.map(n => mean(g, x => x.now[n]).toFixed(3).padStart(6)).join(""));
+      + "  " + NEEDS.map(n => needMean(g, n).toFixed(3).padStart(6)).join(""));
   }
   if (out.M && out.E) {
     const rat = (a, b) => b ? (a / b).toFixed(2) : (a ? "inf" : "1.00");

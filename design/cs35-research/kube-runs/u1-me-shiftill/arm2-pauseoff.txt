@@ -1,0 +1,18 @@
+=== ARM 2: pause OFF (--citnoworkpause) — pause attribution ===
+............
+
+== EVERYONE   (1419 crab-nights, 1234 at-risk rolls, 12 seeds x 24d, ON-DUTY PAUSE OFF)
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       378  16.93    31    9.87   0.10328   0.654 0.556 0.644 0.619
+ E       370  22.16    38   13.19   0.14483   0.680 0.600 0.756 0.693
+ D       671  19.08    46    8.47   0.11271   0.553 0.586 0.715 0.637
+>> M/E   RISK x0.71   prevalence x0.76   incidence x0.75    (1.00 = the shift tells you nothing)
+
+== CREW ONLY (M/E is a crew thing; townsfolk are all D)   (748 crab-nights, 626 at-risk rolls, 12 seeds x 24d, ON-DUTY PAUSE OFF)
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       378  16.93    31    9.87   0.10328   0.654 0.556 0.644 0.619
+ E       370  22.16    38   13.19   0.14483   0.680 0.600 0.756 0.693
+>> M/E   RISK x0.71   prevalence x0.76   incidence x0.75    (1.00 = the shift tells you nothing)
+   town-wide infections 144   causes {"hunger":92,"thirst":59,"dirt":57,"exhaustion":46,"contagion":19}
+   PINCHY  shift M  nights 125  ill  16.80%  fell ill 12x  mean risk 0.07379  mean wallet $1011
+   CLAWDIA shift E  nights 126  ill  11.11%  fell ill 10x  mean risk 0.13435  mean wallet $1058

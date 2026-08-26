@@ -1,0 +1,18 @@
+=== ARM 1: U1 as shipped (no flags) — expect ~x0.22 ===
+............
+
+== EVERYONE   (3543 crab-nights, 3500 at-risk rolls, 12 seeds x 24d)
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       839   3.46     8    0.99   0.00805   0.334 0.425 0.504 0.510
+ E       832   2.04     6    0.74   0.01439   0.375 0.478 0.530 0.590
+ D      1872   4.97    36    2.02   0.02415   0.354 0.474 0.589 0.532
+>> M/E   RISK x0.56   prevalence x1.69   incidence x1.34    (1.00 = the shift tells you nothing)
+
+== CREW ONLY (M/E is a crew thing; townsfolk are all D)   (1671 crab-nights, 1649 at-risk rolls, 12 seeds x 24d)
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       839   3.46     8    0.99   0.00805   0.334 0.425 0.504 0.510
+ E       832   2.04     6    0.74   0.01439   0.375 0.478 0.530 0.590
+>> M/E   RISK x0.56   prevalence x1.69   incidence x1.34    (1.00 = the shift tells you nothing)
+   town-wide infections 69   causes {"exhaustion":30,"dirt":22,"contagion":9,"thirst":12,"hunger":18}
+   PINCHY  shift M  nights 284  ill   1.41%  fell ill 1x  mean risk 0.00534  mean wallet $4026
+   CLAWDIA shift E  nights 284  ill   0.35%  fell ill 1x  mean risk 0.01471  mean wallet $3726

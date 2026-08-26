@@ -1,0 +1,18 @@
+=== ARM 3: pre-U1 control (--nodecay) — expect ~x0.98 ===
+............
+
+== EVERYONE   (3649 crab-nights, 3570 at-risk rolls, 12 seeds x 24d, NODECAY (pre-U1 control))
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       864   1.85     7    0.83   0.01408   0.238 0.468 0.520 0.575
+ E       864   0.93     5    0.58   0.00994   0.165 0.274 0.463 0.596
+ D      1921   7.86    58    3.28   0.04079   0.493 0.572 0.611 0.572
+>> M/E   RISK x1.42   prevalence x2.00   incidence x1.41    (1.00 = the shift tells you nothing)
+
+== CREW ONLY (M/E is a crew thing; townsfolk are all D)   (1728 crab-nights, 1728 at-risk rolls, 12 seeds x 24d, NODECAY (pre-U1 control))
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       864   1.85     7    0.83   0.01408   0.238 0.468 0.520 0.575
+ E       864   0.93     5    0.58   0.00994   0.165 0.274 0.463 0.596
+>> M/E   RISK x1.42   prevalence x2.00   incidence x1.41    (1.00 = the shift tells you nothing)
+   town-wide infections 86   causes {"hunger":17,"thirst":39,"exhaustion":34,"contagion":18,"dirt":20}
+   PINCHY  shift M  nights 288  ill   2.78%  fell ill 2x  mean risk 0.00421  mean wallet $1839
+   CLAWDIA shift E  nights 288  ill   1.04%  fell ill 1x  mean risk 0.00589  mean wallet $2550

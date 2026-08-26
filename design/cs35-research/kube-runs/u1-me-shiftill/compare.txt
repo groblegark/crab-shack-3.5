@@ -1,0 +1,10 @@
+ARM                         M rolls  E rolls   M risk    E risk   M/E RISK   townRisk  (allRolls)
+----------------------------------------------------------------------------------------------------
+arm3-nodecay                   860      868  0.01408  0.00994     x1.416  0.02686     3570
+arm3-nodecay-30d              1076     1084  0.01227  0.00819     x1.498  0.02421     4517
+arm2-pauseoff                  326      300  0.10328  0.14483     x0.713  0.11803     1234
+arm1-shipped                   822      827  0.00805  0.01439     x0.560  0.01806     3500
+arm4-swap                      832      793  0.01266  0.02203     x0.574  0.01970     3453
+----------------------------------------------------------------------------------------------------
+M/E RISK: 1.00 = shift tells you nothing. The bar the town set is x0.98 (game.js illRisk header).
+townRisk: mean assembled risk over ALL at-risk rolls (game.js 'town-wide' column; shipped pre-U1 ~0.01678).
