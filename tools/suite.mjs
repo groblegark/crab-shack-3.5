@@ -12805,7 +12805,10 @@ scenario("civics: a stranger's document declares its own stakes, or is refused b
   const platTerms = () => JSON.parse(JSON.stringify(goodCivics.stakes[0].terms));
   const boar = (civics) => {
     const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
-    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    d.meta.id = "boar"; delete d.foodways; delete d.policies; delete d.civics;
+    // civics === undefined is the UNDECLARED case, so the pig fixture's own
+    // civics section is dropped first (the fixture ships one now, kd-NwmSEtppH4);
+    // a passed civics is the section under test.
     if (civics !== undefined) d.civics = civics;
     return d;
   };
@@ -13442,6 +13445,107 @@ scenario("civics eligibility: a hostile franchise is refused by name at the door
   if (!/NOT A 0\/1 PREDICATE/.test(String(v.notPred))) return "a program that can return 8 slid in as a predicate: " + v.notPred;
   if (!/NOT A 0\/1 PREDICATE/.test(String(v.clampLaunder))) return "a CLAMP-laundered program that returns 50 slid in as a predicate: " + v.clampLaunder;
   if (v.clampGood !== null) return "a genuine clamp(npc,0,1) predicate was refused: " + v.clampGood;
+  return true;
+});
+
+scenario("civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites", () => {
+  // THE FORMAT'S OWN ACCEPTANCE BAR (substrate section 5.2 + kd-NwmSEtppH4).
+  // Every scenario above proves civics with a SYNTHETIC "boar" doc built suite-
+  // side; none proved a BUNDLED people declares one. This is the dogfood: the
+  // pig the bundle ships (CULTURES.pig, installed at boot from cultures-pig.json
+  // through the real cultureProblem door) must carry a civics section that
+  // GENUINELY DECIDES its voters and is CHARACTERFUL - not a re-parameterised
+  // crab. Four claims, each an observable a designer would defend, and the last
+  // is the data-must-bite gate: a scenario that MOVES when a pig coefficient does.
+  //
+  // The pig is the PORKRESENTATIVE PIGPUBLIC - a leveller people whose slop pot
+  // is its whole identity. Its civics say so: the communal pot outweighs the
+  // roof (crab: roof 6x the pot; pig: pot 5x, roof a quarter), and its franchise
+  // is "no pigtators" (any non-owner may stand; the crab lets only townsfolk).
+  const sim = createSim({ seed: 7 });
+  sim.runDays(3);
+  sim.G(`while (crabs.length < 6) hireCrew();`);   // the game's own recruitment path
+  sim.runDays(20);
+  // the mutant: the SHIPPED pig with its potStake coefficient reverted to the
+  // crab's (1725000 -> 345000). Built from the bundled pig so it drifts with it.
+  const mutant = JSON.parse(sim.G(`JSON.stringify((() => {
+    const d = JSON.parse(JSON.stringify(BUNDLED_CULTUREWAYS.pig));
+    d.meta.id = "flatpig"; delete d.foodways; delete d.policies;
+    const pot = d.civics.stakes[0].terms.find(t => t.name === "potStake");
+    if (!pot || pot.prog[0][0] !== "PUSHI") return null;
+    pot.prog[0][1] = 345000;   // the crab's per-bowl weight - kills the pot-over-roof tilt
+    return d;
+  })())`));
+  if (!mutant) return "the shipped pig's potStake term is not shaped as expected (fixture drift)";
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    // (0) the SHIPPED pig declares civics + a franchise, straight from the bundle
+    const pig = CULTURES.pig;
+    if (!pig || !pig.civicsR || !pig.civicsR.platform) return { err: "the shipped pig declares no civics stakes" };
+    if (pig.civicsR.platform.length !== 6) return { err: "the pig platform stake has " + pig.civicsR.platform.length + " terms, not 6" };
+    if (!pig.eligR || !pig.eligR.stand || !pig.eligR.vote) return { err: "the shipped pig declares no franchise" };
+    installCultures({ flatpig: ${JSON.stringify(mutant)} }, false);
+    if (!CULTURES.flatpig || !CULTURES.flatpig.civicsR) return { err: "the flat-pot mutant did not install" };
+    const crabs = allCrabs(), grid = allPlatforms();
+
+    // (1) THE DISPATCH FIRES for the pig: on some (crab, platform) pair the pig's
+    // stakes disagree with the engine lambda. Prove by construction: score one
+    // pair three ways changing ONLY the culture tag.
+    let dispPair = null;
+    outer: for (const cc of crabs) for (const pp of grid) {
+      const was = cc.p.culture;
+      window._nol1plat = true; cc.p.culture = null; const lam = platValue(cc, pp); window._nol1plat = false;
+      cc.p.culture = "pig"; const asPig = platValue(cc, pp);
+      cc.p.culture = was;
+      if (asPig !== lam) { dispPair = { lam, asPig }; break outer; }
+    }
+
+    // (2) CHARACTERFUL, NOT A CRAB CLONE: a pot-heavy platform vs a roof-only one.
+    // The crab ranks roof above pot (roof term dominates); the pig ranks pot
+    // above roof. So sign(val(POT) - val(ROOF)) must FLIP between the two
+    // cultures on a homeless voter (the one the pot most serves). Pure ordering.
+    const c = crabs.find(x => !x.p.npc && x.p.homeless) || crabs.find(x => !x.p.npc) || crabs[0];
+    const potHeavy = grid.filter(p => p.bowls >= 3 && p._bowls >= 1).sort((a, b) => a.rate - b.rate)[0];
+    const roofOnly = grid.filter(p => p.bowls === 0 && p._y >= shelterRent()).sort((a, b) => a.rate - b.rate)[0];
+    if (!potHeavy || !roofOnly) return { err: "this town has no pot-heavy or roof-only platform to rank" };
+    const pref = (cult) => { const was = c.p.culture; c.p.culture = cult;
+      const d = platValue(c, potHeavy) - platValue(c, roofOnly); c.p.culture = was; return d; };
+    const prefCrab = pref(null), prefPig = pref("pig"), prefFlat = pref("flatpig");
+
+    // (3) THE FRANCHISE DECIDES A DIFFERENT ELECTORATE. The pig's "no pigtators"
+    // lets a crew-shaped resident (npc:false, no till) STAND where the crab
+    // franchise (townsfolk-only) forbids it; and it BARS an owner where the crab
+    // would let them. Both dispatch on the tag alone.
+    const crew = crabs.find(x => !x.p.npc && !x.p.owner);
+    const owner = crabs.find(x => x.p.owner);
+    const stand = (cr, cult) => { const was = cr.p.culture; cr.p.culture = cult; const r = canStand(cr); cr.p.culture = was; return r; };
+    const franchise = crew && owner ? {
+      crewCrab: stand(crew, null), crewPig: stand(crew, "pig"),
+      ownerCrab: stand(owner, null), ownerPig: stand(owner, "pig"),
+    } : null;
+
+    window._nol1plat = false;
+    loadCultures(null);
+    return { dispPair, prefCrab, prefPig, prefFlat, franchise, homeless: !!c.p.homeless };
+  })())`));
+  if (got.err) return got.err;
+  // (1) the pig's own stakes decided its voter somewhere - the dispatch fired
+  if (!got.dispPair) return "the shipped pig's stakes never diverged from the engine lambda - the dispatch never fired (a civics that decides nothing)";
+  // (2) the ranking INVERTS: crab prefers the roof, pig prefers the pot
+  if (!(got.prefCrab < 0)) return "the crab did not rank the roof above the pot as expected (prefCrab " + got.prefCrab + ") - fixture/engine drift";
+  if (!(got.prefPig > 0)) return "the SHIPPED pig did not rank its own slop pot above the roof (prefPig " + got.prefPig + ") - the pig votes the crab's priorities, not its own";
+  // (3) THE BITE (substrate 5.2): the pot-over-roof margin is largely the pig's
+  // potStake coefficient. Revert it to the crab's (1725000 -> 345000) and the
+  // margin must SHRINK hard - the pig's OWN coefficient is what tilted it. A
+  // scenario that moves when a pig coefficient moves is the whole point of the
+  // gate; a potStake defect that halved the weight would be caught here.
+  if (!(got.prefFlat < got.prefPig)) return "bending the pig's potStake coefficient did not move the ranking (flat " + got.prefFlat + " vs pig " + got.prefPig + ") - a pig coefficient defect would hide, the data does not bite";
+  // (4) the franchise decides a different electorate on the tag alone
+  if (!got.franchise) return "the town grew no crew/owner pair to test the franchise on";
+  const f = got.franchise;
+  if (f.crewCrab !== false) return "a crew crab could stand under the crab franchise (should be townsfolk-only)";
+  if (f.crewPig !== true) return "the pig's leveller franchise did not let a crew resident stand - the dispatch never fired";
+  if (f.ownerCrab !== true) return "an owner could not stand under the crab franchise (should be townsfolk)";
+  if (f.ownerPig !== false) return "the pig's 'no pigtators' clause did not bar an owner from standing";
   return true;
 });
 
