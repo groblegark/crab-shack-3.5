@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-c6c717f-pvgv",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "c6c717fe57b808d38666ba2708dd25814a3474b3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 140305,
+  "verdict": "34/34 passed in slice 8/12 (140.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (793ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1797ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (10803ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (236ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5492ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (234ms)\n  PASS  roster: the refactor preserves every census ordering (1045ms)\n  PASS  sale: the player buys a failed business through the shopfront (3890ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7264ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (39697ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1561ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (17779ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (2807ms)\n  PASS  the fund is struck to the bill and does not hoard (1054ms)\n  PASS  departures: three ways to be turned away are three different counters (152ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (527ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1753ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (885ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1073ms)\n  PASS  only one track is ever audible at once (16ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2743ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (9ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (31ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (7ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (9556ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (5172ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (7ms)\n  PASS  seam: a headless day never enters the view (1100ms)\n  PASS  brains: a town full of thinking heads round-trips its save (9081ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (11989ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (134ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (15ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1513ms)\n34/34 passed in slice 8/12 (140.2s)\n"
+}

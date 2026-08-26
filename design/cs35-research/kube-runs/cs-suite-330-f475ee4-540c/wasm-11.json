@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-f475ee4-540c",
+  "armId": "wasm-11",
+  "index": 23,
+  "sha": "f475ee4a770ce61f600d79f275d5a0dbfea77b9a",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 83777,
+  "verdict": "34/34 passed in slice 11/12 (83.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1092ms)\n  PASS  sick crabs can still wash (mobility + cure path) (690ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (240ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (655ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (22ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (11ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (3848ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (990ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (21303ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (3347ms)\n  PASS  ferry: the arming tap times out, and an old save never won (32ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (32ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (6760ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (4267ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (21237ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (1859ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1462ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1542ms)\n  PASS  the HALL tab's text is measured, in every state it has (3836ms)\n  PASS  the shack says where the money comes from, and only your shops do (456ms)\n  PASS  the music controls answer from outside the record box (15ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1274ms)\n  PASS  idle quips: the island's table is the literal, key for key (8ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (77ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (9ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (1659ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (9ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (35ms)\n  PASS  seam: the view is a reader - two renders move nothing (68ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (16ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (4858ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (42ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (25ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (1894ms)\n34/34 passed in slice 11/12 (83.7s)\n"
+}
