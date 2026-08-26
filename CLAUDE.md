@@ -46,6 +46,26 @@ the scenario count outgrows it, add the next manifest rather than letting
 this line rot: it read "Gates = the suite-312 manifest" two generations after
 suite-312 was current.
 
+## HOW WORK REACHES TRUNK: a direct --no-ff merge, pushed by you
+**This project does not use pull requests.** The agent that gated a branch
+merges it to main itself (`git merge --no-ff`) and pushes. Measured 2026-08-26:
+across the repo's entire history `git log main --grep='Merge pull request'`
+returns **1**, and every recent landing was authored and pushed by a `cs-*` pod.
+`git push origin HEAD:main` works from a fleet pod.
+
+**Do NOT file an escalation asking a human to open a PR.** Three separate agents
+did exactly that in two days — each hit a real `createPullRequest` PAT denial,
+each correctly concluded the token lacked the scope, and each then *incorrectly*
+inferred that delivery needed a human. All three branches sat gated-green and
+unlanded until a captain freed them; one was a bug Matt had reported from a
+deployed build, so the fix he was waiting for was parked behind a ceremony this
+project has never performed. The PAT denials were REAL. The blocker was not.
+
+The lesson generalises past this repo: **probing the tool you EXPECT to use is
+not enough, because the tool you expect may not be the tool the project uses.**
+Ask what the repo actually does — `git log` is the authority — before concluding
+you are blocked from doing it.
+
 ## THE MERGE RITUAL (orchestrator, at every merge before push)
 Run `node tools/mkcultureways.mjs` (bundle regen must be byte-exact) AND
 `node tools/mkversion.mjs` (regenerates version.js — the title-screen build
