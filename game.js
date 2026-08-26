@@ -6587,6 +6587,15 @@ class VisS {
   set stall(v) { C_STL[this.si] = v ? v.fid : -1; }
   get table() { return C_TBL[this.si] >= 0 ? FURN[C_TBL[this.si]] : null; }
   set table(v) { C_TBL[this.si] = v ? v.fid : -1; }
+  // THE TRAY (feature B: one ticket, N plates). A customer holds an ORDER - a
+  // short list of recipes - and the chef works it one plate at a time. `recipe`
+  // is the plate currently under the claws: the head of the tray at orderIdx.
+  // An own `recipe:` data property would SHADOW this accessor (lesson #1), so
+  // every literal writes `order:` and vivifyCust lifts recipe through the
+  // setter. Length-1 is the default and the setter re-wraps a single dish, so
+  // every path that used to set one recipe reads back bit-identical.
+  get recipe() { const o = this.order; return o && o.length ? o[this.orderIdx || 0] : null; }
+  set recipe(r) { this.orderIdx = 0; this.order = r == null ? null : [r]; }
 }
 const CrabProto = CrabS.prototype, VisProto = VisS.prototype;
 // the boundary for FOREIGN literals: the suite stages customer stubs as plain
@@ -6599,7 +6608,8 @@ function vivifyCust(o) {
   const lift = {};
   for (const f of ["state", "stC", "x", "y", "wy", "tx", "ty", "_mx", "_my",
                    "hunger", "thirst", "dirt", "bored", "tired",
-                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table"])
+                   "patience", "climb", "showerT", "dineT", "waitT", "stall", "table",
+                   "recipe"])   // recipe is the tray's head accessor now: lift off the literal, re-write through the setter (an own property would shadow VisProto's getter)
     if (Object.prototype.hasOwnProperty.call(o, f)) { lift[f] = o[f]; delete o[f]; }
   Object.setPrototypeOf(o, VisProto);
   o.si = poolAlloc();
@@ -12589,7 +12599,7 @@ function updateErrand(c, dt) {
         afterErrand(c, false);   // no chaining off a bounced queue: you never got served
         return;
       }
-      const cust = Object.setPrototypeOf({ biz: c.errandBiz, recipe: c.errand.recipe, isCrab: true, crab: c,
+      const cust = Object.setPrototypeOf({ biz: c.errandBiz, order: [c.errand.recipe], orderIdx: 0, isCrab: true, crab: c,
         si: poolAlloc(),
         need: c.errand.need, spawnXQ: Math.round(c.x * Q8),
         maxPatience: 90 * PQ, claimed: false, served: false, server: null }, VisProto);   // locals will wait
@@ -14275,8 +14285,10 @@ function newVisitor(overnightOnly, cu) {
     si: poolAlloc(), leg: 0,
     // the shop pipeline's own fields, dormant until they join a line
     // (patience/table/stall are PLANE fields now - set through the accessors
-    // below the attach, never in the literal: an own property shadows)
-    biz: null, recipe: null, maxPatience: A.PATQ,
+    // below the attach, never in the literal: an own property shadows). recipe
+    // is the tray's head too, so it rides as order/orderIdx (an own `recipe:`
+    // would shadow the VisProto accessor).
+    biz: null, order: null, orderIdx: 0, maxPatience: A.PATQ,
     claimed: false, served: false, happy: false, server: null,
     // the visit
     wallet: Math.round(wallet), purse: Math.round(wallet), spent: 0,
@@ -15430,7 +15442,7 @@ function newCustomer(bizKey) {
   const cul = cuId !== "crab" && CULTURES[cuId] ? CULTURES[cuId] : null;
   const r = bizRecipes(bizKey)[(srand() * bizRecipes(bizKey).length) | 0];
   const spawnX = biz.queueX + 150;
-  const w = Object.setPrototypeOf({ biz: bizKey, recipe: r,
+  const w = Object.setPrototypeOf({ biz: bizKey, order: [r], orderIdx: 0,
     culture: cul ? cuId : null,
     name: cul ? freeVisitorName(cul.def.people.names)
       : CUSTOMER_NAMES[(srand() * CUSTOMER_NAMES.length) | 0],
