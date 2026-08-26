@@ -7515,7 +7515,16 @@ function l1Assemble(prog, bundle) {
       }
       case "MIN": b = pop(); a = pop(); st.push([Math.min(a[0], b[0]), Math.min(a[1], b[1])]); break;
       case "MAX": b = pop(); a = pop(); st.push([Math.max(a[0], b[0]), Math.max(a[1], b[1])]); break;
-      case "CLAMP": c = pop(); b = pop(); a = pop(); st.push([Math.min(a[0], b[0]), Math.max(a[1], c[1])]); break;
+      // runtime is `a < b ? b : a > c ? c : a` - the result is always one of
+      // {a, b, c}, so the sound over-approximation is the hull of all three.
+      // The old [min(a0,b0), max(a1,c1)] never consulted b's HIGH end nor c's
+      // LOW end, so when the lo operand's interval reached ABOVE the hi
+      // operand's the runtime returned lo, a value the static interval did not
+      // contain - which laundered a wide read into a narrow [0,1] and slipped
+      // past both the 0/1 predicate gate and the 2^52 magnitude rail. Still
+      // tight for the normal case where lo/hi are PUSHI constants (every
+      // shipped use), so no existing bound narrows.
+      case "CLAMP": c = pop(); b = pop(); a = pop(); st.push([Math.min(a[0], b[0], c[0]), Math.max(a[1], b[1], c[1])]); break;
       case "ABS": a = pop(); st.push([a[0] <= 0 && a[1] >= 0 ? 0 : Math.min(Math.abs(a[0]), Math.abs(a[1])), Math.max(Math.abs(a[0]), Math.abs(a[1]))]); break;
       case "NEG": a = pop(); st.push([-a[1], -a[0]]); break;
       case "LT": case "LE": case "EQ": case "AND": case "OR": pop(); pop(); st.push([0, 1]); break;
