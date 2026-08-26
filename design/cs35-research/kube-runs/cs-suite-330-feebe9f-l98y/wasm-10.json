@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-feebe9f-l98y",
+  "armId": "wasm-10",
+  "index": 22,
+  "sha": "feebe9f90ea58a2a89f83cec6851eb151aad13b0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 84470,
+  "verdict": "35/35 passed in slice 10/12 (84.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (1414ms)\n  PASS  housing: npcs sleep at the shelter, then move up (435ms)\n  PASS  queue hard cap holds for locals too (2006ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (489ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (398ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (50ms)\n  PASS  fish market: price + series roundtrip save/load (54ms)\n  PASS  labor policy: every new setting roundtrips save/load (1020ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (4098ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (5412ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (27065ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1066ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (1600ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (787ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (616ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1095ms)\n  PASS  departures: every character the card prints exists in the font (712ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2911ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (197ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (412ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (335ms)\n  PASS  the whole session plays through one audio element (8ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (6173ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (15ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (8669ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (20ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (392ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (60ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (495ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2211ms)\n  PASS  the stamp gate watches every file a player is served (1ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (7413ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (71ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (16ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (6654ms)\n35/35 passed in slice 10/12 (84.4s)\n"
+}

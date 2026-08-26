@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-48c7f3f-y8ly",
+  "armId": "wasm-7",
+  "index": 19,
+  "sha": "48c7f3f6a7107b7ab95a4d89a01b648fadb5ddd9",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 56454,
+  "verdict": "34/34 passed in slice 7/12 (56.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (3209ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1642ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1063ms)\n  PASS  boat: ownership and berth roundtrip through save/load (729ms)\n  PASS  the drop nudge: open sand nudges nothing (1628ms)\n  PASS  days off: wages skip exactly and the bill dips to match (1423ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (24ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (969ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (996ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (966ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (724ms)\n  PASS  a science run is silent and the mind panel banks at the fold (653ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (9618ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1449ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (909ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (25ms)\n  PASS  departures: a stay survives a save and a reload (2203ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (3099ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (62ms)\n  PASS  a hire is something you can see happen (298ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1181ms)\n  PASS  a refusal waits for a tap where a 404 skips on (21ms)\n  PASS  missing payday costs the crew, not the lease (6061ms)\n  PASS  crab-as-document: a hostile document is refused by name (19ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (7606ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (37ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (330ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (361ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (326ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (2138ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (946ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (2949ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1324ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1324ms)\n34/34 passed in slice 7/12 (56.3s)\n"
+}
