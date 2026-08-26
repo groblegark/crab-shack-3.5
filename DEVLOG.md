@@ -8,7 +8,53 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-24, latest — WHAT THE TOWN WON'T SAY, AND WHAT IT WON'T VOTE FOR
+## 2026-08-26, latest — THE TARIFF, OR: THE FIFTH ANSWER TO WHO PAYS FOR THE POT
+
+Matt asked for the ability to tariff incoming goods — *"especially fish"* —
+and the architecture answered the design question before any code did. The
+wage floor and the house limit are separate dials because they bill a till
+directly. The four purses — levy, dues, rents, tin — all answer one question:
+*who pays for the pot.* A duty on the gangway is a fifth answer to exactly
+that question. So THE TARIFF is not a seventh dial; it is the fifth purse,
+and it inherited the whole election for free. The mech chip cycles it,
+the ballot dedups it, and the Layer-1 stake table never changed a byte —
+the term-programs read `purseCost100` and `purseYield` through the engine,
+and the engine's helpers grew a branch.
+
+Steps `[0, 10, 25, 50, 100]`, percent on the landed price. The duty is
+collected at the exact line of code that books the import, off the till that
+just bought the crate, so the charge and the ledger cannot disagree. The
+office never tolls itself: ballot paper is the fund's own purchase, and the
+pot's fish passes no payer — the town does not tax its own relief.
+
+Then Matt asked the question that turned one feature into two: *"this should
+increase the price paid for fish in high tariff scenarios, right?"* Right —
+and honestly, that half is the better half. **$7 was only ever the pier's
+ceiling because that is where the world supplies.** A tariff moves the
+world's landed price, so it moves the ceiling: under a 50% duty the pier may
+clear at $10.50, under 100% at $14. Scarce weeks — exactly the weeks the
+tariff bites — pay every cast more. The fleet is the one bloc with nothing
+to pay and everything to gain, and the shack owner writes the checks twice:
+the duty at the bin, the protected price at the counter. Vote a tariff out
+and the pier re-parities in ONE clearing, because the world undercuts
+anything above its own landed price the very next morning.
+
+The hall card grew a fourth page for it — BOOKS / **TRADE** / BALLOT /
+ROLL — the gangway's own ledger: what the ferry lands, what the town spent
+on it, what the duty raised today and all time, the pier price against its
+possibly-tariffed ceiling. It renders even in a town with no tariff, because
+the player weighing that dial deserves to see what it would fall on.
+
+And the measurement came back with the best sentence a civics landing can
+earn: **byte-identical**. Suite 381/381 on both backends at `9394feb`;
+48 towns, both arms, adjacent against the main tip on the same instrument —
+every eviction day in every block unchanged. Except one. One growth town,
+of its own accord, elected a mayor on `TARIFF 100% / 3 BOWLS / MIN $32` — a
+policy string that could not exist in the old tree — and then ran to the
+same outcome anyway. The option is on the ballot now. The town has to want
+it.
+
+## 2026-08-24 — WHAT THE TOWN WON'T SAY, AND WHAT IT WON'T VOTE FOR
 
 Four merges landed today and the town plays exactly as it did this morning.
 That is the intended result — they were transcriptions, moving rules out of

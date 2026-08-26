@@ -7330,6 +7330,85 @@ platforms**, scored once an election. `allPlatforms()` prices the purse half
 once per (mech, rate, bowls) and shares it across the 25 floor/limit
 combinations, which is what keeps `buildBallot()` at **30ms**.
 
+## THE TARIFF (Matt, 2026-08-25) — "the ability to tariff incoming goods especially fish; this will be a great platform thing"
+
+NOT a seventh dial — the FIFTH PURSE. The floor and the cap are separate axes
+because they bill a till directly; the purses all answer *"who pays for the
+pot"*, and a duty on the gangway is a fifth answer to exactly that question.
+So it rides the whole purse machinery for free: the mech chip cycles it, the
+ballot dedups it, elections score it through the same `purseCost100` /
+`purseYield` reads the L1 stake table already draws — **zero stake-table
+surgery, byte-equal by construction** (the six term-programs never changed;
+only the engine helpers under them grew a branch).
+
+`PURSES.tariff.steps = [0, 10, 25, 50, 100]` — % on the landed price, step 0
+NO TAKE, document-adopted (`crab-civics.json` purses) like the other four.
+
+### Two halves, built together
+
+1. **The duty.** Collected at `consumeIngredient` — the same chokepoint that
+   books the import, so the charge and the ledger can never disagree. Off the
+   till that bought the crate (fish the pier didn't land, corn for the
+   tortillas), into the fund, capped by `fundNeed` like every purse. The
+   office's own purchases are exempt BY CONSTRUCTION: ballot paper is bought
+   by the fund itself, and the pot's fish passes no payer — the town does not
+   toll its own relief, and `bowlCost()` stays the honest price the fund is
+   struck for.
+2. **The protection** (Matt, on review: *"this should increase the price paid
+   for fish in high tariff scenarios, right?"*). `fishCeil()` — the pier
+   ceiling IS import parity. $7 was only ever the ceiling because that is
+   where the world supplies; a posted 50% tariff moves parity to $10.50 and
+   the pier may clear up to it. Scarce weeks — exactly when the tariff
+   bites — pay every cast more. The POSTED rate moves the market, not
+   tonight's collection (`fundNeed` may wave a crate through the booth; a
+   merchant prices off the schedule). A repeal re-parities in ONE clearing:
+   the world undercuts anything above its own landed price.
+
+### The politics it buys
+
+The fleet is the one bloc with nothing to pay and everything to gain — a
+fisher sells what the tariff protects and buys none of what it taxes; the
+shack owner writes the checks twice (the duty at the bin, the protected pier
+price at the counter). `purseCost100`: owners 55, wage crabs 10, else 2 —
+narrower than the levy because only tills that buy imports feel it.
+`purseYield` reads TODAY's priced import flows × rate, so the estimate
+honestly reads zero while the pier keeps up — nobody campaigns on a tariff
+until the town actually leans on the ferry. KNOWN SEAM, written down rather
+than papered over: a fisher's INCOME interest in the protected ceiling is not
+priced into `platValue` (no purse models income effects — the same
+approximation the levy's flat 100 makes). Pricing it would be a seventh stake
+term with its own byte-equality pass; do that as its own landing if the
+politics want sharpening.
+
+### UX (the "bigger civics UX")
+
+The hall card grew a fourth view — BOOKS / **TRADE** / BALLOT / ROLL. TRADE
+is the gangway's page: per-good today/all-time/spent columns, the posted
+rate, what the duty raised today and all time, the pier price against its
+(possibly tariffed) ceiling. Rendered even with no tariff on: a player
+weighing the TARIFF dial reads this page to see what it would fall on.
+
+### Measured (branch `tariff-fifth-purse`, 9394feb, off main f48bdd3)
+
+- Suite **381/381 js and 381/381 wasm** at `9394feb` (378 + 3 tariff
+  scenarios), main realm, in-pod. Receipt:
+  `design/cs35-research/kube-runs/inpod-suite-9394feb-tariff/`.
+- 48-town matrix, ADJACENT vs `f48bdd3` on the same instrument (30 days,
+  `--seedbase 0,16,32`, in-pod): **byte-identical, both arms** — baseline
+  0/48 pre → 0/48 post, growth `--buy chef,table` 21/48 pre → 21/48 post
+  (7·7·7), every eviction day list identical. And the post tree is provably
+  live: one growth town organically elected `TARIFF 100% / 3 BOWLS / MIN $32`
+  (a policy string that cannot exist in the pre tree) and still ran to the
+  same eviction outcome. The feature adds a policy OPTION without moving the
+  floor — movement comes only when a town votes it in, which is the intended
+  shape of a civics landing. (The gap against STATE OF PLAY's 26/48 belongs
+  to whatever landed `4af658f..f48bdd3` — the sleep-debt pass is in that
+  window — NOT to the tariff: the byte-identical adjacency bounds the
+  tariff's own contribution at exactly zero.)
+- Grid cost: 5 mechs × 5 rates × 7 pots × 5 floors × 7 limits = **6125
+  platforms** (was 4900); the (mech, rate, bowls) yield cache still shares
+  across the 35 floor/limit combinations.
+
 ## PAYDAY (Matt, 2026-08-20) — "not making salary needs to be a real alternative to going bankrupt"
 
 His words: *"probably via a choice mechanic at the critical moment, 'take out
