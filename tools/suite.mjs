@@ -11588,6 +11588,106 @@ scenario("a kept catalog track reaches the CDN, and a dead track does not kill t
   return true;
 });
 
+// THE iOS HALF OF THE RECORD BOX, and the reason Matt's phone was silent while
+// every desktop said fine. A shipped row must resolve SAME-ORIGIN on the FIRST
+// try, and a streaming row must resolve to its url SYNCHRONOUSLY once the
+// archive question is settled - because iOS honours play() only inside the tap
+// that started it, and the old code reached the release from an async .catch()
+// a full network round trip later. Measured in real WebKit: the release asset
+// fails with MEDIA_ERR_SRC_NOT_SUPPORTED where a same-origin mp3 loads.
+scenario("a shipped catalog row plays same-origin with no archive hop", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // Two rows: one this build ships (stamped the way musLoadShipmap stamps it),
+    // one that only exists on the release.
+    MUSCAT = { tracks: [
+      { id: "s1", name: "SHIPPED", file: "music/shipped.mp3", shipped: 1, secs: 60, tags: "",
+        url: "https://example.invalid/shipped.mp3" },
+      { id: "c1", name: "CANDIDATE", file: "cand.mp3", secs: 60, tags: "",
+        url: "https://example.invalid/cand.mp3" },
+    ] };
+    ARCHIVE_OK = null;
+    // THE SHIPPED ROW NEVER TOUCHES THE ARCHIVE, whatever the latch says.
+    out.shippedSrc = musSrc(MUSCAT.tracks[0]);
+    out.shippedIsSameOrigin = out.shippedSrc.indexOf("music/archive/") < 0
+      && out.shippedSrc.indexOf("http") !== 0 ? 1 : 0;
+    // A candidate still tries the mirror while the question is open...
+    out.candidateBefore = musSrc(MUSCAT.tracks[1]).indexOf("music/archive/") === 0 ? 1 : 0;
+    // ...and once the boot probe has settled it, resolves to the url with no
+    // 404 in between. THIS is what keeps the tap alive on iOS.
+    ARCHIVE_OK = false;
+    out.candidateAfter = musSrc(MUSCAT.tracks[1]) === "https://example.invalid/cand.mp3" ? 1 : 0;
+    // The shipped row is unmoved by the latch - it was never in that path.
+    out.shippedStillLocal = musSrc(MUSCAT.tracks[0]) === "music/shipped.mp3" ? 1 : 0;
+
+    // AND IT ACTUALLY PLAYS THAT SRC. musPlay is what a tap calls.
+    musJudge = {}; musicOn = true; muted = false;
+    musPlay(MUSCAT.tracks[0]);
+    out.played = theSpeaker() && theSpeaker().src === "music/shipped.mp3" ? 1 : 0;
+    out.audible = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (!got.shippedIsSameOrigin) return `a shipped row resolved to ${got.shippedSrc}, want a same-origin path`;
+  if (!got.candidateBefore) return "a candidate did not try the local mirror while ARCHIVE_OK was unknown";
+  if (!got.candidateAfter) return "once ARCHIVE_OK latched false a candidate did not resolve straight to its url";
+  if (!got.shippedStillLocal) return "the ARCHIVE_OK latch moved a SHIPPED row off its same-origin path";
+  if (!got.played) return "a tap on a shipped row did not hand the speaker its same-origin src";
+  if (got.audible !== 1) return `after the tap ${got.audible} tracks are audible, want 1`;
+  return true;
+});
+
+// THE STAMP ITSELF, not a hand-stamped row. The scenario above proves musSrc
+// does the right thing GIVEN shipped:1 - it would still pass if the shipmap
+// loader never set the flag, which is exactly the bug we are fixing. So drive
+// the loader's own body: catalog rows in, stamped rows out.
+scenario("the shipmap stamps shipped rows onto the catalog", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [
+      { id: "s1", name: "SHIPPED", file: "2026-01-01_shipped_s1.mp3", secs: 60, tags: "",
+        url: "https://example.invalid/s1.mp3" },
+      { id: "c1", name: "CANDIDATE", file: "cand.mp3", secs: 60, tags: "",
+        url: "https://example.invalid/c1.mp3" },
+    ] };
+    // THE REAL LOADER, not a re-typed copy of it. musApplyShipmap is the game's
+    // own function; an inlined duplicate here passed with the original deleted.
+    const shipmap = { ships: { s1: { file: "music/shipped.mp3", name: "SHIPPED", how: "byte-exact" } } };
+    out.stamped = musApplyShipmap(shipmap);
+    out.flag = MUSCAT.tracks[0].shipped === 1 ? 1 : 0;
+    out.path = MUSCAT.tracks[0].file;
+    out.resolves = musSrc(MUSCAT.tracks[0]);
+    // An unlisted row is untouched - the archive name survives, no flag.
+    out.otherUntouched = !MUSCAT.tracks[1].shipped && MUSCAT.tracks[1].file === "cand.mp3" ? 1 : 0;
+    return JSON.stringify(out);
+  })()`));
+  if (got.stamped !== 1) return `the shipmap stamped ${got.stamped} rows, want 1`;
+  if (!got.flag) return "a listed row did not come back with shipped=1";
+  if (got.path !== "music/shipped.mp3") return `a listed row kept file ${got.path}, want the same-origin path`;
+  if (got.resolves !== "music/shipped.mp3") return `a stamped row resolved to ${got.resolves}`;
+  if (!got.otherUntouched) return "an unlisted row was stamped or had its file rewritten";
+  return true;
+});
+
+// THE SHIPPED CATALOG FILE IS ITSELF THE ARTIFACT, so pin its shape - a
+// regenerated shipmap that lost its paths would sail past every scenario above.
+scenario("music/shipmap.json ships a same-origin path for every entry", () => {
+  const map = JSON.parse(readFileSync("music/shipmap.json", "utf8"));
+  const ids = Object.keys(map.ships || {});
+  if (ids.length !== map.built) return `built says ${map.built} but there are ${ids.length} entries`;
+  if (ids.length < 20) return `only ${ids.length} shipped rows mapped, want the 21 this build carries`;
+  for (const id of ids) {
+    const s = map.ships[id];
+    if (!/^music\/[^/]+\.mp3$/.test(s.file)) return `${id} maps to ${s.file}, want music/<name>.mp3`;
+    if (!existsSync(s.file)) return `${id} maps to ${s.file}, which this build does not ship`;
+    if (!s.how) return `${id} carries no provenance - how was it joined?`;
+  }
+  return true;
+});
+
 scenario("the whole session plays through one audio element", () => {
   // THE MOBILE HALF, and the reason "it works on my machine" was true and
   // useless. A desktop browser unlocks audio per ORIGIN, so the second

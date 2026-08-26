@@ -23158,18 +23158,23 @@ function musLoadCatalog() {
 // every row streams, which is exactly the old behaviour.
 function musLoadShipmap() {
   fetch("music/shipmap.json").then(r => (r.ok ? r.json() : null))
-    .then(j => {
-      if (!j || !j.ships || !MUSCAT) return;
-      let n = 0;
-      for (const t of MUSCAT.tracks) {
-        const s = j.ships[t.id];
-        if (!s) continue;
-        t.shipped = 1;      // musSrc returns t.file verbatim for a shipped row
-        t.file = s.file;    // ...so it must be the same-origin path, not the archive name
-        n++;
-      }
-      if (n) rebuildRotation();
-    }).catch(() => {});
+    .then(j => { if (musApplyShipmap(j)) rebuildRotation(); }).catch(() => {});
+}
+// THE STAMP IS ITS OWN FUNCTION so the suite can drive it. Left inside the
+// fetch callback it was unreachable from a test - and a scenario that re-typed
+// this loop beside it passed happily with the real one deleted, which is the
+// only kind of test worse than none. Returns how many rows it stamped.
+function musApplyShipmap(j) {
+  if (!j || !j.ships || !MUSCAT || !MUSCAT.tracks) return 0;
+  let n = 0;
+  for (const t of MUSCAT.tracks) {
+    const s = j.ships[t.id];
+    if (!s || !s.file) continue;
+    t.shipped = 1;      // musSrc returns t.file verbatim for a shipped row
+    t.file = s.file;    // ...so it must be the same-origin path, not the archive name
+    n++;
+  }
+  return n;
 }
 // SETTLE THE ARCHIVE QUESTION BEFORE ANYONE TAPS, not on the first tap.
 //
