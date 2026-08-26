@@ -50,6 +50,11 @@ const NOVSEP = args.includes("--novsep");
 // window._norethink at the top of visRethink and the citizen walk re-think) -
 // the attribution arm for mid-commitment switching.
 const NORETHINK = args.includes("--norethink");
+// `--nodepart` switches VISITOR-CHOSEN DEPARTURE off (game.js reads
+// window._nodepart at the top of visDepartPick), so leaveT stays exactly the
+// spawn-fixed sailing it was before ruling 6 horizon 3 - the attribution arm
+// for "does choosing when to leave move the town".
+const NODEPART = args.includes("--nodepart");
 // `--nofloor` leaves the hall running - elections, the fund, the pot - but
 // holds the WAGE FLOOR at zero, so a payroll effect can be attributed without
 // switching the whole office off (which would move the shelter too).
@@ -171,6 +176,7 @@ if (NOHOTELIER) G(`window._noHotelier = true;`);
 if (NOHALL) G(`window._noHall = true;`);
 if (NOVSEP) G(`window._novsep = true;`);
 if (NORETHINK) G(`window._norethink = true;`);
+if (NODEPART) G(`window._nodepart = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);

@@ -9079,6 +9079,33 @@ registerSurface("cit_errand.candidate", {
   script: "pickErrand",   // candidates, draws and the argmax stay script
   doc: "what a resident does with their next free thought",
 });
+// WHEN A VISITOR GOES HOME, AS A DECISION (Matt, 2026-08-24 ruling 6: "we'd
+// also like for visitors to choose when they depart in their neural-net/
+// decision policy"). Departure timing used to be fixed at spawn - newVisitor
+// pinned leaveT to a sailing before the guest had experienced anything. This
+// makes it a CHOICE the policy re-evaluates: a guest the town is delighting
+// stays on, a guest it is failing cuts the trip short.
+//
+// A SURFACE OF ITS OWN, not a class on vis_pick.candidate, and the reasons are
+// two advice items measured on this project today (kd-kSccbUfcdw, kd-zQB8oRGDeQ):
+//   1. vis_pick.candidate has a SHIPPED trained brain (gullway, 7 classes) and
+//      the loader requires classes==surface N in order - a fourteenth class
+//      would HARD-FAIL that artifact at boot until it is retrained. A new
+//      registration leaves the trained one byte-identical.
+//   2. vis_pick.candidate SCORES THE PRESENT ("what do I fancy now"); departure
+//      READS THE FUTURE ("is this trip worth prolonging"). A decision that
+//      reads the future does not belong in a surface built to score the present.
+// So: three classes (stay put / leave sooner / stay longer), engine-default
+// SCRIPT (visDepartPick), and NO trained artifact - departure is a rare event
+// (a guest decides it a handful of times a stay), so per kd-zQB8oRGDeQ it ships
+// as the heuristic with a stated exit condition rather than a confidently-wrong
+// brain. A future culture whose guests are MEANT to linger or bolt differently
+// declares a "vis_depart.stay" policy here, reading the same needW matrix.
+registerSurface("vis_depart.stay", {
+  classes: ["hold", "sooner", "longer"],
+  script: "visDepartPick",   // the engine default reads needW; no brain ships yet
+  doc: "when a visitor chooses to sail home",
+});
 // Which policy answers for a culture on a surface - the declared one, or the
 // registered engine default. Table/script/brain all resolve here; the brain
 // path keeps its own fast lane (brainOf) and this accessor never replaces it,
@@ -14581,6 +14608,137 @@ function visWalkMins(k) {
   // slow culture misses boats the sign promised (the design doc's named trap)
   return Math.abs(k.x - FERRY.gangway) / mannerOf(k).SPEED * TS + 25;
 }
+// ---- WHEN A VISITOR CHOOSES TO GO HOME (ruling 6, kd-I9fjOBARav) -----------
+// Departure was fixed at spawn; this makes it a DECISION the policy re-reads.
+// The signal is the SAME needW-weighted condition the delight departure card
+// reads (the `delight` rule, visDepartCond below is its live-guest twin): one
+// matrix, two readers, exactly as ruling 6 demands. A guest the town is
+// delighting stays on; a guest it is failing cuts the trip short.
+const DEPART_CAP_NIGHTS = 3;     // the longest a delighted guest extends to -
+                                 // the same ceiling load() already clamps nights
+                                 // to (10661), so a stay never outgrows the save.
+const DEPART_SLACK = 90;         // game-minutes of walk/queue headroom folded
+                                 // into a "leave on the next reachable boat" cut,
+                                 // so a rebook never targets a boat they'd miss.
+const DEPART_SPEND_MIN = 1500;   // cents a guest wants left ABOVE a night's board
+                                 // before choosing to stay on - roughly a meal
+                                 // and a drink, so an extra night is an evening
+                                 // in town, not a night idle in a paid room.
+const DEPART_SOON = 300;         // game-minutes: a guest weighs STAYING ON only
+                                 // when the boat they hold is this close - the
+                                 // choice is made at the dock, not the instant
+                                 // their bars top up after a meal (see the note
+                                 // on visDepartPick's "longer" gate).
+// THE LIVE CONDITION, in needW's weighted-sum space and to the delight gate's
+// own tolerance. delight (game.js:21410) reads a FROZEN departRecord; this reads
+// the LIVE guest for an in-stay decision, but the arithmetic is identical -
+// `sum(w*bar) <= qn(0.45)*sum(w)` is "delighted", and a matching over-line test
+// with the want threshold is "being failed". needW is identity (all-4s) for a
+// crab and every undeclared culture, so for the species that fills every town
+// this is exactly `sum(bar)` against `5*qn(0.45)` / `5*qn(0.85)` - no floats a
+// crab's condition is not already measured against. Draw-free by construction.
+function visDepartCond(k) {
+  // the live guest carries no departRecord row, so hand needW the two fields it
+  // reads (cu for the culture axis, acc for the class register) off the guest.
+  const w = needW({ cu: k.culture && k.culture !== "crab" ? k.culture : null, acc: k.acc });
+  const wsum = w[0] + w[1] + w[2] + w[3] + w[4];
+  const cond = w[0] * (k.hunger || 0) + w[1] * (k.thirst || 0) + w[2] * (k.dirt || 0)
+    + w[3] * (k.bored || 0) + w[4] * (k.tired || 0);
+  return { cond, wsum };
+}
+// DELIGHTED: every bar, weighted, below the want line the delight card uses.
+function visDelighted(k) {
+  const { cond, wsum } = visDepartCond(k);
+  return cond <= qn(0.45) * wsum;
+}
+// FAILING: the town is genuinely losing this guest. The bar is deliberately
+// narrow, and which of the three blocked counters counts is the whole point -
+// the departure card already taught this distinction and the decision must not
+// unlearn it (21232-21237): only a SHUT door is the town failing a guest. FULL
+// is the town being POPULAR (a BUILD signal, not a grievance) and BROKE is the
+// guest's own empty wallet (a guest who spent their money is a SUCCESS, and one
+// who arrived skint was never the town's to lose) - counting either as "failing"
+// makes half a busy growth town bolt in a huff and talk the place down, which
+// measured as a reputation crash that suppressed pig arrival (the mistake this
+// comment exists to not repeat). So:
+//   - slept ROUGH -> failing outright (no bed is the loudest failure, and it
+//     has already docked reputation on its own);
+//   - a SHUT-door want that clearly dominates (shut >= 3, and shut over full and
+//     broke - the card's own dominance rule) AND a real over-the-line unmet
+//     condition -> failing. Hours and staffing are the fix, which the player owns.
+function visFailing(k) {
+  if (k.roughNights > 0) return true;
+  const s = k.stay;
+  if (!s) return false;
+  const shut = s.shut || 0;
+  if (!(shut >= 3 && shut > (s.full || 0) && shut > (s.broke || 0))) return false;
+  const { cond, wsum } = visDepartCond(k);
+  return cond >= qn(0.85) * wsum;
+}
+// THE ENGINE DEFAULT for the vis_depart.stay surface: which way (if any) does
+// this guest want to move their boat? Returns a class name from the surface's
+// list. A brain that ships for this surface returns the same three answers off
+// the same observables; the mechanics of ACTING on the answer stay here in the
+// shared harness (visDepartAct), so whoever decides, the rebooking is identical.
+function visDepartPick(k) {
+  if (window._nodepart) return "hold";              // the arm-off hatch (--nodepart)
+  if (k.nights > 0 && k.nightsHad >= k.nights) return "hold";  // last morning: they are already going
+  if (visFailing(k)) return "sooner";
+  // EXTENDING IS A DECISION MADE AT THE DOCK, NOT MID-STAY. A guest weighs
+  // another night only when the boat they booked is genuinely near - "I'm about
+  // to sail and I'm having too good a time" - not the instant their bars top up
+  // after a meal. Without this the choice fired every think a guest was content,
+  // and a dozen guests each stretching their stay by a night manufactured a bed
+  // shortage a 7-room hotel could not meet: rough nights climbed and the town's
+  // word FELL (measured, seed 1337 growth - MORE homeless tourists, the opposite
+  // of the intent). Gating on "the sailing they hold is within DEPART_SOON"
+  // makes it the occasional considered choice it should be.
+  const soonToSail = k.leaveT - gnow() <= DEPART_SOON;
+  // EXTENDING NEEDS A BED AND THE MONEY FOR IT. Even at the dock, a guest only
+  // stays on if the town can actually PUT THEM UP - a free room, the hotel open,
+  // the board price plus a little left in the wallet - so a "stay on" never
+  // strands somebody on the sand. A FULL house is a BUILD signal, not an
+  // invitation to sleep rough. roomPrice is cents, like the wallet.
+  if (soonToSail && visDelighted(k) && k.nights < DEPART_CAP_NIGHTS
+      && visOpen("hotel") && freeRoom()
+      && k.wallet >= roomPrice() + DEPART_SPEND_MIN) return "longer";
+  return "hold";
+}
+// ACT on the chosen class, always on the sailing grid (nearestSail) so the
+// ferry line never lies, and never crossing a boat the guest could not reach.
+// Both moves generalise an EXISTING engine precedent onto the matrix: "sooner"
+// is sleepOnSand's leaveT=min(leaveT, nearestSail(...)) (14596); "longer" is
+// ferryGo's missed-boat nights bump (14444). Draw-free.
+function visDepartAct(k, cls) {
+  if (cls === "sooner") {
+    const soon = nearestSail(gnow() + DEPART_SLACK);
+    if (soon < k.leaveT) {
+      k.leaveT = soon;
+      visLog(k, "life", vline(k, "cutshort", "SEEN ENOUGH - CATCHING THE NEXT BOAT HOME"));
+    }
+    return;
+  }
+  if (cls === "longer") {
+    const want = k.nights + 1;                        // one more night than planned
+    const later = nearestSail(gnow() + (want - k.nightsHad) * 1440 - DEPART_SLACK);
+    if (later > k.leaveT) {
+      k.nights = Math.min(DEPART_CAP_NIGHTS, want);   // a day-tripper becomes an overnighter, and now wantsRoom
+      k.leaveT = later;
+      visLog(k, "life", vline(k, "stayon", "HAVING TOO GOOD A TIME - STAYING ON ANOTHER NIGHT"));
+    }
+  }
+}
+// WHO DECIDES when this guest leaves. The vis_depart.stay surface ships
+// SCRIPT-ONLY - no trained artifact (per kd-zQB8oRGDeQ: a departure is a rare
+// per-stay event, not trainable yet, so it ships as the heuristic with a stated
+// exit condition). The SEAM is here: when a culture declares a vis_depart.stay
+// brain and a brainDepartPick lands to run it, this is the one line that routes
+// to it - reading the same needW matrix, the same three classes. Until then the
+// engine default answers for everyone, crab and cultured alike.
+function visDepartThink(k) {
+  const cls = visDepartPick(k);
+  if (cls !== "hold") visDepartAct(k, cls);
+}
 // WHO IS GOING HOME ON THIS ONE - and, just as importantly, WHEN THEY SET OFF.
 // `minsLeft` is how long until she sails; a guest leaves when the walk needs
 // them to and not a minute before. A flat call was tried first and it read
@@ -15414,6 +15572,12 @@ function updateVisitor(k, dt) {
       e = KERN ? kernelVisPick(k) : visPick(k);
       if (bp && bp.mode === "shadow") shadowObserve(k, bp, e);
     }
+    // ...and on the SAME free thought, a guest weighs whether the trip is still
+    // worth prolonging (ruling 6: "choose when they depart in their decision
+    // policy"). It runs whether or not they found an errand - a delighted guest
+    // with nothing left to buy is exactly the one who chooses to stay on - and
+    // it is draw-free, so both backends make the identical (zero) draws here.
+    visDepartThink(k);
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
@@ -19098,7 +19262,15 @@ function drawPanel() {
     // always the exact per-crab total either way
     const rates = Array.from(new Set(owed.map(c => Math.round(wageRate(c)))));
     const rateTxt = rates.length === 1 ? "$" + $d(rates[0]) : "MIXED";
-    smallText(ctx, "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H" + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : ""), 132, by, [190, 175, 160]);
+    // NOBODY OWED TONIGHT is its own short line, not "0XMIXED/6H (N OUT)": with
+    // an empty `owed` list `rates` is empty so rateTxt falls to "MIXED" (there is
+    // no rate to be mixed), and the full "0X.../ (N OUT)" label overran the $0
+    // total column at x224 by a few pixels. A crew all off tonight has no wage
+    // bill to itemise; say so plainly and the row cannot collide with its total.
+    const wageLabel = owedN === 0 ? "WAGES - NONE DUE"
+      : "WAGES " + owedN + "X" + rateTxt + "/" + (STD_SHIFT / 60) + "H"
+        + (owedN < crabs.length ? " (" + (crabs.length - owedN) + " OUT)" : "");
+    smallText(ctx, wageLabel, 132, by, [190, 175, 160]);
     smallText(ctx, "$" + $d(baseBill), 224, by, [235, 160, 130]); by += MROW;
     const otBill = owed.reduce((s, c) => s + Math.round(otPayForecast(c)), 0);
     if (otBill > 0) {
