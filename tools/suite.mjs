@@ -13410,6 +13410,15 @@ scenario("civics eligibility: a hostile franchise is refused by name at the door
     badLD: boar({ vote: V, stand: [["LD", "wealth"]] }),
     badOp: boar({ vote: V, stand: [["FROB", 1]] }),
     notPred: boar({ vote: V, stand: [["LD", "npc"], ["PUSHI", 7], ["ADD"]] }),   // can reach 8
+    // CLAMP-laundered predicate (kd-6NKxmSvlpP): clamp(0, npc*50, npc) returns the
+    // LO operand npc*50 at runtime, so it reads 50 for a townsfolk - NOT a
+    // predicate. The old CLAMP static [min(a0,b0), max(a1,c1)] collapsed it to
+    // [0,1] and this slid past the 0/1 gate; the sound hull bounds it [0,50] and
+    // the gate names it. WIDEN the CLAMP interval back and this stops refusing.
+    clampLaunder: boar({ vote: V, stand: [["PUSHI", 0], ["LD", "npc"], ["PUSHI", 50], ["MUL"], ["LD", "npc"], ["CLAMP"]] }),
+    // ...and a GENUINE clamp predicate - clamp(npc, 0, 1), the honest way to pin a
+    // read to 0/1 - must still be ACCEPTED, so the fix refuses launderers, not CLAMP.
+    clampGood: boar({ vote: V, stand: [["LD", "npc"], ["PUSHI", 0], ["PUSHI", 1], ["CLAMP"]] }),
   };
   const got = JSON.parse(sim.G(`JSON.stringify((() => {
     const docs = ${JSON.stringify(docs)};
@@ -13431,6 +13440,8 @@ scenario("civics eligibility: a hostile franchise is refused by name at the door
   if (!/NOT A BUNDLE ROW/.test(String(v.badLD))) return "a typo'd LD name slid in: " + v.badLD;
   if (!/NOT AN L1 OP/.test(String(v.badOp))) return "an unknown op slid in: " + v.badOp;
   if (!/NOT A 0\/1 PREDICATE/.test(String(v.notPred))) return "a program that can return 8 slid in as a predicate: " + v.notPred;
+  if (!/NOT A 0\/1 PREDICATE/.test(String(v.clampLaunder))) return "a CLAMP-laundered program that returns 50 slid in as a predicate: " + v.clampLaunder;
+  if (v.clampGood !== null) return "a genuine clamp(npc,0,1) predicate was refused: " + v.clampGood;
   return true;
 });
 
@@ -15259,6 +15270,12 @@ scenario("layer 1: the golden programs answer to the pin, and the pin is the law
     { p: [["LD", 1], ["TERM"]], want: 42 },
     // a plausible family-3 shape: (y - 20) clamped to [0,30], scaled 345
     { p: [["LD", 1], ["PUSHI", 20], ["SUB"], ["PUSHI", 0], ["PUSHI", 30], ["CLAMP"], ["PUSHI", 345], ["MUL"]], want: 7590 },
+    // CLAMP soundness (kd-6NKxmSvlpP): the runtime is `a<b?b:a>c?c:a`, so when the
+    // LO operand climbs ABOVE the HI operand the result is the LO - the case the
+    // old static interval [min(a0,b0), max(a1,c1)] never contained. Here lo=y=42,
+    // hi=1, so clamp(0, 42, 1) returns 42. A "fix" that narrows the runtime to
+    // match the old static turns this red.
+    { p: [["PUSHI", 0], ["LD", 1], ["PUSHI", 1], ["CLAMP"]], want: 42 },
   ];
   const got = JSON.parse(sim.G(`(() => {
     const bundle = [{ name: "x", min: -1000, max: 1000 }, { name: "y", min: 0, max: 100 }, { name: "z", min: -50, max: 50 }];
@@ -15298,6 +15315,24 @@ scenario("layer 1: hostile programs are refused by name, before anything runs", 
   //    anything >= 1 and this goes red. Between them the constant cannot move.
   const magAtBound   = [["PUSHI", 67108864], ["PUSHI", 67108864], ["MUL"]];                            // 2^26 * 2^26 == 2^52
   const magOverByOne = [["PUSHI", 67108864], ["PUSHI", 67108864], ["MUL"], ["PUSHI", 1], ["ADD"]];     // 2^52 + 1
+  // A SECOND BRACKETING PAIR, guarding the CLAMP interval (kd-6NKxmSvlpP). The
+  // runtime clamp is `a<b?b:a>c?c:a`, so it can return the LO operand b - which
+  // the old static [min(a0,b0), max(a1,c1)] never consulted at its high end.
+  // That laundered a wide read into a narrow interval, slipping the 2^52 rail.
+  //  - clampLaunder builds clamp(0, y, 1): OLD static collapsed to [0,1] no
+  //    matter y's range, so this MUL chain read [0,1]^8 and was ACCEPTED while
+  //    the runtime crossed 2^52 (y=100 -> 100^8 = 1e16). With the sound hull
+  //    [min(a0,b0,c0), max(a1,b1,c1)] the CLAMP bound is [0,100] and the eighth
+  //    MUL is REFUSED naming PAST 2^52. WIDEN the CLAMP interval back and this
+  //    goes green-when-it-must-be-red.
+  //  - clampGenuine is the shipped shape - clamp(y, 0, 10) with PUSHI lo/hi -
+  //    and must stay ACCEPTED with a tight [0,100] bound: the fix narrows no
+  //    real use. NARROW the CLAMP hull wrongly (drop b1/c0) and it still passes,
+  //    so the accept side alone is not the guard - the launder refuse side is.
+  const launderY = [["PUSHI", 0], ["LD", 1], ["PUSHI", 1], ["CLAMP"]];     // clamp(0, y, 1): runtime y, old static [0,1]
+  const clampLaunder = [];
+  for (let k = 0; k < 8; k++) { clampLaunder.push(...launderY); if (k) clampLaunder.push(["MUL"]); }   // launderY^8
+  const clampGenuine = [["LD", 1], ["PUSHI", 0], ["PUSHI", 10], ["CLAMP"]];   // the shipped shape, stays [0,100]
   const cases = [
     { p: [["FOO"]], re: /NOT AN L1 OP/ },
     { p: longProg, re: /257 OPS, MAX 256/ },
@@ -15311,6 +15346,8 @@ scenario("layer 1: hostile programs are refused by name, before anything runs", 
     { p: magProg, re: /PAST 2\^52/ },
     { p: magOverByOne, re: /PAST 2\^52/ },      // 2^52 + 1: the tight refuse side of the pin
     { p: magAtBound, re: /^ACCEPTED$/ },        // 2^52 exactly: the load-bearing accept side
+    { p: clampLaunder, re: /PAST 2\^52/ },      // CLAMP cannot launder a wide read past the rail
+    { p: clampGenuine, re: /^ACCEPTED$/ },      // ...and the shipped clamp shape is untouched
     { p: [["PUSHI", 1], ["PUSHI", 2]], re: /MUST END WITH ONE VALUE, ENDS WITH 2/ },
     { p: [["PUSHI", 1], ["TERM"], ["PUSHI", 2], ["ADD"]], re: /TERM AT OP 1 - TERM CLOSES A PROGRAM/ },
     { p: [], re: /A PROGRAM WITH NO OPS/ },
