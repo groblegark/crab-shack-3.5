@@ -5985,26 +5985,29 @@ copy of them.
     not suno": a soundtrack must not be a third party's implementation detail.
     Tracks are matched to assets by the **8-char id**, never the name, because
     GitHub rewrites stored names (spaces → dots).
-  - **Streaming, measured — AND THE MEASUREMENT WAS ENGINE-SPECIFIC.** Release
-    assets serve `application/octet-stream` with `Content-Disposition:
-    attachment`, and `<audio>` plays them anyway — 8 cold tracks, all canplay,
-    **median 362 ms, worst 553 ms**. So the repo carries none of the audio and
-    the catalog ships at 81 KB gzipped. **That number was Chromium's, and it is
-    false on WebKit** (2026-08-26, one page, two URLs, control on both engines):
+  - **Streaming, measured:** release assets serve `application/octet-stream`
+    with `Content-Disposition: attachment` and `<audio>` plays them anyway —
+    8 cold tracks, all canplay, **median 362 ms, worst 553 ms**. So the repo
+    carries none of the audio and the catalog ships at 81 KB gzipped.
+    **Re-confirmed on WebKit too** (2026-08-26), same bytes and same origin with
+    only the headers varied, so nothing but the header is under test:
 
-    | | same-origin `audio/mp3` | release asset |
+    | | `audio/mpeg` | `octet-stream` + `attachment` |
     |---|---|---|
-    | Chromium | loadedmetadata 129.76s | loadedmetadata 43.52s |
-    | WebKit | loadedmetadata 129.79s | **ERROR 4** `SRC_NOT_SUPPORTED` |
+    | Chromium | loadedmetadata 43.52s | loadedmetadata 43.52s |
+    | WebKit | loadedmetadata 43.56s | loadedmetadata 43.56s |
 
-    The release CDN also sends **no `access-control-allow-origin`**, so the
-    `fetch`→blob workaround is dead too; range/206 works on both hosts and was
-    never the problem. A one-browser "it plays anyway" is a *per-engine* fact —
-    the very trap `mkmusichost.mjs`'s own header note warns about, caught one
-    layer up. Consequence: **only the 21 tracks we ship same-origin are
-    playable on iOS**; the other 1,180 are desktop-only until the audio is
-    rehosted somewhere that sends `audio/mpeg` + CORS (`raw.githubusercontent`
-    and jsDelivr both do — verified). Sizing and options: decision kd-9sH456dVsr.
+    So the header theory for the iOS silence is **dead** — and it nearly went
+    into this file as fact. A first pass "measured" WebKit rejecting the release
+    URL with `ERROR 4`; that browser was hand-built in-pod and had **no TLS**
+    (`TLS support is not available`), so *every* `https://` URL failed the same
+    way. The tell was that the proposed *remedy* (jsDelivr, raw.githubusercontent
+    — both `audio/mpeg` + CORS) failed identically. **A positive control must
+    exercise the same transport as the subject**: theirs was same-origin
+    plaintext HTTP against remote HTTPS subjects, so it could only ever prove
+    the codec worked, never the network stack. Note the release CDN does send
+    **no `access-control-allow-origin`**, so a `fetch`→blob path is genuinely
+    unavailable; range/206 works everywhere and was never the problem.
   - **The shipped rows must know they are shipped** (`music/shipmap.json`,
     `tools/mkshipmap.mjs`) — and the join is **by audio, never by name**.
     `mkmusic.mjs` numbers duplicate titles and the *first* keeps the bare name,
