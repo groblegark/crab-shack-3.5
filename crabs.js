@@ -5,9 +5,16 @@ const CRAB_NAMES = [
   "CORAL", "SNIPPY", "HERMIE", "SALTY", "MITTENS", "KELP",
 ];
 
+// `thrift` is TWENTIETHS of tonight's roof a crab thinks to keep back before
+// spending on themselves (20 = exactly the rent, 0 = never plans past today).
+// It is read only by spendKeep() in game.js and it is a PERSONALITY, not a
+// difficulty dial: a town where everybody reserves the same amount is safer
+// and much duller, and the differently-wrong crabs are where the comedy lives.
+// The values follow each trait's existing character rather than a curve -
+// DREAMY is not bad at arithmetic, she is looking at a cloud.
 const TRAITS = {
   speedy: {
-    label: "SPEEDY", move: 1.4, work: 1.0, tip: 1.0,
+    label: "SPEEDY", move: 1.4, work: 1.0, tip: 1.0, thrift: 18,
     quips: {
       commute: ["GOTTA GO FAST", "ZOOM ZOOM", "NO TIME!"],
       work: ["ORDER UP!", "FASTER! FASTER!", "DONE ALREADY"],
@@ -15,7 +22,7 @@ const TRAITS = {
     },
   },
   lazy: {
-    label: "LAZY", move: 0.85, work: 0.85, tip: 1.0, lateMin: 45,
+    label: "LAZY", move: 0.85, work: 0.85, tip: 1.0, thrift: 6, lateMin: 45,
     quips: {
       commute: ["5 MORE MINS...", "WHY SO EARLY", "YAWN"],
       work: ["BREAK TIME YET?", "SO MANY ORDERS", "UGH, TOURISTS"],
@@ -23,7 +30,7 @@ const TRAITS = {
     },
   },
   cheery: {
-    label: "CHEERY", move: 1.0, work: 1.0, tip: 1.25,
+    label: "CHEERY", move: 1.0, work: 1.0, tip: 1.25, thrift: 20,
     quips: {
       commute: ["WHAT A MORNING!", "HI SEAGULLS!", "LOVE THIS TOWN"],
       work: ["SERVICE W. A SMILE", "ENJOY!", "MY PLEASURE!"],
@@ -31,7 +38,7 @@ const TRAITS = {
     },
   },
   grumpy: {
-    label: "GRUMPY", move: 1.0, work: 1.15, tip: 0.9,
+    label: "GRUMPY", move: 1.0, work: 1.15, tip: 0.9, thrift: 24,
     quips: {
       commute: ["TRAFFIC. GREAT.", "SAND IN MY SHOES", "HMPH"],
       work: ["YES YES, TACO", "I'M CHOPPING OK", "TOURISTS..."],
@@ -39,7 +46,7 @@ const TRAITS = {
     },
   },
   tidy: {
-    label: "TIDY", move: 1.0, work: 1.1, tip: 1.05,
+    label: "TIDY", move: 1.0, work: 1.1, tip: 1.05, thrift: 28,
     quips: {
       commute: ["CLAWS WASHED", "EARLY IS ON TIME"],
       work: ["MISE EN PLACE", "CLEAN AS YOU GO", "SPOTLESS"],
@@ -47,7 +54,7 @@ const TRAITS = {
     },
   },
   dreamy: {
-    label: "DREAMY", move: 0.95, work: 0.9, tip: 1.15, pauses: true,
+    label: "DREAMY", move: 0.95, work: 0.9, tip: 1.15, thrift: 4, pauses: true,
     quips: {
       commute: ["LOOK, A CLOUD...", "THE WAVES SING", "OOH SHINY SHELL"],
       work: ["WAIT, WHAT ORDER?", "THE GRILL DANCES", "PRETTY FLAMES"],

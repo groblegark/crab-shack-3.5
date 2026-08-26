@@ -12,7 +12,7 @@
   ],
   "traits": {
     "speedy": {
-      "label": "SPEEDY", "move20": 28, "work20": 20, "tip20": 20,
+      "label": "SPEEDY", "move20": 28, "work20": 20, "tip20": 20, "thrift": 18,
       "quips": {
         "commute": ["GOTTA GO FAST", "ZOOM ZOOM", "NO TIME!"],
         "work": ["ORDER UP!", "FASTER! FASTER!", "DONE ALREADY"],
@@ -20,7 +20,7 @@
       }
     },
     "lazy": {
-      "label": "LAZY", "move20": 17, "work20": 17, "tip20": 20, "lateMin": 45,
+      "label": "LAZY", "move20": 17, "work20": 17, "tip20": 20, "thrift": 6, "lateMin": 45,
       "quips": {
         "commute": ["5 MORE MINS...", "WHY SO EARLY", "YAWN"],
         "work": ["BREAK TIME YET?", "SO MANY ORDERS", "UGH, TOURISTS"],
@@ -28,7 +28,7 @@
       }
     },
     "cheery": {
-      "label": "CHEERY", "move20": 20, "work20": 20, "tip20": 25,
+      "label": "CHEERY", "move20": 20, "work20": 20, "tip20": 25, "thrift": 20,
       "quips": {
         "commute": ["WHAT A MORNING!", "HI SEAGULLS!", "LOVE THIS TOWN"],
         "work": ["SERVICE W. A SMILE", "ENJOY!", "MY PLEASURE!"],
@@ -36,7 +36,7 @@
       }
     },
     "grumpy": {
-      "label": "GRUMPY", "move20": 20, "work20": 23, "tip20": 18,
+      "label": "GRUMPY", "move20": 20, "work20": 23, "tip20": 18, "thrift": 24,
       "quips": {
         "commute": ["TRAFFIC. GREAT.", "SAND IN MY SHOES", "HMPH"],
         "work": ["YES YES, TACO", "I'M CHOPPING OK", "TOURISTS..."],
@@ -44,7 +44,7 @@
       }
     },
     "tidy": {
-      "label": "TIDY", "move20": 20, "work20": 22, "tip20": 21,
+      "label": "TIDY", "move20": 20, "work20": 22, "tip20": 21, "thrift": 28,
       "quips": {
         "commute": ["CLAWS WASHED", "EARLY IS ON TIME"],
         "work": ["MISE EN PLACE", "CLEAN AS YOU GO", "SPOTLESS"],
@@ -52,7 +52,7 @@
       }
     },
     "dreamy": {
-      "label": "DREAMY", "move20": 19, "work20": 18, "tip20": 23, "pauses": true,
+      "label": "DREAMY", "move20": 19, "work20": 18, "tip20": 23, "thrift": 4, "pauses": true,
       "quips": {
         "commute": ["LOOK, A CLOUD...", "THE WAVES SING", "OOH SHINY SHELL"],
         "work": ["WAIT, WHAT ORDER?", "THE GRILL DANCES", "PRETTY FLAMES"],
