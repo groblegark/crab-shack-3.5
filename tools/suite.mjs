@@ -17738,6 +17738,41 @@ scenario("the arcade: the chore is named for the shop it happens in", () => {
   return true;
 });
 
+scenario("the arcade floor survives a save and reload", () => {
+  // The machines are FURNITURE derived from an upgrade level, not a saved list
+  // - the same contract the hotel annexe has ("THE ROOMS ARE THE TRUTH, not a
+  // counter beside them"), so no new save field. That means the load path has
+  // to RE-DEAL the floor before anything can stand at one, and a reloaded town
+  // that silently drops back to four machines would be invisible: the shop
+  // still works, it is just quietly smaller than what the player bought.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store });
+  a.G(`coins = 900000; tryBuy("arcade"); tryBuy("cadegear"); tryBuy("chef");
+    crabs[2].p.job = "arcade"; rosterGen++;`);
+  a.runDays(2);
+  const shape = `JSON.stringify({ lvl: UPS.cadegear.lvl, floor: arcadeFloor().length,
+    xs: arcadeFloor().map(t => t.x), machines: arcadeFloor().map(t => t.machine) })`;
+  const pre = a.G(shape);
+  if (JSON.parse(pre).floor !== 6) return "CADE GEAR+ did not put 6 machines down: " + pre;
+  // save(hold) RETURNS the envelope rather than writing it (a fresh session
+  // never writes a slot), so the slot write is explicit here
+  a.G("writeSlotEnv(activeSlot, save(true));");
+  const b = createSim({ seed: 77, storage: store, fresh: false });
+  const post = b.G(shape);
+  if (pre !== post) return "the floor changed shape across a reload:\n  pre  " + pre + "\n  post " + post;
+  // ...and every fid must still be unique ACROSS the whole town: the arcade
+  // draws from the same registry as the shack's tables and the hotel's rooms,
+  // and two pieces of furniture sharing a fid would share their flags
+  const uniq = b.G(`(() => { const all = [].concat(...Object.values(BIZ)
+    .map(z => (z.stalls || []).concat(z.tables || []))).map(t => t.fid);
+    return new Set(all).size === all.length; })()`);
+  if (!uniq) return "a reloaded town has two pieces of furniture on one fid";
+  // and the reloaded town must still be PLAYABLE, not merely shaped right
+  if (!b.runUntil('customers.some(k => k.biz === "arcade" && k.stC === VS.playing)',
+      { maxSteps: 400000 })) return "nobody could play a machine after the reload";
+  return true;
+});
+
 scenario("the arcade's occupancy is the JS chain's alone, on both backends", () => {
   // WHY THIS PIN EXISTS, and it is the sharpest hazard in the feature. The
   // compiled kernel (tools/kernel/kernel.c) reimplements the counter machine,
