@@ -44,13 +44,17 @@ lacks, though crab-science already exists. The earlier "OPERATOR-SIDE ONLY"
 reading was three tool bugs stacked (runbook lesson #9), not a substrate wall.
 The operator's Mac path is unchanged and still works.
 
-What a pod CAN do — and should, per CLAUDE.md's scope note, since the local ban
-protects the operator's Mac and a fleet pod IS cluster compute — is run sim
-workloads in-pod within its own limits: `node tools/suite.mjs --jobs N`,
-matrices, probes. That is enough to GATE. Cluster access buys back the wide
-fan-outs, not the ability to get a verdict at all. Leave headroom when peers
-are running, and per the perf note below, never read a timing from a box
-running two sims.
+A pod CAN run sim workloads in-pod within its own limits — `node
+tools/suite.mjs --jobs N`, matrices, probes — and that is right for a single
+scenario you are iterating on. **But it is NOT how you gate** (policy extended
+2026-08-26, CLAUDE.md). This paragraph used to read "that is enough to GATE",
+and it cost an agent 90 minutes: `suite.mjs` defaults to **`--jobs 1`**, so an
+in-pod full suite ran 90 minutes and reached **148 of 379** before it was
+killed, while the cluster returned **760/760 both backends in 7m35s** across
+24 arms on the same tree. Nothing errors when you gate in-pod; it just quietly
+takes forever, which is why the wrong instinct survives. Every gate goes to the
+cluster. Leave headroom when peers are running, and per the perf note below,
+never read a timing from a box running two sims.
 
 ### "within its own limits" means the CGROUP, not `nproc` (fixed 2026-08-25)
 
