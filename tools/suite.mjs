@@ -17618,7 +17618,7 @@ scenario("hooks: all four points fire with primitive ctx, and a faulty hook is u
     registerHook("midTransaction", { id: "t.tx", fn: (c) => { window._hk.tx++; window._hk.txAmt += c.amt;
       if (typeof c.biz !== "string" || typeof c.amt !== "number") throw new Error("live object leaked"); } });
     registerHook("worldEvent", { id: "t.day", fn: (c) => window._hk.days.push(c.day) });
-    registerHook("settlementAggregate", { id: "t.set", fn: (c) => window._hk.settles.push([c.culture, c.rule, c.purse - c.left]) });
+    registerHook("settlementAggregate", { id: "t.set", fn: (c) => window._hk.settles.push([c.culture, c.rule, c.purse - c.left, c.name]) });
     registerHook("walletScan", { id: "t.scan", fn: (c) => window._hk.scans++ });
     registerHook("midTransaction", { id: "t.boom", fn: () => { window._hk.boom++; throw new Error("kaboom"); } });`);
   sim.runDays(3);
@@ -17628,6 +17628,13 @@ scenario("hooks: all four points fire with primitive ctx, and a faulty hook is u
   if (!got.settles.length) return "no settlement aggregate in two lived days";
   if (got.settles.some(s => typeof s[0] !== "string" || typeof s[2] !== "number"))
     return "a settle ctx was not primitive: " + JSON.stringify(got.settles[0]);
+  // the settle ctx must NAME its subject: the row writes the guest as `name`,
+  // and the hook once shipped `name: r.n` (an undefined field) at both fire
+  // sites - a silent hole in the one identifying field of the phase-D plane
+  // (bug kd-BrKN0tvTEm). Assert a non-empty string so re-arming that typo goes
+  // red naming the name field, not just this scenario.
+  if (got.settles.some(s => typeof s[3] !== "string" || !s[3]))
+    return "a settle ctx carried no guest name (r.n vs r.name?): " + JSON.stringify(got.settles[0]);
   if (got.boom !== 1) return "the faulty hook fired " + got.boom + " times, want exactly 1";
   if (got.left !== 1) return "the faulty hook was not unhooked: " + got.left + " remain";
   // registration clamps, engine-facing: loud throws

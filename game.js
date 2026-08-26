@@ -22227,7 +22227,7 @@ function visQuote(r) {
     // behavioural equivalence. If a third path ever appears here, it fires
     // this point too, or the point is a lie.
     if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
-      { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+      { name: r.name, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
         buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
     return { id: best.id, mood: t.mood || best.mood, weight: bw,
       line: departLine(r, best, t, read) };
@@ -22242,7 +22242,7 @@ function visQuote(r) {
   // and ruled - the row an acceptance meter or exposure-drift rule reads.
   // Primitive projection of the stay record, plus the rule that spoke.
   if (HOOKS.settlementAggregate.length) fireHooks("settlementAggregate",
-    { name: r.n, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
+    { name: r.name, culture: r.cu || "crab", rule: best.id, purse: r.purse, left: r.left,
       buys: r.buys, days: r.days, nights: r.nightsBed, delight: r.delight || 0, day, tmin });
   return { id: best.id, mood: best.mood, weight: bw, line: departLine(r, best) };
 }
