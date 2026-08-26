@@ -9,7 +9,7 @@
   "fingerprint = shipped file is a 128kbps re-encode; matched on RMS",
   "envelope correlation (controls: true pair 1.0000, unrelated 0.23-0.35)."
  ],
- "built": 21,
+ "built": 22,
  "ships": {
   "81e6ead9": {
    "file": "music/beach-volleyball-start-screen.mp3",
@@ -39,7 +39,7 @@
   "f41c7f02": {
    "file": "music/frog-ledger.mp3",
    "name": "FROG LEDGER",
-   "how": "fingerprint 1"
+   "how": "fingerprint 1.0000"
   },
   "663834bb": {
    "file": "music/front-porch.mp3",
@@ -54,7 +54,7 @@
   "c8970502": {
    "file": "music/grease-man.mp3",
    "name": "GREASE MAN",
-   "how": "fingerprint 1"
+   "how": "fingerprint 1.0000"
   },
   "4cddc57f": {
    "file": "music/island-sand.mp3",
@@ -115,6 +115,11 @@
    "file": "music/train-whistle.mp3",
    "name": "TRAIN WHISTLE 18",
    "how": "fingerprint 1.0000"
+  },
+  "e484af75": {
+   "file": "music/you-win-game-over.mp3",
+   "name": "YOU WIN GAME OVER",
+   "how": "fingerprint 0.9998"
   }
  }
 }

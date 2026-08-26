@@ -6014,7 +6014,7 @@ copy of them.
     but the take a build copied in is usually not the first: **7 of the 20
     name-equal pairs are a different recording** (PIXEL WAVE WALTZ 142s vs
     123s; 14 rows named REGALIA WALTZ, 20 named TRAIN WHISTLE). Byte-exact
-    settles 12 of 21; the rest are 128kbps re-encodes matched on RMS-envelope
+    settles 12 of 22; the rest are 128kbps re-encodes matched on RMS-envelope
     correlation, **controlled before use** (true pair 1.0000, unrelated
     0.23–0.35, all accepted ≥ 0.9998). Stamping the name-match would have
     pointed seven tracks at the wrong audio and failed *silently*.

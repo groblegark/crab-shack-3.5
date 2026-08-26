@@ -23341,7 +23341,7 @@ function musLoadCatalog() {
       MUSCAT = j;
       rebuildRotation();
       // THE SHIPPED ROWS MUST KNOW THEY ARE SHIPPED, and this is the whole iOS
-      // fix. 21 of these 1,201 rows are tracks this build already carries in
+      // fix. 22 of these 1,201 rows are tracks this build already carries in
       // music/ - but nothing in the catalog says so, so musSrc sent every one
       // of them to music/archive/ (absent from Pages -> 404) and only reached
       // the release from an async .catch(). iOS honours play() only inside the

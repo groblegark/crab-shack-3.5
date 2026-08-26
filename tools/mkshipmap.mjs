@@ -2,7 +2,7 @@
 //
 // Matt, 2026-08-26: "I feel like we should make all the music available to all
 // players." The first half of that is cheap and is what this file is for: the
-// 21 tracks already sitting in music/ must resolve SAME-ORIGIN, because a
+// 22 tracks already sitting in music/ must resolve SAME-ORIGIN, because a
 // same-origin mp3 is the only source on Pages that is guaranteed to carry
 // content-type: audio/mp3 and play on iOS on the first tap (see musSrc).
 //
@@ -23,8 +23,8 @@
 //
 // THE JOIN THAT IS ACTUALLY TRUE, cheapest test first:
 //   1. BYTE-EXACT. content-length of the release asset == size on disk. 12 of
-//      21 land here and there is nothing to argue with.
-//   2. FINGERPRINT. The other 9 are 128kbps re-encodes of a ~200kbps master,
+//      22 land here and there is nothing to argue with.
+//   2. FINGERPRINT. The other 10 are 128kbps re-encodes of a ~200kbps master,
 //      so no byte test can see them. Decode both to mono 4kHz, take a 1s-RMS
 //      envelope, correlate. CONTROLLED before use, which is the only reason to
 //      trust it: a known byte-exact pair scores 1.0000, unrelated tracks score

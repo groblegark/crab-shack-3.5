@@ -11826,7 +11826,7 @@ scenario("music/shipmap.json ships a same-origin path for every entry", () => {
   const map = JSON.parse(readFileSync("music/shipmap.json", "utf8"));
   const ids = Object.keys(map.ships || {});
   if (ids.length !== map.built) return `built says ${map.built} but there are ${ids.length} entries`;
-  if (ids.length < 20) return `only ${ids.length} shipped rows mapped, want the 21 this build carries`;
+  if (ids.length < 22) return `only ${ids.length} shipped rows mapped, want the 22 this build carries`;
   for (const id of ids) {
     const s = map.ships[id];
     if (!/^music\/[^/]+\.mp3$/.test(s.file)) return `${id} maps to ${s.file}, want music/<name>.mp3`;
