@@ -7447,7 +7447,33 @@ rate, what the duty raised today and all time, the pier price against its
 (possibly tariffed) ceiling. Rendered even with no tariff on: a player
 weighing the TARIFF dial reads this page to see what it would fall on.
 
-### Measured (branch `tariff-fifth-purse`, 9394feb, off main f48bdd3)
+### LANDED ON TRUNK 2026-08-26 (merge `92ec9a6`, stamp `b1ad72a`, receipt `45eb6a2`)
+
+By cs-the-tariff-is-myk (kd-7rX5iMyY5z). The feature was closed-but-not-on-trunk
+for a cycle (`git grep -c tariff origin/main -- game.js` was 0); it is now 23.
+Trunk moved three times during the landing — `8926e7c` (votereason receipt
+rewrite) → `21064f3` (L1 CLAMP hull + departcard fmtD) → `8510a28` (pig civics)
+— so the branch was re-merged and re-gated each time; a verdict belongs to one
+tree. Every merge conflicted only in `version.js` (generated); `mkcultureways`
+regen was byte-exact at each step (the crab's tariff purse and the pig's civics
+coexist in the 123954-byte bundle).
+
+- GATE at the landed tip `2836591` (tree byte-identical to merge `92ec9a6`),
+  cluster, both backends: **suite-330 784/784** (js 392/392, wasm 392/392),
+  all 24 arms exit 0, recount-confirmed. Receipt:
+  `design/cs35-research/kube-runs/cs-suite-330-2836591-gm7s/`.
+- 48-town matrix on that same tree
+  (`design/cs35-research/kube-runs/cs-matrix-triple16-2836591-gpjt/`):
+  **baseline 0/48, growth 24/48** (sb0 6, sb16 9, sb32 9), workersDied 0.
+  The survived counts were **byte-identical across all three trunk re-merges**
+  (6/9/9 every time) — direct evidence that the intervening main work AND the
+  tariff itself are inert to the growth matrix; the headless bot never
+  campaigns, so it never moves the TARIFF dial.
+- Mutation demo (rule 2): `fishCeil` lift halved → parity scenario RED
+  ("875c, expected 1050c"); `importDuty` base doubled → collection scenario
+  RED ("350c, expected 175c"). Both reverted.
+
+### Measured earlier (branch `tariff-fifth-purse`, 9394feb, off main f48bdd3)
 
 - Suite **381/381 js and 381/381 wasm** at `9394feb` (378 + 3 tariff
   scenarios), main realm, in-pod. Receipt:
