@@ -11602,18 +11602,31 @@ function updateSchedule(c, dt) {
       spanD = dutyStdSpan(c), spanO = ownStdSpan(c), otT = c.otMin || 0;
     const loadN = dur * GMIN * spanO + otT * spanD, loadD = GMIN * spanD * spanO;
     const hN = qn(0.25) * loadN;
-    c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + (hN - hN % loadD) / loadD);  // a shift works up an appetite - a long one, more
+    if (!crabDecayOn())
+      c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + (hN - hN % loadD) / loadD);  // a shift works up an appetite - a long one, more (U1 re-times this - see below)
     // ...and thirst still reads how tired they were CLOCKING IN, never how
     // tired the shift left them. That is exactly what the old "checked
     // pre-bump" comment meant; now that tiredness accrues THROUGH the day it
     // has to be said with a field - c.tiredIn, stamped at arriveCommute. Same
     // rule, same firing rate, stated where it cannot drift.
     const tN = qn(0.35) * loadN * ((c.tiredIn || 0) > qn(0.5) ? 3 : 2), tD = loadD * 2;   // the 1.5 rides as 3/2
-    c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
+    // U1 RE-TIMES, IT DOES NOT ADD. hunger/thirst/dirt/bored now drain
+    // continuously through the shift (crabTick), so charging the shift-end LUMP
+    // as well double-counts the very hours the drain already covered - and the
+    // sweep proved the additive form collapses the growth pillar at EVERY rate
+    // (24/48 -> 0/48 from mul 1 to mul 20, receipt cs-u1-rate-sweep-e6083cd).
+    // So under U1 these four metabolic bumps turn OFF and the continuous drain
+    // carries the load, the SUDSY-trickle pattern (same appetite, different
+    // WHEN). TIRED keeps its lump: it is NOT in the continuous drain (it has its
+    // own accrual+recovery model), so its shift cost is still owed here.
+    if (!crabDecayOn())
+      c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
-    c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
-    c.p.bored = Math.min(Q20, (c.p.bored || 0) + qn(0.2));     // all work and no play...
+    if (!crabDecayOn()) {
+      c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
+      c.p.bored = Math.min(Q20, (c.p.bored || 0) + qn(0.2));     // all work and no play...
+    }
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
     // The staff meal counts too: refusing it here was the whole reason a crab
@@ -15252,8 +15265,17 @@ function citDecayMul() {
 function crabAsleep(c) {
   return c.p.rough || (c.dsC === DS.home && darkness() > 0.7);
 }
+// EXPERIMENT (hatch _citWorkPause): a crab on duty - working or commuting to/from
+// - is OCCUPIED the way an in-room tourist is asleep. A tourist can shop any
+// waking minute; a crab spends most of its day at a counter it cannot leave, so
+// a continuous drain through the shift has no relief path and is uniquely
+// punishing. Under test on the cluster before it becomes the model.
+function crabOnDuty(c) {
+  return c.dsC === DS.working || c.dsC === DS.toWork || c.dsC === DS.toHome;
+}
 function crabTick(c, dt) {
   if (!crabDecayOn() || crabAsleep(c)) return;
+  if (window._citWorkPause && crabOnDuty(c)) return;   // EXPERIMENT: pause the drain on duty
   const BR = bodyOf(c).R;   // a crab's own culture body, or the engine's by identity
   const m = citDecayMul();
   for (const n of ["hunger", "thirst", "dirt", "bored"])
@@ -22864,9 +22886,15 @@ function simClock(dt, rawMs) {
     // ...and both ACCOMMODATION ladders: the Driftwood's owner reads the guests
     // she had to turn away, and the mayor reads the crabs who found no cot.
     runAccommodation();
-    for (const c of npcs) {
-      c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + qn(0.1));
-    }
+    // NPC base metabolism, a crude nightly stand-in for the continuous hunger a
+    // townsperson never had. U1 gives NPCs the real per-frame drain (crabTick
+    // runs for every crab, npc or not), so this nightly lump is now the drain's
+    // job - it turns off under U1, or it double-charges the very thing it stood
+    // in for.
+    if (!crabDecayOn())
+      for (const c of npcs) {
+        c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + qn(0.1));
+      }
     // 2.5 epidemiology: neglect breeds illness; illness spreads; rest + care cures
     {
       const everyone = allCrabs();
