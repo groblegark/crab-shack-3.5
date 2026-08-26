@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-8926e7c-36r1",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "8926e7c76b412e9b2d18c0f35bac09386624bc59",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 57386,
+  "verdict": "32/32 passed in slice 8/12 (57.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (4ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (777ms)\n  PASS  queue hard cap holds for locals too (2908ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (1023ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (667ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (54ms)\n  PASS  fish market: price + series roundtrip save/load (52ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (4667ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (11052ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (40ms)\n  PASS  the beach ball is LIMITED fun (844ms)\n  PASS  a town saved mid-errand reloads and keeps running (892ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1639ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (6358ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1488ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2669ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3384ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (1209ms)\n  PASS  the help card fits the card, in the font the card is printed in (13ms)\n  PASS  the title screen credits the track that is actually queued (14ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1733ms)\n  PASS  idle quips: the island's table is the literal, key for key (8ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (90ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (11ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (1538ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (2882ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (487ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2618ms)\n  PASS  the kernel and the reference agree, byte for byte (2093ms)\n  PASS  load: the new town's desk is clear of the last town's books (5098ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (6ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (959ms)\n32/32 passed in slice 8/12 (57.3s)\n"
+}
