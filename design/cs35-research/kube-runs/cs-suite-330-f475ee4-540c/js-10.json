@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-f475ee4-540c",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "f475ee4a770ce61f600d79f275d5a0dbfea77b9a",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 80839,
+  "verdict": "34/34 passed in slice 10/12 (80.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2551ms)\n  PASS  housing: npcs sleep at the shelter, then move up (742ms)\n  PASS  queue hard cap holds for locals too (3226ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (862ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (672ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (156ms)\n  PASS  fish market: price + series roundtrip save/load (65ms)\n  PASS  labor policy: every new setting roundtrips save/load (1996ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (5668ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (1112ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (12ms)\n  PASS  the lease card: every term fits on the card it is printed on (11ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (3887ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (6366ms)\n  PASS  an election is held on the week, and every voter is accounted for (5183ms)\n  PASS  departures: three ways to be turned away are three different counters (320ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (882ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (2358ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (1030ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1203ms)\n  PASS  only one track is ever audible at once (12ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (3063ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (9ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (29ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (7ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (9391ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3440ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (9ms)\n  PASS  seam: a headless day never enters the view (914ms)\n  PASS  brains: a town full of thinking heads round-trips its save (11291ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (12627ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (89ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (43ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1512ms)\n34/34 passed in slice 10/12 (80.7s)\n"
+}
