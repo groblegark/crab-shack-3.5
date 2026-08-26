@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-dfbe920-hswy",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "dfbe92078924f5a0afc789eb80f42bc9b54c1c33",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 323450,
+  "verdict": "33/33 passed in slice 4/12 (323.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3420ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1603ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (71ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (3829ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (3050ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (2004ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4339ms)\n  PASS  census: rows derive live state, and sort + filter actually move (786ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (18118ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (7580ms)\n  PASS  tip sharing + the table cap roundtrip save/load (766ms)\n  PASS  no surface prints off the canvas (1955ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (223486ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (5324ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1442ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2030ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1307ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (1496ms)\n  PASS  the HALL tab's text is measured, in every state it has (4556ms)\n  PASS  the shack says where the money comes from, and only your shops do (667ms)\n  PASS  the music controls answer from outside the record box (14ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (3677ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (72ms)\n  PASS  civics stakes: a hostile table is refused by name (12ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (8452ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3613ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (9ms)\n  PASS  seam: a headless day never enters the view (960ms)\n  PASS  brains: a town full of thinking heads round-trips its save (8024ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (9748ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (52ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (7ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (868ms)\n33/33 passed in slice 4/12 (323.3s)\n"
+}
