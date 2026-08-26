@@ -12857,6 +12857,46 @@ scenario("the now-playing ticker names what is audible and scrolls only when it 
   return true;
 });
 
+scenario("mute and MUSIC OFF still reach a track playing behind an open box", () => {
+  // THE CASE THE NEW musOpen CREATED. Music playing + box open + nothing
+  // auditioned did not exist before this pass: opening the box silenced the
+  // town, so `music` was null and every control in here had nothing to act on.
+  // Now the town plays behind the list, and the two switches that must reach it
+  // are the ones a player reaches for FIRST when a track is wrong - the speaker
+  // and MUSIC ON/OFF. A control that silently no-ops on the surface it is drawn
+  // on is the interface bug this whole box has been fixing since August.
+  const sim = createSim({ seed: 51 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [0, 1, 2].map(i =>
+      ({ id: "z" + i, name: "Z" + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    playTrack(0);
+    musOpen();                                  // browsing: the town plays on
+    out.browsing = liveCount();
+    toggleMute();   out.muted = liveCount();
+    toggleMute();   out.unmuted = liveCount();
+    // ...and the ticker says MUTED rather than vanishing: the name is still true.
+    muted = true;
+    out.namedWhileMuted = musTickName();
+    muted = false;
+    out.afterClose = (musClose(), liveCount());
+    toggleMusic();  out.musicOff = liveCount();
+    toggleMusic();  out.musicBackOn = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (got.browsing !== 1) return `the town was not playing behind the open box (${got.browsing}) - this scenario cannot test what it says`;
+  if (got.muted !== 0) return `muting behind an open box left ${got.muted} tracks audible - the speaker icon does not reach the town`;
+  if (got.unmuted !== 1) return `unmuting behind an open box left ${got.unmuted} audible, want 1`;
+  if (got.namedWhileMuted !== "Z0") return `the ticker named "${got.namedWhileMuted}" while muted - it should still name the track, and say so in its colour`;
+  if (got.afterClose !== 1) return `${got.afterClose} audible after closing a browsed box, want 1`;
+  if (got.musicOff !== 0) return `MUSIC OFF left ${got.musicOff} tracks audible`;
+  if (got.musicBackOn !== 1) return `MUSIC ON left ${got.musicBackOn} audible, want 1`;
+  return true;
+});
+
 scenario("the ticker sits in free HUD space at both canvas heights", () => {
   // A NEW HUD ELEMENT HAS TO PROVE IT IS NOT ON TOP OF SOMETHING. The bottom-left
   // band looks empty and is not: the nav chip row lives there (MANAGE / TOWN /
