@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-c6c717f-pvgv",
+  "armId": "wasm-2",
+  "index": 14,
+  "sha": "c6c717fe57b808d38666ba2708dd25814a3474b3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 101023,
+  "verdict": "34/34 passed in slice 2/12 (100.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (1943ms)\n  PASS  showers: guests occupy stalls, staff turn them over (1729ms)\n  PASS  save/load: townsfolk keep wallets and houses (1099ms)\n  PASS  all crew dead: town survives, rehire recovers (688ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (581ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (484ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (16597ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (500ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (2562ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (15886ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (16894ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1404ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (514ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (56ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (3624ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3040ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1613ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2027ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (540ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  the title screen credits the track that is actually queued (11ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (1ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (7146ms)\n  PASS  crab-as-document: the crab diary never reaches the code literal (795ms)\n  PASS  civics receipt: voteReason is byte-equal to the lambda receipt on every voter, every platform (10674ms)\n  PASS  the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none (14ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (721ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (1288ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (339ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (1955ms)\n  PASS  the kernel and the reference agree, byte for byte (2173ms)\n  PASS  load: the new town's desk is clear of the last town's books (3121ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (13ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (874ms)\n34/34 passed in slice 2/12 (100.9s)\n"
+}
