@@ -10592,7 +10592,7 @@ function load(slot, envIn) {
   // exactly. Debts and tallies round alone: they are liabilities, not
   // balances, and no remainder needs sharing.
   if (preCents) {
-    const accts = [{ n: " COINS", get: () => coins, set: (v) => { coins = v; } }];
+    const accts = [{ n: "!COINS", get: () => coins, set: (v) => { coins = v; } }];
     for (const c of allCrabs()) {
       const cc = c;
       accts.push({ n: "W" + cc.p.name, get: () => cc.p.wallet || 0, set: (v) => { cc.p.wallet = v; } });
@@ -10605,7 +10605,7 @@ function load(slot, envIn) {
       const ok = OWNERS[k];
       accts.push({ n: "O" + k, get: () => ok._held || 0, set: (v) => { ok._held = v; } });
     }
-    accts.push({ n: " FUND", get: () => townFund.bal, set: (v) => { townFund.bal = v; } });
+    accts.push({ n: "!FUND", get: () => townFund.bal, set: (v) => { townFund.bal = v; } });
     const target = Math.round(accts.reduce((t, a) => t + a.get(), 0));
     const rows = accts.map(a => { const raw = a.get(), base = Math.floor(raw); return { a, base, frac: raw - base }; });
     let left = target - rows.reduce((t, r) => t + r.base, 0);
