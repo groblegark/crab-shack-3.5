@@ -1,0 +1,24 @@
+{
+  "name": "matrix-arcade16",
+  "note": "THE ARCADE OCCUPANCY THROUGHPUT COST, attributed by the change's OWN --noplay hatch. Twelve arms: {baseline, growth} x seedbase {0,16,32} x {as-built, noplay}. as-built = occupancy ON (the shipped game, a crab stands at a machine for playT); noplay = the SAME TREE with occupancy disarmed (--noplay: the arcade still sells a token, still takes the money, still zeroes boredom, only the machine-hold goes away). So the delta is attributable to occupancy, not to whatever else moved on main. Three 16-town blocks per the plan doc (kd-xScTUuhKv7): 16 is the honest minimum, 8 is a coin. BASELINE (buy nothing) is the instrument-validation control: with no arcade, --noplay is a pure no-op, so baseline-asbuilt and baseline-noplay MUST return identical survived/lifetime and arcade.games==0 - if they diverge the flag has a side effect and the growth delta below cannot be trusted. GROWTH buys chef,table,arcade (chosen by the buy-list probe: the list that built AND used an arcade in the most towns). The signed number to read: growth-noplay survived - growth-asbuilt survived, over the towns arcade.playedIn says actually had a working arcade. Expected: small NEGATIVE on growth (occupancy costs throughput). Name it; do not tune it away. 30 days, batch.mjs --json receipts.",
+  "resources": {
+    "requests": { "cpu": "7", "memory": "2Gi" },
+    "limits": { "cpu": "8", "memory": "4Gi" }
+  },
+  "arms": [
+    { "id": "baseline-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0","--days","30","--jobs","7","--json"] },
+    { "id": "baseline-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "baseline-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "baseline-sb0-noplay",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0","--days","30","--jobs","7","--noplay","--json"] },
+    { "id": "baseline-sb16-noplay",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--noplay","--json"] },
+    { "id": "baseline-sb32-noplay",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--noplay","--json"] },
+    { "id": "growth-sb0-asbuilt",    "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "growth-sb16-asbuilt",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "growth-sb32-asbuilt",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "growth-sb0-noplay",     "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0","--days","30","--jobs","7","--buy","chef,table,arcade","--noplay","--json"] },
+    { "id": "growth-sb16-noplay",    "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table,arcade","--noplay","--json"] },
+    { "id": "growth-sb32-noplay",    "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table,arcade","--noplay","--json"] }
+  ],
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ]
+}
