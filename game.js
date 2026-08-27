@@ -7624,9 +7624,31 @@ function pickTrack() {
 // It wraps, and it steps OVER the moments - the title theme and the ending
 // sting are not rotation, and a record box that walks into thirty-one seconds
 // of somebody telling you how it went is a bug wearing a feature's coat.
+// WHETHER A ROTATION ROW SOUNDS FROM OUR OWN HOST. It does iff it resolves to a
+// relative path: a shipped catalog row (musSrc returns its same-origin file) or
+// a PLAYLIST fallback row (its baked src). A non-shipped catalog row streams
+// from the release CDN, which is the source Safari refuses (see STREAM_OK).
+function rowSameOrigin(r) { return r ? (r.cat ? !!r.cat.shipped : true) : false; }
 function nextTrack(d = 1) {
   const n = ROTATION.length;
   if (!n) return 0;
+  // ONCE THE BROWSER HAS REFUSED THE STREAMS, walk to a row we host ourselves.
+  // The 1,179 streamed rows will all refuse the same way, so stepping onto one
+  // is a dead track and, on a phone, a wasted request - the exact bill the
+  // give-up was invented to bound. Skip them and land on one of the 22 instead;
+  // this holds for the auto-advance after a track AND the arrow keys alike,
+  // because a stream is no more playable when a finger asks for it.
+  if (STREAM_OK === false) {
+    for (let step = 1; step <= n; step++) {
+      const i = ((trackIdx + d * step) % n + n) % n;
+      const r = ROTATION[i];
+      if (!r.role && rowSameOrigin(r)) return i;
+    }
+    // ...but if this build ships no same-origin row (an all-stream rotation),
+    // fall through to the plain next row and let musSkip's give-up stop the
+    // cascade: "only the streams are dead" and "everything is dead" are
+    // different states and each needs its own answer.
+  }
   for (let step = 1; step <= n; step++) {
     const i = ((trackIdx + d * step) % n + n) % n;
     if (!ROTATION[i].role) return i;
@@ -7660,6 +7682,17 @@ function toggleMute() {
 // the archive; starting at true would cost a stranger one 404 per track. So
 // the first play tries local, and its result decides for the rest.
 let ARCHIVE_OK = null;
+// WHETHER THIS BROWSER WILL PLAY A RELEASE ASSET AT ALL, learned the same way
+// ARCHIVE_OK is: tri-state, null until a real play() settles it. Safari refuses
+// a GitHub release url with NotSupportedError - it will not sniff the
+// application/octet-stream the CDN sends (the full account is up by musSetSrc) -
+// and with 1,179 of the 1,201 rotation rows streaming from exactly there, a
+// single refusal is the whole soundtrack's answer. So once a stream comes back
+// refused, stop offering streams to the town and rotate the 22 we host
+// ourselves (nextTrack reads this). It is a CAPABILITY fact, not a permission
+// one, so unlike musBlocked a gesture does NOT clear it: tapping cannot teach
+// WebKit a codec it does not have, and re-arming it would just re-cascade.
+let STREAM_OK = null;
 let trackIdx = (srand() * PLAYLIST.length) | 0;
 // ONE TRACK AT A TIME, AND THE GENERATION IS WHY. Every play is asynchronous:
 // `play()` hands back a promise, and 'ended' fires from an element we may have
@@ -7901,6 +7934,15 @@ function musFail(gen, e) {
   }
   if (musPreview) return musPrevFail(gen);
   if (!music) return;
+  // THE CDN SAID NO, AND IT WILL SAY NO TO ALL 1,179 OF THEM. A NotSupportedError
+  // on an absolute url is Safari refusing to sniff the octet-stream a release
+  // asset is served as - a codec/container verdict, not this one file's luck -
+  // so the whole streamed catalog is unreachable on this browser. Latch it once
+  // and nextTrack stops offering streams to the town (it rotates the 22 we host
+  // instead); this is what keeps the give-up from burning its whole budget
+  // cascading through dead urls before it lands on a track that plays. Only an
+  // absolute url counts: a same-origin miss is a 404, a different thing.
+  if (e && e.name === "NotSupportedError" && /^https?:/i.test(musCurSrc)) STREAM_OK = false;
   const t = ROTATION[trackIdx], cat = t && t.cat;
   if (cat && cat.url && musCurSrc.indexOf("music/archive/") >= 0) {
     ARCHIVE_OK = false;                  // learned once; later tracks go straight to the CDN
