@@ -108,9 +108,19 @@ export function mkAudioStub() {
 //   mkFn(body)   compile a STATEMENT body once; returns a directly-callable fn
 //   mkExpr(e)    compile an EXPRESSION once; returns a fn returning its value
 // Shared by createSim and tools/headless.mjs (which builds its own sandbox).
-export function loadGame(sandbox, realm = REALM_DEFAULT) {
+// `prelude`, when given, is source run BEFORE the game files, standing in for
+// index.html's `<script src="music/playlist.js">` — which loads before game.js
+// and which a plain checkout ships WITHOUT (the 404 path, onerror="void 0").
+// That file is not in GAME_FILES for exactly that reason, so the only way a
+// scenario can hand game.js a `BUNDLED_PLAYLIST` before its module-level
+// `const PLAYLIST` guard runs (game.js:7473) is to inject it here. The
+// alternative — re-evaluating the guard expression against a mutated bundle —
+// tests a transcription of the guard, not the shipped statement. See the
+// BUNDLED_PLAYLIST battery in tools/suite.mjs.
+export function loadGame(sandbox, realm = REALM_DEFAULT, prelude = null) {
   if (realm !== "main") {
     const C = vm.createContext(sandbox);
+    if (prelude) vm.runInContext(prelude, C, { filename: "music/playlist.js" });
     for (const f of GAME_FILES)
       vm.runInContext(readFileSync(join(root, f), "utf8"), C, { filename: f });
     const G = (expr) => vm.runInContext(expr, C);
@@ -120,7 +130,8 @@ export function loadGame(sandbox, realm = REALM_DEFAULT) {
   // main realm: one Function body, the sandbox as parameters. Error line
   // numbers point into the concatenated body rather than a filename — the
   // price of the realm; debug in vm mode, measure in main.
-  const src = GAME_FILES.map((f) => readFileSync(join(root, f), "utf8")).join("\n;\n");
+  const src = (prelude ? prelude + "\n;\n" : "")
+    + GAME_FILES.map((f) => readFileSync(join(root, f), "utf8")).join("\n;\n");
   const keys = Object.keys(sandbox).filter((k) => k !== "simNow" && k !== "rafCb");
   const body = "var " + keys.join(", ") + ";\n"
     + keys.map((k, j) => `${k} = __sb[${j}];`).join("\n") + "\n"
@@ -152,7 +163,7 @@ function armKernel() {
   return { exports: inst.exports, memory: inst.exports.memory };
 }
 
-export function createSim({ seed = 1337, storage = null, fresh = true, screenH = 0, realm = REALM_DEFAULT, kernel = KERNEL_DEFAULT, search = null } = {}) {
+export function createSim({ seed = 1337, storage = null, fresh = true, screenH = 0, realm = REALM_DEFAULT, kernel = KERNEL_DEFAULT, search = null, prelude = null } = {}) {
   const ctxStub = new Proxy({}, {
     get: (t, k) => {
       if (k === "createImageData") return (w, h) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h });
@@ -241,7 +252,7 @@ export function createSim({ seed = 1337, storage = null, fresh = true, screenH =
     seededMath.random = () => (ku32() >>> 0) / 4294967296;
   }
   sandbox.performance = { now: () => sandbox.simNow };
-  const { G, mkFn, mkExpr, C } = loadGame(sandbox, realm);
+  const { G, mkFn, mkExpr, C } = loadGame(sandbox, realm, prelude);
   // THE TOWN'S OCEAN is the run's seed, symmetric with the RNG stream above:
   // the almanac's per-town channels (swell, wind) fold it in, so a seed matrix
   // samples one ocean per seed rather than running the day-only default 48
