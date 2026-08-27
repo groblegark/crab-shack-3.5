@@ -13047,6 +13047,126 @@ scenario("the shipped catalog builds a rotation of every track, with its moments
   return true;
 });
 
+scenario("a streamed town still reaches a same-origin track when the browser refuses release assets", () => {
+  // WHAT cc04d49 ("the music box IS the playlist") COSTS on the one browser that
+  // has a measurement. The rotation went from 22 same-origin rows to 1,201, of
+  // which 1,179 stream from a GitHub release asset - and Safari 26.6 refuses
+  // those with NotSupportedError (it will not sniff application/octet-stream;
+  // the record-box note by musSetSrc has the full account). The 22 rows we host
+  // ourselves are CLUSTERED, so of 1,201 starting rows only 81 have a same-origin
+  // row inside the give-up budget of 4. A town that starts on a stream therefore
+  // cascades through four dead urls and goes SILENT for the session - where the
+  // pre-merge 22-row rotation played. Both music pins ("gives up after four" and
+  // "the catalog builds a rotation") were written against the rotation's SHAPE
+  // and neither resolves a row to a SOURCE, so neither can see this.
+  //
+  // THE ARM IS EXACTLY MATT'S MEASUREMENT: play() rejects an absolute url and
+  // resolves our own relative path. It reads the url off the element's <source>
+  // CHILD (musSetSrc parks an absolute url there and clears the element's own
+  // src, so a stub that reads a.src sees "" and never fires - the trap that cost
+  // the phone-audio probe a whole session). The positive control below arms the
+  // same fixture with absolute urls ACCEPTED and proves the town is otherwise
+  // audible, so this measures the refusal and nothing else.
+  const cat = JSON.parse(readFileSync(new URL("../music/catalog.json", import.meta.url), "utf8"));
+  const map = JSON.parse(readFileSync(new URL("../music/shipmap.json", import.meta.url), "utf8"));
+  const sim = createSim({ seed: 71 });
+  sim.G(`
+    globalThis._live = []; globalThis._playCalls = 0; globalThis._refuseAbsolute = false;
+    const RealAudio = Audio;
+    Audio = class extends RealAudio {
+      constructor(s) { super(s); this._src = s == null ? "" : s; this._playing = false; this._h = {}; _live.push(this); }
+      get src() { return this._src; } set src(v) { this._src = v == null ? "" : v; }
+      play() {
+        // THE SOURCE AS THE ELEMENT ACTUALLY HOLDS IT: the <source> child for an
+        // absolute url (musSetSrc clears the element's own src for those), the
+        // plain src attribute for our own relative path. A browser REJECTS an
+        // unsupported source, so this stub does too - a resolve-always spy cannot
+        // tell "the town is playing" from "the town gave up".
+        _playCalls++;
+        const kid = this._kids && this._kids[0];
+        const url = kid ? kid.src : this._src;
+        if (globalThis._refuseAbsolute && /^https?:/i.test(url)) {
+          const err = { name: "NotSupportedError", message: "unsupported source" };
+          const rej = { then: () => rej, catch: (g) => { g && g(err); return rej; } };
+          return rej;
+        }
+        this._playing = true;
+        return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} };
+      }
+      pause() { this._playing = false; }
+      addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+      fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
+    };
+    globalThis.liveCount = () => _live.filter(a => a._playing).length;
+    globalThis.playingUrl = () => { const a = _live.filter(x => x._playing)[0]; if (!a) return ""; const k = a._kids && a._kids[0]; return k ? k.src : a._src; };
+  `);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = ${JSON.stringify({ tracks: cat.tracks })};
+    musJudge = {};
+    out.stamped = musApplyShipmap(${JSON.stringify(map)});
+    rebuildRotation();
+    out.rotation = ROTATION.length;
+    out.budget = musGiveUp();
+    // The 22 we host, and the property that makes this bug: they cluster. Two of
+    // the 22 carry a ROLE (title, end); the rotation steps over those, so the 20
+    // non-role rows are the same-origin tracks the town can actually reach.
+    let reachable = 0;
+    for (let i = 0; i < ROTATION.length; i++) { const r = ROTATION[i]; if (!r.role && r.cat && r.cat.shipped) reachable++; }
+    out.reachable = reachable;
+    // A DETERMINISTIC START ON A STREAM whose next 'budget' non-role rows are all
+    // streams too - the exact kind of row from which today's linear give-up
+    // cannot reach the 22. Found in-sim so it tracks the real catalog rather than
+    // a baked index that would rot the next time the shipmap moves.
+    const isStream = (i) => { const r = ROTATION[i]; return !!(r && !r.role && r.cat && !r.cat.shipped && r.cat.url); };
+    const nextNonRole = (from) => { for (let t = 1; t <= ROTATION.length; t++) { const j = (from + t) % ROTATION.length; if (!ROTATION[j].role) return j; } return from; };
+    let START = -1;
+    for (let i = 0; i < ROTATION.length && START < 0; i++) {
+      if (!isStream(i)) continue;
+      let ok = true, at = i;
+      for (let s = 1; s < out.budget; s++) { at = nextNonRole(at); if (!isStream(at)) { ok = false; break; } }
+      if (ok) START = i;
+    }
+    out.start = START;
+
+    // --- THE BUG: town streams, browser refuses, budget spent before the 22 ---
+    musicOn = true; muted = false; musicView = false;
+    ARCHIVE_OK = false;                     // settled: a streamed row goes straight to its release url
+    musFails = 0; musBlocked = false;
+    if (typeof STREAM_OK !== "undefined") STREAM_OK = null;
+    musArm(); _refuseAbsolute = true; _playCalls = 0;
+    playTrack(START);                       // one start, then let it cascade
+    out.attempts = _playCalls;
+    out.audible = liveCount();
+    out.playingUrl = playingUrl();
+
+    // --- POSITIVE CONTROL: same fixture, absolute urls ACCEPTED, else identical ---
+    musArm(); _refuseAbsolute = false; music = null; if (SPEAKER) SPEAKER.pause();
+    _playCalls = 0;
+    playTrack(START);
+    out.ctrlAudible = liveCount();
+    out.ctrlAttempts = _playCalls;
+    return JSON.stringify(out);
+  })()`));
+  if (got.rotation < 1000) return `the fixture built a ${got.rotation}-row rotation - the real catalog did not reach it`;
+  if (got.budget !== 4) return `the give-up budget is ${got.budget}, want 4`;
+  if (got.stamped !== 22) return `the shipmap stamped ${got.stamped} same-origin rows, want 22 - the clustering premise moved`;
+  if (got.reachable < 1) return `no non-role same-origin row in the rotation (${got.reachable}) - the town has nothing to fall back to`;
+  if (got.start < 0) return "no all-stream start window found - the fixture cannot pose the question";
+  // The arm is honest: with the streams accepted, this very start is audible.
+  if (got.ctrlAudible !== 1) return `positive control: silent (${got.ctrlAudible}) with absolute urls ACCEPTED - the arm is measuring something other than the refusal`;
+  if (got.ctrlAttempts !== 1) return `positive control took ${got.ctrlAttempts} attempts, want 1 - an accepted stream plays on the first try`;
+  // The bug, and its fix: the town must still get one of the 22.
+  if (got.audible !== 1)
+    return `the town went SILENT on a browser that refuses release assets - ${got.audible} audible after ${got.attempts} attempts from an all-stream start; the 22 same-origin tracks were never reached`;
+  if (!got.playingUrl) return "liveCount reported a track playing but nothing carries a source";
+  if (/^https?:/i.test(got.playingUrl)) return `the town is sounding an absolute url (${got.playingUrl}) - a refused stream cannot be what is audible`;
+  // ...and it must not have bought that audibility with the cellular bill 972d1d5
+  // paid off: the refusal is latched, so it does not re-cascade through dead urls.
+  if (got.attempts > got.budget) return `reaching the 22 cost ${got.attempts} attempts (budget ${got.budget}) - the refusal is not latched and the town re-cascades through dead release urls`;
+  return true;
+});
+
 scenario("the cabana row leaves both travel lanes a real margin", () => {
   // MATT: "with multiple cabanas, crabs are getting stuck for a long time."
   // The forecourt huts are stalls, and generic furniture claims y-9..y+6 -
