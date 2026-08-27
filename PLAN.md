@@ -6362,6 +6362,27 @@ copy of them.
     a gesture. Bounded, not a cascade through 1,179 dead urls. A tap re-arms it
     (`musArm`) and it tries 4 more. So the honest failure mode is **"the music
     stops"**, not "the music stutters".
+  - **A BROWSER THAT REFUSES THE RELEASE ASSETS made this silent town the DEFAULT,
+    and that was a regression** *(fixed, branch `cs-town-music-stream-refusal`,
+    commit `03e5843`, kd-QIGyxXM4DG)*. Safari 26.6 rejects a GitHub release url
+    with `NotSupportedError` — it will not sniff the `application/octet-stream`
+    the CDN serves (measured on kd-qGMinuFA3S). With **98.2%** of the rotation
+    streaming from exactly there and the **22 same-origin rows clustered**, a town
+    that started on a stream cascaded through the 4-track give-up and went silent
+    for the session — where the *pre-merge* 22-row rotation had played. The
+    offline give-up above bounds the wasted requests but never routes AROUND the
+    dead kind: "the streams are all dead" and "everything is dead" are different
+    states. So `musFail` now **latches a `STREAM_OK` tri-state** on the first
+    absolute-url `NotSupportedError` (a codec verdict on the whole streamed
+    catalog, not one file's luck — so, unlike `musBlocked`, a gesture does not
+    clear it), and `nextTrack` reads it to **rotate past every stream row to one
+    of the 22 we host** — for the auto-advance and the arrow keys alike. The
+    fallback ladder gains a rung: local mirror → our release → **(refused? rotate
+    the hosted 22)** → skip on. An all-stream build (no same-origin row) falls
+    through to plain-next, so the offline pin still gives up at 4. New pin: *a
+    streamed town still reaches a same-origin track when the browser refuses
+    release assets* — RED on `cc04d49` (0 audible, 4 attempts, the 22 never
+    reached), GREEN with the latch, cluster-gated 876/876 both backends.
   - **A probe of this is easy to get backwards, and I did.** The suite's
     `AUDIO_SPY` stub RESOLVES `play()`, and `playTrack`'s `.then` resets
     `musFails` on every resolve — so a naive offline probe on the shared stub
