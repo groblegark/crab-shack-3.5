@@ -1,0 +1,30 @@
+{
+  "name": "u1-rate-sweep",
+  "note": "U1 (task kd-CC5yBIzjFt) rate calibration. Full VIS_RATE (mul 20) starved every town by day 3-4 (0/48 both arms, receipt cs-u1-decay-matrix-578022e); the pre-U1 pillar is baseline 0/48 / growth 24/48. This sweeps CIT_DECAY_MUL (twentieths of the tourist rate) via --citdecay to find the value that HOLDS the pillar - growth near 24/48, baseline still 0/48. GROWTH arm (--buy chef,table) at mul {2,3,4,6,8} x seedbase {0,16,32}; BASELINE arm (buy nothing) at the two leading candidates x three blocks, to confirm the lose-by-default floor. mul 0 == the pre-U1 tree by arithmetic (--nodecay), already measured. batch.mjs sets kernel=wasm realm=main.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "g-m2-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","2","--buy","chef,table","--json"] },
+    { "id": "g-m2-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","2","--buy","chef,table","--json"] },
+    { "id": "g-m2-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","2","--buy","chef,table","--json"] },
+    { "id": "g-m3-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","3","--buy","chef,table","--json"] },
+    { "id": "g-m3-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","3","--buy","chef,table","--json"] },
+    { "id": "g-m3-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","3","--buy","chef,table","--json"] },
+    { "id": "g-m4-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","4","--buy","chef,table","--json"] },
+    { "id": "g-m4-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","4","--buy","chef,table","--json"] },
+    { "id": "g-m4-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","4","--buy","chef,table","--json"] },
+    { "id": "g-m6-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","6","--buy","chef,table","--json"] },
+    { "id": "g-m6-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","6","--buy","chef,table","--json"] },
+    { "id": "g-m6-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","6","--buy","chef,table","--json"] },
+    { "id": "g-m8-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","8","--buy","chef,table","--json"] },
+    { "id": "g-m8-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","8","--buy","chef,table","--json"] },
+    { "id": "g-m8-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","8","--buy","chef,table","--json"] },
+    { "id": "b-m3-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","3","--json"] },
+    { "id": "b-m3-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","3","--json"] },
+    { "id": "b-m3-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","3","--json"] },
+    { "id": "b-m4-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--citdecay","4","--json"] },
+    { "id": "b-m4-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--citdecay","4","--json"] },
+    { "id": "b-m4-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--citdecay","4","--json"] }
+  ]
+}

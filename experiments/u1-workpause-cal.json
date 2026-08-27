@@ -1,0 +1,375 @@
+{
+ "name": "u1-workpause-cal",
+ "note": "U1 calibration with the work-pause model (--citworkpause: drain paused while on duty). GROWTH pillar target ~24/48, BASELINE floor 0/48 (pre-U1). Sweeps CIT_DECAY_MUL {4,5,6,8} x growth x 3 blocks + baseline at {5,6}. batch sets kernel=wasm realm=main.",
+ "resources": {
+  "requests": {
+   "cpu": "7",
+   "memory": "2Gi"
+  },
+  "limits": {
+   "cpu": "8",
+   "memory": "4Gi"
+  }
+ },
+ "nodeSelector": {
+  "karpenter.sh/nodepool": "ephemeral-pool"
+ },
+ "tolerations": [
+  {
+   "key": "gasboat.ephemeral",
+   "operator": "Equal",
+   "value": "true",
+   "effect": "NoSchedule"
+  }
+ ],
+ "arms": [
+  {
+   "id": "wp-g-m4-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "4",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m4-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "4",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m4-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "4",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m5-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m5-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m5-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m6-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m6-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m6-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m8-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "8",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m8-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "8",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-g-m8-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "8",
+    "--citworkpause",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-b-m5-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--citworkpause",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-b-m5-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--citworkpause",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-b-m5-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--citworkpause",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-b-m6-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--citworkpause",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-b-m6-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--citworkpause",
+    "--json"
+   ]
+  },
+  {
+   "id": "wp-b-m6-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--citworkpause",
+    "--json"
+   ]
+  }
+ ]
+}

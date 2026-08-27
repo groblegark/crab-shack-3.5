@@ -1,0 +1,351 @@
+{
+ "name": "u1-rebase-cal",
+ "note": "U1 (task kd-CC5yBIzjFt) calibration RE-BASED onto current main (merge 073eaa9: tray+depart+almanac now in tree). RE-TAKES the pre-U1 pillar as a fresh --nodecay control on THIS tree (ctl-base/ctl-grow), then narrows the mul sweep to {5,6,7} growth + baseline at finalist mul 6, all adjacent on the same tree. Pick CIT_DECAY_MUL against the RE-TAKEN control, not the stale c67c02d 24/48. batch sets kernel=wasm realm=main.",
+ "resources": {
+  "requests": {
+   "cpu": "7",
+   "memory": "2Gi"
+  },
+  "limits": {
+   "cpu": "8",
+   "memory": "4Gi"
+  }
+ },
+ "nodeSelector": {
+  "karpenter.sh/nodepool": "ephemeral-pool"
+ },
+ "tolerations": [
+  {
+   "key": "gasboat.ephemeral",
+   "operator": "Equal",
+   "value": "true",
+   "effect": "NoSchedule"
+  }
+ ],
+ "arms": [
+  {
+   "id": "ctl-base-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--nodecay",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-grow-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--nodecay",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m5-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m6-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m7-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "b-m6-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-base-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--nodecay",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-grow-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--nodecay",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m5-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m6-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m7-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "b-m6-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-base-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--nodecay",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-grow-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--nodecay",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m5-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "5",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m6-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "g-m7-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "b-m6-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--citdecay",
+    "6",
+    "--json"
+   ]
+  }
+ ]
+}

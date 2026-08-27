@@ -59,13 +59,30 @@ first, platform second, ruled after the pigs shipped hungry:
 
 ## STATE OF PLAY — start here (numbers re-measured 2026-08-24)
 
+**U1 LAND-ASIS LANDED 2026-08-27 — continuous citizen decay at `CIT_DECAY_MUL=7`.**
+This is the current tip and it SUPERSEDES the economy-trio's 26/48 below as the
+growth number. The pillar is KNOWINGLY eroded — a RULED decision (Matt, decision
+kd-0hYmwnHeOp; the citizens now pay the visitor's per-frame need decay). On the
+landing tree, growth `--buy chef,table` reads **7/48** (captains' final read,
+`design/cs35-research/kube-runs/cs-u1-final-bfaec4d-c7zl/`; an independent
+calibration re-take read **12/48**, `.../cs-u1-rebase-cal-3fc20a3/`) against a
+pre-U1 control RE-TAKEN on this tree of **17–18/48**; baseline stays **0/48**.
+Suite-330 gated GREEN both backends — **880/880** at the landing (js 440/440,
+wasm 440/440), 24/24 arms exit 0. The folded boredBilled fix (bug kd-pFt14eVtUq)
+is verified matrix-inert. **Everything below the trio line is PRE-U1 history**:
+read the 26/48 and 15/48 figures as the ladder the U1 drain eroded, not as the
+current floor — and re-measure against the tree you land on before quoting any of
+them.
+
 **Suite 374 scenarios, GREEN both backends — 374/374 js and 374/374 wasm at
 `4af658f` (the economy-trio build, current tip), main realm, in-pod. Receipt:
 `design/cs35-research/kube-runs/cs-trio-combined-gate-5178257-inpod/` (the trio's
 own gate SHA; 4d's byte-neutral rebase adds only its civics scenarios, re-gated
 green at `4af658f`).**
 
-**Baseline 0/48. Growth `--buy chef,table` 26/48.** THE ECONOMY TRIO LANDED
+**Baseline 0/48. Growth `--buy chef,table` 26/48 — PRE-U1** (superseded by the
+U1 land-asis note at the top of STATE OF PLAY; kept as the ladder U1 eroded).
+THE ECONOMY TRIO LANDED
 2026-08-25 (`4af658f`): visitor-stats + reputation + interruptible-commitment,
 together, and the combination matrix is the acted-on pre-commitment (task
 kd-vr8HmkknUh). Measured in-pod over 48 towns (`--seedbase 0,16,32`, 30 days),
@@ -143,9 +160,10 @@ it was measured at and the receipt it came from, because that is the one rule
 this project does not bend. If you are about to cite a growth number, re-measure
 it against the tree you are landing on — do not cite this paragraph.
 
-**AND THE BLOCKS DISAGREE WITH EACH OTHER, WHICH IS THE POINT.** That 15/48 is
-`sb0: 5`, `sb16: 2`, `sb32: 8` — the same build, the same day, three 16-town
-blocks ranging 2 to 8. Any single block is a coin. This is why the old "2/16 vs
+**AND THE BLOCKS DISAGREE WITH EACH OTHER, WHICH IS THE POINT.** That 15/48 (the
+pre-U1 E4-ladder figure — the current growth number is the U1 land-asis note at
+the top of STATE OF PLAY) is `sb0: 5`, `sb16: 2`, `sb32: 8` — the same build, the
+same day, three 16-town blocks ranging 2 to 8. Any single block is a coin. This is why the old "2/16 vs
 3/16" framing was noise being read as signal, and why 8 seeds is never enough
 to defend a change.
 

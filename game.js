@@ -6379,8 +6379,13 @@ function boredAdvOf(c) { return c.p.boredAdvDay === day ? (c.p.boredAdv || 0) : 
 // budget by setting boredAdv to the max, so a naive `bored - boredAdv` keeps
 // subtracting a lump that is already paid, and a crab pinned at 1.00 reads 0.80
 // forever: the walk-out never fires at all. p.boredBilled records that the
-// settlement has run, which separates "drawn early" from "drawn early and since
-// accounted for" - two different things that one counter cannot say.
+// day's boredom has been RECONCILED, which separates "drawn early" from "drawn
+// early and since accounted for" - two different things that one counter cannot
+// say. It has TWO writers, one per model: on --nodecay the shift-end settlement
+// stamps it (game.js:12278) when the lump is charged; under U1 the shift-end
+// block is off, so the NIGHTLY walk-out block stamps it at day's end (the
+// continuous drain leaves no lump to reconcile, so the ladder reads raw) -
+// see bug kd-pFt14eVtUq. Either way, once stamped for `day`, the day counts full.
 function boredSettled(c) {
   if (c.p.boredBilled === day) return c.p.bored || 0;   // the shift settled: it all counts
   return Math.max(0, (c.p.bored || 0) - boredAdvOf(c));
@@ -12234,31 +12239,52 @@ function updateSchedule(c, dt) {
       spanD = dutyStdSpan(c), spanO = ownStdSpan(c), otT = c.otMin || 0;
     const loadN = dur * GMIN * spanO + otT * spanD, loadD = GMIN * spanD * spanO;
     const hN = qn(0.25) * loadN;
-    c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + (hN - hN % loadD) / loadD);  // a shift works up an appetite - a long one, more
+    if (!crabDecayOn())
+      c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + (hN - hN % loadD) / loadD);  // a shift works up an appetite - a long one, more (U1 re-times this - see below)
     // ...and thirst still reads how tired they were CLOCKING IN, never how
     // tired the shift left them. That is exactly what the old "checked
     // pre-bump" comment meant; now that tiredness accrues THROUGH the day it
     // has to be said with a field - c.tiredIn, stamped at arriveCommute. Same
     // rule, same firing rate, stated where it cannot drift.
     const tN = qn(0.35) * loadN * ((c.tiredIn || 0) > qn(0.5) ? 3 : 2), tD = loadD * 2;   // the 1.5 rides as 3/2
-    c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
+    // U1 RE-TIMES, IT DOES NOT ADD. hunger/thirst/dirt/bored now drain
+    // continuously through the shift (crabTick), so charging the shift-end LUMP
+    // as well double-counts the very hours the drain already covered - and the
+    // sweep proved the additive form collapses the growth pillar at EVERY rate
+    // (24/48 -> 0/48 from mul 1 to mul 20, receipt cs-u1-rate-sweep-e6083cd).
+    // So under U1 these four metabolic bumps turn OFF and the continuous drain
+    // carries the load, the SUDSY-trickle pattern (same appetite, different
+    // WHEN). TIRED keeps its lump: it is NOT in the continuous drain (it has its
+    // own accrual+recovery model), so its shift cost is still owed here.
+    if (!crabDecayOn())
+      c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
-    c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
-    // ...all work and no play. STILL +0.20 A SHIFT, but idleness may already
-    // have drawn some of it down during the day (BORED_IDLE): the settlement
-    // pays only what is left owing, so standing about re-times this charge
-    // without ever increasing it. A crab who idled the whole shift has paid in
-    // full already and gets nothing here. boredAdv is cleared either way, so
-    // tomorrow starts with the full lump available to draw against again.
-    c.p.bored = Math.min(Q20, (c.p.bored || 0) + Math.max(0, qn(0.2) - boredAdvOf(c)));
-    // ...and today's boredom budget is now CLOSED rather than cleared, stamped
-    // with today. A crab can clock off, run an errand and clock back in, so
-    // clearing it would let the afternoon draw a second full advance against a
-    // lump already paid (measured: +0.40 in a day). The stamp expires it at
-    // midnight on its own, on every path, including the ones that never settle.
-    c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
-    c.p.boredBilled = day;   // ...and the ladder may now count it in full
+    // U1: the shift-end dirt/bored lump is one of the discrete metabolic bumps
+    // the continuous drain subsumes, so under crabDecayOn() the whole settlement
+    // turns OFF (crabTick owns dirt/bored off-duty; boredIdleTick still owns the
+    // ON-DUTY idle case, where crabTick is paused). Under --nodecay this runs the
+    // pre-U1 tree's idle-trickle settlement unchanged. NB: this block also held
+    // the ONLY writer of p.boredBilled (below); under U1 that stamp moves to the
+    // nightly walk-out block, U1's day boundary (bug kd-pFt14eVtUq). Do not read
+    // this `off` as "boredBilled is dead under U1" - it is written elsewhere.
+    if (!crabDecayOn()) {
+      c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
+      // ...all work and no play. STILL +0.20 A SHIFT, but idleness may already
+      // have drawn some of it down during the day (BORED_IDLE): the settlement
+      // pays only what is left owing, so standing about re-times this charge
+      // without ever increasing it. A crab who idled the whole shift has paid in
+      // full already and gets nothing here. boredAdv is cleared either way, so
+      // tomorrow starts with the full lump available to draw against again.
+      c.p.bored = Math.min(Q20, (c.p.bored || 0) + Math.max(0, qn(0.2) - boredAdvOf(c)));
+      // ...and today's boredom budget is now CLOSED rather than cleared, stamped
+      // with today. A crab can clock off, run an errand and clock back in, so
+      // clearing it would let the afternoon draw a second full advance against a
+      // lump already paid (measured: +0.40 in a day). The stamp expires it at
+      // midnight on its own, on every path, including the ones that never settle.
+      c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
+      c.p.boredBilled = day;   // ...and the ladder may now count it in full (--nodecay path; under U1 the nightly block owns this stamp)
+    }
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
     // The staff meal counts too: refusing it here was the whole reason a crab
@@ -16106,6 +16132,119 @@ function visTick(k, dt) {
   const BR = bodyOf(k).R;   // the decay clock runs at the guest's own rates (census C2)
   for (const n of ["hunger", "thirst", "dirt", "bored", "tired"])
     k[n] = Math.min(Q20, (k[n] || 0) + BR[n] * dtT);
+}
+// U1 - THE UNIFICATION: give the CITIZEN the visitor's continuous need decay.
+// Until now a crab who idled all day got hungry exactly once, at dusk (the nine
+// discrete events - the shift-end bumps, errand legwork, the dry-night thirst,
+// the night's tired catch-up, the NPC hunger tick); a visitor got hungry every
+// frame at their own body's rate. bodyOf(c).R - the rate vector the body table
+// is named after (BODY = { R: VIS_RATE, ... }) - was NEVER consumed for a crab.
+// So a cultureway's body multipliers silently did nothing to citizens. This
+// closes that: bodyOf(c).R now runs the citizen's clock exactly as it runs the
+// tourist's, so a crab left to loaf gets hungry, thirsty, grubby and bored on
+// the same continuous drain a tourist does - and a body document colours both.
+//
+// FOUR NEEDS, NOT FIVE - and this is a deliberate, documented scoping line, not
+// an oversight. hunger/thirst/dirt/bored are the needs a crab has NO continuous
+// model for (they were static between discrete events). TIRED is the one need a
+// crab already models fully and well: it accrues through the shift proportional
+// to the work done (the tiredRem accumulator in updateSchedule), on errand
+// legwork (T.errand), and as the night's catch-up (T.night); it recovers on the
+// housing ladder (TIRED_DRAIN bed/cot, TIRED_NAP). Laying a base per-frame tired
+// drain ON TOP of that would double-charge every working crab's awake hours and
+// - the measured landmine - break shift fairness: the ball errand DECLINES to
+// charge TIRED_ERRAND for exactly this reason (a leisure cost pushed the
+// morning/evening fairness gap past its gate, receipt at startBallStop). So
+// tired keeps its own model untouched; the four needs that lacked one get the
+// tourist's loop. Folding tired in (retiring the shift accrual for one unified
+// clock) is a real future unification, but a separate and larger change - doing
+// it here would make any matrix move un-attributable between the drain and the
+// tired-model swap.
+//
+// ASLEEP PAUSES IT, exactly as an in-room visitor's needs pause (visTick returns
+// early on VS.inRoom, draining only the bed's tired recovery). A crab is asleep
+// when they slept rough (down for the night wherever they fell) or when they are
+// bedded down at home for the night (DS.home past nightfall - the same gate the
+// sleep/nap tired-recovery reads). A DAYTIME crab resting at home still has a
+// body: it gets hungry on the porch just as a roaming tourist does.
+//
+// A RESIDENT IS NOT A TOURIST - THE RATE IS SCALED. A visitor holidays for a day
+// or two; the VIS_RATE clock is paced for that short stay. A crab LIVES here for
+// a season, and the same per-frame rate on a permanent resident starves the
+// whole town in three days: measured, full VIS_RATE on every crab reads 0/48 on
+// BOTH the baseline and growth arms, every town evicted by day 3-4, against the
+// pre-U1 pillar of baseline 0/48 / growth 24/48 (receipt cs-u1-decay-matrix-
+// 578022e). So the citizen drains at a FRACTION of the tourist's rate, and that
+// fraction is CALIBRATED on the 48-town instrument to the value that HOLDS the
+// difficulty pillar - the unification adds the continuous MODEL without moving
+// the game's difficulty as a side effect (the pillar-erosion rule, kd-Wuar80).
+//
+// CIT_DECAY_MUL is that fraction in TWENTIETHS (the house body unit -
+// design/cs35-body.md), applied to bodyOf(c).R at the read so a cultureway body
+// multiplier still composes: a people who declare hunger:26 get 26/20 x the crab
+// scale. Round-half-up per tick (the +10 before the /20), never floor - flooring
+// all four would run the town's needs slow in one direction, the VIS_RATE
+// comment's named 1.19% sin. Draw-free integer Q20, so crabTick moves no RNG
+// cursor itself; the needs it raises drive more errands, which re-rolls the
+// downstream stream, so frozen fingerprints move (a legitimate re-pin, traced).
+const CIT_DECAY_MUL = 7;   // twentieths of VIS_RATE - CALIBRATED on the cluster (see below)
+// THE RATE, CALIBRATED against the pillar RE-TAKEN on the landing tree. Three
+// 48-town cluster matrices drove the model and the number:
+//  1. cs-u1-decay-matrix-578022e: full VIS_RATE (mul 20) on a resident starves
+//     the whole town by day 3-4 - 0/48 on BOTH baseline and growth. A resident
+//     is not a tourist; the rate that paces a 2-day stay is ~an order too fast.
+//  2. cs-u1-rate-sweep-e6083cd: an ADDITIVE / always-on drain collapses the
+//     growth pillar at EVERY rate (mul 1..20 all 0/48). The rate is not the
+//     lever - a continuous need with NO relief path through the town's whole
+//     working day is uniquely punishing to a crab. So the MODEL changed: pause
+//     the drain while ON DUTY (work is "occupied" like a sleeping tourist), and
+//     RE-TIME the discrete metabolic bumps the drain now subsumes (they turn off
+//     under crabDecayOn(); tired keeps its own lump).
+//  3. cs-u1-rebase-cal-3fc20a3: the deciding run, on CURRENT main (tray + depart
+//     + almanac landed). The pillar had MOVED - the pre-U1 control RE-TAKEN on
+//     this tree is growth 17/48 (6/5/6), baseline 0/48, NOT the stale 24/48 an
+//     older tree read (advice kd-RSS4Nkil3c: an absolute-target calibration must
+//     re-take its control on the landing tree). Against that 17/48:
+//       mul 5 -> growth 26/48 (+9, easier)   mul 6 -> 23/48 (+6, easier)
+//       mul 7 -> growth 12/48 (-5)           baseline mul 6 -> 0/48
+//     U1 re-times the discrete lumps OFF, so at low mul the removed lumps
+//     dominate and the town is EASIER; difficulty-neutral crosses ~mul 6.5.
+//     mul 7 is the closest hold (|-5| < |+6|) AND the higher drain the unified
+//     model wants teeth from (captain kd-2LdjVWNgEd: reproduce pre-U1 difficulty,
+//     prefer the higher drain). Baseline 0/48 holds by bracketing (mul 6 and
+//     mul 20 both 0/48, monotone). SHIPPED: mul 7, on-duty pause, lumps re-timed.
+// The lesson the receipts carry: giving the citizen the tourist's continuous
+// decay was not a rate tuning - the citizen's day has no continuous-relief path,
+// so the MODEL had to change (pause on duty + re-time the discrete metabolic
+// events), not just the number.
+//
+// THE HATCHES, all three the game NEVER sets (the _noRival / _noHall attribution
+// idiom): window._noDecay gives the pre-U1 tree back (--nodecay); _citDecayMul
+// overrides the fraction (--citdecay N, the sweep lever); _citNoWorkPause turns
+// the on-duty pause OFF (--citnoworkpause), the attribution arm for the pause.
+function crabDecayOn() { return !window._noDecay; }
+function citDecayMul() {
+  return (typeof window !== "undefined" && window._citDecayMul != null) ? window._citDecayMul : CIT_DECAY_MUL;
+}
+// OCCUPIED, so the clock pauses - the two crab states a tourist has no parallel
+// for. ASLEEP: slept rough, or bedded down at home past nightfall (mirrors an
+// in-room visitor, whose needs pause while tired recovers). ON DUTY: working or
+// commuting to/from - a crab at a counter it cannot leave has no relief path a
+// roaming tourist always has, and the calibration above is why the pause is part
+// of the model and not a dial.
+function crabAsleep(c) {
+  return c.p.rough || (c.dsC === DS.home && darkness() > 0.7);
+}
+function crabOnDuty(c) {
+  return c.dsC === DS.working || c.dsC === DS.toWork || c.dsC === DS.toHome;
+}
+function crabTick(c, dt) {
+  if (!crabDecayOn() || crabAsleep(c)) return;
+  if (crabOnDuty(c) && !window._citNoWorkPause) return;   // on duty = occupied, no relief path (calibrated)
+  const BR = bodyOf(c).R;   // a crab's own culture body, or the engine's by identity
+  const m = citDecayMul();
+  for (const n of ["hunger", "thirst", "dirt", "bored"])
+    c.p[n] = Math.min(Q20, (c.p[n] || 0) + idiv(BR[n] * dtT * m + 10, 20));   // round-half-up /20
 }
 function updateVisitor(k, dt) {
   if (k.stC === VS.ashore) {
@@ -24041,9 +24180,15 @@ function simClock(dt, rawMs) {
     // ...and both ACCOMMODATION ladders: the Driftwood's owner reads the guests
     // she had to turn away, and the mayor reads the crabs who found no cot.
     runAccommodation();
-    for (const c of npcs) {
-      c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + qn(0.1));
-    }
+    // NPC base metabolism, a crude nightly stand-in for the continuous hunger a
+    // townsperson never had. U1 gives NPCs the real per-frame drain (crabTick
+    // runs for every crab, npc or not), so this nightly lump is now the drain's
+    // job - it turns off under U1, or it double-charges the very thing it stood
+    // in for.
+    if (!crabDecayOn())
+      for (const c of npcs) {
+        c.p.hunger = Math.min(Q20, (c.p.hunger || 0) + qn(0.1));
+      }
     // 2.5 epidemiology: neglect breeds illness; illness spreads; rest + care cures
     {
       const everyone = allCrabs();
@@ -24137,6 +24282,22 @@ function simClock(dt, rawMs) {
     // name, so it is a thing they could have fixed (an arcade, an errand, a
     // rota change) rather than a thing that happened to them.
     for (const k of allCrabs()) {
+      // U1 OWNS boredBilled HERE - THIS NIGHTLY BLOCK IS U1's DAY BOUNDARY.
+      // The pre-U1 SHIFT-END settlement (game.js:12278) was the ONLY writer of
+      // boredBilled, and U1 turns that whole block off under crabDecayOn() (the
+      // continuous drain subsumes the discrete lump). Left as-was, boredBilled
+      // would never be set on the shipped path, so boredSettled would take its
+      // discount branch forever and the walk-out ladder could under-read a crab
+      // pinned at the bar by the full BORED_ADV_MAX lump (bug kd-pFt14eVtUq).
+      // Under continuous decay there is NO unreconciled lump at day end - the
+      // off-duty drain is real current boredom and the on-duty idle trickle has
+      // spent its advance for the day - so the ladder must read RAW bored: stamp
+      // it here, before boredSettled is read below. The discount branch stays
+      // LIVE and correct DURING the day (boredIdleTick still draws an advance on
+      // duty, ungated by U1); this only closes the day. On --nodecay this is a
+      // no-op and the shift-end writer keeps its exact pre-U1 semantics (grace
+      // for a late shift that has not billed by this 20:00 check).
+      if (crabDecayOn()) k.p.boredBilled = day;
       // a rough night bridges midnight, so it is reported at the NEXT
       // settlement - and cleared, so it is reported exactly once
       if (k.p.roughLast && k.p.roughLast >= day - 1) {
@@ -24241,10 +24402,13 @@ function simTown(dt) {
   for (const c of allCrabs()) {
     c.animT += dt;
     c._stepped = false;
+    crabTick(c, dt);   // U1: the citizen's needs decay every frame, awake, like a tourist's
     // A CONVERSATION STOPS THE DAY. Nothing else runs while two crabs talk -
     // not the schedule, not the kitchen, not the commute. That is the price of
     // boredom's only free cure, and it is the whole reason the cure is allowed
     // to exist at all (PLAN, THE SELF-HEALING RULE: it costs time, never money).
+    // (Needs still drain through a chat - a chatting crab is awake - so crabTick
+    //  runs above the early-out, matching visTick running for a queuing tourist.)
     if (c.dsC === DS.chat) { updateChat(c, dt); maybeQuip(c, dt); continue; }
     updateSchedule(c, dt);
     if (c.dsC === DS.toWork || c.dsC === DS.toHome) updateCommute(c, dt);

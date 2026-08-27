@@ -1,0 +1,18 @@
+=== ARM 4: --swap on shipped U1 — separates crab from shift ===
+............
+
+== EVERYONE   (3502 crab-nights, 3453 at-risk rolls, 12 seeds x 24d, FOUNDERS' SHIFTS SWAPPED)
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       845   2.96    10    1.22   0.01266   0.353 0.428 0.536 0.512
+ E       819   4.64    13    1.66   0.02203   0.389 0.482 0.532 0.599
+ D      1838   4.46    29    1.65   0.02189   0.364 0.471 0.595 0.510
+>> M/E   RISK x0.57   prevalence x0.64   incidence x0.73    (1.00 = the shift tells you nothing)
+
+== CREW ONLY (M/E is a crew thing; townsfolk are all D)   (1664 crab-nights, 1625 at-risk rolls, 12 seeds x 24d, FOUNDERS' SHIFTS SWAPPED)
+shift  nights   ill%   new  incid%     RISK      hung  thir  dirt  tire
+ M       845   2.96    10    1.22   0.01266   0.353 0.428 0.536 0.512
+ E       819   4.64    13    1.66   0.02203   0.389 0.482 0.532 0.599
+>> M/E   RISK x0.57   prevalence x0.64   incidence x0.73    (1.00 = the shift tells you nothing)
+   town-wide infections 70   causes {"exhaustion":23,"hunger":18,"dirt":20,"contagion":11,"thirst":15}
+   PINCHY  shift E  nights 287  ill   2.79%  fell ill 3x  mean risk 0.02254  mean wallet $2630
+   CLAWDIA shift M  nights 287  ill   5.23%  fell ill 4x  mean risk 0.01106  mean wallet $2661
