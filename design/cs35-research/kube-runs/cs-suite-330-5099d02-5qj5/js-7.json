@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5099d02-5qj5",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "5099d02e1f91381291c0a72f0a8a74688d2cbbce",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 84157,
+  "verdict": "37/37 passed in slice 7/12 (84.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (5428ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1994ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1561ms)\n  PASS  boat: ownership and berth roundtrip through save/load (1700ms)\n  PASS  the drop nudge: open sand nudges nothing (2455ms)\n  PASS  days off: wages skip exactly and the bill dips to match (2415ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (45ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (1704ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1557ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1149ms)\n  PASS  tips: the counter gets a token, the table gets the lot (9ms)\n  PASS  no card prints text on top of its own text (1633ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (5294ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (9956ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (7074ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (22023ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2871ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1607ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (2480ms)\n  PASS  the HALL tab's text is measured, in every state it has (5689ms)\n  PASS  the shack says where the money comes from, and only your shops do (619ms)\n  PASS  the music controls answer from outside the record box (10ms)\n  PASS  BACK hands the town the track you were auditioning (11ms)\n  PASS  a crab may stand in the cabana it has come to clean (13ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (11ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (15ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (11ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (26ms)\n  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (18ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (15ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (2801ms)\n  PASS  saves: a ver-3 envelope is the zero delta (1343ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (240ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (100ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (18ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (153ms)\n  PASS  spend reserve: an old trait table without thrift still loads, at the identity (10ms)\n37/37 passed in slice 7/12 (84.1s)\n"
+}

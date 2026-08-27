@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5099d02-5qj5",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "5099d02e1f91381291c0a72f0a8a74688d2cbbce",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 142596,
+  "verdict": "37/37 passed in slice 6/12 (142.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3712ms)\n  PASS  save guard: an empty slot still receives the first town (25ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (4104ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1882ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (2018ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (5139ms)\n  PASS  census: rows derive live state, and sort + filter actually move (781ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2909ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (32ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1361ms)\n  PASS  the title's credit block never lands on the science button (18ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (75976ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (3459ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (5222ms)\n  PASS  an election is held on the week, and every voter is accounted for (4240ms)\n  PASS  departures: three ways to be turned away are three different counters (180ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (615ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1906ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (845ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1028ms)\n  PASS  only one track is ever audible at once (16ms)\n  PASS  a refusal waits for a tap where a 404 skips on (15ms)\n  PASS  the cabana row leaves both travel lanes a real margin (32ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (15ms)\n  PASS  need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name (8ms)\n  PASS  civics: a people's voters score a platform on THEIR OWN declared stakes (8375ms)\n  PASS  civics calendar/relief: the scalars DRIVE the town, not just a readout (the behaviour gate) (11ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (11ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (5154ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (4254ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (938ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (148ms)\n  PASS  science: one recipe lives the same town twice (6859ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (16ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (118ms)\n  PASS  spend reserve: a hoarding thrift saturates at one night's roof (1024ms)\n37/37 passed in slice 6/12 (142.5s)\n"
+}
