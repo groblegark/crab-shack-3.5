@@ -6379,8 +6379,13 @@ function boredAdvOf(c) { return c.p.boredAdvDay === day ? (c.p.boredAdv || 0) : 
 // budget by setting boredAdv to the max, so a naive `bored - boredAdv` keeps
 // subtracting a lump that is already paid, and a crab pinned at 1.00 reads 0.80
 // forever: the walk-out never fires at all. p.boredBilled records that the
-// settlement has run, which separates "drawn early" from "drawn early and since
-// accounted for" - two different things that one counter cannot say.
+// day's boredom has been RECONCILED, which separates "drawn early" from "drawn
+// early and since accounted for" - two different things that one counter cannot
+// say. It has TWO writers, one per model: on --nodecay the shift-end settlement
+// stamps it (game.js:12278) when the lump is charged; under U1 the shift-end
+// block is off, so the NIGHTLY walk-out block stamps it at day's end (the
+// continuous drain leaves no lump to reconcile, so the ladder reads raw) -
+// see bug kd-pFt14eVtUq. Either way, once stamped for `day`, the day counts full.
 function boredSettled(c) {
   if (c.p.boredBilled === day) return c.p.bored || 0;   // the shift settled: it all counts
   return Math.max(0, (c.p.bored || 0) - boredAdvOf(c));
@@ -12259,7 +12264,10 @@ function updateSchedule(c, dt) {
     // the continuous drain subsumes, so under crabDecayOn() the whole settlement
     // turns OFF (crabTick owns dirt/bored off-duty; boredIdleTick still owns the
     // ON-DUTY idle case, where crabTick is paused). Under --nodecay this runs the
-    // pre-U1 tree's idle-trickle settlement unchanged.
+    // pre-U1 tree's idle-trickle settlement unchanged. NB: this block also held
+    // the ONLY writer of p.boredBilled (below); under U1 that stamp moves to the
+    // nightly walk-out block, U1's day boundary (bug kd-pFt14eVtUq). Do not read
+    // this `off` as "boredBilled is dead under U1" - it is written elsewhere.
     if (!crabDecayOn()) {
       c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
       // ...all work and no play. STILL +0.20 A SHIFT, but idleness may already
@@ -12275,7 +12283,7 @@ function updateSchedule(c, dt) {
       // lump already paid (measured: +0.40 in a day). The stamp expires it at
       // midnight on its own, on every path, including the ones that never settle.
       c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
-      c.p.boredBilled = day;   // ...and the ladder may now count it in full
+      c.p.boredBilled = day;   // ...and the ladder may now count it in full (--nodecay path; under U1 the nightly block owns this stamp)
     }
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
@@ -24274,6 +24282,22 @@ function simClock(dt, rawMs) {
     // name, so it is a thing they could have fixed (an arcade, an errand, a
     // rota change) rather than a thing that happened to them.
     for (const k of allCrabs()) {
+      // U1 OWNS boredBilled HERE - THIS NIGHTLY BLOCK IS U1's DAY BOUNDARY.
+      // The pre-U1 SHIFT-END settlement (game.js:12278) was the ONLY writer of
+      // boredBilled, and U1 turns that whole block off under crabDecayOn() (the
+      // continuous drain subsumes the discrete lump). Left as-was, boredBilled
+      // would never be set on the shipped path, so boredSettled would take its
+      // discount branch forever and the walk-out ladder could under-read a crab
+      // pinned at the bar by the full BORED_ADV_MAX lump (bug kd-pFt14eVtUq).
+      // Under continuous decay there is NO unreconciled lump at day end - the
+      // off-duty drain is real current boredom and the on-duty idle trickle has
+      // spent its advance for the day - so the ladder must read RAW bored: stamp
+      // it here, before boredSettled is read below. The discount branch stays
+      // LIVE and correct DURING the day (boredIdleTick still draws an advance on
+      // duty, ungated by U1); this only closes the day. On --nodecay this is a
+      // no-op and the shift-end writer keeps its exact pre-U1 semantics (grace
+      // for a late shift that has not billed by this 20:00 check).
+      if (crabDecayOn()) k.p.boredBilled = day;
       // a rough night bridges midnight, so it is reported at the NEXT
       // settlement - and cleared, so it is reported exactly once
       if (k.p.roughLast && k.p.roughLast >= day - 1) {

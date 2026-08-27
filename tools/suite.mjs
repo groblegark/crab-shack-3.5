@@ -1768,8 +1768,21 @@ scenario("hours: always-open does not out-earn a normal day (anti-exploit gate)"
   // near 1 and no single town may approach the exploit's floor. EROSION
   // TRIPWIRE (the slice-4 rule): a third same-direction move of either
   // number is a ratchet to investigate, not a gate to move.
+  // RE-BASELINED for U1 (task kd-CC5yBIzjFt, decision kd-0hYmwnHeOp -> land-asis).
+  // U1's continuous need decay PAUSES while a crab is on duty, so a longer shift
+  // shelters the crab from the drain: an always-open crew (6-24, ~18h on shift)
+  // spends far more of the day paused than a normal-day crew (8-20, ~12h) that
+  // then drains off-duty and has to spend on food/drink to recover. That buys
+  // always-open a small, GENUINE efficiency under the approved U1 model - the
+  // five-seed mean moves 0.944 (base tree) -> 1.103 (U1: 1.038/1.096/1.230/
+  // 1.153/1.000). It is nowhere near the exploit this gate exists to catch (the
+  // pre-fix hours-sign inflated takings-per-crew-day to 1.58-1.84). So the MEAN
+  // gate lifts 1.10 -> 1.15 to clear the pause's efficiency with margin while
+  // staying ~0.4 under the exploit floor; the worst-town ceiling (1.35) is
+  // UNCHANGED and already clears the 1.230 worst. EROSION TRIPWIRE still stands:
+  // a further same-direction drift is a ratchet to investigate, not to move.
   const worst = Math.max(...ratios), mean = ratios.reduce((s, r) => s + r, 0) / ratios.length;
-  if (mean > 1.10) return "always-open out-earns on AVERAGE " + mean.toFixed(3) + "x (gate 1.10): " + ratios.map(r => r.toFixed(3));
+  if (mean > 1.15) return "always-open out-earns on AVERAGE " + mean.toFixed(3) + "x (gate 1.15): " + ratios.map(r => r.toFixed(3));
   return worst <= 1.35 ? true
     : "always-open earns " + worst.toFixed(2) + "x per crew-day (hard ceiling 1.35): " + ratios.map(r => r.toFixed(3));
 });
@@ -3076,6 +3089,22 @@ scenario("sick days: bed rest beats a cot, and both beat the old cared bar", () 
         : `c.p.homeless = true; c.p.house = null; c.p.boat = null;`}
       c.p.sick = { days: 0 }; c.p.restT = 0; c.p.hunger = qn(0.1); c.p.thirst = qn(0.1); c.p.dirt = qn(0.1); }`);
     const N = JSON.stringify(sim.G("crabs[0].p.name"));
+    // RE-POINTED for U1 (task kd-CC5yBIzjFt, decision kd-0hYmwnHeOp -> land-asis).
+    // The lane the scenario tests is HOUSING quality (own bed vs shelter cot);
+    // its precondition, stated in the opening comment, is a convalescent "fed
+    // and hydrated". PRE-U1 a crab's needs were static between discrete events,
+    // so setting them low ONCE held. U1 drains hunger/thirst/dirt CONTINUOUSLY
+    // while a crab is awake and off duty - and a resting sick crab is exactly
+    // that - so by the 20:00 roll a set-low crab has climbed past careLane's
+    // fed-and-clean thresholds (hunger 0.5 / dirt 0.66 / thirst 0.5) and reads
+    // "cared" or "neglect", never "bed". A cared-for convalescent has meals and
+    // water BROUGHT to them - that IS the care the lane represents - so the
+    // fixture keeps the probe crab fed and hydrated through the day, on BOTH
+    // arms equally, isolating the housing tier the ladder actually grades.
+    const KEEP = `{ const c = crabs.find(k => k.p.name === ${N});
+      if (c) { c.p.hunger = Math.min(c.p.hunger || 0, qn(0.1));
+        c.p.thirst = Math.min(c.p.thirst || 0, qn(0.1));
+        c.p.dirt = Math.min(c.p.dirt || 0, qn(0.1)); } }`;
     let lane = "?";
     for (let d = 0; d < 12; d++) {
       sim.G("if (coins < 50000) coins = 90000;");
@@ -3095,10 +3124,12 @@ scenario("sick days: bed rest beats a cot, and both beat the old cared bar", () 
         if (c) { c.p.wallet = Math.max(c.p.wallet, 8000);
           if (c.p.homeless) { const used = new Set(allCrabs().filter(k => k !== c && !k.p.homeless).map(k => k.p.house));
             for (let h = 0; h < HOUSE_XS.length; h++) if (!used.has(h)) { c.p.house = h; c.p.homeless = false; break; } } } }`);
-      sim.runUntil("tmin >= 19.9 * 60 && lastRentDay !== day", { maxSteps: 200000 });
+      sim.runUntil("tmin >= 19.9 * 60 && lastRentDay !== day", { maxSteps: 200000, tickEvery: 8, onTick: (G) => G(KEEP) });
       if (sim.G(`crabs.some(c => c.p.name === ${N} && c.p.sick)`))
         lane = sim.G(`careLane(crabs.find(c => c.p.name === ${N}))`);
-      sim.runUntil("lastRentDay === day", { maxSteps: 200000 });
+      // ...and keep them fed/hydrated THROUGH the roll (the epidemiology
+      // settlement reads careLane at lastRentDay, just after 20:00).
+      sim.runUntil("lastRentDay === day", { maxSteps: 200000, tickEvery: 8, onTick: (G) => G(KEEP) });
       if (sim.G(`!crabs.some(c => c.p.name === ${N})`)) return { days: d + 1, lane, died: true };
       if (sim.G(`!crabs.find(c => c.p.name === ${N}).p.sick`)) return { days: d + 1, lane, died: false };
       sim.runUntil("tmin < 10", { maxSteps: 200000 });
@@ -4669,13 +4700,13 @@ scenario("idle hands: a bored crab leaves its post - and an order brings it back
 //      advance forever, which CANCELLED later lumps (SALTY froze at 0.54 for
 //      four days) - the same accounting error with the sign flipped.
 // Every one of those is invisible to "is she still frozen?" and obvious here.
-scenario("idle hands: the boredom trickle is an ADVANCE - never more than one lump a day", () => {
+scenario("idle hands: boredom per day stays bounded - the trickle-lump plus a day's off-duty drain", () => {
   const sim = createSim({ seed: 21 });
   idleTown(sim, 3);
   // Watch every crab's boredom for a few days and bank the POSITIVE deltas per
-  // crab-day. Only two things in the game ADD boredom (the shift-end lump and
-  // the idle trickle); chat, the ball and the arcade all subtract. So the sum
-  // of a crab-day's rises is exactly what the day charged it.
+  // crab-day. Two things in the game ADD boredom - the on-duty idle trickle and
+  // (U1) the continuous off-duty need decay; chat, the ball and the arcade all
+  // subtract. So the sum of a crab-day's rises is exactly what the day charged it.
   sim.G(`window._iv = { prev: {}, acc: {}, day: 0, worst: 0, who: "" };
     window._ivTick = function () {
       const V = window._iv;
@@ -4691,12 +4722,29 @@ scenario("idle hands: the boredom trickle is an ADVANCE - never more than one lu
     };`);
   sim.runDays(5, { onTick: (g) => g("window._ivTick()"), tickEvery: 1 });
   const worst = sim.G(`window._iv.worst`), who = sim.G(`window._iv.who`);
-  const lump = qn(0.2);
-  if (worst > lump)
+  // RE-BASELINED for U1 (task kd-CC5yBIzjFt, decision kd-0hYmwnHeOp -> land-asis).
+  // PRE-U1 boredom had ONE per-day ceiling: the idle trickle ADVANCED against a
+  // shift-end lump, and the settlement paid only the remainder and CLOSED the
+  // budget, so no crab-day could gain more than one lump (0.20). U1 removes that
+  // settlement (crabTick subsumes the discrete metabolic bumps) and adds a
+  // SECOND legitimate adder - the continuous off-duty need decay drives `bored`
+  // every awake, off-duty frame. So a crab-day now gains up to one trickle-lump
+  // (boredIdleTick still self-caps at BORED_ADV_MAX while ON DUTY) PLUS a day's
+  // worth of off-duty continuous drain. The two adders TRADE OFF - the trickle
+  // fires only on-duty-idle, the drain only off-duty - so neither maxes while
+  // the other runs (measured worst here 0.2862, CLAWDIA d1: a short M-shift
+  // banks the 0.20 trickle, then drains ~0.09 more across the off-duty evening;
+  // the realistic ceiling is ~0.30). The gate's TEETH are unchanged: the
+  // double-count bug it exists to catch measured +0.40 in a day (the afternoon
+  // drawing a SECOND full advance against a lump already paid), so a cap below
+  // that still trips it.
+  const cap = qn(0.35);   // one trickle-lump + a day's off-duty drain, held under the +0.40 double-count
+  if (worst > cap)
     return `a crab gained ${(worst / 1048576).toFixed(4)} boredom in ONE day (${who}); ` +
-      `the shift-end lump is ${(lump / 1048576).toFixed(4)} and the trickle must only draw against it`;
-  // ...and the trickle must actually BE doing something, or this gate passes for
-  // the wrong reason (it would also pass with the whole feature deleted).
+      `U1's ceiling is one trickle-lump (${(qn(0.2) / 1048576).toFixed(4)}) plus a day's off-duty ` +
+      `drain, capped at ${(cap / 1048576).toFixed(4)} - below the +0.40 double-count this gate guards`;
+  // ...and the two adders must actually BE doing something, or this gate passes
+  // for the wrong reason (it would also pass with the whole feature deleted).
   if (worst <= 0) return "no crab gained any boredom at all in 5 days - fixture drifted";
   return true;
 });
@@ -4773,6 +4821,68 @@ scenario("idle hands: the WALK-OUT costs the wage, and coverage stays honest", (
     return "the walked-out crab drew a wage at settlement anyway";
   if (!sim.G(`(report && (report.walked || []).length) || today.moved.some(m => m.indexOf("NEVER CAME IN") >= 0)`))
     return "the day report never mentioned the walk-out";
+  return true;
+});
+
+// THE WALK-OUT LADDER'S ADVANCE MUST BE RECONCILED AT DAY'S END - on BOTH models.
+// boredBilled is the flag boredSettled() reads to decide whether a same-day
+// boredom advance still counts against the crab or has been billed. Pre-U1 the
+// SHIFT-END settlement was its only writer; U1 turns that block off, so without a
+// second writer boredBilled would be permanently dead on the shipped path and the
+// ladder would under-read a pinned crab by the full BORED_ADV_MAX lump forever -
+// the central case (idle ON SHIFT, at the bar the SAME day) would silently stop
+// firing (bug kd-pFt14eVtUq, captain ruling: option (a)). U1 stamps boredBilled at
+// its own day boundary (the nightly walk-out block). This pins BOTH branches of
+// the flag AND proves the shipped-path writer really fires - the flag was inert on
+// the seeds we happened to run, so nothing else here would have caught it.
+scenario("idle hands: the boredom advance is reconciled at day's end (boredBilled, both models)", () => {
+  const sim = createSim({ seed: 33 });
+  idleTown(sim, 2);
+  // A crab AT the walk-out bar with a full, live, SAME-DAY advance still
+  // outstanding - the exact state boredBilled arbitrates. Read boredSettled() on
+  // both sides of the flag WITHOUT advancing the clock, so this is a pure contract.
+  const probe = sim.G(`{
+    const c = crabs[0]; window._w = c.p.name;
+    c.p.bored = Q20; c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
+    c.p.boredBilled = -1;               // UNBILLED: drawn early today, not yet reconciled
+    const unbilled = boredSettled(c);
+    c.p.boredBilled = day;              // BILLED: the day has been reconciled
+    const billed = boredSettled(c);
+    JSON.stringify({ raw: c.p.bored, adv: boredAdvOf(c), unbilled, billed, bar: WALKOUT_AT });
+  }`);
+  const P = JSON.parse(probe);
+  // The DISCOUNT branch is LIVE - this is why retiring it (option (b)) is wrong:
+  // boredIdleTick still draws the advance under U1, so "drawn early, not yet
+  // reconciled" remains a real state the ladder must not over-count.
+  if (P.unbilled !== P.raw - P.adv)
+    return `unbilled boredSettled ${P.unbilled} != raw-advance ${P.raw - P.adv} - the discount branch is broken`;
+  // The BILLED branch counts in full - that is what carries a pinned crab over.
+  if (P.billed !== P.raw)
+    return `billed boredSettled ${P.billed} != raw ${P.raw} - the full-count branch is broken`;
+  // ...and the flag must actually STRADDLE the bar, or it decides nothing.
+  if (!(P.unbilled < P.bar && P.billed >= P.bar))
+    return `boredBilled must straddle WALKOUT_AT (unbilled ${P.unbilled} < ${P.bar} <= billed ${P.billed})`;
+
+  // AND THE SHIPPED-PATH WRITER FIRES. Under U1 the shift-end settlement is off,
+  // so only the nightly walk-out block can stamp boredBilled. Pin a crab at the
+  // bar WITH a full live advance, one settlement short of the ladder, and cross
+  // ONE nightly settlement: it must walk out. Without the day-boundary stamp the
+  // ladder would read 0.80 (raw - advance), reset the counter, and never fire.
+  const sim2 = createSim({ seed: 33 });
+  idleTown(sim2, 2);
+  sim2.G(`{ const c = crabs[0]; window._w = c.p.name;
+    c.p.bored = Q20; c.p.boredDays = WALKOUT_DAYS - 1; c.p.sick = null; }`);
+  const start2 = sim2.G("day");
+  const pin2 = (G) => G(`{ coins = Math.max(coins, 120000);
+    const c = crabs.find(x => x.p.name === window._w);
+    if (c) { c.p.bored = Q20; c.p.sick = null;
+      c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0; } }`);
+  if (!sim2.runUntil(`day > ${start2}`, { maxSteps: 900000, onTick: pin2, tickEvery: 20 }))
+    return "the day-boundary fixture never reached the next day";
+  const wDay = sim2.G(`crabs.find(c => c.p.name === window._w).p.walkout`);
+  if (wDay !== sim2.G("day"))
+    return `a crab pinned at the bar with a full live advance did NOT walk out - ` +
+      `U1's day-boundary boredBilled stamp never fired (p.walkout=${wDay}, day ${sim2.G("day")})`;
   return true;
 });
 
@@ -4873,8 +4983,17 @@ scenario("shortcut home: sleeping rough banks nothing - and the player can break
   // stayed pinned on the sickness line and a growth town lost two seeds to it).
   // The fixture therefore walks the WHOLE promenade - the pier to the first
   // house lot - and tries a dozen towns.
+  // RE-POINTED for U1 (task kd-CC5yBIzjFt, decision kd-0hYmwnHeOp -> land-asis).
+  // The rough-sleep roll is unchanged (ROUGH_RATE, ROUGH_AT, the whole-promenade
+  // walk all as before), but U1's continuous decay drives the OTHER townsfolk to
+  // more errands, which moves the shared srand() cursor - so the per-second roll
+  // the probe crab sees lands on different draws and the ORIGINAL twelve towns
+  // all happened to make it home. The mechanism still fires; the fixture just
+  // needed droppers re-found on the landed stream. Seeds 10/13/20 drop under U1
+  // (measured); they lead so a dropper is found fast, with the original pool
+  // kept behind them as a fallback if the stream moves again.
   let rough = null, seed = 0;
-  for (const s2 of [5, 9, 17, 23, 31, 42, 57, 63, 71, 88, 96, 104]) {
+  for (const s2 of [10, 13, 20, 5, 9, 17, 23, 31, 42, 57, 63, 71, 88, 96, 104]) {
     const a = arm(s2, {});
     if (a && a.G(`crabs.find(c => c.p.name === window._w).p.roughLast`)) { rough = a; seed = s2; break; }
   }
@@ -7833,39 +7952,64 @@ scenario("hotel: a guest asleep in their room holds ONE state, and the card hold
 scenario("visitors: the reserved local slot still feeds the neighbours", () => {
   // THE NAMED TRAP (PLAN): "the evening queue never reaches the local". Ferry
   // batches are burstier than the retired spawn timer, so this is exactly the
-  // gate that had to be re-proved rather than assumed.
-  const sim = createSim({ seed: 5348 });
-  let worstTour = 0, sampled = 0;
-  sim.runDays(4, { tickEvery: 8, onTick: (G) => {
-    if (G("coins") < 90000) G("coins = 180000");
-    // the CAP: tourists may never hold more than TOURIST_QUEUE_MAX of a line
-    const n = G(`Math.max(0, ...Object.keys(BIZ).map(b => customers.filter(k =>
-      k.biz === b && !k.isCrab && (k.state === "arriving" || k.state === "waiting")).length))`);
-    if (n > worstTour) worstTour = n;
-    sampled++;
-  } });
-  if (!sampled) return "the probe never ran";
-  if (worstTour > sim.G("TOURIST_QUEUE_MAX"))
-    return `visitors filled ${worstTour} queue slots, cap is ${sim.G("TOURIST_QUEUE_MAX")}`;
-  const st = JSON.parse(sim.G("JSON.stringify(window._stats)"));
-  if (!(st.tourServes > 20)) return "control failed: the town barely traded (" + st.tourServes + " tourist serves)";
-  // ...and the point of the cap: LOCALS ACTUALLY EAT. Over four days of ferry
-  // traffic the neighbours are served, and not one of them starves out.
-  // THE FLOOR IS SET AGAINST THE PRE-PASS BUILD, not against nothing: the same
-  // four days on the retired spawn timer served locals 7-8 times (seeds 5348 /
-  // 1337 / 909); ferry traffic serves them 10-12. More visitors did NOT crowd
-  // the neighbours out - the reserved fifth slot is doing its job.
-  if (!(st.crabServes > 6)) return `locals served only ${st.crabServes || 0} times in four days of ferry traffic`;
-  // ...and nobody is left PINNED. The bar is a share of the town rather than a
-  // flat count, and the control is honest about what it can prove: SUDSY sits
-  // at hunger 1.00 on day 4 of the PRE-PASS build too, on every seed measured -
-  // the lone shower attendant reaching the shack's evening queue is a named
-  // open trap in PLAN and not this pass's doing. What must not happen is the
-  // visitors turning that into a general condition.
-  const town = sim.G("allCrabs().length");
-  const starving = JSON.parse(sim.G(`JSON.stringify(allCrabs().filter(c => (c.p.hunger || 0) >= qn(0.98)).map(c => c.p.name))`));
-  if (starving.length > Math.max(1, Math.ceil(town / 4)))
-    return `${starving.length} of ${town} locals left starving behind the visitors: ` + starving.join(", ");
+  // gate that had to be re-proved rather than assumed - and it is a
+  // DISTRIBUTIONAL claim ("locals are not crowded out"), so it runs across seeds
+  // rather than trusting one lucky town.
+  //
+  // RE-BASELINED for U1 (task kd-CC5yBIzjFt, decision kd-0hYmwnHeOp -> land-asis).
+  // The reserved-slot MECHANISM is the tourist queue cap (TOURIST_QUEUE_MAX = 4 of
+  // 5 slots, the 5th kept for a local) - and that holds PERFECTLY under U1: the
+  // worst tourist queue depth was exactly the cap on ALL twelve seeds measured, so
+  // no tourist ever took the local's slot. What MOVED is the local-serve COUNT:
+  // the old single-seed floor was `> 6`, justified by a "ferry traffic serves
+  // locals 10-12" number taken on an OLDER tree. U1 gives crabs their own
+  // continuous need decay AND pauses it on duty, which re-times WHEN a local
+  // reaches the evening queue, and the honest count is lower and seed-noisy -
+  // measured crabServes over four days: 5348:4 1337:3 909:7 33:4 21:7 (median 4,
+  // min 3; the wider 12-seed sweep ran 3-8). Locals still eat and nobody starves
+  // out - the slot does its job - but a single-seed `> 6` is now a coin, so the
+  // floor is distributional: every seed feeds its neighbours at least twice, and
+  // the five-seed total clears 15 (measured 25). If that erodes, re-measure
+  // against the tree you are landing on rather than trusting this number.
+  const seeds = [5348, 1337, 909, 33, 21];
+  const rows = [];
+  for (const seed of seeds) {
+    const sim = createSim({ seed });
+    let worstTour = 0, sampled = 0;
+    sim.runDays(4, { tickEvery: 8, onTick: (G) => {
+      if (G("coins") < 90000) G("coins = 180000");
+      // the CAP is the mechanism: tourists may never hold more than
+      // TOURIST_QUEUE_MAX of a line, leaving the 5th slot for a local.
+      const n = G(`Math.max(0, ...Object.keys(BIZ).map(b => customers.filter(k =>
+        k.biz === b && !k.isCrab && (k.state === "arriving" || k.state === "waiting")).length))`);
+      if (n > worstTour) worstTour = n;
+      sampled++;
+    } });
+    if (!sampled) return `seed ${seed}: the probe never ran`;
+    const cap = sim.G("TOURIST_QUEUE_MAX");
+    if (worstTour > cap)
+      return `seed ${seed}: visitors filled ${worstTour} queue slots, cap is ${cap} - a tourist took the local's slot`;
+    const st = JSON.parse(sim.G("JSON.stringify(window._stats)"));
+    if (!(st.tourServes > 20)) return `seed ${seed}: control failed, the town barely traded (${st.tourServes} tourist serves)`;
+    // ...and nobody is left PINNED. The bar is a share of the town rather than a
+    // flat count, and the control is honest about what it can prove: SUDSY sits
+    // at hunger 1.00 on day 4 of the PRE-PASS build too, on every seed measured -
+    // the lone shower attendant reaching the shack's evening queue is a named
+    // open trap in PLAN and not this pass's doing. What must not happen is the
+    // visitors turning that into a general condition.
+    const town = sim.G("allCrabs().length");
+    const starving = JSON.parse(sim.G(`JSON.stringify(allCrabs().filter(c => (c.p.hunger || 0) >= qn(0.98)).map(c => c.p.name))`));
+    if (starving.length > Math.max(1, Math.ceil(town / 4)))
+      return `seed ${seed}: ${starving.length} of ${town} locals left starving behind the visitors: ` + starving.join(", ");
+    rows.push({ seed, crabServes: st.crabServes || 0 });
+  }
+  // ...and the point of the cap: LOCALS ACTUALLY EAT, and not on a lucky seed.
+  const worstLocal = Math.min(...rows.map(r => r.crabServes));
+  const total = rows.reduce((a, r) => a + r.crabServes, 0);
+  if (worstLocal < 2)
+    return `a seed served locals only ${worstLocal} times in four days - crowded out: ` + JSON.stringify(rows);
+  if (!(total > 15))
+    return `locals served only ${total} times across ${seeds.length} seeds (need > 15): ` + JSON.stringify(rows);
   return true;
 });
 
