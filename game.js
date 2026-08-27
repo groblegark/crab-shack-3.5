@@ -128,6 +128,22 @@ function freeBerth() {
 const WATER_TAPS = [
   { x: 640, name: "THE TOWN TAP" },    // promenade, beside the notice board
   { x: 1844, name: "THE PIER TAP" },   // foot of the pier, where the catch gets hosed down
+  // THE HOTEL TAP stands at the Driftwood's WEST FOOT (door 2212), not at its
+  // desk. That x is picked, not placed for looks: the errand's detour term
+  // (errandDetour) scores a stop at |crab->stop| + |stop->anchor| - |crab->
+  // anchor|, so a tap EAST of where the far-east crabs stand - the fishers work
+  // the boat at ~2414, everyone commutes home WEST - is a pure backtrack that
+  // loses to the pier tap and is NEVER used. Measured: a tap at the hotel queue
+  // (2432) or the ruled surf break (2470) is a silent no-op (tapDrinks
+  // unchanged, the worst crab unmoved); a tap at 2190 relieves it hard (taps
+  // scenario worst crab, landed tree CIT_DECAY_MUL=7 @72e3b3a, gate seeds
+  // 5/9/17: max crit 5.0%->1.4%, max parched streak 0.90d->0.45d). 2190 sits
+  // clear of the last
+  // beach cottage (ends 2188) and just west of the hotel front, on a flat
+  // plateau (2182-2206 all read the same) rather than a knife-edge - the run
+  // hits real dead-spots at 2300 and 2414. It is zero-detour for a fisher
+  // today AND for a future surfer walking home from the 2470 break past it.
+  { x: 2190, name: "THE HOTEL TAP" },  // west foot of the Driftwood, gates the surf break's x
 ];
 // THE STANDING RULE FOR SELF-HEALING (Matt, 2026-08-19): "deficiency should
 // encourage player intervention but have some potential for auto resolution,
