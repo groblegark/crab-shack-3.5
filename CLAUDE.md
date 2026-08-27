@@ -41,7 +41,7 @@ breaks the SDK's credential lookup so kube.mjs reports a healthy session
 as dead and tells you to run an SSO login a pod cannot do (runbook).
 
 **Keep the manifest current.** Gates use the newest `experiments/suite-*.json`
-— suite-330 as of 2026-08-26 (387 scenarios, 12 slices x 2 backends). When
+— suite-330 as of 2026-08-26 (439 scenarios, 12 slices x 2 backends). When
 the scenario count outgrows it, add the next manifest rather than letting
 this line rot: it read "Gates = the suite-312 manifest" two generations after
 suite-312 was current.
