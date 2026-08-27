@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-b0998cb-evok",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "b0998cb5de7d7c8827bdb1d1b3df4d26ba248b21",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 97062,
+  "verdict": "36/36 passed in slice 11/12 (97.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (2008ms)\n  PASS  sick crabs can still wash (mobility + cure path) (1149ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (318ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1307ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (20ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (13ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (7271ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1604ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (32473ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (8674ms)\n  PASS  tip sharing + the table cap roundtrip save/load (856ms)\n  PASS  no surface prints off the canvas (2021ms)\n  PASS  forecast: names the swell it can see, never the quality it cannot (17ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (946ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (1151ms)\n  PASS  the town hall survives a save and a reload, ledger and all (4204ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2989ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3602ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (1194ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  the title screen credits the track that is actually queued (12ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (12ms)\n  PASS  a networkless town gives up after four tracks, not after a thousand (11ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (8739ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (13ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (8529ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (13ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (504ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (9ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (453ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (3418ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1663ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (7ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (8ms)\n  PASS  the arcade floor survives a save and reload (1739ms)\n36/36 passed in slice 11/12 (97.0s)\n"
+}
