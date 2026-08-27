@@ -97,6 +97,23 @@ const q = (arr, f) => (arr.length ? arr[Math.min(arr.length - 1, Math.floor(f * 
 const hist = {};
 for (const d of evictDays) hist[d] = (hist[d] || 0) + 1;
 
+// ARCADE OCCUPANCY INSTRUMENT. A --noplay/as-built A/B is a NULL RESULT in any
+// town that never BUILT an arcade (--noplay is a no-op with no machines) or
+// never STAFFED one (an empty floor plays no games) - both arms return the
+// identical number and it reads like "the arcade costs nothing." So the receipt
+// must SAY how many towns actually got there and how much play happened, or the
+// delta below it cannot be trusted. Reads the per-town `ups` (arcade:LVL) and
+// `_stats` the headless worker already returns - no game logic, no sim cost.
+// A dead worker carries neither field; the guards below read it as zero, which
+// is the honest floor (a town that crashed built and played nothing we saw).
+const arcadeLvl = (r) => { const m = /(?:^|\s)arcade:(\d+)/.exec(r.ups || ""); return m ? +m[1] : 0; };
+const statOf = (r) => { try { return JSON.parse(r.stats || "{}"); } catch { return {}; } };
+const builtArcade = results.filter((r) => arcadeLvl(r) > 0).length;
+const playedTowns = results.filter((r) => (statOf(r).gamesPlayed || 0) > 0);
+const gamesPlayed = results.reduce((s, r) => s + (statOf(r).gamesPlayed || 0), 0);
+const gamesTour = results.reduce((s, r) => s + (statOf(r).gamesPlayedTour || 0), 0);
+const gamesCrab = results.reduce((s, r) => s + (statOf(r).gamesPlayedCrab || 0), 0);
+
 const out = {
   towns: TOWNS, seedbase: SEEDBASE, jobs: JOBS, cores: usableCores(),
   workload: passthrough.join(" "),
@@ -112,6 +129,12 @@ const out = {
   // and a 100 rep" is a claim a receipt can falsify.
   rep: (() => { const rs = results.map((r) => +r.rep || 0).sort((a, b) => a - b);
     return { list: rs, median: q(rs, 0.5) }; })(),
+  // See the ARCADE OCCUPANCY INSTRUMENT note above. `built` = towns whose buy
+  // list actually reached an arcade; `playedIn` = towns where at least one game
+  // was played (built AND staffed AND a bored, funded customer reached it);
+  // `games` splits tourist/crab. Under --noplay, `built` stays but `games`->0.
+  arcade: { built: builtArcade, playedIn: playedTowns.length,
+            games: gamesPlayed, gamesTour, gamesCrab },
 };
 
 if (JSON_OUT) console.log(JSON.stringify(out));
@@ -126,5 +149,6 @@ else {
     for (const d of days) console.log(`  day ${String(d).padStart(3)}  ${"#".repeat(Math.max(1, Math.round(hist[d] * 40 / w))).padEnd(40)} ${hist[d]}`);
   }
   console.log(`lifetime   median $${out.lifetime.median}  p10 $${out.lifetime.p10}  p90 $${out.lifetime.p90}  mean $${out.lifetime.mean}`);
+  console.log(`arcade     built ${builtArcade}/${TOWNS}, played-in ${playedTowns.length}, games ${gamesPlayed} (tour ${gamesTour}/crab ${gamesCrab})`);
   console.log(`\n>> ${out.throughput.simDaysPerSec} lived sim-days/sec machine-wide  (${livedDays} days / ${out.throughput.wallSec}s, loadavg ${out.throughput.loadavg.join(" ")})`);
 }
