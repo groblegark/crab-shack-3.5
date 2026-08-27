@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-fb4c917-kb1x",
+  "armId": "wasm-10",
+  "index": 22,
+  "sha": "fb4c917115674e2aa7b710db40b6795022eb83a3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 129285,
+  "verdict": "36/36 passed in slice 10/12 (129.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (1643ms)\n  PASS  housing: npcs sleep at the shelter, then move up (509ms)\n  PASS  queue hard cap holds for locals too (2410ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (515ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (381ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (49ms)\n  PASS  fish market: price + series roundtrip save/load (57ms)\n  PASS  labor policy: every new setting roundtrips save/load (1138ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (4445ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (5510ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (28317ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (729ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (1591ms)\n  PASS  visitors: the wallet is real money, and it runs out (296ms)\n  PASS  the town fund moves money and never mints it (10429ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (689ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (9ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (2312ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (966ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (239ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (41480ms)\n  PASS  an absolute catalog url plays through a typed <source>, our own paths stay a plain src (16ms)\n  PASS  an audition still owns the speakers, and BACK does not restart the town (11ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1482ms)\n  PASS  crab voice: two whole days with the table off are the same town (1719ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (826ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (8ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (14415ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (12ms)\n  PASS  foodways: the validator names its refusals (11ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (690ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (11ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (4477ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (41ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (18ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (1738ms)\n36/36 passed in slice 10/12 (129.2s)\n"
+}
