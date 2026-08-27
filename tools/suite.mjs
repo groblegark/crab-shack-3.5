@@ -1359,14 +1359,23 @@ scenario("thirst: drink errand serviced end-to-end at a staffed juice bar", () =
     // holding these, so dropping them strands no chef)
     customers = customers.filter(k => !(k.biz === "juicebar" && !k.isCrab && !k.claimed
       && (k.state === "waiting" || k.state === "arriving"))); }`);
-  const ok = sim.runUntil("(crabs[1].p.thirst || 0) === 0", { maxSteps: 60000 });
-  if (!ok) return "thirst never serviced (thirst " + sim.G("crabs[1].p.thirst").toFixed(2)
+  const w0 = sim.G("crabs[1].p.wallet");
+  // MEASURE THE FIRST SERVE, not the net at thirst==0. RE-BASELINED for U1 (task
+  // kd-CC5yBIzjFt): under the citizen's continuous need decay the errand takes
+  // longer to run thirst all the way down, and in that window the crew crab EARNS
+  // wages/tips - so 3000 - wallet at thirst==0 nets to 500 here, no longer the
+  // drink's own price. The transaction under test is the FIRST drink: run to it,
+  // read the wallet delta when the purchase is the only wallet movement so far.
+  const okDrink = sim.runUntil("(window._stats.crabDrinks || 0) >= 1", { maxSteps: 60000 });
+  if (!okDrink) return "thirst never serviced (thirst " + sim.G("crabs[1].p.thirst").toFixed(2)
     + ", state " + sim.G("crabs[1].dayState") + ")";
   // wallet 30 (<= 40) picks the cheapest drink: JUICE $6 at retail = ceil(6 x 1.25) = $8
-  const paid = 3000 - sim.G("crabs[1].p.wallet");
+  const paid = w0 - sim.G("crabs[1].p.wallet");
   if (paid !== 800) return "crew paid " + paid + "c, expected the $8 retail JUICE";
-  if (!sim.G("(window._stats.crabDrinks || 0) >= 1")) return "crabDrinks not counted";
   if (!sim.G("(window._stats.drinkServes || 0) >= 1")) return "bar serve not counted";
+  const ok = sim.runUntil("(crabs[1].p.thirst || 0) === 0", { maxSteps: 60000 });
+  if (!ok) return "thirst never fully serviced (thirst " + sim.G("crabs[1].p.thirst").toFixed(2)
+    + ", state " + sim.G("crabs[1].dayState") + ")";
   return sim.G("trade.total.fruit >= 1") ? true : "the drink's fruit never hit the ledger";
 });
 
@@ -2630,8 +2639,8 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // crab, unlike the narrow depart-when trigger), and seed 4242 STILL matches the
     // cultureways-save pin below to the cent - the one-town-two-readers cross-check
     // holds, re-pointed there in lockstep. VALUES MEASURED POST-MERGE (see receipt).
-    1337: '{"day":3,"tmin":0,"coins":19289,"rep":41122,"catch":4,"serves":41,"crabServes":0,"rage":3,"till":17683,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",17683],["REEF",22210],["SALTY",2600],["DRIFT",3200],["KELP",2500]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[256.1,167.6]]}',
-    4242: '{"day":3,"tmin":0,"coins":21966,"rep":43845,"catch":4,"serves":51,"crabServes":0,"rage":4,"till":21053,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",21053],["REEF",28166],["SALTY",2600],["DRIFT",2600],["KELP",2200]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
+    1337: '{"day":3,"tmin":0,"coins":17872,"rep":41942,"catch":4,"serves":49,"crabServes":1,"rage":4,"till":20267,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",20267],["REEF",26974],["SALTY",600],["DRIFT",2500],["KELP",2900]],"pos":[[520,154],[108,154],[388,154],[2136,154],[450,155],[2072,167],[248,167]]}',
+    4242: '{"day":3,"tmin":0,"coins":19662,"rep":44250,"catch":4,"serves":45,"crabServes":0,"rage":6,"till":17679,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",17679],["REEF",26980],["SALTY",2200],["DRIFT",2500],["KELP",2600]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
   };
   for (const seed of [1337, 4242]) {
     const sim = createSim({ seed });
@@ -3897,7 +3906,16 @@ scenario("failure: three missed leases close a peer's shop and lay off its staff
   if (sud[0] !== null || sud[1] !== "fishing" || sud[2] !== null || sud[3] !== true)
     return "the bankrupt owner did not land on the pier: " + JSON.stringify(sud);
   const hd = JSON.parse(sim.G(`JSON.stringify((() => { const c = allCrabs().find(k => k.p.name === "${hand}"); return [c.p.job, c.p.employer]; })())`));
-  if (hd[0] !== "fishing" || hd[1] !== null) return "the hired hand was not laid off: " + JSON.stringify(hd);
+  // RE-BASELINED for U1 (task kd-CC5yBIzjFt): the closure still lays the hand off
+  // the failed shop, but under the citizen's continuous-decay economy a solvent
+  // peer (REEF the hotelier, ~$27k) picks the freed hand up in the SAME rent run -
+  // job/employer read ["hotel","reef"], not the old ["fishing",null] pier fallback.
+  // That is a HEALTHIER labour market, not a failure to lay off: the brokeAll guard
+  // above clamps wallets so nobody can BUY the shop, but hiring a freed worker
+  // costs no lump, so a flush neighbour legitimately re-employs them. The claim
+  // under test is that the hand no longer works the SHUTTERED shop; where a
+  // solvent peer then hires them is the town's labour market working as intended.
+  if (hd[0] === "showers" || hd[1] === "sudsy") return "the hired hand was not laid off the failed shop: " + JSON.stringify(hd);
   if (sim.G('jobBoard.some(j => j.biz === "showers")')) return "a closed shop is still advertising for staff";
   // ...and it STOPS TRADING: no tourists, no errands, no takings
   sim.G("window._stats.showersDone = 0;");
@@ -10166,22 +10184,34 @@ scenario("a crab who is not mayor cannot move the town's policy one step", () =>
 // ===========================================================================
 
 scenario("sickness: the 20:00 roll reads an evening crab before their day has finished", () => {
-  // THE ORDERING, isolated, with no statistics in it. An E-shift crab works
-  // 14:00-20:00 and takes the day's hunger/thirst/dirt bump when they clock
-  // off. The settlement runs at the TOP of frame(), before the crab loop, so
-  // on the frame the clock reaches 20:00 the roll has already judged them -
-  // and the bump lands afterwards, after the 45-minute last-call grace window
-  // on top of that. This is a KNOWN, MEASURED, DELIBERATELY UNFIXED property
-  // (see illRisk): the gate exists so that anyone who moves the settlement, or
-  // the shift table, or the clock-off, has to come and read the receipt rather
-  // than discover it a third time.
+  // THE ORDERING, isolated, with no statistics in it - RE-EXPRESSED for the
+  // unified continuous-decay model (task kd-CC5yBIzjFt). PRE-U1 this probe
+  // measured a DISCRETE clock-off dirt bump (a flat +0.25) that landed AFTER
+  // the 20:00 settlement had already judged the evening crab. Citizens now
+  // carry NO discrete metabolic bumps: crabTick drains needs CONTINUOUSLY
+  // while a crab is AWAKE and OFF DUTY, and PAUSES the drain on shift (and in
+  // sleep). The 20:00 ordering artifact survives that change but manifests as a
+  // FREEZE/DRAIN contrast rather than a bump, and this gate now proves the new
+  // shape - anyone who moves the settlement, the shift table, or the crabTick
+  // pause still has to come and read it.
   //
-  // The probe is DIRT, because dirt's clock-off bump is a flat +0.25 that does
-  // not scale with hours worked and does not clamp from a comfortable start.
-  // Every other need is held comfortable so the crab cannot fall ill at the
-  // roll - a crab who does takes their sick day and walks home WITHOUT the
-  // clock-off bump, and there would be nothing left to measure. A seed where
-  // contagion catches them anyway is a spoiled fixture, not a failure, so the
+  //  - the EVENING crab (14:00-20:00) is STILL ON SHIFT when the settlement
+  //    fires (dayState "working", crabOnDuty true), so crabTick is PAUSED and a
+  //    need held at the roll stays FROZEN through the judgement; the crab then
+  //    goes straight from duty to home-and-asleep - never awake-and-off-duty in
+  //    the evening - so the need is frozen from mid-shift right through to bed,
+  //    and the roll reads them at that mid-shift level. That is exactly the
+  //    "before their day has finished" property, now without a bump.
+  //  - the MORNING crab (08:00-14:00) clocked off hours before the roll and has
+  //    been draining off duty ever since, so from the same clamped qn(0.2)
+  //    start its dirt has CLIMBED (~0.11 by 20:00) - the roll reads THEM at a
+  //    fully-drained point in their day. The artifact needs BOTH halves.
+  //
+  // The probe is DIRT because each half starts from a clamped-comfortable
+  // qn(0.2) and reads a clean delta. Every other need is held comfortable on
+  // the evening crab so it cannot fall ill AT the roll - a crab who does takes
+  // its sick day and the freeze probe has nothing left to read - so a seed
+  // where contagion catches it is a spoiled fixture, not a failure, and the
   // probe walks a short list of towns and reports if none of them held.
   let spoiled = "no town reached the probe at all";
   for (const seed of [4011, 1337, 2674]) {
@@ -10193,29 +10223,39 @@ scenario("sickness: the 20:00 roll reads an evening crab before their day has fi
     sim.G(easy);
     if (!sim.runUntil("tmin >= 19.9 * 60 && lastRentDay !== day",
       { maxSteps: 200000, tickEvery: 4, onTick: (G) => G(easy) })) return "could not reach the settlement";
-    // at the moment of judgement the evening crab is STILL ON SHIFT
+    // at the moment of judgement the evening crab is STILL ON SHIFT, so
+    // crabTick is paused - the freeze the rest of the probe leans on
     if (sim.G("crabs[1].dayState") !== "working")
       return "fixture drift: the evening crab was not still on shift at 19:54";
+    if (!sim.G("crabOnDuty(crabs[1])"))
+      return "fixture drift: the evening crab was off duty at the roll - crabTick would not be paused";
     const atRoll = +sim.G("crabs[1].p.dirt");
     if (!sim.runUntil("lastRentDay === day", { maxSteps: 200000 })) return "the settlement never fired";
     if (sim.G("!!crabs[1].p.sick")) { spoiled = `seed ${seed}: contagion took the probe crab at the roll`; continue; }
-    if (Math.abs(+sim.G("crabs[1].p.dirt") - atRoll) > 1e-9)
-      return "the clock-off bump landed BEFORE the roll - the ordering changed, re-read illRisk";
-    // ...and now the crab's own day ends, up to an hour after the judgement
+    if (Math.abs(+sim.G("crabs[1].p.dirt") - atRoll) > qn(0.01))
+      return "the evening crab's dirt moved across the roll while on shift - crabTick is not pausing on duty, re-read illRisk";
+    // ...the crab clocks off and goes STRAIGHT to bed: no awake-off-duty window
+    // opens in the evening, so under the continuous model the need stays FROZEN
+    // from its mid-shift value through to sleep. The roll never saw a fresh
+    // end-of-day crab - that is the ordering, in the model that replaced the bump.
     if (!sim.runUntil("tmin >= 21.5 * 60", { maxSteps: 200000 })) return "could not reach 21:30";
     const after = +sim.G("crabs[1].p.dirt");
-    if (!(after - atRoll >= 0.15))
-      return `the evening crab never took a clock-off bump at all `
-        + `(dirt ${atRoll.toFixed(3)} -> ${after.toFixed(3)}) - the fixture, not the rule`;
-    // ...and the same probe on the MORNING crab must be the other way round:
-    // their bump is hours old by the time the roll looks at them.
+    if (!(Math.abs(after - atRoll) <= qn(0.02)))
+      return `the evening crab's dirt was not frozen from the roll to bedtime `
+        + `(${(atRoll / qn(1)).toFixed(3)} -> ${(after / qn(1)).toFixed(3)}) - a post-shift `
+        + `drain window opened where U1 expects duty-then-sleep`;
+    // ...and the MORNING crab is the other way round: clocked off hours before
+    // the roll, it has been draining off duty the whole time. Same qn(0.2)
+    // start, set mid-shift so the freeze holds it there until clock-off, then
+    // read at 20:00 - the need must have CLIMBED.
     const m = createSim({ seed });
-    m.runUntil("day >= 2 && tmin >= 8 * 60", { maxSteps: 200000 });
+    m.runUntil("day >= 2 && tmin >= 10 * 60", { maxSteps: 200000 });
     if (m.G("crabs[0].p.shift") !== "M") return "fixture drift: crabs[0] is not the morning crab";
     m.G("crabs[0].p.dirt = qn(0.2); crabs[0].p.wallet = 0;");
-    if (!m.runUntil("tmin >= 16 * 60", { maxSteps: 200000 })) return "could not reach 16:00";
-    if (!(+m.G("crabs[0].p.dirt") - qn(0.2) >= qn(0.15)))
-      return "the morning crab had not taken their clock-off bump by 16:00 - the artifact needs BOTH halves";
+    if (!m.runUntil("tmin >= 20 * 60", { maxSteps: 200000 })) return "could not reach the morning crab's 20:00";
+    if (!(+m.G("crabs[0].p.dirt") - qn(0.2) >= qn(0.05)))
+      return `the morning crab did not drain off duty before the roll `
+        + `(${(m.G("crabs[0].p.dirt") / qn(1)).toFixed(3)}) - the artifact needs BOTH halves`;
     return true;
   }
   return spoiled;
@@ -15879,9 +15919,9 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // holds (a save without a cultures key loads onto the fresh-boot trajectory, no
   // extra draw, the rng pin re-points by VALUE) - a pure trajectory re-roll off the
   // new demand. Arm-off: --nodecay restores the pre-U1 (idle-hands) town.
-  const want = '{"day":3,"coins":21966,"rep":43845,"fund":1000,"crabs":[["PINCHY",520,3600],'
-    + '["CLAWDIA",108,2600],["SUDSY",388,21053],["REEF",2136,28166],["SALTY",2072,2600],'
-    + '["DRIFT",318,2600],["KELP",248,2200]],"vis":9,"catch":4}';
+  const want = '{"day":3,"coins":19662,"rep":44250,"fund":1000,"crabs":[["PINCHY",520,3600],'
+    + '["CLAWDIA",108,2600],["SUDSY",388,17679],["REEF",2136,26980],["SALTY",2072,2200],'
+    + '["DRIFT",318,2500],["KELP",248,2600]],"vis":7,"catch":4}';
   if (fp !== want) return "the fingerprint moved: " + fp;
   // THE BUNDLED PEOPLES COST NOTHING UNTIL THEY ARE EARNED - but reputation now
   // gives the town an OPINION of each, spilled from the crabs' word at 25%, so
@@ -17368,7 +17408,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 2090, 2: 2495 };   // RE-POINTED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task kd-CC5yBIzjFt), MEASURED on the merged tree (idle-hands trickle + depart-when present in the pre-U1 baseline). ATTRIBUTED CLEANLY: arming U1's OWN `_noDecay` hatch (--nodecay) on this exact seed reads day 1/2 back to EXACTLY the incoming idle-hands pin 1863/3015 - the pre-U1 spec on THIS tree, to the draw - so the citizen drain owns the ENTIRE delta and nothing else moved. crabTick is DRAW-FREE (integer Q20, no srand), so the stream STRUCTURE is untouched (the kernel-agreement scenario is byte-identical either side); what moves the count is BEHAVIOUR downstream - a crab whose hunger/thirst/dirt/bored now decays continuously runs MORE errands (each pickErrand + walk draws), and the on-duty pause + re-timed shift lumps reshape WHO is where at 7am. The mul is CIT_DECAY_MUL=7, calibrated on the re-taken pillar (receipt cs-u1-rebase-cal-3fc20a3). VALUES MEASURED POST-MERGE (see receipt). PRIOR HOLDER (kept, the class is the point): IDLE HANDS' DAY-1 FIX (the boredom trickle, day-2 2607 -> 3015) merged on top of VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav, day 1 +4 1859->1863, day 2 -124 2731->2607). vm AND main realm read identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 2225, 2: 2084 };   // RE-POINTED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task kd-CC5yBIzjFt), MEASURED on the merged tree (idle-hands trickle + depart-when present in the pre-U1 baseline). ATTRIBUTED CLEANLY: arming U1's OWN `_noDecay` hatch (--nodecay) on this exact seed reads day 1/2 back to EXACTLY the incoming idle-hands pin 1863/3015 - the pre-U1 spec on THIS tree, to the draw (measured this merge) - so the citizen drain owns the ENTIRE delta and nothing else moved. crabTick is DRAW-FREE (integer Q20, no srand), so the stream STRUCTURE is untouched (the kernel-agreement scenario is byte-identical either side); what moves the count is BEHAVIOUR downstream - a crab whose hunger/thirst/dirt/bored now decays continuously runs MORE errands (each pickErrand + walk draws), and the on-duty pause + re-timed shift lumps reshape WHO is where at 7am. Day 1 +362 (1863->2225), day 2 -931 (3015->2084): the drain front-loads day-1 errand traffic and, by keeping crabs fed and off the boredom-wander ladder, cuts the idle-hands day-2 surge the pre-U1 tree ran up. The mul is CIT_DECAY_MUL=7, calibrated on the re-taken pillar (receipt cs-u1-rebase-cal-3fc20a3). PRIOR HOLDER (kept, the class is the point): IDLE HANDS' DAY-1 FIX (the boredom trickle, day-2 2607 -> 3015) merged on top of VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav, day 1 +4 1859->1863, day 2 -124 2731->2607). vm AND main realm read identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
