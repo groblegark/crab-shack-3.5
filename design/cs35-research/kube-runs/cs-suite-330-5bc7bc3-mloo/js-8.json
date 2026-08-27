@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5bc7bc3-mloo",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "5bc7bc3eb29a1119ca79799a9771a498cb6d672b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 157621,
+  "verdict": "35/35 passed in slice 8/12 (157.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (732ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1530ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (3840ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (101ms)\n  PASS  fishers feed themselves: breaks + the beach roast (4313ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (272ms)\n  PASS  roster: the refactor preserves every census ordering (1043ms)\n  PASS  sale: the player buys a failed business through the shopfront (3862ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4541ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (79ms)\n  PASS  one reading surface owns the screen (1030ms)\n  PASS  almanac: swell is an autocorrelated per-town history, wind an independent gate (19ms)\n  PASS  visitors: the wallet is real money, and it runs out (798ms)\n  PASS  the town fund moves money and never mints it (16894ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (1045ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (9ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (3685ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1459ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (419ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (76517ms)\n  PASS  the shipmap stamps shipped rows onto the catalog (17ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (2183ms)\n  PASS  crab voice: two whole days with the table off are the same town (2514ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (1285ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (16ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (19692ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (406ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (460ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2287ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (8ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1593ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (208ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (30ms)\n  PASS  the arcade: the chore is named for the shop it happens in (4621ms)\n35/35 passed in slice 8/12 (157.5s)\n"
+}

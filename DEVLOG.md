@@ -8,7 +8,232 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-26, latest — THE MUSIC WORKED ON MY MACHINE
+## 2026-08-27, latest — THE TOWN PLAYS ON
+
+The last music entry fixed the *silences* — the release that couldn't reach a
+track, the phone that stopped after one song. This one is about what the music
+box was *for*, and Matt named it in one breath: *"opening the music box
+shouldn't stop the music from playing; also, once the selected song is done
+playing the next one in the music box should play, and then the next. we should
+forget about the old playlist of just a few songs and expand; also need a tiny
+scrolling ticker w song name in bottom left corner."*
+
+Four asks, and the first three are one change of kind. The box used to be a
+*vetting bench*: 1,201 tracks you could audition, feeding a rotation of 22 the
+town would actually play. And it claimed the speakers just by being open —
+lifting the lid stopped the town's music dead. It is a **jukebox** now.
+Ownership moved from "the box is open" to "something is auditioning," so you can
+browse the whole list with the town playing on behind you. A finished track
+walks to the **next row** and wraps, stepping over the title and the ending
+moments so it never tries to sound a thing that has no sound. And the rotation
+**is** the box list — all 1,201 of them, minus only what you actively DROP.
+KEEP stopped being the gate on a song being heard; it's a filter and an export
+now. The old playlist of a few songs is gone, exactly as asked. The ticker is
+the fourth ask, small and literal: a wall-clock-phased name in the free left
+end of the nav-chip row, drawn to end short of the chips so the two can't
+collide at any crew count or canvas height.
+
+Then two follow-ups that are pure survival, because a catalog of 1,201 is a
+catalog of 1,179 songs the published site cannot actually hold. Those stream
+from a GitHub release asset, and **Safari 26.6 refuses to stream them at all**
+(`NotSupportedError`) — while the 22 tracks we host ourselves cluster together
+in the list. So a phone that started the town on a streamed track would burn
+through its whole four-attempt give-up budget on dead songs and go silent. The
+fix is a latch: the first time an absolute URL is refused, the town writes down
+`STREAM_OK = false` and from then on the auto-advance (and the arrow keys) step
+*over* every streamed row and land on one of the 22 it can really play. "Only
+the streams are dead" and "everything is dead" are different states, and each
+now has its own answer — the give-up budget still bounds a genuinely offline
+town to four tries and then quiet, rather than a cascade through 1,179 dead
+URLs. And the guard that decides whether to trust a *bundled* playlist file at
+all — ignore it if it's empty or malformed, rather than shipping a broken
+rotation — finally got its test battery, exercised against the real shipped
+`const` through a new pre-load injection hook rather than a copy of the rule.
+Every gate green: 878/878 across both backends.
+
+## 2026-08-26 — THE SEA HAS WEATHER BEFORE ANYONE LOOKS
+
+For a long time the town had exactly one thing the world did to it that nobody
+chose: the mist, rolling in off the sea and burning off by morning. This week
+that became the *first entry in a registry*. There is now an **ALMANAC** — a
+set of named channels, each a pure integer function of the day, each optionally
+carrying an intraday envelope for a value that rises and falls across the hours
+the way the fog does. The mist didn't change a byte; registering it just gave
+its existing functions a name at the door. What that door let in is **weather
+for the surf**: two new channels, `swell` and `wind`, each folded with the
+town's own ocean so a 48-town matrix samples 48 different histories instead of
+running one history 48 times.
+
+The trick that makes it feel like an ocean is one multiplication. Surf quality
+is `swell × (1 − wind)` — the wind a *gate* on the swell, not a subtraction from
+it. That single choice buys the whole texture with no rule written for it: two
+mornings can both carry a full swell and read 0.19 and 0.95 — *blown out* versus
+*firing* — purely on the wind that happened that day. The swell clusters into
+storms (autocorrelated a few days out, gone by five); the wind is an independent
+daily roll with no memory at all.
+
+And that split is the entire reason the **forecast board** can be honest. Because
+a channel is a function of the day, `forecast(day + n)` is a *lookup*, not a
+simulation — the swell four days out isn't predicted, it's *read*. So the board
+can name a coming swell with genuine confidence: **BIG THU** is simply true. But
+it flatly refuses to name that day's *quality*, because the local wind that
+decides clean-versus-blown is that memoryless daily roll and nobody — no
+forecaster, no code — can see it coming. When the board calls a swell, that day
+turns out clean only about 36% of the time, and that number holds steady however
+far out the call is. "A big swell is coming Thursday" is a promise the sea keeps;
+"Thursday will fire" is one it never made. Hiding a swell the engine can see would
+be a bug; *this* uncertainty is the game. The board hangs in two places — over the
+town notice board and again at the pier head — because the D-shift fishing fleet
+works the pier 1,200 pixels from the promenade and would otherwise have to sprint
+just to read the weather. (One honest note for the record: these are prototype
+numbers. The storm cadence and the firing rate are knobs a builder picked, pinned
+to hold their *shape*, not measurements the sim handed back.)
+
+## 2026-08-26 — ONE TICKET, N PLATES
+
+A crab walks up to the shack for a taco. She's also thirsty. Until this week she
+paid for the taco, walked off, and — 53% of the time, measured — got straight
+back in a line that was already full of tourists, to buy the juice she wanted the
+whole time. Now she leaves with both, in **one queue slot**.
+
+Under the hood a customer's `recipe` stopped being a single plate and became the
+head of an `order` — a little tray the kitchen walks plate by plate. When the
+order clears, `serve()` rings up *N* sales, cures *N* needs, and counts *N* serves
+in one ticket. The assembler adds the second plate at whatever the wallet can
+actually afford at full retail, trims it if the money moved while she waited, and
+does it all without rolling a fresh recipe — so the bonus plate consumes no
+randomness and is a clean, attributable consequence of the first arrival, never a
+free need-cure. The subtle part is the queue accounting: a bonus-plate crab
+**doesn't** count against the queue caps, so the tray never steals a slot from the
+tourist rush. That's the whole thesis of the feature, and it's why its cost to
+room-lettings (−3.6%, near the noise floor) is an order of magnitude smaller than
+the cost of the more aggressive variant that competed for the line. Measured over
+a 40-seed A/B: crab serves **+20.7%**, till **+24.5%**, tourist rage down a
+touch, tourist serves flat. The operator ruled SHIP. It only ever fires at a
+counter that sells across needs — the shack, food and juice — and the tray is
+capped at two, because the second plate is where nearly all of the value lives.
+
+## 2026-08-26 — THE GUEST DECIDES WHEN TO GO
+
+Matt asked for this one directly, and it's a small idea with a load-bearing
+consequence: a visitor's departure should be something they *decide*, not a
+number stamped on them when their boat first lands. There's a new decision
+surface, `vis_depart.stay`, reading the same needs matrix everything else does,
+and it answers one of three ways. A **delighted** guest, with the boat they
+booked genuinely near and a bed actually free, stays on another night. A guest
+the town **failed** — a shut door, a rough night on the sand — cuts their stay
+short and catches the next boat home. Everyone else holds. Both moves ride the
+real sailing grid, so the ferry line never lies, and both surface in the guest's
+own diary: *"HAVING TOO GOOD A TIME — STAYING ON ANOTHER NIGHT"* against *"SEEN
+ENOUGH — CATCHING THE NEXT BOAT HOME."*
+
+The load-bearing part is *when* the "stay on" choice is allowed to fire. The
+first cut let a content guest extend the instant their bars topped up after a
+meal — and a dozen guests each quietly stretching their stay manufactured a bed
+shortage a seven-room hotel simply could not meet. Rough nights climbed and the
+town's *word* fell: more homeless tourists, the exact opposite of the intent.
+The fix is to make extending a decision made **at the dock** — only when the boat
+they hold is nearly here, only if the hotel is open with a free room and the money
+for it in their purse. A full house is now a signal to *build*, never an
+invitation to sleep somebody rough. Off the growth matrix, disarming the whole
+mechanic (`--nodepart`) reads 25/48 against the shipped 17/48 — the guests
+choosing for themselves make the town measurably harder, which is the point.
+
+## 2026-08-26 — IT LOOKED LIKE A CHARACTER FLAW
+
+Two crabs this week looked like they had personality problems. Both turned out
+to be arithmetic.
+
+The first was going broke. A housed crab pays $10 rent at midnight, but every
+"can I afford this?" check in the errand code reserved a flat **$2** — a number
+written back when the worst thing a crab could run short of was lunch money. So a
+crab would happily spend down to $2 with $10 due at midnight, and lose the house
+for want of a dollar. On one seed, three of eighteen evictions were crabs holding
+*$9 of the $10 they needed*. The diary read like recklessness; it was an
+off-by-800-cents. The reserve is now what the night *actually* costs — pocket
+money plus the roof this particular crab is paying for — read through one helper
+so it can't drift between the twelve gates that ask. And crucially it's a
+**temperament**, not a rule: `thrift` rides the trait a crab already carries, so
+SUDSY is constitutionally feckless while PINCHY squirrels it away, and the town
+stays *differently* wrong instead of uniformly prudent — which is where its comedy
+lives. Two corrections the test suite forced out of the build: the reserve only
+switches on at **noon** (holding rent back at 9am, with a full shift of wages
+still coming, just starves the shops — and on one seed collapsed a hotel), and it
+**caps at one night's roof** (an over-thrifty crab authored to hold $16 against a
+$10 rent had *negative* afternoon spending money and could buy nothing after
+lunch). Measured over 3 towns × 25 days: evictions 35 → 31, total reputation up,
+and the *worst* town in the block improved 42 → 56. No town left worse off.
+
+The second crab was frozen. Matt: *"im getting games where sudsy goes to work and
+stops doing anything while there."* She wasn't stuck in any code sense — she was
+standing *perfectly still*, same sub-pixel position, for up to **11.1 game-hours**
+of a single shift, and every one of sixteen audited seeds took its worst freeze on
+**day 1** — a new player's very first look at the shower house. The cause was two
+gates that never blocked at the same time because they owned different *days*. The
+"go wander when bored" threshold sat at 0.6, but boredom only arrives in +0.20
+lumps at the *end* of a shift — so on days 1 through 4 a crab carries at most
+0.0 / 0.2 / 0.4 / 0.6-minus-a-grain into work, and the wander was
+*arithmetically impossible* before day 5. By day 5, hunger has pinned at full and
+a different gate shuts the wander off. Relaxing either one alone moved nothing,
+which is exactly why it stayed hidden. The fix drops the wander threshold to 0.15
+and adds a small boredom **advance** for an idle shift, drawn against the lump the
+shift-end would have paid anyway and kept below the speed-penalty line. Worst
+day-1 freeze: 11.1 → **1.5** game-hours. And it cost the growth pillar *nothing* —
+13/32 as-built against 13/32 with the trickle disarmed, dead even. (Five latent
+bugs fell out along the way, exposed by the busier shop floor rather than caused
+by it — including a real hole where a candidate who had already *left town* could
+win the election.)
+
+## 2026-08-26 — THE TRUTH, IN SMALL PRINT
+
+Three fixes about the game being honest — with the player, about itself, and with
+the people who build it.
+
+**With the player.** Matt, mid-play: *"why do i get 'town is at the house limit
+of ..' and then i cant see the rest,"* then, *"we need all next like that to
+scroll."* The toast — that one-line strip along the top — used to clamp its own
+box to 252 pixels and then draw the whole string anyway, glyph by glyph, straight
+off the edge of a 256-pixel screen. No ellipsis, no second line, no sign at all
+that a message had been cut in half. And it wasn't one bad string: 33 of the 95
+places that raise a toast can build one too long to fit. Now a long toast
+**crawls** — parked at each end long enough to read the start, then walking the
+window across the sentence a dozen characters a second. A crawl, not a wrap,
+because things dock *under* the strip and a second line would shove the furniture;
+and character-grained rather than pixel-smooth, deliberately — the fixed-width
+font makes slicing the string exact, and neither the headless sim's canvas stub
+nor the screenshot tool implements clipping, so a smooth pixel-scroll would have
+looked fine in a browser and been *invisible to every test we have*. A toast that
+crawls also has to outlive its own crawl, so there's now a single choke point that
+stamps a long toast's lifetime the first tick it's seen, instead of 95
+hand-tuned durations waiting to drift the moment someone writes the 96th.
+
+**About itself.** The title screen carries a build stamp — the commit and the age
+it counts up from — and a stamp that names the wrong commit tells a play-tester
+they're on a build they aren't. There's now a pre-push check that reads the stamp
+out of the *pushed* tree, compares it against the actual list of files the player
+is served (`index.html`'s own load list), and **warns** if they've drifted apart.
+It warns rather than blocks, on purpose — a stale stamp misnames a correct build,
+it doesn't ship an ungated one, so it should nag, not refuse. Worth recording: the
+bug's *own* suggested fix — demand the stamp name HEAD's parent commit — was built
+first and measured wrong, five false alarms out of five on docs-only pushes. The
+criterion that actually holds is the bytes a player gets, nothing more.
+
+**With the builders.** Matt asked for "a mechanic where crabs go somewhere else
+to eat if no table," and the bead honestly flagged the current behaviour as
+*unmeasured*: does an unseated crab queue, stall, or get silently dropped? The
+answer turned out to be none of the three — and finding that out is the whole
+deliverable. The sale rings up *before* the seat lookup: an unseated guest has
+already paid and already had their hunger zeroed, and the missing table only sends
+them home. So there is no demand leaking away today; routing those crabs elsewhere
+would *remove* money the player currently banks, not recover money the shop was
+losing. It's about 2% of crab covers and 3% of tourist covers, never zero on any
+seed, and a control that hands the shop six tables instead of two drives every
+miss to zero — proof the instrument is measuring the real thing. No game code
+moved. What shipped is the measurement and a standalone census tool that outlives
+the session that wrote it, so the next builder starts from a number instead of a
+guess.
+
+## 2026-08-26 — THE MUSIC WORKED ON MY MACHINE
 
 Matt, from the deployed build: *"I can't play music tracks in the deployed
 release"* — then, a beat later, *"not working in mobile in particular, seems

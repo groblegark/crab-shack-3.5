@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-4b9f5bb-sdxe",
+  "armId": "js-5",
+  "index": 5,
+  "sha": "4b9f5bb3a64ee4ac23571e430116314e3da2d159",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 168075,
+  "verdict": "36/36 passed in slice 5/12 (168.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (20237ms)\n  PASS  save guard: a town born from a rejected save does not bury it (1589ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (95ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1714ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (1114ms)\n  PASS  days off: everyone rests their weekday and plays customer (7350ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (548ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1383ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (3613ms)\n  PASS  idle hands: the boredom trickle is an ADVANCE - never more than one lump a day (3975ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1089ms)\n  PASS  the title's credit block never lands on the science button (12ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (93882ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (3267ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (5107ms)\n  PASS  an election is held on the week, and every voter is accounted for (4037ms)\n  PASS  departures: three ways to be turned away are three different counters (202ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (474ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1604ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (1041ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1201ms)\n  PASS  only one track is ever audible at once (12ms)\n  PASS  BACK hands the town the track you were auditioning (12ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (3453ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (66ms)\n  PASS  civics stakes: a hostile table is refused by name (10ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (8ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (9ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (9ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (13ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1508ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1455ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (4136ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1455ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1649ms)\n  PASS  spend reserve: the affordability gates read the reserve, and it BINDS (629ms)\n36/36 passed in slice 5/12 (168.0s)\n"
+}

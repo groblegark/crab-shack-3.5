@@ -1,0 +1,67 @@
+{
+  "name": "matrix-idle16",
+  "note": "THE GROWTH PILLAR under IDLE HANDS' day-1 fix (the boredom trickle). Eight arms: {baseline, growth} x seedbase {0,16} x {as-built, trickle-off}. The trickle-off arms use the change's OWN --failoff boredidle hatch, so the control is the SAME TREE with one mechanism disarmed rather than a different commit - that is what makes the delta attributable to the trickle instead of to whatever else moved on main. Two 16-town blocks because CLAUDE.md is explicit that a single 16-town block is a coin (measured 5/2/8 across three blocks of the same build). 30 days, batch.mjs --json receipts.",
+  "resources": {
+    "requests": {
+      "cpu": "7",
+      "memory": "2Gi"
+    },
+    "limits": {
+      "cpu": "8",
+      "memory": "4Gi"
+    }
+  },
+  "arms": [
+    {
+      "id": "baseline-sb0-asbuilt",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--json"]
+    },
+    {
+      "id": "baseline-sb16-asbuilt",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--json"]
+    },
+    {
+      "id": "growth-sb0-asbuilt",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"]
+    },
+    {
+      "id": "growth-sb16-asbuilt",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--json"]
+    },
+    {
+      "id": "baseline-sb0-noidle",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--failoff", "boredidle", "--json"]
+    },
+    {
+      "id": "baseline-sb16-noidle",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--failoff", "boredidle", "--json"]
+    },
+    {
+      "id": "growth-sb0-noidle",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--failoff", "boredidle", "--json"]
+    },
+    {
+      "id": "growth-sb16-noidle",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "16", "--days", "30", "--jobs", "7", "--buy", "chef,table", "--failoff", "boredidle", "--json"]
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}

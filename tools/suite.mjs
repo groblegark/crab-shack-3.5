@@ -2578,6 +2578,24 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // the cross-check that this is the ruled town and not a fixture bug (rule 6).
     // Re-pointed LAST, after every other fixture on this tree was corrected.
     //
+    //
+    // RE-BASELINED AGAIN for IDLE HANDS' DAY-1 FIX (the boredom trickle),
+    // merged on top of visitors-choose-depart, and ATTRIBUTED rather than
+    // observed: arming the trickle's own boredidle hatch on these seeds puts
+    // the wander count back where it was. Before the fix a crab could not
+    // reach WANDER_AT until day 5 BY ARITHMETIC - boredom arrives in +0.20
+    // shift-end lumps against a 0.6 bar - so every save's first four days had
+    // a motionless crab at a dead counter. Now an empty counter gets her off
+    // the wall on day 1, which is the whole point. What moves:
+    //   * POSITIONS, for exactly the crabs who are off-post, and every one of
+    //     them is standing at a WANDER_SPOT - not a locomotion regression.
+    //   * COINS/SERVES/CATCH re-roll off the shifted stream. The rng pin below
+    //     re-points by VALUE with its own two-way attribution: the draw
+    //     STRUCTURE is intact, the trickle simply ADDS wander draws.
+    // Unlike visitors-choose-depart, this moves BOTH seeds - a crab standing
+    // at a dead counter is not a narrow trigger, it is every shift in town.
+    // Seed 4242 still matches the cultureways-save pin below TO THE CENT
+    // (coins 21117, REEF 25686) - one town, two readers (rule 6).
     // RE-BASELINED for VISITORS CHOOSE WHEN THEY DEPART (ruling 6 horizon 3,
     // kd-I9fjOBARav). Departure time stopped being fixed at spawn: on the same
     // free thought a guest weighs whether the trip is worth prolonging, reading
@@ -2599,19 +2617,19 @@ scenario("hours: defaults are behavior-identical (frozen day-2 fingerprint)", ()
     // the cross-check that this is the real town and not a fixture bug (rule 6).
     // Arm-off: window._nodepart / --nodepart restores the spawn-fixed leaveT.
     // RE-BASELINED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task
-    // kd-CC5yBIzjFt). This two-day town could not survive it: crabTick gives
-    // every crab a continuous hunger/thirst/dirt/bored drain (bodyOf(c).R at
-    // CIT_DECAY_MUL=7 of the tourist rate, paused while asleep or on duty), and
-    // the four discrete metabolic shift-end/NPC lumps it subsumes turn off - so
-    // who runs which errand when, and thus every wallet and position, re-rolls.
-    // Draw-free (crabTick takes no srand), so the stream STRUCTURE is intact
-    // (rng pin re-points by VALUE, kernel-agreement byte-identical) - a pure
-    // trajectory re-roll off the new demand, not a leak. Arm-off:
-    // window._noDecay / --nodecay restores the pre-U1 tree exactly. BOTH seeds
-    // moved this time (the drain touches every crab, unlike the narrow
-    // depart-when trigger), and seed 4242 STILL matches the cultureways-save pin
-    // below to the cent (coins 21966, rep 43845, REEF 28166) - the one-town-two-
-    // readers cross-check holds, re-pointed there in lockstep.
+    // kd-CC5yBIzjFt), MEASURED on the tree U1 lands on (main merged: depart-when +
+    // idle-hands trickle + spend-reserve all present). crabTick gives every crab a
+    // continuous hunger/thirst/dirt/bored drain (bodyOf(c).R at CIT_DECAY_MUL=7 of
+    // the tourist rate, paused while asleep or on duty), and the four discrete
+    // metabolic shift-end/NPC lumps it subsumes turn off - so who runs which errand
+    // when, and thus every wallet and position, re-rolls. Draw-free (crabTick takes
+    // no srand), so the stream STRUCTURE is intact (rng pin re-points by VALUE,
+    // kernel-agreement byte-identical) - a pure trajectory re-roll off the new
+    // demand, not a leak. Arm-off: window._noDecay / --nodecay restores the pre-U1
+    // (idle-hands-trickle) tree exactly. BOTH seeds move (the drain touches every
+    // crab, unlike the narrow depart-when trigger), and seed 4242 STILL matches the
+    // cultureways-save pin below to the cent - the one-town-two-readers cross-check
+    // holds, re-pointed there in lockstep. VALUES MEASURED POST-MERGE (see receipt).
     1337: '{"day":3,"tmin":0,"coins":19289,"rep":41122,"catch":4,"serves":41,"crabServes":0,"rage":3,"till":17683,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",17683],["REEF",22210],["SALTY",2600],["DRIFT",3200],["KELP",2500]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,167],[256.1,167.6]]}',
     4242: '{"day":3,"tmin":0,"coins":21966,"rep":43845,"catch":4,"serves":51,"crabServes":0,"rage":4,"till":21053,"wallets":[["PINCHY",3600],["CLAWDIA",2600],["SUDSY",21053],["REEF",28166],["SALTY",2600],["DRIFT",2600],["KELP",2200]],"pos":[[520,154],[108,154],[388,154],[2136,154],[2072,154],[318,154],[248,154]]}',
   };
@@ -4611,6 +4629,83 @@ scenario("idle hands: a bored crab leaves its post - and an order brings it back
     return "the wander outlived the order that ended it";
   if (!sim.runUntil(`crabs.some(c => c.p.name === window._w && Math.abs(c.x - ${post}) < 80)`, { maxSteps: 300000 }))
     return "the wanderer never walked back to the kitchen";
+  return true;
+});
+
+// THE ONE-LUMP-A-DAY BOUND. This is the gate that carries the whole claim that
+// the idle trickle costs the balance nothing: BORED_IDLE only ever DRAWS DOWN
+// the +0.20 the shift settlement was going to charge anyway, so no crab may
+// gain more than one lump of boredom in a day. That bound is what keeps the
+// walk-out ladder (WALKOUT_AT for WALKOUT_DAYS running) where it was tuned.
+//
+// It is a gate rather than a comment because the bound broke THREE times while
+// this was being written, each time through a different path and never in a way
+// the freeze measurement could see - boredom only ever climbed FASTER, which
+// looks like the fix working:
+//   1. clearing the advance at CLOCK-IN: a crab who breaks for an errand and
+//      clocks back in drew a second full advance (REEF, +0.40 in a day);
+//   2. clearing it in the NIGHTLY block: that block fires at tmin 20:00 and
+//      REEF's shift runs to 20:30, so the reset landed MID-SHIFT and the
+//      settlement double-charged half an hour later - same +0.40;
+//   3. not clearing it at all: a crab called sick mid-shift kept an unrepaid
+//      advance forever, which CANCELLED later lumps (SALTY froze at 0.54 for
+//      four days) - the same accounting error with the sign flipped.
+// Every one of those is invisible to "is she still frozen?" and obvious here.
+scenario("idle hands: the boredom trickle is an ADVANCE - never more than one lump a day", () => {
+  const sim = createSim({ seed: 21 });
+  idleTown(sim, 3);
+  // Watch every crab's boredom for a few days and bank the POSITIVE deltas per
+  // crab-day. Only two things in the game ADD boredom (the shift-end lump and
+  // the idle trickle); chat, the ball and the arcade all subtract. So the sum
+  // of a crab-day's rises is exactly what the day charged it.
+  sim.G(`window._iv = { prev: {}, acc: {}, day: 0, worst: 0, who: "" };
+    window._ivTick = function () {
+      const V = window._iv;
+      if (day !== V.day) {
+        for (const n in V.acc) if (V.acc[n] > V.worst) { V.worst = V.acc[n]; V.who = n + " d" + V.day; }
+        V.acc = {}; V.day = day;
+      }
+      for (const c of allCrabs()) {
+        const n = c.p.name, b = c.p.bored || 0, p = V.prev[n];
+        if (p != null && b > p) V.acc[n] = (V.acc[n] || 0) + (b - p);
+        V.prev[n] = b;
+      }
+    };`);
+  sim.runDays(5, { onTick: (g) => g("window._ivTick()"), tickEvery: 1 });
+  const worst = sim.G(`window._iv.worst`), who = sim.G(`window._iv.who`);
+  const lump = qn(0.2);
+  if (worst > lump)
+    return `a crab gained ${(worst / 1048576).toFixed(4)} boredom in ONE day (${who}); ` +
+      `the shift-end lump is ${(lump / 1048576).toFixed(4)} and the trickle must only draw against it`;
+  // ...and the trickle must actually BE doing something, or this gate passes for
+  // the wrong reason (it would also pass with the whole feature deleted).
+  if (worst <= 0) return "no crab gained any boredom at all in 5 days - fixture drifted";
+  return true;
+});
+
+// ...and the bar it feeds. WANDER_AT sits BELOW one shift's lump on purpose:
+// the advance can move at most +0.20 in a day, so any bar above that leaves a
+// save's first day arithmetically frozen no matter how fast the trickle runs -
+// which was the bug (16/16 seeds took their worst freeze on day 1). This gate
+// states the arithmetic so a future re-tune of either number has to notice.
+scenario("idle hands: a crab can be restless on DAY ONE (the bar is under one lump)", () => {
+  const sim = createSim({ seed: 21 });
+  const wanderAt = sim.G(`WANDER_AT`), advMax = sim.G(`BORED_ADV_MAX`);
+  if (!(wanderAt <= advMax))
+    return `WANDER_AT ${(wanderAt / 1048576).toFixed(3)} is above one day's reachable ` +
+      `boredom ${(advMax / 1048576).toFixed(3)} - day 1 is frozen again by arithmetic`;
+  // and the display bar stays where the walk-out warning was tuned, so a mild
+  // drift off-post does not dress a crab up as ready to quit
+  const restlessAt = sim.G(`RESTLESS_AT`), walkoutAt = sim.G(`WALKOUT_AT`);
+  if (!(restlessAt > wanderAt && restlessAt < walkoutAt))
+    return `RESTLESS_AT ${(restlessAt / 1048576).toFixed(3)} must sit between the wander bar ` +
+      `and WALKOUT_AT ${(walkoutAt / 1048576).toFixed(3)}`;
+  // ...and it must actually FIRE on day 1 in a real town, not merely be legal.
+  idleTown(sim, 2);
+  if (!sim.runUntil(`day > 1 || (window._stats.wanders || 0) > 0`, { maxSteps: 400000 }))
+    return "ran out of steps before day 1 ended";
+  if (sim.G(`day`) > 1 && !sim.G(`window._stats.wanders || 0`))
+    return "no crab wandered off once in the whole of day 1 - the freeze is back";
   return true;
 });
 
@@ -6621,6 +6716,131 @@ scenario("almanac: the new channels consume ZERO randomness, like the mist", () 
   return arm(false) === arm(true) ? true : "swell/wind/surfQuality consumed randomness";
 });
 
+scenario("forecast: names the swell it can see, never the quality it cannot", () => {
+  // THE HONESTY CONTRACT, measured against the LANDED channels (not the
+  // prototype the design bead cited - the digits drifted, the shape held). The
+  // board reveals a future day's SWELL - forecast(day+n) is a pure lookup, so
+  // it is always right - and refuses to name that day's QUALITY, because the
+  // wind that decides clean-vs-blown is an iid per-day roll (wind lag-1
+  // autocorrelation ~0.00, pinned by the swell scenario above). Pinned as
+  // BANDS the way the almanac base rate is, because the thresholds are knobs.
+  const sim = createSim({ seed: 7 });
+  const o = JSON.parse(sim.G(`JSON.stringify((() => {
+    const today = { FIRING: 0, "BLOWN OUT": 0, FLAT: 0 };
+    let named = 0, namedClean = 0, lookupOk = true, badToday = null;
+    // lead-time split: does knowing the swell is 1 day out vs 4 days out change
+    // your odds of a clean day? It must NOT - the wind is iid, so quality is
+    // unforecastable at EVERY lead. This is the claim the whole feature rests on.
+    const byLead = {}; for (let n = 1; n <= FC_HORIZON; n++) byLead[n] = { named: 0, clean: 0 };
+    for (let d = 1; d <= 400; d++) {
+      const t = surfToday(d);
+      if (today[t] === undefined) badToday = t; else today[t]++;
+      const fc = surfForecast(d);
+      if (fc) {
+        named++;
+        if (swellPeakQ16(fc.day) < FC_BIG) lookupOk = false;   // the named swell is REAL - a confident lookup
+        const clean = surfQualityQ16(fc.day) >= FC_CLEAN;
+        if (clean) namedClean++;
+        byLead[fc.n].named++; if (clean) byLead[fc.n].clean++;
+      }
+    }
+    return { today, named, namedClean, lookupOk, badToday, byLead };
+  })())`));
+  if (o.badToday) return "surfToday returned an unexpected state: " + o.badToday;
+  if (!o.lookupOk) return "a named swell did not verify - the forecast must be a confident pure lookup";
+  // the board has something true to say most days, and firing days are rare but real
+  if (!(o.named > 150 && o.named < 340)) return `${o.named}/400 days name a coming swell - want it useful but not constant`;
+  if (!(o.today.FIRING >= 20 && o.today.FIRING <= 120)) return `${o.today.FIRING}/400 firing days today - want rare but present`;
+  if (o.today.FLAT < o.today.FIRING) return `flat should be the common day, not firing (${o.today.FLAT} vs ${o.today.FIRING})`;
+  // THE HONEST GAP: when the board names a swell, that day turns out CLEAN well
+  // under half the time (measured ~36%) - so the board NEVER promises quality,
+  // and is not useless either (a named swell does carry real, partial odds).
+  const gap = o.namedClean / o.named;
+  if (!(gap > 0.15 && gap < 0.60)) return `named-swell days are clean ${(gap*100).toFixed(0)}% - a board that promised quality (or predicted nothing) would fail here`;
+  // ...and that gap does NOT close as the swell gets nearer - quality is
+  // unforecastable at lead 1 exactly as at lead FC_HORIZON (the wind is iid).
+  for (let n = 1; n <= 4; n++) {
+    const L = o.byLead[n]; if (L.named < 15) continue;   // too few at this lead to judge
+    const r = L.clean / L.named;
+    if (r > 0.70) return `at +${n}d a named swell is clean ${(r*100).toFixed(0)}% - too predictable; the wind should keep quality a coin at every lead`;
+  }
+  return true;
+});
+
+scenario("forecast: draws on both boards, on the canvas and never over its neighbours", () => {
+  // The forecast is a LINE ON EXISTING FURNITURE on a coast with "NOT ONE 74px
+  // gap left" - so it gets the polling board's two checks: its measured text
+  // must stay on the canvas, and neither its strings nor its filled rects may
+  // land on a neighbour (the class of bug where the first poll table printed
+  // through the JOB BOARD's sign).
+  //
+  // But the town's OWN furniture already overlaps in the east end (the ferry
+  // office draws across the pier tap's WATER label - not this feature's bug),
+  // so a whole-town sweep is noisy. Instead ISOLATE the forecast's own draws:
+  // render the town twice per state, once with _noFcast and once without. Draw
+  // order is deterministic, so the ON pass is the OFF pass with drawForecast's
+  // ops inserted at one point - a longest-common-prefix/suffix diff extracts
+  // EXACTLY those ops, and only they are checked against the OFF pass's boxes.
+  // Driven across days so all four board states (FIRING/BLOWN/FLAT today, and
+  // swell-coming vs none) are painted, at BOTH camera anchors, with the arcade
+  // on so ferryKnown() puts the pier-head neighbour on screen.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const out = JSON.parse(sim.G(`(() => {
+    const T = text, S = smallText, R = rect;
+    let ops = [];   // ordered draw ops for the current pass: {t,x0,x1,y0,y1,s,sig}
+    const push = (t, x, y, w, h, s) => {
+      const o = { t, x0: x, x1: x + w, y0: y, y1: y + h, s: String(s),
+        sig: t + "|" + Math.round(x) + "|" + Math.round(y) + "|" + Math.round(w) + "|" + Math.round(h) + "|" + s };
+      ops.push(o); return o;
+    };
+    text = (c, str, x, y, col, sz) => { push("t", x, y, textWidth(str, sz), 7, str); return T(c, str, x, y, col, sz); };
+    smallText = (c, str, x, y, col) => { push("s", x, y, smallTextWidth(str), 5, str); return S(c, str, x, y, col); };
+    rect = (c, x, y, w, h, col) => { push("r", x, y, w, h, ""); return R(c, x, y, w, h, col); };
+    const pass = () => { ops = []; drawTown(); return ops; };
+    const bad = [], seen = {};
+    UPS.arcade.lvl = 1;
+    for (let d = 1; d <= 40 && Object.keys(seen).length < 4; d++) {
+      day = d;
+      const L = forecastLines(day);
+      const key = L.today + "/" + (L.swellComing ? "swell" : "none");
+      if (seen[key]) continue;
+      seen[key] = 1;
+      for (const pl of FORECAST_PLACES) {
+        camX = clampCam(pl.x - 100);
+        window._noFcast = true;  const off = pass().slice();
+        window._noFcast = false; const on  = pass().slice();
+        // longest common prefix / suffix by signature -> the middle of the ON
+        // pass is exactly what drawForecast added at this camera.
+        let p = 0; while (p < off.length && p < on.length && off[p].sig === on[p].sig) p++;
+        let q = 0; while (q < off.length - p && q < on.length - p && off[off.length-1-q].sig === on[on.length-1-q].sig) q++;
+        const fc = on.slice(p, on.length - q);
+        if (!fc.length) { bad.push([key, "drew NOTHING at x" + pl.x]); continue; }
+        // furniture = everything the OFF pass drew (with a real label, for text)
+        for (const f of fc) {
+          if (f.x0 < 0 || f.x1 > W) bad.push([key + " x" + pl.x, "OFF CANVAS", f.s || f.sig]);
+          for (const b of off) {
+            const hit = f.x0 < b.x1 && f.x1 > b.x0 && f.y0 < b.y1 && f.y1 > b.y0;
+            if (!hit) continue;
+            // a forecast STRING over a furniture string, or a forecast RECT over
+            // a furniture string, is the collision that matters (the poll table
+            // over the JOB BOARD sign). Forecast rects over furniture rects are
+            // fine - a board panel sits on the sky/sea fill by design.
+            if (b.t !== "r" && b.s.trim())
+              bad.push([key + " x" + pl.x, (f.t === "r" ? "RECT" : "'" + f.s + "'") + " OVER '" + b.s + "'"]);
+          }
+        }
+      }
+    }
+    text = T; smallText = S; rect = R; window._noFcast = false;
+    return JSON.stringify({ bad: bad.slice(0, 8), states: Object.keys(seen) });
+  })()`));
+  if (out.bad && out.bad.length) return out.bad.map(b => b.join(" :: ")).join("\n        ");
+  if (!out.states || out.states.length < 3)
+    return "only drew forecast states: " + JSON.stringify(out.states) + " - the sweep must exercise more than one";
+  return true;
+});
+
 scenario("cycler: < crab > steps the selection AND the camera, and wraps", () => {
   // THE CONTROL: a pictorial next/prev under the little sun. Selection and
   // camera are deliberately separate in this game, so the thing under test is
@@ -8303,7 +8523,15 @@ scenario("an election is held on the week, and every voter is accounted for", ()
     return `${p.lines.length} written reasons for ${p.turnout} voters`;
   const win = p.cands.find(k => k.name === p.winner);
   if (!win) return "the winner is not on their own ballot";
-  for (const k of p.cands) if (k.votes > win.votes) return `${k.name} outpolled the winner`;
+  // ...and the top-polling crab takes it, UNLESS they are no longer in town to
+  // take it. A ballot is printed the night before the poll and this town has
+  // universal mortality, so a candidate can be outpolled-but-seated only when
+  // everybody above them died or quit between the printing and the count (see
+  // the count in game.js). The exception is asserted, not waved through:
+  // anybody who beat the winner has to be genuinely GONE from the roster.
+  const here = new Set(JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => c.p.name))`)));
+  for (const k of p.cands)
+    if (k.votes > win.votes && here.has(k.name)) return `${k.name} outpolled the winner`;
   if (sim.G("hall.mayor") !== p.winner) return "the winner did not take the office";
   return true;
 });
@@ -10141,7 +10369,21 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // the same night, the same crabs, with the beds the mayor could have signed
   // for. Nobody is on the step. "Somebody slept rough" on its own is true of
   // any tired town; "somebody slept rough FOR WANT OF A BED" is this feature.
-  sim.G(`dorm.beds = cotRoster().length - 4; for (const c of allCrabs()) c.p.rough = false;`);
+  // THE COUNTER-ARM MUST GRANT THE BEDS **AND** KEEP THE DOOR UNBOLTED, and the
+  // second half was missing. sleepRough has TWO want-of-shelter causes -
+  // `!hasCot(c)` and `shelterShut()` - and this arm only ever controlled the
+  // first. It ran three game-days past the settlement it started from, which is
+  // long enough for the fund to miss the shelter's rent three times and for Mr.
+  // Pincherton to bolt the door; then every crab slept out WITH A BED EACH and
+  // the arm read that as the beds not working. Measured: at the failure the
+  // roster was 4 against 5 beds and hasCot was TRUE for every crab on the step -
+  // shelterShut was the whole story. (And it is a fixture artifact, not a
+  // regression: over 6 seeds x 14d the town takes ZERO shelter shuts either
+  // side of this change.) So the arm pins the door open, the same way it already
+  // pins the exhaustion channel, and for the same reason - it exists to measure
+  // want-of-a-BED alone.
+  sim.G(`dorm.beds = cotRoster().length - 4; for (const c of allCrabs()) c.p.rough = false;
+    townFund.shut = 0; townFund.strikes = 0; townFund.arrears = 0;`);
   if (sim.G("shelterBeds()") !== roll) return "the bought beds did not stand";
   sim.runUntil("tmin < 1 * 60", { maxSteps: 400000 });
   sim.G(`{ for (const c of cotRoster()) { c.p.rough = false; c.x = SHELTER_X + 20; c.y = 155; setT(c, c.x, c.y); } }`);
@@ -10152,8 +10394,9 @@ scenario("shelter: the beds are finite, and the crab with no cot sleeps on the s
   // work late and keel over honestly; pinned, the only rough left is bedless.
   // MUTATION-TESTED below: with the beds revoked the same pinned night fails.
   if (!sim.runUntil(bedtime, { maxSteps: 400000,
-    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); }'),
+    onTick: (G) => G('for (const c of cotRoster()) { c.p.tired = Math.min(c.p.tired || 0, qn(0.5)); c.p.thirst = Math.min(c.p.thirst || 0, qn(0.5)); } townFund.shut = 0; townFund.strikes = 0;'),
     tickEvery: 40 })) return "the counter-arm's roll never got home to the shelter";
+  if (sim.G("shelterShut()")) return "the counter-arm's shelter got bolted - it measures want-of-a-bed, not want-of-rent";
   const out2 = JSON.parse(sim.G(`JSON.stringify(cotRoster().map(c => [c.p.name, !!c.p.rough]))`));
   const rough2 = out2.filter(r => r[1]).map(r => r[0]);
   if (rough2.length) return "a bed each and " + rough2.join(",") + " still slept outside";
@@ -11706,6 +11949,13 @@ const AUDIO_SPY = `
   // THE ONE ELEMENT, for a scenario that wants to fire an event at it. Built
   // lazily on the first play, so this is null until something sounds.
   globalThis.theSpeaker = () => _live[_live.length - 1] || null;
+  // THE SOURCE CHILD, when the element has one. musSetSrc builds a <source> for
+  // an ABSOLUTE url (a catalog release asset) and leaves the element's own src
+  // empty; for our own relative paths there is no child and the url is on src.
+  // This reaches the child so a scenario can read its type and fire its 'error'
+  // - the element's own 'error' never fires for a source failure (game.js rule
+  // 5), so the child's listener is the only path to musFail.
+  globalThis.theSource = () => { const a = theSpeaker(); return a && a._kids && a._kids[0] || null; };
 `;
 scenario("only one track is ever audible at once", () => {
   // THE BUG THIS PINS, measured on the build before the fix: playTrack paused
@@ -11736,17 +11986,26 @@ scenario("only one track is ever audible at once", () => {
   for (const [k, v] of Object.entries(rot))
     if (v !== 1) return `rotation: ${v} tracks audible after "${k}", want exactly 1`;
   // AND THE BENCH TAKES THE SPEAKERS CLEANLY. The record box interrupts the
-  // rotation while it is up; the failure mode is the rotation restarting
+  // rotation when it AUDITIONS; the failure mode is the rotation restarting
   // underneath an audition, which is the same "two tracks" complaint wearing a
   // different hat.
+  //
+  // WHAT CHANGED HERE, 2026-08-26: this used to assert `openStopsRotation === 0`
+  // - the box claimed the speakers by EXISTING. Matt: "opening the music box
+  // shouldn't stop the music from playing", so the box now takes them on the
+  // first audition and not before. The invariant this scenario is FOR - never
+  // more than one track audible - is untouched and still checked at every step;
+  // only the moment of handover moved. (The browse-and-leave case has its own
+  // scenario: "an audition still owns the speakers, and BACK does not restart
+  // the town".)
   const bench = JSON.parse(sim.G(`(() => {
     const out = {};
     musicOn = true; muted = false;
     playTrack(0);
     musOpen();
-    out.openStopsRotation = liveCount();        // 0: the box owns the speakers
+    out.openKeepsRotation = liveCount();        // 1: browsing the list is not a claim on the speakers
     const list = musFiltered();
-    musPlay(list[0]);
+    musPlay(list[0], false);
     out.bench = liveCount();
     musAdvance(1); musAdvance(1);               // arrow-walking the list
     out.advance = liveCount();
@@ -11768,7 +12027,7 @@ scenario("only one track is ever audible at once", () => {
     out.close = liveCount();                    // and it is handed back on the way out
     return JSON.stringify(out);
   })()`));
-  if (bench.openStopsRotation !== 0) return `opening the box left ${bench.openStopsRotation} rotation tracks playing`;
+  if (bench.openKeepsRotation !== 1) return `opening the box left ${bench.openKeepsRotation} rotation tracks playing, want 1 - browsing the list must not silence the town`;
   for (const k of ["bench", "advance", "rotationHeldOff", "close"])
     if (bench[k] !== 1) return `bench: ${bench[k]} tracks audible after "${k}", want exactly 1`;
   if (!bench.endedAdvances) return "a bench track running out did not walk to the next row";
@@ -11849,6 +12108,90 @@ scenario("every track in the playlist is a file that exists", () => {
   return true;
 });
 
+// ===================== THE BUNDLED PLAYLIST'S VALIDITY GUARD (game.js:7473-7475)
+// The playlist half of the BUNDLED_* + literal-fallback idiom the cultureways
+// use — and the cultureways half is already pinned byte-for-byte ("bundled
+// cultures: every shipped document is byte-equal to its source"), while this
+// half shipped with no scenario at all (kd-f9jes3vye0). music/playlist.js is
+// generated by tools/mkplaylist.mjs and loaded by index.html BEFORE game.js; a
+// plain checkout ships WITHOUT it (onerror="void 0", a 404 — the path every
+// headless/suite run takes, since the file is not in the repo). The guard's own
+// comment states the contract this battery pins: "A bundled playlist that is
+// empty or malformed is IGNORED rather than obeyed" — a generator hiccup must
+// not silence a town, so the code literal wins over a broken bundle.
+//
+// APPROACH — PRE-LOAD INJECTION, NOT A RE-EVALUATED TRANSCRIPTION. `PLAYLIST`
+// is a module-level `const` computed ONCE at game.js load, so mutating
+// BUNDLED_PLAYLIST after the sim exists cannot move it, and re-evaluating a
+// copy of the guard expression here would test a transcription of the guard
+// rather than the shipped statement (discipline rule 5: equality of a return
+// value is not equality of behaviour). Instead each leg boots its OWN sim with
+// a `prelude` that stands in for music/playlist.js — simlib.loadGame runs it
+// before the game files, exactly where index.html's <script> sits — then reads
+// the PLAYLIST the SHIPPED `const` guard actually produced. The absent leg
+// injects nothing: that IS the 404 path, tested by the real statement.
+scenario("bundled playlist: an empty or malformed bundle is refused, a valid one is obeyed", () => {
+  // Each malformed value stands in for a corrupted / hand-edited / regressed
+  // music/playlist.js. mkplaylist.mjs would never WRITE these — it validates and
+  // refuses (mkplaylist.mjs:90-94) — which is exactly why the game guards
+  // against them at load: the generator is not the only thing that writes the
+  // file. The prelude mirrors the file's own shape (mkplaylist.mjs:98-99).
+  const mkPrelude = (v) => "var BUNDLED_PLAYLIST = " + JSON.stringify(v) + ";\n"
+    + 'if (typeof window !== "undefined") window.BUNDLED_PLAYLIST = BUNDLED_PLAYLIST;\n';
+  // isBundle uses identity: the guard returns BUNDLED_PLAYLIST itself on accept,
+  // so PLAYLIST === BUNDLED_PLAYLIST distinguishes obeyed from ignored, and the
+  // typeof shield keeps the absent leg (undeclared BUNDLED_PLAYLIST) from
+  // throwing here the same way the guard's own typeof shields it there.
+  const probe = (prelude) => JSON.parse(createSim({ seed: 7, prelude }).G(`JSON.stringify({
+    isLiteral: PLAYLIST === PLAYLIST_LITERAL,
+    isBundle: (typeof BUNDLED_PLAYLIST !== "undefined") && PLAYLIST === BUNDLED_PLAYLIST,
+    len: PLAYLIST.length,
+    first: PLAYLIST[0] && PLAYLIST[0].name,
+  })`));
+
+  // ---- THE REFUSAL LEGS: each pins one clause of the conjunction by name ----
+  // undefined — the absent-file path (no prelude), guarded by
+  // `typeof BUNDLED_PLAYLIST !== "undefined"`. Drop that clause and this sim
+  // throws a ReferenceError at load (the catastrophe the clause prevents).
+  const absent = probe(null);
+  if (!absent.isLiteral || absent.isBundle)
+    return "an ABSENT bundle (the 404 path) did not fall to the code literal: " + JSON.stringify(absent);
+  // not-an-array — guarded by `Array.isArray(BUNDLED_PLAYLIST)`; drop it and
+  // `null.length` throws at load.
+  const nonArray = probe(mkPrelude(null));
+  if (!nonArray.isLiteral || nonArray.isBundle)
+    return "a NON-ARRAY (null) bundle was obeyed instead of ignored: " + JSON.stringify(nonArray);
+  // empty — guarded by `BUNDLED_PLAYLIST.length`; drop it and `[].every(...)`
+  // is vacuously true, so a town would "play" an empty list, i.e. go silent.
+  const empty = probe(mkPrelude([]));
+  if (!empty.isLiteral || empty.isBundle)
+    return "an EMPTY bundle was obeyed instead of ignored: " + JSON.stringify(empty);
+  // a null row — guarded by the `t &&` in `.every`; drop it and `null.src`
+  // throws.
+  const nullRow = probe(mkPrelude([null]));
+  if (!nullRow.isLiteral || nullRow.isBundle)
+    return "a bundle with a NULL row was obeyed: " + JSON.stringify(nullRow);
+  // a row missing src — guarded by `t.src` in `.every`.
+  const noSrc = probe(mkPrelude([{ name: "A" }]));
+  if (!noSrc.isLiteral || noSrc.isBundle)
+    return "a row missing SRC was obeyed: " + JSON.stringify(noSrc);
+  // a row missing name — guarded by `t.name` in `.every`.
+  const noName = probe(mkPrelude([{ src: "a.mp3" }]));
+  if (!noName.isLiteral || noName.isBundle)
+    return "a row missing NAME was obeyed: " + JSON.stringify(noName);
+
+  // ---- THE ACCEPT LEG: a guard that refuses EVERYTHING also passes a
+  // refusal-only battery, so the good case is load-bearing. A well-formed
+  // bundle IS obeyed, and what plays is the bundle (its two rows) — not the
+  // eight-track code literal.
+  const good = probe(mkPrelude([{ src: "a.mp3", name: "A" }, { src: "b.mp3", name: "B" }]));
+  if (good.isLiteral || !good.isBundle)
+    return "a VALID bundle was IGNORED — the guard refuses everything: " + JSON.stringify(good);
+  if (good.len !== 2 || good.first !== "A")
+    return "the obeyed playlist is not the injected bundle (len/first wrong): " + JSON.stringify(good);
+  return true;
+});
+
 // THE DEPLOYED-BUILD SILENCE (Matt, 2026-08-26): "I can't play music tracks in
 // the deployed release", then "not working in mobile in particular, seems to be
 // working on my machine". Two defects wearing one symptom, and BOTH of them are
@@ -11870,10 +12213,24 @@ scenario("a kept catalog track reaches the CDN, and a dead track does not kill t
     const at = ROTATION.findIndex(r => r.cat && r.cat.id === "z1");
     out.keptJoinedRotation = at >= 0 ? 1 : 0;
     playTrack(at);
+    // THE MIRROR IS OUR OWN RELATIVE PATH, so it is a plain \`src\` write with no
+    // \`<source>\` child - the archive 404 keeps its instant fallthrough (see the
+    // record-box fix: a source child would turn that expected miss into a ~20s
+    // stall). The element's own \`src\` carries it.
     out.triedMirrorFirst = theSpeaker().src.indexOf("music/archive/") === 0 ? 1 : 0;
-    // The mirror is not there. The element reports it the way a browser does.
+    out.mirrorHasNoSource = theSource() === null ? 1 : 0;
+    // The mirror is not there. The element reports it the way a browser does -
+    // and a plain \`src\` DOES fire the element's own 'error' (unlike a source
+    // child), which is why the expected-miss path deliberately stays on \`src\`.
     theSpeaker().fire("error");
-    out.fellThroughToCdn = theSpeaker().src === "https://example.invalid/zed.mp3" ? 1 : 0;
+    // THE FALLTHROUGH LANDS ON A \`<source>\` CHILD, because the release url is
+    // absolute - WebKit takes GitHub's octet-stream at its word unless we
+    // declare the type ourselves. So the url is on the CHILD and the element's
+    // own \`src\` is now empty (the crossing this DOM upgrade makes honest: the
+    // pre-upgrade stub had no children, so this read the url off \`.src\`).
+    out.fellThroughToCdn = theSource() && theSource().src === "https://example.invalid/zed.mp3" ? 1 : 0;
+    out.declaresType = theSource() && theSource().type === "audio/mpeg" ? 1 : 0;
+    out.elementSrcCleared = theSpeaker().src === "" ? 1 : 0;
     out.learned = ARCHIVE_OK === false ? 1 : 0;
     out.audible = liveCount();
 
@@ -11891,11 +12248,140 @@ scenario("a kept catalog track reaches the CDN, and a dead track does not kill t
   })()`));
   if (!got.keptJoinedRotation) return "a KEPT catalog track never reached the rotation";
   if (!got.triedMirrorFirst) return "the rotation did not try the local mirror first";
-  if (!got.fellThroughToCdn) return "a 404 on the mirror did not fall through to the hosted release";
+  if (!got.mirrorHasNoSource) return "the archive mirror path built a <source> child - a relative path must stay a plain src write or its 404 stalls ~20s";
+  if (!got.fellThroughToCdn) return "a 404 on the mirror did not fall through to the hosted release (url not on the <source> child)";
+  if (!got.declaresType) return "the release <source> did not declare type audio/mpeg - WebKit will refuse GitHub's octet-stream";
+  if (!got.elementSrcCleared) return "the element's own src was not cleared when the <source> took over - a leftover empty src attr is itself a failing candidate";
   if (!got.learned) return "the 404 did not latch ARCHIVE_OK, so every later track pays it again";
   if (got.audible !== 1) return `after the fallback ${got.audible} tracks are audible, want 1`;
   if (!got.skippedOn) return "an unplayable track did not skip on - the rotation died with it";
   if (got.stillAudible !== 1) return `after the skip ${got.stillAudible} tracks are audible, want 1`;
+  return true;
+});
+
+// THE RECORD BOX DECLARES ITS OWN CONTENT TYPE (Matt, merge d349ceb): Safari
+// played the town's music and refused every catalog audition, because the
+// catalog streams from GitHub release assets and GitHub serves every asset as
+// application/octet-stream - WebKit takes that at its word and refuses the
+// source. The fix routes an ABSOLUTE url through a <source> child carrying an
+// explicit type="audio/mpeg" so WebKit picks the decoder from the author's
+// declaration; OUR OWN relative paths keep the plain src write they always had.
+//
+// THIS SCENARIO EXISTS BECAUSE THAT BRANCH SHIPPED WITH ZERO COVERAGE. The old
+// headless Audio stub was inert - no ownerDocument, no appendChild, no load -
+// so musSetSrc's guard (`ours || !a.ownerDocument || typeof a.appendChild !==
+// "function" || typeof a.load !== "function"`) took the plain-src path for
+// EVERY url, and no scenario could enter the <source> branch. MEASURED before
+// this fix: arming a defect INSIDE it (a dropped s.type, a missing
+// removeAttribute) left every music scenario green. The stub now carries a
+// minimal DOM (simlib.mjs/headless.mjs mkAudioStub) so the branch is routed the
+// way a browser routes it, and this pins the four facts the browser depends on.
+scenario("an absolute catalog url plays through a typed <source>, our own paths stay a plain src", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    musJudge = {}; musicOn = true; muted = false; musicView = false;
+    // ARCHIVE_OK false is the settled state on a stranger's machine (the mirror
+    // 404'd once and it learned), so musSrc resolves a candidate straight to its
+    // absolute release url - which is the input that must reach the <source>.
+    ARCHIVE_OK = false;
+
+    // (a) AN ABSOLUTE URL -> a <source> child with an explicit type, and the
+    // element's own src CLEARED. That empty src is deliberate: an empty src
+    // attribute is itself a (failing) candidate, so musSetSrc removes it before
+    // the child takes over.
+    musPlay({ id: "abs", name: "REMOTE", url: "https://example.invalid/remote.mp3", secs: 60, tags: "" }, false);
+    out.absBuiltSource = theSource() ? 1 : 0;
+    out.absSourceUrl = theSource() && theSource().src === "https://example.invalid/remote.mp3" ? 1 : 0;
+    out.absDeclaresType = theSource() && theSource().type === "audio/mpeg" ? 1 : 0;
+    out.absElementSrcEmpty = theSpeaker().src === "" ? 1 : 0;
+    out.absCurSrc = musCurSrc === "https://example.invalid/remote.mp3" ? 1 : 0;
+    out.absPlaying = liveCount();
+
+    // (b) OUR OWN RELATIVE PATH -> exactly ONE plain src write, NO children. A
+    // shipped, same-origin file is served by us with a real content type, so a
+    // <source> would only cost it: a source's 404 is silent for ~20s where a
+    // bare src fails instantly, and the archive mirror is the one path we EXPECT
+    // to miss. musSrc resolves a shipped row to its same-origin file.
+    _srcSets = 0;
+    musPlay({ id: "rel", name: "LOCAL", file: "music/local.mp3", shipped: 1, secs: 60, tags: "", url: "https://example.invalid/local.mp3" }, false);
+    out.relOnePlainWrite = _srcSets === 1 ? 1 : 0;
+    out.relNoSource = theSource() === null ? 1 : 0;
+    out.relSrcOnElement = theSpeaker().src === "music/local.mp3" ? 1 : 0;
+    out.relCurSrc = musCurSrc === "music/local.mp3" ? 1 : 0;
+    return JSON.stringify(out);
+  })()`));
+  if (!got.absBuiltSource) return "an absolute url did not build a <source> child - the WebKit fix cannot fire";
+  if (!got.absSourceUrl) return "the <source> child does not carry the absolute url";
+  if (!got.absDeclaresType) return "the <source> child does not declare type audio/mpeg - WebKit refuses GitHub's octet-stream without it";
+  if (!got.absElementSrcEmpty) return "the element's own src was not cleared - a leftover empty src attr is itself a failing candidate";
+  if (!got.absCurSrc) return "musCurSrc did not record the absolute url (a.src is empty now, so the archive readers depend on it)";
+  if (got.absPlaying !== 1) return `after an absolute play ${got.absPlaying} tracks audible, want 1`;
+  if (!got.relOnePlainWrite) return `our own path made ${got.relOnePlainWrite ? "" : "not "}exactly one plain src write - a relative path must stay a single src assignment`;
+  if (!got.relNoSource) return "our own relative path built a <source> child - its 404 would stall ~20s instead of falling through instantly";
+  if (!got.relSrcOnElement) return "our own path did not land its url on the element's own src";
+  if (!got.relCurSrc) return "musCurSrc did not record our own relative path";
+  return true;
+});
+
+// RULE 5, THE HOOK THAT STOPS FIRING: measured in Safari, the element-level
+// 'error' never fires for a <source> failure - the spec dispatches to the
+// source child, and only the play() rejection ever settles. So musSetSrc binds
+// its OWN listener on the child (`s.addEventListener("error", () =>
+// musFail(musSrcGen))`), and for an absolute url that is the ONLY path to
+// musFail besides the play() promise. A refactor that drops it leaves the
+// record box silent with no toast and no retry on the browser that needed the
+// fix, and a value-equality sweep goes blind because nothing on the ELEMENT
+// changed. This pins that a dead <source>'s own 'error' reaches musFail (a
+// catalog row with nowhere left to go must give up its handle, not hang).
+scenario("a dead <source> reaches musFail through the child's own listener", () => {
+  const sim = createSim({ seed: 5 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // A CATALOG ROW whose mirror 404s, so the rotation falls through to the
+    // absolute release url - which builds the <source> we want to kill.
+    //
+    // THE FIXTURE NEEDS A SECOND ROW, and that is a fact about musGiveUp rather
+    // than about this bug. The budget is min(4, ROTATION.length): when the
+    // rotation was PLAYLIST-plus-your-keeps a one-row fixture still inherited
+    // the 22 shipped rows and spent 4, and now that the rotation IS the catalog
+    // a one-row fixture has a budget of ONE - so musSkip's give-up fires on the
+    // first failure and the skip this scenario measures never happens. That
+    // would read as "the child listener is missing" (its own failure message)
+    // when the listener is fine, which is the most expensive kind of red.
+    MUSCAT = { tracks: [
+      { id: "d1", name: "DEAD", file: "dead.mp3", secs: 60, tags: "",
+        url: "https://example.invalid/dead.mp3" },
+      { id: "d2", name: "ALIVE", file: "alive.mp3", secs: 60, tags: "", url: "" },
+    ] };
+    musJudge = { d1: { k: 1, e: 1 } };
+    rebuildRotation();
+    musicOn = true; muted = false; musicView = false; ARCHIVE_OK = null; musFails = 0;
+    const at = ROTATION.findIndex(r => r.cat && r.cat.id === "d1");
+    playTrack(at);
+    theSpeaker().fire("error");                 // mirror 404 -> falls through to the absolute release
+    out.builtSource = theSource() ? 1 : 0;
+    out.sourceGenMatches = theSource() && musSrcGen === musGen ? 1 : 0;   // the child's listener carries this stamp
+    // THE SOURCE'S OWN 'error' is the real signal, and firing it must reach
+    // musFail. The dead absolute release has nowhere left to go, so musFail
+    // skips the rotation on: the generation advances and the dead track is no
+    // longer the one selected. If the child listener were dropped (the refactor
+    // this guards against) firing the source would do NOTHING - stamp and index
+    // both frozen - and the record box would hang silent in Safari.
+    const genBefore = musGen, idxBefore = trackIdx;
+    theSource().fire("error");
+    out.genAdvanced = musGen > genBefore ? 1 : 0;
+    out.skippedDeadTrack = trackIdx !== idxBefore ? 1 : 0;
+    out.audible = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (!got.builtSource) return "the fallthrough did not build a <source> to fail";
+  if (!got.sourceGenMatches) return "the <source> was built under a stale generation - its error would be dropped as superseded";
+  if (!got.genAdvanced) return "a dead <source>'s own 'error' did not reach musFail - the generation never moved, so the child listener is the missing hook (Safari's only signal besides the play() rejection)";
+  if (!got.skippedDeadTrack) return "a dead <source> did not skip the rotation on - one dead release url hangs the record box";
+  if (got.audible > 1) return `after the source failure ${got.audible} tracks audible, want <=1`;
   return true;
 });
 
@@ -12223,6 +12709,558 @@ scenario("the record box scrolls without the drag thumb", () => {
   return true;
 });
 
+// ============================== THE MUSIC BOX IS THE PLAYLIST (Matt, 2026-08-26)
+// Four asks in one message, and the first three are one change of shape:
+//   "opening the music box shouldn't stop the music from playing"
+//   "once the selected song is done playing the next one in the music box
+//    should play, and then the next"
+//   "we should forget about the old playlist of just a few songs and expand"
+// The box used to be a VETTING BENCH feeding a 22-track rotation: it claimed the
+// speakers by existing, the rotation re-shuffled at every track boundary, and a
+// catalog track was inaudible until you personally tapped KEEP on it. It is a
+// jukebox now - the rotation IS the box's list, in the box's order, minus only
+// what you dropped.
+scenario("the box does not stop the music, and a finished track walks to the next row", () => {
+  const sim = createSim({ seed: 23 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // Four catalog rows, none of them judged. Under the old rule NONE of these
+    // would be in the rotation at all.
+    MUSCAT = { tracks: [0, 1, 2, 3].map(i =>
+      ({ id: "q" + i, name: "SONG " + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+
+    // 1. EXPANDED: every unjudged catalog row is audible, no KEEP required.
+    out.rotationN = ROTATION.length;
+    out.keptN = musPool().filter(t => musState(t) === 1).length;
+
+    // 2. OPENING THE BOX LEAVES THE MUSIC ALONE. This is the whole first ask,
+    //    and the old musOpen paused the element and nulled the handle.
+    playTrack(1);
+    const src = theSpeaker().src;
+    musOpen();
+    out.openKeptPlaying = liveCount();
+    out.openKeptHandle = music ? 1 : 0;
+    out.openKeptPlayhead = theSpeaker().src === src ? 1 : 0;
+    // ...and the box scrolls to what you can hear rather than to row 0.
+    out.openShowedNowPlaying = musTop === 0 ? 1 : 0;   // 4 rows, one page: row 0 IS the window
+
+    // 3. A TRACK RUNNING OUT WALKS TO THE NEXT ROW, and then the next - even
+    //    with the box open, which used to be a hard stop (\`!musicView\`).
+    const walk = [];
+    for (let i = 0; i < 3; i++) { theSpeaker().fire("ended"); walk.push(trackIdx); }
+    out.walk = walk.join(",");
+    out.walkAudible = liveCount();
+
+    // ...and with the box SHUT, which is where a player actually hears it.
+    musClose();
+    playTrack(0);
+    const walk2 = [];
+    for (let i = 0; i < 4; i++) { theSpeaker().fire("ended"); walk2.push(trackIdx); }
+    out.walk2 = walk2.join(",");             // 1,2,3,0 - it wraps
+    return JSON.stringify(out);
+  })()`));
+  if (got.rotationN !== 4)
+    return `the rotation holds ${got.rotationN} of 4 unjudged catalog rows - the box is still an opt-in playlist`;
+  if (got.keptN !== 0) return "the expansion wrote KEEP judgements the player never made";
+  if (got.openKeptPlaying !== 1) return `opening the box left ${got.openKeptPlaying} tracks playing, want 1 - it still silences the town`;
+  if (!got.openKeptHandle) return "opening the box nulled the rotation handle, so nothing knows a track is playing";
+  if (!got.openKeptPlayhead) return "opening the box moved the playhead - the music must not even flinch";
+  if (!got.openShowedNowPlaying) return "the box did not scroll to the playing row";
+  if (got.walk !== "2,3,0") return `with the box open, three 'ended's walked ${got.walk}, want 2,3,0`;
+  if (got.walkAudible !== 1) return `walking the box left ${got.walkAudible} tracks audible, want 1`;
+  if (got.walk2 !== "1,2,3,0") return `with the box shut, four 'ended's walked ${got.walk2}, want 1,2,3,0`;
+  return true;
+});
+
+scenario("the walk steps over the moments and the dropped rows", () => {
+  // TWO THINGS THE SEQUENTIAL WALK MUST NOT DO. The title theme and the ending
+  // sting are MOMENTS, not rotation - a jukebox that walks into thirty-one
+  // seconds of "here is how it went" is broken - and a track you DROPPED must
+  // stay dropped, which is the one power the box kept once KEEP stopped being
+  // the gate on being heard.
+  const sim = createSim({ seed: 29 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    // The role is carried across by FILE, not by name: the catalog spells the
+    // title theme "BEACH VOLLEYBALL START SCREEN" where PLAYLIST says "BEACH
+    // VOLLEYBALL", so a name match would lose it.
+    MUSCAT = { tracks: [
+      { id: "m0", name: "ONE", file: "one.mp3", secs: 30, tags: "", url: "" },
+      { id: "m1", name: "BEACH VOLLEYBALL START SCREEN", secs: 30, tags: "", url: "",
+        shipped: 1, file: "music/beach-volleyball-start-screen.mp3" },
+      { id: "m2", name: "DROPPED ONE", file: "two.mp3", secs: 30, tags: "", url: "" },
+      { id: "m3", name: "TWO", file: "three.mp3", secs: 30, tags: "", url: "" },
+    ] };
+    musJudge = { m2: { k: 0 } };            // dropped
+    rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    out.names = ROTATION.map(r => r.name).join("|");
+    out.roleFound = roleTrack("title") >= 0 ? 1 : 0;
+
+    // The walk from ONE must reach TWO, stepping over both the moment and the
+    // drop - and it must never SOUND the moment on the way past.
+    const at = ROTATION.findIndex(r => r.name === "ONE");
+    playTrack(at);
+    theSpeaker().fire("ended");
+    out.landedOn = ROTATION[trackIdx].name;
+    // ...and the arrow keys agree with it: shift+right is the same walk.
+    playTrack(at);
+    musStep(1);
+    out.stepLandedOn = ROTATION[trackIdx].name;
+    // The title screen can still reach its own theme by NAME - skipping it in
+    // the walk must not make it unreachable.
+    playRole("title");
+    out.roleStillPlays = ROTATION[trackIdx].role === "title" ? 1 : 0;
+    return JSON.stringify(out);
+  })()`));
+  if (got.names !== "ONE|BEACH VOLLEYBALL START SCREEN|TWO")
+    return `the rotation is ${got.names} - a dropped row is still audible, or a moment was evicted`;
+  if (!got.roleFound) return "the title theme lost its role crossing into the catalog rotation - the start screen goes silent";
+  if (got.landedOn !== "TWO") return `a finished track landed on ${got.landedOn}, want TWO - the walk did not step over the moment`;
+  if (got.stepLandedOn !== "TWO") return `shift+right landed on ${got.stepLandedOn}, want TWO`;
+  if (!got.roleStillPlays) return "playRole could not reach the title theme after the walk learned to skip it";
+  return true;
+});
+
+scenario("an audition still owns the speakers, and BACK does not restart the town", () => {
+  // THE OTHER HALF OF "the box doesn't stop the music". Ownership moved from
+  // "the box is open" to "something is auditioning" - so the bench must still
+  // take the speakers cleanly when you tap a row, and BACK must NOT restart a
+  // rotation it never stopped.
+  const sim = createSim({ seed: 31 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [0, 1, 2].map(i =>
+      ({ id: "b" + i, name: "B" + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    playTrack(0);
+    musOpen();
+    // A ROW TAKES OVER: one track audible, and it is the bench's.
+    musPlay(musFiltered()[2], false);
+    out.benchOwns = musPreviewId === "b2" ? 1 : 0;
+    out.benchAudible = liveCount();
+    out.rotationYielded = music ? 0 : 1;
+    // The rotation must not sneak back in underneath it.
+    startMusic();
+    out.stillOne = liveCount();
+    // BACK hands the audition to the town, playhead intact (the old contract).
+    const src = theSpeaker().src;
+    musClose();
+    out.handedOver = ROTATION[trackIdx].name === "B2" ? 1 : 0;
+    out.sameSrc = theSpeaker().src === src ? 1 : 0;
+    out.afterBack = liveCount();
+
+    // AND THE CASE THE NEW musOpen CREATED: open the box, touch nothing, hit
+    // BACK. The music was never stopped, so BACK must not restart it - a
+    // restart mid-bar is exactly the flinch this whole change is about.
+    playTrack(1);
+    const src2 = theSpeaker().src, gen2 = musGen;
+    musOpen(); musClose();
+    out.browseKeptPlayhead = theSpeaker().src === src2 && musGen === gen2 ? 1 : 0;
+    out.browseAudible = liveCount();
+
+    // ...and a box opened over SILENCE still hands the speakers back on the way
+    // out, which is what startMusicTapped is for.
+    musGen++; if (music) { music.pause(); music = null; }
+    musArm();
+    musOpen(); musClose();
+    out.silentBoxStarted = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (!got.benchOwns) return "tapping a row did not start the audition";
+  if (got.benchAudible !== 1) return `an audition left ${got.benchAudible} tracks audible, want 1 - the rotation is playing underneath it`;
+  if (!got.rotationYielded) return "the rotation kept its handle while the bench played - two owners of one speaker";
+  if (got.stillOne !== 1) return `the rotation restarted under an audition (${got.stillOne} audible)`;
+  if (!got.handedOver) return "BACK did not hand the audition to the rotation";
+  if (!got.sameSrc) return "the handover restarted the audio instead of keeping the playhead";
+  if (got.afterBack !== 1) return `${got.afterBack} tracks audible after BACK, want 1`;
+  if (!got.browseKeptPlayhead) return "opening and closing the box without touching a row restarted the track - browsing must not flinch the music";
+  if (got.browseAudible !== 1) return `browsing the box left ${got.browseAudible} tracks audible, want 1`;
+  if (got.silentBoxStarted !== 1) return `a box opened over silence and shut left ${got.silentBoxStarted} playing, want 1 - BACK is a gesture`;
+  return true;
+});
+
+scenario("the now-playing ticker names what is audible and scrolls only when it must", () => {
+  // Matt: "need a tiny scrolling ticker w song name in bottom left corner". With
+  // 1,201 tracks in the rotation "what IS this?" is a real question, and the only
+  // answers before this were a 4-second toast and opening the box.
+  const sim = createSim({ seed: 37 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [
+      { id: "k1", name: "SHORT", file: "a.mp3", secs: 30, tags: "", url: "" },
+      { id: "k2", name: "A VERY LONG SONG TITLE THAT CANNOT FIT", file: "b.mp3", secs: 30, tags: "", url: "" },
+    ] };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    out.fits = musTickFits();
+
+    // A NAME THAT FITS DOES NOT MOVE - a ticker that scrolls "BUTTER POW" for
+    // no reason is a twitch, not a readout.
+    out.shortAt0 = musTickWindow("SHORT", 0);
+    out.shortLater = musTickWindow("SHORT", 9);
+
+    // A LONG ONE CRAWLS, one window-width at a time, and LOOPS rather than
+    // stopping at the end: the name stays true until the track changes.
+    const w0 = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", 0);
+    const w1 = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", 1);
+    out.longMoves = w0 !== w1 ? 1 : 0;
+    out.longWidth = w0.length === out.fits && w1.length === out.fits ? 1 : 0;
+    out.startsAtTheStart = w0 === "A VERY LONG SONG T".slice(0, out.fits) ? 1 : 0;
+    // ...and it comes back round rather than parking on the tail.
+    const loopLen = "A VERY LONG SONG TITLE THAT CANNOT FIT".length + 7;   // + MUS_TICK_GAP
+    out.loops = musTickWindow("A VERY LONG SONG TITLE THAT CANNOT FIT", loopLen / 4) === w0 ? 1 : 0;
+
+    // IT NAMES WHAT IS AUDIBLE: the rotation's track, then the bench's when the
+    // bench takes over, and NOTHING when nothing is playing. The empty name is
+    // what suppresses the strip (drawMusTicker returns on it), so it carries the
+    // same weight as the surface predicate below.
+    musGen++; if (music) { music.pause(); music = null; }
+    out.silentName = musTickName();
+    playTrack(0);
+    out.rotName = musTickName();
+    musOpen();
+    musPlay(musFiltered()[1], false);
+    out.benchName = musTickName();
+    // The box is a full-screen surface: the ticker under it would be painted
+    // over anyway, and claiming otherwise is how HUD elements rot.
+    out.hiddenBehindBox = musTickLive() ? 0 : 1;
+    musClose();
+    out.liveOnThePromenade = musTickLive() ? 1 : 0;   // ...and it comes back
+    return JSON.stringify(out);
+  })()`));
+  if (!(got.fits >= 12 && got.fits <= 24)) return `the ticker window is ${got.fits} characters - too ${got.fits < 12 ? "narrow to read" : "wide for a corner"}`;
+  if (got.shortAt0 !== "SHORT" || got.shortLater !== "SHORT")
+    return `a short name moved (${got.shortAt0} -> ${got.shortLater}) - it fits and must hold still`;
+  if (!got.longMoves) return "a long name did not crawl";
+  if (!got.longWidth) return "the crawl changed the window width - the strip would strobe";
+  if (!got.startsAtTheStart) return "the crawl did not begin at the start of the name";
+  if (!got.loops) return "the crawl did not come back round - it parks on the tail forever";
+  if (got.silentName !== "") return `the ticker named "${got.silentName}" with nothing playing`;
+  if (got.rotName !== "SHORT") return `the ticker named ${got.rotName} while the rotation played SHORT`;
+  if (got.benchName !== "A VERY LONG SONG TITLE THAT CANNOT FIT") return `the ticker named ${got.benchName} while the bench auditioned another row`;
+  if (!got.hiddenBehindBox) return "the ticker claims to be live under the record box, which paints over it";
+  if (!got.liveOnThePromenade) return "the ticker never came back after the box closed";
+  return true;
+});
+
+scenario("a networkless town gives up after four tracks, not after a thousand", () => {
+  // WHAT THE EXPANSION COSTS, bounded. The rotation went from ~0% streamed to
+  // 98.2% (22 of 1,201 rows ship same-origin), so "no network" stopped being a
+  // corner case and became the whole soundtrack. The failure has to STOP: a
+  // cascade through 1,179 dead release urls is somebody's cellular data and
+  // battery, which is the exact bill the frame-loop storm ran up.
+  //
+  // THIS NEEDS ITS OWN STUB, and that is the point of the scenario. AUDIO_SPY's
+  // play() RESOLVES, and playTrack's .then resets musFails on every resolve - so
+  // an offline probe written against the shared spy reads musFails=0 forever and
+  // concludes the give-up never fires. That is the instrument talking. A browser
+  // REJECTS play() on a dead source, so this stub does too. (Same family as the
+  // inert-DOM stub that left the <source> branch untestable for a whole branch.)
+  const sim = createSim({ seed: 63 });
+  sim.G(`
+    globalThis._live = []; globalThis._playCalls = 0; globalThis._offline = false;
+    const RealAudio = Audio;
+    Audio = class extends RealAudio {
+      constructor(s) { super(s); this._src = s; this._playing = false; this._h = {}; _live.push(this); }
+      get src() { return this._src; } set src(v) { this._src = v; }
+      play() {
+        _playCalls++;
+        if (globalThis._offline) {
+          const err = { name: "NotSupportedError", message: "no source" };
+          const rej = { then: () => rej, catch: (g) => { g && g(err); return rej; } };
+          return rej;
+        }
+        this._playing = true;
+        return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} };
+      }
+      pause() { this._playing = false; }
+      addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+      fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
+    };
+    globalThis.liveCount = () => _live.filter(a => a._playing).length;
+  `);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: Array.from({ length: 50 }, (_, i) =>
+      ({ id: "n" + i, name: "N" + i, file: i + ".mp3", secs: 30, tags: "",
+         url: "https://x.invalid/" + i + ".mp3" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0;
+    ARCHIVE_OK = false;                       // settled: every row goes straight to its release url
+    out.rotation = ROTATION.length;
+    out.budget = musGiveUp();
+    musArm(); _offline = true; _playCalls = 0;
+    playTrack(0);                             // one start, then let it cascade
+    out.attempts = _playCalls;
+    out.fails = musFails;
+    out.audible = liveCount();
+    // A GESTURE RE-ARMS IT - "everything is unreachable" must be a latch a tap
+    // can lift, or a player who reconnects is stuck with silence for the session.
+    musArm(); _playCalls = 0;
+    playTrack(0);
+    out.afterGesture = _playCalls;
+    // ...and when the network comes back, it plays.
+    musArm(); _offline = false; _playCalls = 0;
+    playTrack(0);
+    out.recovered = liveCount();
+    out.failsAfterRecovery = musFails;
+    return JSON.stringify(out);
+  })()`));
+  if (got.rotation !== 50) return `the fixture built a ${got.rotation}-row rotation`;
+  if (got.budget !== 4) return `the give-up budget is ${got.budget}, want 4 - min(4, ROTATION.length) over 50 rows`;
+  if (got.attempts !== got.budget)
+    return `a networkless town made ${got.attempts} play attempts against a budget of ${got.budget} - it is cascading through dead urls on somebody's cellular data`;
+  if (got.fails !== got.budget) return `musFails reached ${got.fails}, want ${got.budget}`;
+  if (got.audible !== 0) return `${got.audible} tracks audible with every source dead`;
+  if (got.afterGesture !== got.budget)
+    return `after a fresh gesture the town tried ${got.afterGesture} times, want ${got.budget} - a tap must lift the give-up latch`;
+  if (got.recovered !== 1) return "the music did not come back when the sources did";
+  if (got.failsAfterRecovery !== 0) return `a successful play left musFails at ${got.failsAfterRecovery}, want 0`;
+  return true;
+});
+
+scenario("mute and MUSIC OFF still reach a track playing behind an open box", () => {
+  // THE CASE THE NEW musOpen CREATED. Music playing + box open + nothing
+  // auditioned did not exist before this pass: opening the box silenced the
+  // town, so `music` was null and every control in here had nothing to act on.
+  // Now the town plays behind the list, and the two switches that must reach it
+  // are the ones a player reaches for FIRST when a track is wrong - the speaker
+  // and MUSIC ON/OFF. A control that silently no-ops on the surface it is drawn
+  // on is the interface bug this whole box has been fixing since August.
+  const sim = createSim({ seed: 51 });
+  sim.G(AUDIO_SPY);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = { tracks: [0, 1, 2].map(i =>
+      ({ id: "z" + i, name: "Z" + i, file: i + ".mp3", secs: 30, tags: "", url: "" })) };
+    musJudge = {}; rebuildRotation();
+    musicOn = true; muted = false; musicView = false; musFails = 0; ARCHIVE_OK = false;
+    playTrack(0);
+    musOpen();                                  // browsing: the town plays on
+    out.browsing = liveCount();
+    toggleMute();   out.muted = liveCount();
+    toggleMute();   out.unmuted = liveCount();
+    // ...and the ticker says MUTED rather than vanishing: the name is still true.
+    muted = true;
+    out.namedWhileMuted = musTickName();
+    muted = false;
+    out.afterClose = (musClose(), liveCount());
+    toggleMusic();  out.musicOff = liveCount();
+    toggleMusic();  out.musicBackOn = liveCount();
+    return JSON.stringify(out);
+  })()`));
+  if (got.browsing !== 1) return `the town was not playing behind the open box (${got.browsing}) - this scenario cannot test what it says`;
+  if (got.muted !== 0) return `muting behind an open box left ${got.muted} tracks audible - the speaker icon does not reach the town`;
+  if (got.unmuted !== 1) return `unmuting behind an open box left ${got.unmuted} audible, want 1`;
+  if (got.namedWhileMuted !== "Z0") return `the ticker named "${got.namedWhileMuted}" while muted - it should still name the track, and say so in its colour`;
+  if (got.afterClose !== 1) return `${got.afterClose} audible after closing a browsed box, want 1`;
+  if (got.musicOff !== 0) return `MUSIC OFF left ${got.musicOff} tracks audible`;
+  if (got.musicBackOn !== 1) return `MUSIC ON left ${got.musicBackOn} audible, want 1`;
+  return true;
+});
+
+scenario("the ticker sits in free HUD space at both canvas heights", () => {
+  // A NEW HUD ELEMENT HAS TO PROVE IT IS NOT ON TOP OF SOMETHING. The bottom-left
+  // band looks empty and is not: the nav chip row lives there (MANAGE / TOWN /
+  // GUESTS, right-aligned from x214), the nav map is directly under it, and the
+  // shop tooltip hangs down to its ceiling. All of it is derived from PANEL_Y,
+  // so it MOVES WITH H - and the portrait-phone canvas (288) is the mode nobody
+  // is looking at when they place a rect. Both are checked here.
+  for (const H of [240, 288]) {
+    const sim = createSim({ seed: 43, screenH: H });
+    const got = JSON.parse(sim.G(`JSON.stringify({
+      h: H, tick: musTickRect(), map: NAV_MAP,
+      chipX: navRects().manage.x, chipY: navRects().manage.y,
+      tipBottom: shopTipRect().y + shopTipRect().h,
+    })`));
+    if (got.h !== H) return `asked for a ${H}-row canvas and got ${got.h} - the fixture is not testing what it says`;
+    const t = got.tick;
+    if (t.x < 0 || t.y < 0) return `H=${H}: the ticker is off the top/left of the canvas`;
+    if (t.y + t.h > got.map.y)
+      return `H=${H}: the ticker (${t.y}..${t.y + t.h}) runs into the nav map at ${got.map.y}`;
+    if (t.y < got.tipBottom)
+      return `H=${H}: the ticker (${t.y}) runs into the shop tooltip, which reaches ${got.tipBottom}`;
+    if (t.x + t.w > got.chipX)
+      return `H=${H}: the ticker reaches x${t.x + t.w} and the MANAGE chip starts at x${got.chipX}`;
+  }
+  return true;
+});
+
+scenario("the shipped catalog builds a rotation of every track, with its moments intact", () => {
+  // THE REAL FILES, not a fixture. This is the build a player gets: 1,201
+  // catalog rows, 22 of them stamped same-origin by the shipmap, two of those
+  // stamped rows carrying a ROLE. The failure it guards is silent and total -
+  // a role lost in the crossing means the title screen goes quiet and a win
+  // sting turns up on a Tuesday - and it can only be caught against the shipped
+  // pair, because the catalog and PLAYLIST disagree about five of the titles.
+  const cat = JSON.parse(readFileSync(new URL("../music/catalog.json", import.meta.url), "utf8"));
+  const map = JSON.parse(readFileSync(new URL("../music/shipmap.json", import.meta.url), "utf8"));
+  const sim = createSim({ seed: 41 });
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = ${JSON.stringify({ tracks: cat.tracks })};
+    musJudge = {};
+    out.stamped = musApplyShipmap(${JSON.stringify(map)});
+    rebuildRotation();
+    out.pool = musPool().length;
+    out.rotation = ROTATION.length;
+    out.roles = ROTATION.filter(r => r.role).map(r => r.role).sort().join(",");
+    out.title = roleTrack("title");
+    out.end = roleTrack("end");
+    // ENERGY: every row must carry one, or targetEnergy has nothing to match.
+    out.noEnergy = ROTATION.filter(r => r.e == null).length;
+    const spread = { 0: 0, 1: 0, 2: 0 };
+    for (const r of ROTATION) spread[r.e] = (spread[r.e] || 0) + 1;
+    out.spread = spread;
+    // A hand-tagged shipped track keeps ITS energy, not the tag guess - and
+    // these are the rows whose catalog title differs from PLAYLIST's, which is
+    // the lookup that used to fall through silently.
+    const dance = ROTATION.find(r => r.cat && r.cat.file === "music/dance-up.mp3");
+    out.danceE = dance ? dance.e : null;
+    return JSON.stringify(out);
+  })()`));
+  if (got.stamped !== 22) return `the shipmap stamped ${got.stamped} rows, want 22`;
+  if (got.rotation !== got.pool)
+    return `the rotation holds ${got.rotation} of ${got.pool} catalog rows - with nothing judged it must be the whole box`;
+  if (got.rotation < 1000) return `a ${got.rotation}-track rotation is not "expanded" - the catalog did not reach it`;
+  if (got.roles !== "end,title") return `the rotation carries roles [${got.roles}], want end,title - a moment was lost or duplicated crossing into the catalog`;
+  if (got.title < 0 || got.end < 0) return "roleTrack cannot find a moment in the catalog rotation";
+  if (got.noEnergy !== 0) return `${got.noEnergy} rotation rows carry no energy - targetEnergy has nothing to match them on`;
+  for (const e of [0, 1, 2])
+    if (!(got.spread[e] > 50))
+      return `only ${got.spread[e]} tracks at energy ${e} - the town has nothing to reach for at that hour`;
+  if (got.danceE !== 2) return `DANCE UP came through at energy ${got.danceE}, want its hand-tagged 2 - the shipped-row energy lookup is matching on a title the catalog spells differently`;
+  return true;
+});
+
+scenario("a streamed town still reaches a same-origin track when the browser refuses release assets", () => {
+  // WHAT cc04d49 ("the music box IS the playlist") COSTS on the one browser that
+  // has a measurement. The rotation went from 22 same-origin rows to 1,201, of
+  // which 1,179 stream from a GitHub release asset - and Safari 26.6 refuses
+  // those with NotSupportedError (it will not sniff application/octet-stream;
+  // the record-box note by musSetSrc has the full account). The 22 rows we host
+  // ourselves are CLUSTERED, so of 1,201 starting rows only 81 have a same-origin
+  // row inside the give-up budget of 4. A town that starts on a stream therefore
+  // cascades through four dead urls and goes SILENT for the session - where the
+  // pre-merge 22-row rotation played. Both music pins ("gives up after four" and
+  // "the catalog builds a rotation") were written against the rotation's SHAPE
+  // and neither resolves a row to a SOURCE, so neither can see this.
+  //
+  // THE ARM IS EXACTLY MATT'S MEASUREMENT: play() rejects an absolute url and
+  // resolves our own relative path. It reads the url off the element's <source>
+  // CHILD (musSetSrc parks an absolute url there and clears the element's own
+  // src, so a stub that reads a.src sees "" and never fires - the trap that cost
+  // the phone-audio probe a whole session). The positive control below arms the
+  // same fixture with absolute urls ACCEPTED and proves the town is otherwise
+  // audible, so this measures the refusal and nothing else.
+  const cat = JSON.parse(readFileSync(new URL("../music/catalog.json", import.meta.url), "utf8"));
+  const map = JSON.parse(readFileSync(new URL("../music/shipmap.json", import.meta.url), "utf8"));
+  const sim = createSim({ seed: 71 });
+  sim.G(`
+    globalThis._live = []; globalThis._playCalls = 0; globalThis._refuseAbsolute = false;
+    const RealAudio = Audio;
+    Audio = class extends RealAudio {
+      constructor(s) { super(s); this._src = s == null ? "" : s; this._playing = false; this._h = {}; _live.push(this); }
+      get src() { return this._src; } set src(v) { this._src = v == null ? "" : v; }
+      play() {
+        // THE SOURCE AS THE ELEMENT ACTUALLY HOLDS IT: the <source> child for an
+        // absolute url (musSetSrc clears the element's own src for those), the
+        // plain src attribute for our own relative path. A browser REJECTS an
+        // unsupported source, so this stub does too - a resolve-always spy cannot
+        // tell "the town is playing" from "the town gave up".
+        _playCalls++;
+        const kid = this._kids && this._kids[0];
+        const url = kid ? kid.src : this._src;
+        if (globalThis._refuseAbsolute && /^https?:/i.test(url)) {
+          const err = { name: "NotSupportedError", message: "unsupported source" };
+          const rej = { then: () => rej, catch: (g) => { g && g(err); return rej; } };
+          return rej;
+        }
+        this._playing = true;
+        return { then: (f) => { f && f(); return { catch: () => {} }; }, catch: () => {} };
+      }
+      pause() { this._playing = false; }
+      addEventListener(k, f) { (this._h[k] || (this._h[k] = [])).push(f); }
+      fire(k) { (this._h[k] || []).slice().forEach(f => f()); }
+    };
+    globalThis.liveCount = () => _live.filter(a => a._playing).length;
+    globalThis.playingUrl = () => { const a = _live.filter(x => x._playing)[0]; if (!a) return ""; const k = a._kids && a._kids[0]; return k ? k.src : a._src; };
+  `);
+  const got = JSON.parse(sim.G(`(() => {
+    const out = {};
+    MUSCAT = ${JSON.stringify({ tracks: cat.tracks })};
+    musJudge = {};
+    out.stamped = musApplyShipmap(${JSON.stringify(map)});
+    rebuildRotation();
+    out.rotation = ROTATION.length;
+    out.budget = musGiveUp();
+    // The 22 we host, and the property that makes this bug: they cluster. Two of
+    // the 22 carry a ROLE (title, end); the rotation steps over those, so the 20
+    // non-role rows are the same-origin tracks the town can actually reach.
+    let reachable = 0;
+    for (let i = 0; i < ROTATION.length; i++) { const r = ROTATION[i]; if (!r.role && r.cat && r.cat.shipped) reachable++; }
+    out.reachable = reachable;
+    // A DETERMINISTIC START ON A STREAM whose next 'budget' non-role rows are all
+    // streams too - the exact kind of row from which today's linear give-up
+    // cannot reach the 22. Found in-sim so it tracks the real catalog rather than
+    // a baked index that would rot the next time the shipmap moves.
+    const isStream = (i) => { const r = ROTATION[i]; return !!(r && !r.role && r.cat && !r.cat.shipped && r.cat.url); };
+    const nextNonRole = (from) => { for (let t = 1; t <= ROTATION.length; t++) { const j = (from + t) % ROTATION.length; if (!ROTATION[j].role) return j; } return from; };
+    let START = -1;
+    for (let i = 0; i < ROTATION.length && START < 0; i++) {
+      if (!isStream(i)) continue;
+      let ok = true, at = i;
+      for (let s = 1; s < out.budget; s++) { at = nextNonRole(at); if (!isStream(at)) { ok = false; break; } }
+      if (ok) START = i;
+    }
+    out.start = START;
+
+    // --- THE BUG: town streams, browser refuses, budget spent before the 22 ---
+    musicOn = true; muted = false; musicView = false;
+    ARCHIVE_OK = false;                     // settled: a streamed row goes straight to its release url
+    musFails = 0; musBlocked = false;
+    if (typeof STREAM_OK !== "undefined") STREAM_OK = null;
+    musArm(); _refuseAbsolute = true; _playCalls = 0;
+    playTrack(START);                       // one start, then let it cascade
+    out.attempts = _playCalls;
+    out.audible = liveCount();
+    out.playingUrl = playingUrl();
+
+    // --- POSITIVE CONTROL: same fixture, absolute urls ACCEPTED, else identical ---
+    musArm(); _refuseAbsolute = false; music = null; if (SPEAKER) SPEAKER.pause();
+    _playCalls = 0;
+    playTrack(START);
+    out.ctrlAudible = liveCount();
+    out.ctrlAttempts = _playCalls;
+    return JSON.stringify(out);
+  })()`));
+  if (got.rotation < 1000) return `the fixture built a ${got.rotation}-row rotation - the real catalog did not reach it`;
+  if (got.budget !== 4) return `the give-up budget is ${got.budget}, want 4`;
+  if (got.stamped !== 22) return `the shipmap stamped ${got.stamped} same-origin rows, want 22 - the clustering premise moved`;
+  if (got.reachable < 1) return `no non-role same-origin row in the rotation (${got.reachable}) - the town has nothing to fall back to`;
+  if (got.start < 0) return "no all-stream start window found - the fixture cannot pose the question";
+  // The arm is honest: with the streams accepted, this very start is audible.
+  if (got.ctrlAudible !== 1) return `positive control: silent (${got.ctrlAudible}) with absolute urls ACCEPTED - the arm is measuring something other than the refusal`;
+  if (got.ctrlAttempts !== 1) return `positive control took ${got.ctrlAttempts} attempts, want 1 - an accepted stream plays on the first try`;
+  // The bug, and its fix: the town must still get one of the 22.
+  if (got.audible !== 1)
+    return `the town went SILENT on a browser that refuses release assets - ${got.audible} audible after ${got.attempts} attempts from an all-stream start; the 22 same-origin tracks were never reached`;
+  if (!got.playingUrl) return "liveCount reported a track playing but nothing carries a source";
+  if (/^https?:/i.test(got.playingUrl)) return `the town is sounding an absolute url (${got.playingUrl}) - a refused stream cannot be what is audible`;
+  // ...and it must not have bought that audibility with the cellular bill 972d1d5
+  // paid off: the refusal is latched, so it does not re-cascade through dead urls.
+  if (got.attempts > got.budget) return `reaching the 22 cost ${got.attempts} attempts (budget ${got.budget}) - the refusal is not latched and the town re-cascades through dead release urls`;
+  return true;
+});
+
 scenario("the cabana row leaves both travel lanes a real margin", () => {
   // MATT: "with multiple cabanas, crabs are getting stuck for a long time."
   // The forecourt huts are stalls, and generic furniture claims y-9..y+6 -
@@ -12333,18 +13371,25 @@ scenario("a platform that WINS actually reaches the office, floor and all", () =
     const want = { mech: "levy", rate: 3, bowls: 4, wage: 3, cap: 2 };
     ballotBox = { day, printed: 9, papers: 0, shut: true, declared: false, roll: 6,
       voters: {}, counted: 0, turnedAway: [], lines: [],
-      cands: [{ name: "CORAL", plat: want, votes: 7 },
+      // THE WINNER MUST BE A CRAB WHO IS ACTUALLY IN TOWN. The count now drops
+      // any candidate who is no longer on the roster - a ballot is printed the
+      // night before the poll and a candidate can die or quit before it is
+      // counted, and a departed crab cannot take the office. "CORAL" was a
+      // name this fixture invented, so it was correctly refused; the claim
+      // being tested is about DIALS reaching the office, not about who, so the
+      // winner is now a real resident and the platform rides on them.
+      cands: [{ name: allCrabs()[0].p.name, plat: want, votes: 7 },
               { name: "DRIFT", plat: { mech: "tin", rate: 1, bowls: 0, wage: 0, cap: 0 }, votes: 2 }],
       // A REAL BOX, because declarePoll's first guard is an EMPTY one: no
       // papers cast means nobody got there and the incumbent keeps the hat, so
       // a fixture with a tally and no ballots declares nothing at all.
-      cast: [0,1,2,3,4,5,6].map(i => ({ voter: "V" + i, pick: "CORAL" }))
+      cast: [0,1,2,3,4,5,6].map(i => ({ voter: "V" + i, pick: allCrabs()[0].p.name }))
         .concat([{ voter: "V7", pick: "DRIFT" }, { voter: "V8", pick: "DRIFT" }]) };
     declarePoll();
-    return JSON.stringify({ want, got: hall.policy, mayor: hall.mayor,
+    return JSON.stringify({ want, got: hall.policy, mayor: hall.mayor, winner: ballotBox.cands[0].name,
       line: policyLine(hall.policy), floor: minWage(), wantFloor: floorOf(want) });
   })()`));
-  if (got.mayor !== "CORAL") return "the count did not seat the winner, it seated " + got.mayor;
+  if (got.mayor !== got.winner) return "the count did not seat the winner, it seated " + got.mayor;
   for (const k of ["mech", "rate", "bowls", "wage", "cap"])
     if (got.got[k] !== got.want[k])
       return `the winner ran on ${k}=${JSON.stringify(got.want[k])} and the office got ` +
@@ -14827,13 +15872,13 @@ scenario("cultureways: a save without cultures changes nothing", () => {
   // is EXACT and unchanged (coins 19570, rep 44141, REEF 25688) - one town, two
   // scenarios, and both agree it did not move.
   // RE-BASELINED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task
-  // kd-CC5yBIzjFt), in LOCKSTEP with the frozen day-2 fingerprint's 4242 seed:
-  // this town's coins (21966), rep (43845), SUDSY (21053) and REEF (28166) match
-  // that fixture's 4242 byte for byte - one town, two scenarios, both re-rolled
-  // by the same continuous drain. crabTick is draw-free so the structural claim
-  // still holds (a save without a cultures key loads onto the fresh-boot
-  // trajectory, no extra draw, the rng pin re-points by VALUE) - this is a pure
-  // trajectory re-roll off the new demand. Arm-off: --nodecay restores 19570.
+  // kd-CC5yBIzjFt), MEASURED post-merge and in LOCKSTEP with the frozen day-3
+  // fingerprint's 4242 seed: this town's coins, rep, SUDSY and REEF match that
+  // fixture's 4242 byte for byte - one town, two scenarios, both re-rolled by the
+  // same continuous drain. crabTick is draw-free so the structural claim still
+  // holds (a save without a cultures key loads onto the fresh-boot trajectory, no
+  // extra draw, the rng pin re-points by VALUE) - a pure trajectory re-roll off the
+  // new demand. Arm-off: --nodecay restores the pre-U1 (idle-hands) town.
   const want = '{"day":3,"coins":21966,"rep":43845,"fund":1000,"crabs":[["PINCHY",520,3600],'
     + '["CLAWDIA",108,2600],["SUDSY",388,21053],["REEF",2136,28166],["SALTY",2072,2600],'
     + '["DRIFT",318,2600],["KELP",248,2200]],"vis":9,"catch":4}';
@@ -14951,6 +15996,70 @@ scenario("cultureways: an unknown culture id degrades to crab, and the town runs
   if (!got.accOk) return "a foreign accessory survived on a crab";
   b.runDays(2);
   return b.G("gameOver") === false || b.G("day") > 1 ? true : "the town wedged after the degrade";
+});
+
+scenario("toast: a message longer than the card CRAWLS, and every character reaches the screen", () => {
+  // Matt, from play: "why do i get 'town is at the house limit of ..' and then
+  // i cant see the rest", then "we need all next like that to scroll".
+  //
+  // drawToast clamped the BOX to 252px and drew the text anyway, so a long
+  // message ran off the side of a 256px screen with no ellipsis and no second
+  // page. The bug is only visible in the TAIL, which is exactly the part that
+  // was never drawn - so this walks the whole crawl and asserts every index of
+  // the string appears in some frame's window.
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil("tmin > 10 * 60", {});   // into the day: the toast clock only runs on a live town
+  // the real message, from a real town at a real rung of the real ladder
+  sim.G("hall.policy.cap = 1;");
+  if (sim.G("headCap()") !== 2) return "rung 1 is not a 2-head limit: " + sim.G("headCap()");
+  const msg = JSON.parse(sim.G(`JSON.stringify(capWhy("shack") + " - THE TOWN VOTED FOR IT")`));
+  if (!/HOUSE LIMIT OF 2/.test(msg)) return "the fixture did not build the reported message: " + msg;
+
+  const fit = JSON.parse(sim.G(`JSON.stringify(toastFit(${JSON.stringify(msg)}))`));
+  if (!fit.over) return "the reported message no longer overflows - this scenario has lost its subject";
+
+  // WALK THE CRAWL at the tick rate, exactly as the game does: age advances,
+  // the window slides, and the union of the windows must cover the string.
+  const seen = new Set();
+  const dt = 1 / 60;
+  let t = Math.max(6, sim.G(`toastSecs(${JSON.stringify(msg)})`));
+  for (let age = 0; t > 0; age += dt, t -= dt) {
+    const off = sim.G(`toastOffset(${JSON.stringify(msg)}, ${age})`);
+    if (off < 0 || off > fit.over) return "the window left the string at age " + age + ": offset " + off;
+    for (let i = off; i < Math.min(msg.length, off + fit.fits); i++) seen.add(i);
+  }
+  for (let i = 0; i < msg.length; i++)
+    if (!seen.has(i)) return "character " + i + " (" + JSON.stringify(msg[i]) + ") never reached the screen";
+
+  // ...and the drawn slice always FITS the card - the crawl must not simply
+  // move the overflow along.
+  for (const age of [0, 1.1, 2, 3, 99]) {
+    const off = sim.G(`toastOffset(${JSON.stringify(msg)}, ${age})`);
+    const shown = msg.slice(off, off + fit.fits);
+    const w = sim.G(`textWidth(${JSON.stringify(shown)}, ${fit.sp}) + 12`);
+    if (w > 252) return "the crawling slice is wider than the card at age " + age + ": " + w + "px";
+  }
+
+  // A TOAST MUST OUTLIVE ITS OWN CRAWL. Every call site chose its `t` for a
+  // message that appeared all at once; a long one that expires mid-sentence is
+  // the same bug wearing a nicer coat.
+  sim.G(`toast = { text: ${JSON.stringify(msg)}, t: 0.5 };`);
+  sim.G("window.simNow += 50; window.rafCb(window.simNow);");   // one whole sim tick (the quantizer's 50ms)
+  if (sim.G("toast.t") < sim.G(`toastSecs(${JSON.stringify(msg)})`) - 0.1)
+    return "a short-lived toast was not extended to cover its crawl: t=" + sim.G("toast.t");
+
+  // ...and a SHORT message keeps the duration its author picked and does not move.
+  const brief = "THE FARE IS $20,000 - YOU HAVE $412";
+  if (sim.G(`toastFit(${JSON.stringify(brief)}).over`)) return "a message that fits was classed as overflowing";
+  if (sim.G(`toastSecs(${JSON.stringify(brief)})`) !== 0) return "a message that fits was given crawl time";
+  if (sim.G(`toastOffset(${JSON.stringify(brief)}, 99)`) !== 0) return "a message that fits scrolled anyway";
+  sim.G(`toast = { text: ${JSON.stringify(brief)}, t: 3 };`);
+  sim.G("window.simNow += 50; window.rafCb(window.simNow);");   // one whole sim tick (the quantizer's 50ms)
+  // one tick is 50ms = 1/TICK_HZ seconds of sim time, so the author's 3s is
+  // now 2.95 - spent, not overwritten
+  if (Math.abs(sim.G("toast.t") - (3 - 1 / 20)) > 1e-6)
+    return "a short toast's own duration was overwritten: t=" + sim.G("toast.t");
+  return true;
 });
 
 scenario("cultureways: broken art is refused with a message and the town still loads", () => {
@@ -16259,7 +17368,7 @@ scenario("rng: the sim stream's draw count per day is pinned (seed 1337)", () =>
   // stand guard over those). The numbers are THE SPEC of the stream: a change
   // that moves them is a re-baseline event and re-points them ON PURPOSE, in
   // the same commit, or it is a bug.
-  const PIN = { 1: 2090, 2: 2495 };   // RE-POINTED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task kd-CC5yBIzjFt). ATTRIBUTED CLEANLY: arming U1's OWN `_noDecay` hatch (--nodecay) on this exact seed reads day 1/2 back to EXACTLY 1863/2607 - the pre-U1 spec, to the draw - so the citizen drain owns the ENTIRE delta and nothing else moved. crabTick is DRAW-FREE (integer Q20, no srand), so the stream STRUCTURE is untouched (the kernel-agreement scenario is byte-identical either side); what moves the count is BEHAVIOUR downstream - a crab whose hunger/thirst/dirt/bored now decays continuously runs MORE errands (each pickErrand + walk draws), and the on-duty pause + re-timed shift lumps reshape WHO is where at 7am. Day 1 +227 (1863->2090), day 2 -112 (2607->2495). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. The mul is CIT_DECAY_MUL=7, calibrated on the re-taken pillar (receipt cs-u1-rebase-cal-3fc20a3). PRIOR HOLDER (kept, the class is the point): VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav). The move is ATTRIBUTED CLEANLY, not just observed: arming the feature's OWN `_nodepart` hatch on this exact seed reads day 1 and day 2 back to EXACTLY 1859/2731 - the pre-change spec, to the draw - so visitor-chosen departure owns the ENTIRE delta and nothing else moved. The decision itself takes ZERO draws (needW/nearestSail/visLog are draw-free), so the stream STRUCTURE is untouched - the kernel-agreement scenario is byte-identical either side; what moves the count is BEHAVIOUR downstream, a guest who chooses to stay on at the dock keeps roaming (each stroll draws) while a guest who cuts short leaves sooner. Day 1 +4 (1859->1863), day 2 -124 (2731->2607). A VALUE re-point off a new but fully-attributable mechanism, not a reordered stream. vm AND main realm read 1863/2607 identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
+  const PIN = { 1: 2090, 2: 2495 };   // RE-POINTED for U1 - THE CITIZEN'S CONTINUOUS NEED DECAY (task kd-CC5yBIzjFt), MEASURED on the merged tree (idle-hands trickle + depart-when present in the pre-U1 baseline). ATTRIBUTED CLEANLY: arming U1's OWN `_noDecay` hatch (--nodecay) on this exact seed reads day 1/2 back to EXACTLY the incoming idle-hands pin 1863/3015 - the pre-U1 spec on THIS tree, to the draw - so the citizen drain owns the ENTIRE delta and nothing else moved. crabTick is DRAW-FREE (integer Q20, no srand), so the stream STRUCTURE is untouched (the kernel-agreement scenario is byte-identical either side); what moves the count is BEHAVIOUR downstream - a crab whose hunger/thirst/dirt/bored now decays continuously runs MORE errands (each pickErrand + walk draws), and the on-duty pause + re-timed shift lumps reshape WHO is where at 7am. The mul is CIT_DECAY_MUL=7, calibrated on the re-taken pillar (receipt cs-u1-rebase-cal-3fc20a3). VALUES MEASURED POST-MERGE (see receipt). PRIOR HOLDER (kept, the class is the point): IDLE HANDS' DAY-1 FIX (the boredom trickle, day-2 2607 -> 3015) merged on top of VISITORS CHOOSE WHEN THEY DEPART (ruling 6 h3, kd-I9fjOBARav, day 1 +4 1859->1863, day 2 -124 2731->2607). vm AND main realm read identically. PRIOR HOLDERS, kept because the class is the point: THE ECONOMY TRIO (interruptible-commitment's mid-walk re-think, 2207 -> 1859), VISITOR-STATS (the hire-band arrival table: day 1 1726 -> 2207, structure untouched), THE CITIZEN MIND (DRIFT's held-off drink), PERSONAL SPACE at 8px (CLACKERS pier place 1), THE CRAB RETRAIN (NIPPY's uncrossing think). The count is still THE SPEC, only its holder changed.
   const sim = createSim({ seed: 1337 });
   // Armed, the count is the KERNEL's cursor counter - kernel phase 4 moved
   // draws (vis_pick's) inside the module, where a JS srand wrap cannot see
@@ -18102,15 +19211,27 @@ scenario("the boat lands a citizen's body: arrival needs sit in the hire band", 
   const bad = sim.G(`(() => { const out = [];
     for (let i = 0; i < 12; i++) {
       const v = newVisitor(i % 2 === 0);   // both mint paths: overnight and mixed
-      let over = 0;
+      // FLOORS AND THE CAP are the part that IS a per-need contract: nobody
+      // disembarks at 8% everything, and nobody arrives past the cap.
+      let peak = 0;
       for (const key in VIS_ARRIVE) {
-        const [lo, span] = VIS_ARRIVE[key];
+        const lo = VIS_ARRIVE[key][0];
         if (v[key] < lo) out.push("fresh " + key + " under its floor: " + v[key] + " < " + lo);
         if (v[key] > qn(0.95)) out.push("fresh " + key + " over the loaded cap: " + v[key]);
-        if (v[key] > lo + span) over++;   // a LOADED need
+        if (v[key] > peak) peak = v[key];
       }
-      if (over > 2) out.push("a fresh body with " + over + " loaded needs, max 2");
-      if (over < 1) out.push("a fresh body with nothing pressing - the pier went illegible");
+      // ...and LEGIBILITY is asserted as what it actually is: somebody wants
+      // something visibly. It is deliberately NOT a count of loaded needs,
+      // because that count is UNRECOVERABLE from the values - the unloaded
+      // windows and the loaded band OVERLAP (thirst's window reaches 0.60,
+      // above the band's 0.55 floor; hunger's tops out exactly AT it). The old
+      // check counted "above floor+span" as loaded, which read an unloaded
+      // thirst as loaded and a low-rolled loaded hunger as nothing pressing -
+      // so it failed on 9 of 40 seeds on MAIN, latently red the whole time and
+      // one stream-shift from going red for real. A predicate that cannot be
+      // computed from the data is not a weaker gate, it is a broken one.
+      if (peak < VIS_LOADED[0])
+        out.push("a fresh body with nothing pressing (peak need " + peak + ") - the pier went illegible");
     }
     // the probe visitors join no list, so the next poolReap reclaims the slots
     return out; })()`);
@@ -18498,6 +19619,150 @@ scenario("the arcade's occupancy is the JS chain's alone, on both backends", () 
   // ...and the run has to have actually PLAYED something, or this pin is
   // green on a town where the hazard never arose
   if (!(JSON.parse(a)[0] > 0)) return "no games were played: the agreement is vacuous";
+  return true;
+});
+
+scenario("spend reserve: a housed crab keeps tonight's rent back, by temperament", () => {
+  const sim = createSim({ seed: 909 });
+  // THE ARITHMETIC, asserted per trait rather than in aggregate: spendKeep is
+  // POCKET_KEEP + rent*thrift/20, and the whole point of the change is that
+  // the second term DIFFERS BETWEEN CRABS. An aggregate check would pass on a
+  // build where every crab reserved the same amount, which is the exact
+  // flattening this feature exists not to do.
+  sim.runUntil("tmin >= 16 * 60", { maxSteps: 400000 });   // afternoon: the reserve is on
+  const rows = JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => ({
+    n: c.p.name, th: traitOf(c).thrift, keep: spendKeep(c),
+    housed: !c.p.homeless && c.p.boat == null })))`));
+  if (rows.length < 4) return "not enough crabs to read a spread";
+  const P = sim.G("POCKET_KEEP"), R = sim.G("HOUSE_RENT");
+  for (const r of rows) {
+    if (!Number.isInteger(r.th)) return r.n + " has no thrift: " + r.th;
+    // the CAP is part of the arithmetic: a thrift above 20 twentieths saturates
+    // at one night's roof (an uncapped TIDY reserved $16 against a $10 rent and
+    // could afford nothing after noon - see spendKeep's note).
+    const th = Math.min(r.th, 20);
+    const want = r.housed ? P + Math.floor(R * th / 20) : P;
+    if (r.keep !== want) return `${r.n} keeps ${r.keep}, the table says ${want}`;
+  }
+  // ...and a shelter crab reserves NOTHING extra: the cot is billed to the
+  // fund, so holding rent back for it would starve the poorest for no roof.
+  const homeless = rows.filter(r => !r.housed);
+  if (homeless.some(r => r.keep !== P)) return "a crab with no rent to pay is still reserving for one";
+  return true;
+});
+
+scenario("spend reserve: the morning is for spending, the afternoon is for the rent", () => {
+  // The time gate is the half that keeps the town's tills alive - measured,
+  // an all-day reserve drove seed 4242's crab spend down far enough that an
+  // owner missed payroll and the hotel ended UNOWNED. So it is behaviour, and
+  // behaviour gets a scenario: the SAME crab, the same wallet, two clocks.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2", { maxSteps: 400000 });
+  const probe = `(() => {
+    const c = allCrabs().find(k => !k.p.homeless && k.p.boat == null && traitOf(k).thrift > 0);
+    if (!c) return null;
+    const t0 = tmin;
+    tmin = 9 * 60;  const morn = spendKeep(c);
+    tmin = 18 * 60; const eve  = spendKeep(c);
+    tmin = t0;
+    return JSON.stringify({ n: c.p.name, morn, eve, th: traitOf(c).thrift });
+  })()`;
+  const raw = sim.G(probe);
+  if (raw === "null" || raw == null) return "no housed crab with a thrift to read";
+  const r = JSON.parse(raw);
+  const P = sim.G("POCKET_KEEP");
+  if (r.morn !== P) return `${r.n} was already hoarding at 9am: ${r.morn} (pocket money is ${P})`;
+  if (!(r.eve > r.morn)) return `${r.n} reserves ${r.eve} in the evening, no more than the ${r.morn} of the morning`;
+  return true;
+});
+
+scenario("spend reserve: the affordability gates read the reserve, and it BINDS", () => {
+  // The mutation half. It is not enough that spendKeep returns a number -
+  // canAfford must be what the errand gates actually ask, or the reserve is
+  // a decoration on a wallet nobody consults. Stage a crab holding exactly
+  // enough for a rinse and NOT enough for rinse+rent, and prove the answer
+  // flips with the reserve and not with anything else.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2 && tmin >= 16 * 60", { maxSteps: 400000 });
+  const out = sim.G(`(() => {
+    const c = allCrabs().find(k => !k.p.homeless && k.p.boat == null);
+    if (!c) return null;
+    const price = localPrice("showers", BIZ.showers.recipes[0]);
+    const th = traitOf(c).thrift, keep = spendKeep(c);
+    if (!(keep > POCKET_KEEP)) return JSON.stringify({ skip: "this crab reserves nothing" });
+    const w0 = c.p.wallet;
+    // enough for the rinse, a dollar short of the rinse AND the reserve
+    c.p.wallet = price + keep - 100;
+    const refused = canAfford(c, price);
+    c.p.wallet = price + keep;
+    const allowed = canAfford(c, price);
+    c.p.wallet = w0;
+    return JSON.stringify({ refused, allowed, price, keep, th });
+  })()`);
+  if (out === "null" || out == null) return "no housed crab to stage";
+  const r = JSON.parse(out);
+  if (r.skip) return "the staged crab reserves nothing - the gate cannot be read";
+  if (r.refused) return `a crab $1 short of rinse+reserve was allowed to buy (price ${r.price}, keep ${r.keep})`;
+  if (!r.allowed) return `a crab holding rinse+reserve exactly was refused (price ${r.price}, keep ${r.keep})`;
+  return true;
+});
+
+scenario("spend reserve: a hoarding thrift saturates at one night's roof", () => {
+  // THE CAP, and it is here because its absence was a real regression the
+  // suite caught rather than a hypothetical. TIDY shipped at 28 twentieths for
+  // one gate run - $16 held against a $10 rent - and on seed 909 CLAWDIA's
+  // median AFTERNOON headroom (wallet minus reserve) was MINUS $7: she could
+  // afford nothing after noon whatever she wanted. It surfaced two scenarios
+  // away, as the brain save-round-trip going quiet (a temperament corrupted to
+  // act compulsively changed nothing, because the crab had no affordable
+  // candidate to act ON - 12/12 seeds bit before the cap, 1/12 after). A
+  // reserve is for the bill that is actually coming; past that it just stops a
+  // crab living.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2 && tmin >= 16 * 60", { maxSteps: 400000 });
+  const out = sim.G(`(() => {
+    const c = allCrabs().find(k => !k.p.homeless && k.p.boat == null);
+    if (!c) return null;
+    const t = traitOf(c), was = t.thrift;
+    t.thrift = 20;  const atRoof = spendKeep(c);
+    t.thrift = 60;  const hoard  = spendKeep(c);   // the validator's ceiling
+    t.thrift = was;
+    return JSON.stringify({ atRoof, hoard, pocket: POCKET_KEEP, rent: HOUSE_RENT });
+  })()`);
+  if (out === "null" || out == null) return "no housed crab to read";
+  const r = JSON.parse(out);
+  if (r.atRoof !== r.pocket + r.rent)
+    return `thrift 20 should reserve pocket+rent (${r.pocket + r.rent}), got ${r.atRoof}`;
+  if (r.hoard !== r.atRoof)
+    return `thrift 60 reserved ${r.hoard} - it must saturate at one roof (${r.atRoof}), not hoard`;
+  return true;
+});
+
+scenario("spend reserve: an old trait table without thrift still loads, at the identity", () => {
+  // The compat clause. A cultureway authored before the reserve is a VALID
+  // document - buildTraits defaults thrift to 20 - and the validator must not
+  // start refusing tables that were fine yesterday. Both halves asserted,
+  // because "it loads" and "it loads meaning the right thing" differ.
+  const sim = createSim({ seed: 909 });
+  const out = sim.G(`(() => {
+    const src = JSON.parse(JSON.stringify(BUNDLED_CRAB_TRAITS.traits));
+    for (const k in src) delete src[k].thrift;             // the pre-reserve document
+    const why = traitsProblem(src);
+    if (why) return JSON.stringify({ why });
+    const built = buildTraits(src);
+    return JSON.stringify({ thrifts: Object.keys(built).map(k => built[k].thrift) });
+  })()`);
+  const r = JSON.parse(out);
+  if (r.why) return "a trait table without thrift was refused: " + r.why;
+  if (!r.thrifts.length || r.thrifts.some(t => t !== 20))
+    return "an undeclared thrift did not default to the identity 20: " + JSON.stringify(r.thrifts);
+  // ...and a thrift outside the band is still refused BY NAME.
+  const bad = sim.G(`(() => {
+    const src = JSON.parse(JSON.stringify(BUNDLED_CRAB_TRAITS.traits));
+    src[Object.keys(src)[0]].thrift = 999;
+    return String(traitsProblem(src));
+  })()`);
+  if (!/THRIFT/.test(bad)) return "a thrift of 999 was not refused by name: " + bad;
   return true;
 });
 

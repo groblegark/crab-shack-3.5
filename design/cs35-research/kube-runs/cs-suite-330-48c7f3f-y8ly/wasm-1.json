@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-48c7f3f-y8ly",
+  "armId": "wasm-1",
+  "index": 13,
+  "sha": "48c7f3f6a7107b7ab95a4d89a01b648fadb5ddd9",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 176915,
+  "verdict": "35/35 passed in slice 1/12 (176.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (93944ms)\n  PASS  disease: care cures, neglect can kill (16456ms)\n  PASS  job board: unpaid staff quit back to the pier (247ms)\n  PASS  crew never staff npc-owned shops (240ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (588ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (37414ms)\n  PASS  hours: shortened hours really close the shop (498ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (978ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (2646ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (6607ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (27ms)\n  PASS  the beach ball is LIMITED fun (277ms)\n  PASS  a town saved mid-errand reloads and keeps running (373ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (721ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (3602ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (550ms)\n  PASS  departures: the money band prints the manifest's own dollars (184ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (240ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (1748ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (15ms)\n  PASS  a standing offer can be answered from the card that announces it (15ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (8ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1057ms)\n  PASS  idle quips: the island's table is the literal, key for key (11ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (67ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (8ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (1609ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (19ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (37ms)\n  PASS  seam: the view is a reader - two renders move nothing (88ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (12ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (4674ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (48ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (21ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (1771ms)\n35/35 passed in slice 1/12 (176.8s)\n"
+}

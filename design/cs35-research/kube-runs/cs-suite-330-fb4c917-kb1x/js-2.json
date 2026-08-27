@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-fb4c917-kb1x",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "fb4c917115674e2aa7b710db40b6795022eb83a3",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 130700,
+  "verdict": "37/37 passed in slice 2/12 (130.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2796ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2208ms)\n  PASS  save/load: townsfolk keep wallets and houses (1689ms)\n  PASS  all crew dead: town survives, rehire recovers (1030ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (1141ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (754ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (22517ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (599ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4274ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (26028ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (11136ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (773ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (1514ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (14873ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1718ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (1028ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (14ms)\n  PASS  departures: a stay survives a save and a reload (3366ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (4387ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (84ms)\n  PASS  a hire is something you can see happen (401ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1623ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (1ms)\n  PASS  the ticker sits in free HUD space at both canvas heights (56ms)\n  PASS  missing payday costs the crew, not the lease (7881ms)\n  PASS  crab-as-document: a hostile document is refused by name (10ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (8031ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (115ms)\n  PASS  toast: a message longer than the card CRAWLS, and every character reaches the screen (183ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (3028ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (510ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2711ms)\n  PASS  the title screen ages the build, and keeps ticking (9ms)\n  PASS  load: the same envelope lands the same way however often you land it (1877ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1817ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (20ms)\n  PASS  spend reserve: a housed crab keeps tonight's rent back, by temperament (398ms)\n37/37 passed in slice 2/12 (130.6s)\n"
+}

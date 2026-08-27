@@ -149,6 +149,68 @@ blocks ranging 2 to 8. Any single block is a coin. This is why the old "2/16 vs
 3/16" framing was noise being read as signal, and why 8 seeds is never enough
 to defend a change.
 
+**THE SPEND RESERVE (2026-08-26, branch `cs-rent-reserve`, task kd-yd0WWFFQk9).**
+Every affordability gate in `pickErrand` read `wallet >= price + 200` — a flat
+$2 — against a `HOUSE_RENT` of **1000**. A housed crab spent down to $2 with $10
+due at midnight, so `COULDN'T MAKE RENT - LOST THE HOUSE` read like a character
+flaw and was an off-by-800-cents. Measured on seed 909/40d before the change:
+18 evictions, **3 of them holding $9 of the $10** (SCUTTLE d16: $22 in pocket,
+buys a $13 soak, keeps $9, evicted that night). Twelve gates now ask
+`canAfford(c, price)`; the reserve is `POCKET_KEEP` plus the roof *this* crab
+pays for (a shelter cot adds nothing — the fund bills it).
+
+**It is a TEMPERAMENT, not a rule, and that is the load-bearing half.** A
+uniform reserve is safer and much duller — it flattens exactly the
+differently-wrong behaviour the comedy comes from. `thrift` (twentieths of the
+roof, DREAMY 4 / LAZY 6 / TIDY 28) rides the TRAIT the town seed already deals,
+so it needs no new registry and it **sources the per-individual axis ruling 6 h2
+declared and left empty** (`needW`'s third axis is still identity; this is the
+same idea on the spend side).
+
+**And it only runs from NOON — the half that keeps the tills alive.** An all-day
+reserve cut evictions hardest and drove seed 4242 to **rep 15** via a demand
+collapse: crab spend 154→105, BRASS's till starves, she misses payroll d37/d38,
+SALTY and KELP quit to the pier, hotel ends UNOWNED. *Thrift that closes the
+shops is not thrift.* The hour is MEASURED, 6 towns × 40 days on the UNCAPPED
+build (evict / summed rep / serves / shop jobs / worst single-town rep):
+
+```
+off      97   355   5486   39   33
+all day  74   331   5642   37   15
+NOON     78   354   5610   42   42     <- hour chosen here
+3pm      88   361   5465   40   54
+```
+
+The first guess was 3pm and the sweep overruled it.
+
+**AND IT IS CAPPED AT THE ROOF — a correction the suite extracted.** TIDY was
+authored at 28 twentieths ($16 against a $10 rent) and that is hoarding, not
+prudence: measured on seed 909, CLAWDIA's median *afternoon headroom* (wallet
+minus reserve) ran to **minus $7**, so she could afford nothing after noon
+whatever she wanted. It surfaced two scenarios away — the brain save-round-trip
+went quiet, because a temperament corrupted to act compulsively changed nothing
+when the crab had no affordable candidate to act ON (**12/12 seeds bit on main,
+1/12 uncapped, 10/12 capped**). The term is now `min(thrift,20)/20` of the roof:
+the authoring axis still runs 0..8 × quarters, the *effect* saturates at one
+night's rent. Re-measured after the cap (3 towns × 25 days):
+
+```
+off   evict 35   rep 166   serves 1744   jobs 21   worst-town rep 42
+ON    evict 31   rep 177   serves 1671   jobs 20   worst-town rep 56
+```
+
+Evictions down ~11%, total reputation UP, and the worst town in the block
+improves 42→56 — **no town is left worse off**, which the uncapped build could
+not hold. The cap also made the change byte-neutral on all three frozen
+fingerprints (early towns are homeless, so `rentDue` is 0), so the landing
+touches **no existing scenario**: the suite diff is 5 new scenarios and nothing
+else. Gate: **848/848 both backends, 24 arms** at `8d56606`.
+`cit.afford.count` deliberately did NOT move:
+that observable is *perception* (what is on the board), not *policy* (what I
+allow myself), and changing it would silently redefine every trained weight
+under an unchanged `REGISTRY_VERSION`. This is step 1 of the self-interest
+ladder in kd-E0J0UwUB4H; the RL post-training step is kd-3SBphWajVm.
+
 **THE DIFFICULTY IS NOT A TARGET TO HIT** — ruled by Matt, 2026-08-20 at 1/16:
 *"1/16 is ok, we'll do better than the tests, as players."* The ruling is about
 the POSTURE, not the number: do not tune toward any figure on this page.
@@ -782,7 +844,7 @@ vm — never fork game logic into tools/) and perf expectations live there.
 
 - `node tools/headless.mjs --days N --seeds K [--buy list] [--quiet]
   [--jobs J] [--failoff a,b,c]` — CLI; `--failoff` switches individual
-  needs-failure behaviours off (`wander,chat,walkout,nod,rough`) so a matrix can
+  needs-failure behaviours off (`wander,chat,walkout,nod,rough,boredidle`) so a matrix can
   attribute its own movement to one of them at a time; `--jobs` fans seeds out across worker processes
   (default USABLE cores−1, deterministic either way, ~3x faster on 4 seeds).
   "Usable" means the cgroup quota, via `tools/cores.mjs` — NOT `os.cpus().length`,
@@ -4572,7 +4634,7 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   back and nothing else.
   What keeps it CHARMING at saturation (boredom is 0.72–0.85 town-wide with
   everyone touching 1.0, so this fires constantly by design): `WANDER_AT`
-  **0.6**; the counter must be DEAD for `WANDER_QUIET` **3s** first, so nobody
+  **0.15**; the counter must be DEAD for `WANDER_QUIET` **3s** first, so nobody
   bolts the instant the queue empties; and a wander is a **trip**, not a
   posting — `WANDER_DWELL` **14–24s** stood there, then back to the post, then
   `WANDER_CD` **20s** before the next. A six-hour shift is only 90 REAL seconds,
@@ -4585,6 +4647,107 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   **without** (lifetime $30,224 vs $31,319) — inside the documented per-build
   wobble. It is nearly free, and it lands hardest exactly when the shop is
   quiet, which is when it costs the town least.
+
+- **THE DAY-1 FREEZE, and why it needed TWO changes** (Matt, 2026-08-26: "sudsy
+  goes to work and stops doing anything while there"). Reproduced, 16/16 seeds:
+  SUDSY stood **dead still for up to 11.1 GAME-HOURS** of a shift — same
+  sub-pixel x, same `kstate` — and **every one of the 16 worst freezes was on
+  day 1**, a new player's first look at the shower house. She was never *wedged*
+  (1.5% abandonment, ~0.9s pickup): the shop is empty ~92% of her shift and the
+  system meant to move her fired **7 times in 146k on-shift ticks**.
+  Two things were wrong, and neither alone is sufficient:
+  1. `WANDER_AT` was **0.6**, but boredom arrives in **+0.20 lumps at shift
+     END** — so days 1–4 carry 0.0 / 0.2 / 0.4 / 0.6-*minus-one-Q20-grain* into
+     work and the wander is **arithmetically impossible before day 5**. By day 5
+     hunger has pinned at 1.00 and `boredYields` (rightly) shuts it. The two
+     gates **never blocked at once — they own different days**, which is exactly
+     why relaxing either alone left the freeze untouched and only relaxing both
+     moved it. 0.6 also contradicted its own design: it is 1.75 lumps below
+     `WALKOUT_AT` 0.95, making "restless" and "ready to quit" nearly the same
+     state, when the doc calls idle hands the EARLY stage.
+  2. Nothing made an empty counter boring *during* the shift, so day 1 sat at a
+     flat 0.000 with no way to move until knock-off.
+  The fix: `WANDER_AT` **0.15** (under one lump, so day 1 can reach it), a new
+  `RESTLESS_AT` **0.6** carrying the *display* bar so the mood ring and the
+  ARCADE quips stay tuned against the walk-out warning, and `BORED_IDLE`
+  **3.0/idle-shift** as an **ADVANCE** against the shift-end lump — `p.boredAdv`
+  banks what idleness drew, the settlement pays only the remainder, so **no crab
+  can gain more than +0.20 in a day** and the walk-out ladder does not move.
+  Measured, 2 seeds × 12d: worst still-run **11.1 → 3.2 game-hours** (day 1:
+  11.1 → 1.5), wanders 5 → 20, and boredom first pins ≥ 0.95 on **day 5, exactly
+  as before**. Gated by `idle hands: the boredom trickle is an ADVANCE` and
+  `idle hands: a crab can be restless on DAY ONE`.
+  **Three wrong versions came first, and the freeze number improved in all of
+  them** — which is the lesson worth keeping. An *additive* trickle fixed a
+  fifth of the freeze and pulled the walk-out ladder from day 5 to **day 2**,
+  town-wide, forever; *capping* it did not help because the lump stacks on top;
+  and the advance itself broke three times (cleared at clock-in → a crab back
+  from an errand drew a second lump; cleared in the nightly block → that block
+  fires at **tmin 20:00** while REEF's shift runs to **20:30**, so the reset
+  landed mid-shift; not cleared at all → a crab called sick mid-shift kept an
+  unrepaid advance that CANCELLED later lumps, freezing SALTY at 0.54 for four
+  days). Every one of those is invisible to "is she still frozen?". The advance
+  now carries a **day stamp** and self-expires instead of relying on any reset's
+  position. Also fixed here: `WANDER_QUIET` was authored `3` and documented as
+  "3s" but compared against `idleT`, which sums **ticks** — it was 0.15s, 20×
+  too short, so the "counter must be dead first" clause was doing nothing.
+  **AND THE CLUSTER GATE FOUND TWO MORE, both ECONOMIC and both two systems
+  away from boredom** — which is the real argument for the absolute-gate rule,
+  because the suite is what caught them and neither is visible in any freeze
+  number:
+  1. `BORED_IDLE_LEVEL` **0.5** — the trickle may not cross the speed line.
+     Re-timing boredom *earlier* in a day raises its TIME-AVERAGE even when the
+     daily total is provably identical, and above `qn(0.5)` every point of
+     boredom is a movement penalty (`crabMoveQ8`'s `over`). Mean on-shift
+     boredom went 0.571 → 0.632, slower crabs ran errands worse, **sick-days
+     8 → 13** on two seeds, a sick day pays **NO WAGE** (`crabDueTonight`), and
+     the always-open arm of the anti-exploit gate read takings-per-crew-day
+     **1.06 → 1.12 against a 1.10 limit**. A boredom re-timing had re-opened an
+     *economic* exploit through payroll. Capping costs nothing real: the
+     trickle's job is to lift an early-game crab (0.0–0.4) over `WANDER_AT`, and
+     past 0.5 the bar is long cleared — so every crab above the line moves at
+     exactly the speed it did before this existed.
+  2. `boredSettled()` — the walk-out ladder must not see an **unbilled**
+     advance. The nightly check runs at **tmin 20:00**; a late shift settles at
+     **20:30**. As-shipped, a lump crossing `WALKOUT_AT` lands *after* the check
+     and is first counted the following night — a day of grace baked into
+     `WALKOUT_DAYS`' tuning. Moving part of that lump into the afternoon made
+     the 4-settlement ladder a 3-settlement one: **walk-outs 1 → 3 and 2 → 4**.
+     "Unbilled" is load-bearing and the first version got it wrong: the
+     settlement *closes* the budget by setting `boredAdv` to the max, so a naive
+     `bored - boredAdv` keeps subtracting a lump already paid and a crab pinned
+     at 1.00 reads 0.80 forever — the walk-out never fires. `p.boredBilled`
+     separates "drawn early" from "drawn early and since accounted for".
+  The same gate run also turned up **four LATENT defects that were nothing to do
+  with this change** — the stream shift only re-rolled the dice hiding them. One
+  is a real engine hole: a **candidate who has left town could win the
+  election**, because the ballot is printed the night before and nothing
+  re-checked the field (SALTY died on a day 6 and won the day-7 ballot). The
+  other three were fixtures asserting things their data could not support —
+  written up in the commits and worth reading before trusting a green gate.
+  **THE GROWTH PILLAR: ZERO COST, measured on the landing tree** (receipt
+  `design/cs35-research/kube-runs/cs-matrix-idle16-b8fca1e-t8uy`,
+  `experiments/matrix-idle16.json`, 8 arms × 16 towns × 30 days, all exit 0):
+
+  | arm | sb0 | sb16 | total |
+  |---|---|---|---|
+  | growth, as-built | 6/16 | 7/16 | **13/32** |
+  | growth, trickle OFF | 8/16 | 5/16 | **13/32** |
+  | baseline, either | 0/16 | 0/16 | 0/32 |
+
+  The control arms disarm the trickle with the change's **own `--failoff
+  boredidle` hatch**, so this is one tree with one mechanism toggled rather than
+  two commits — which matters, because main moved four times while this branch
+  was in flight. **And the per-block split is the exact trap this file warns
+  about**: the control reads 8 then 5 while the treatment reads 6 then 7, so
+  either 16-town block *alone* would have "shown" a 2-town move, in the opposite
+  direction to the other. Sixteen seeds is the honest number and this is the
+  cleanest demonstration of why yet measured.
+  It costs nothing **by construction, not by luck**: the trickle accrues only
+  while a crab is on shift with nothing dispatchable, it is an ADVANCE against a
+  charge the settlement would have made anyway (so no crab gains more than one
+  lump a day), and `BORED_IDLE_LEVEL` stops it below the speed penalty. A
+  growing shack is busy — so the town the matrix measures barely pays it.
 - **THE WALK-OUT (B3, the late stage).** Pinned past `WALKOUT_AT` **0.95** at
   `WALKOUT_DAYS` settlements running and the crab takes an unauthorised day: no
   commute, no shift, **NO WAGE**, and **nobody covering**, because nobody was
@@ -4771,6 +4934,26 @@ instead, which is honest but weaker, and is noted as such in the scenario.
 fingerprint**, which passes unchanged. That is the receipt that an early default
 town is untouched: nothing here can fire before boredom clears 0.6, and on day 2
 it is 0.2.
+
+> **SUPERSEDED 2026-08-26 — and the sentence above was the BUG, not the
+> receipt.** "Nothing here can fire before boredom clears 0.6, and on day 2 it
+> is 0.2" was written as reassurance that the pass was inert early. It was
+> actually a precise description of a crab standing motionless through her whole
+> first shift: boredom arrives in +0.20 shift-end lumps, so days 1–4 could never
+> reach a 0.6 bar, and 16/16 audited seeds took their worst freeze on **day 1**
+> (11.1 game-hours dead still). See THE DAY-1 FREEZE above. The suite now
+> carries two more gates — `idle hands: the boredom trickle is an ADVANCE -
+> never more than one lump a day` and `idle hands: a crab can be restless on DAY
+> ONE (the bar is under one lump)` — and both were verified to FAIL against
+> mutants before being trusted. The frozen day-2 fingerprint and the rng draw
+> pin DID need re-pointing this time, by VALUE, each with a two-way attribution
+> receipt (the change's own `--failoff boredidle` hatch reads them back to the
+> prior numbers exactly).
+>
+> Worth keeping as a general lesson: **an inertness claim stated as a threshold
+> comparison is one arithmetic step away from being a frozen-behaviour bug
+> report.** Both sentences are true of the same code; only one of them was
+> checked against what a player would see.
 
 ### THE SLEEP DIRECTIVES (owner, 2026-08-19, landed in this same pass)
 Two sentences, both squarely about tiredness: **"we need to be sure the shelter
@@ -6036,7 +6219,43 @@ copy of them.
     | Chromium | loadedmetadata 43.52s | loadedmetadata 43.52s |
     | WebKit | loadedmetadata 43.56s | loadedmetadata 43.56s |
 
-    So the header theory for the iOS silence is **dead** — and it nearly went
+    **RETRACTED 2026-08-26 (later, real Safari): the header theory is ALIVE,
+    and this table is the trap it hides in.** Matt: "the music player for cs3.5
+    is broken in safari". Measured in **Safari 26.6 on macOS**, driven through
+    the real `musPlay` path: a bare `a.src = <release url>` gives
+    `NotSupportedError` / `MEDIA_ERR_SRC_NOT_SUPPORTED`, and the same bytes
+    behind our own `audio/mp3` play — the exact difference this table reports
+    as absent. Every one of the box's 1,179 catalog auditions was silent in
+    Safari while the town's music played, which is precisely the shape
+    "`octet-stream` is fine" predicts you will never see.
+
+    **Playwright's WebKit is NOT Safari, for media.** The row above was a
+    `playwright.webkit` build; real Safari decodes through AVFoundation, which
+    honours the response content type, while playwright's WebKit ships a
+    permissive media backend that sniffs. Both cells reading an identical
+    43.5s should have been the tell — a positive control that cannot
+    distinguish the two arms is not a control. **The rule that keeps costing
+    us: a browser-family stand-in is a stand-in for layout, not for codecs,
+    DRM, or autoplay. Test WebKit media in Safari itself** (`safaridriver`,
+    or just `open -a Safari` a page that posts its own results back).
+
+    The remedy is in `musSetSrc`: a `<source>` child with an explicit
+    `type="audio/mpeg"`, used **only for absolute urls**, because WebKit takes
+    the author's declaration over the server's. It is deliberately NOT used for
+    our own relative paths — measured, a 404 behind a `<source>` reports
+    nothing at all in Safari for 30s (no source error, no element error, only a
+    late play() rejection), and the archive mirror's 404 is the EXPECTED miss
+    that must stay fast. It falls through in 250 ms on `src` and would stall
+    for twenty seconds on `<source>`.
+
+    What survives from the pass below: **there is no server-side fix.** Our
+    assets are already stored `content_type: audio/mpeg` (the API says so) and
+    GitHub rewrites the download to `octet-stream` + `attachment` in a signed
+    redirect regardless — cli/cli's `text/plain` checksums file downloads as
+    octet-stream too. And the CDN still sends no `access-control-allow-origin`,
+    so the `fetch`→blob re-wrap is genuinely unavailable as a fallback.
+
+    The original retraction below still stands on its own terms — and it nearly went
     into this file as fact. A first pass "measured" WebKit rejecting the release
     URL with `ERROR 4`; that browser was hand-built in-pod and had **no TLS**
     (`TLS support is not available`), so *every* `https://` URL failed the same
@@ -6081,9 +6300,103 @@ copy of them.
     what you dropped, plus every catalog track you kept at the energy you gave
     it — inert until you judge something. Before this the box recorded keeps,
     drops and energies that nothing read.
-  - **Open:** no vetting pass has been made yet, so the rotation is still the
-    original 22 tracks until someone sits down with the box. `tools/mkplaylist.mjs`
-    turns an export into a shipped playlist when that happens.
+  - ~~**Open:** no vetting pass has been made yet, so the rotation is still the
+    original 22 tracks until someone sits down with the box.~~ — **closed by
+    THE BOX IS THE PLAYLIST below**, which removed the premise rather than doing
+    the pass: a vetting pass is no longer what stands between the archive and
+    the town. `tools/mkplaylist.mjs` still turns an export into a shipped
+    playlist if anyone wants to curate one.
+- **THE BOX *IS* THE PLAYLIST** — *shipped (branch `cs-music-box-expand`,
+  2026-08-26)*. Matt: "opening the music box shouldn't stop the music from
+  playing; also, once the selected song is done playing the next one in the
+  music box should play, and then the next. we should forget about the old
+  playlist of just a few songs and expand; also need a tiny scrolling ticker w
+  song name in bottom left corner."
+  - **The change is one of KIND, not size.** The box was a vetting bench feeding
+    a 22-track rotation: **1,201 auditionable, 22 audible**, and a catalog track
+    stayed inaudible until you personally tapped KEEP on it. The rotation is now
+    the box's own list, in the box's order, **minus only what you DROPPED**.
+    KEEP survives as a filter and an export; it is no longer the gate on being
+    heard. No catalog → the pool is still `PLAYLIST`, unchanged.
+  - **Ownership moved from "the box is open" to "something is auditioning."**
+    `musOpen` stops nothing and starts nothing (it scrolls to the playing row);
+    `musClose` no longer restarts a rotation it never stopped; `startMusic` and
+    `playRole` test `musPreview` rather than `musicView`. The invariant that
+    scenario was really for — never two tracks at once — is untouched.
+  - **What follows a track is the NEXT ROW** (`nextTrack`), wrapping, stepping
+    over the moments. `pickTrack` survives as the **entry** point, so the first
+    song still agrees with the town (`targetEnergy`); it is no longer a re-roll
+    at every boundary, which is what made "the next one in the music box"
+    impossible to hear.
+  - **Energy for 1,179 untagged rows** is guessed from the catalog's own tag
+    prose — measured spread over the shipped catalog: **340 calm / 578 steady /
+    283 lively**, so every hour of the day has something to reach for. The box
+    still shows `-` for an unjudged row (that dash is the difference between
+    your tag and our guess), and a player's tag outranks the guess forever.
+  - **Roles cross by FILE, never by name**, and this is the sharp edge: the
+    catalog spells the title theme `BEACH VOLLEYBALL START SCREEN` where
+    `PLAYLIST` says `BEACH VOLLEYBALL` (5 of the 22 shipped titles disagree).
+    So the rebuild waits for the **shipmap**, which stamps a row's same-origin
+    `file` — and `musLoadShipmap` now rebuilds **unconditionally**, where it
+    used to rebuild only on a successful stamp. That branch now carries the
+    whole expansion; a build with a missing shipmap would otherwise have played
+    its original 22 forever.
+  - **The now-playing ticker** is a tiny marquee bottom-left, in the sand
+    between the shop tooltip's floor and the nav map's ceiling (derived from
+    `shopTipRect`/`NAV_MAP`, so it moves with `H`). **Character-grained like the
+    toast** — neither the sim's ctx stub nor `mcp/canvas.mjs` implements
+    `ctx.clip()`, so a pixel-grained scroll would render fine in a browser and
+    be invisible to every test we have. Phased on **wall** time, not `viewT`:
+    the music plays at wall speed, so at `>>>>` the label must not crawl 4x.
+  - **THE ROTATION NOW STREAMS, and that is the cost of the ask.** Measured on
+    the shipped pair: **22 of 1,201 rows are same-origin (1.8%)**, so **98.2% of
+    the town's music comes off the release CDN** where it was ~0% before. That
+    is the same path the box's auditions have always taken (median 362 ms cold,
+    worst 553 — see *Streaming, measured* above), and the fallback ladder is
+    unchanged: local mirror → our release → skip on. Total catalog runtime, for
+    scale: **47.9 h, mean 144 s a track**.
+  - **What OFFLINE actually does, measured rather than assumed.** The first
+    draft of this entry said a networkless player gets "22 tracks and a lot of
+    skipping". Wrong on the second half: `musGiveUp` is `min(4, ROTATION.length)`
+    and it **stops after 4 failed tracks** — 4 play attempts, then silence until
+    a gesture. Bounded, not a cascade through 1,179 dead urls. A tap re-arms it
+    (`musArm`) and it tries 4 more. So the honest failure mode is **"the music
+    stops"**, not "the music stutters".
+  - **A BROWSER THAT REFUSES THE RELEASE ASSETS made this silent town the DEFAULT,
+    and that was a regression** *(fixed, branch `cs-town-music-stream-refusal`,
+    commit `03e5843`, kd-QIGyxXM4DG)*. Safari 26.6 rejects a GitHub release url
+    with `NotSupportedError` — it will not sniff the `application/octet-stream`
+    the CDN serves (measured on kd-qGMinuFA3S). With **98.2%** of the rotation
+    streaming from exactly there and the **22 same-origin rows clustered**, a town
+    that started on a stream cascaded through the 4-track give-up and went silent
+    for the session — where the *pre-merge* 22-row rotation had played. The
+    offline give-up above bounds the wasted requests but never routes AROUND the
+    dead kind: "the streams are all dead" and "everything is dead" are different
+    states. So `musFail` now **latches a `STREAM_OK` tri-state** on the first
+    absolute-url `NotSupportedError` (a codec verdict on the whole streamed
+    catalog, not one file's luck — so, unlike `musBlocked`, a gesture does not
+    clear it), and `nextTrack` reads it to **rotate past every stream row to one
+    of the 22 we host** — for the auto-advance and the arrow keys alike. The
+    fallback ladder gains a rung: local mirror → our release → **(refused? rotate
+    the hosted 22)** → skip on. An all-stream build (no same-origin row) falls
+    through to plain-next, so the offline pin still gives up at 4. New pin: *a
+    streamed town still reaches a same-origin track when the browser refuses
+    release assets* — RED on `cc04d49` (0 audible, 4 attempts, the 22 never
+    reached), GREEN with the latch, cluster-gated 876/876 both backends.
+  - **A probe of this is easy to get backwards, and I did.** The suite's
+    `AUDIO_SPY` stub RESOLVES `play()`, and `playTrack`'s `.then` resets
+    `musFails` on every resolve — so a naive offline probe on the shared stub
+    shows `musFails=0` forever and reads as "it never gives up", which is the
+    instrument talking, not the game. Measuring it needs a stub whose `play()`
+    REJECTS the way a browser does on a dead source. Same trap as the inert-DOM
+    stub that left the `<source>` branch untested for a whole branch.
+  - **Two existing scenarios were amended, each with its reason in place.** The
+    bench block asserted `openStopsRotation === 0` — that *is* the behaviour
+    Matt asked to change. The dead-`<source>` fixture needed a second row:
+    `musGiveUp` is `min(4, ROTATION.length)`, so a one-row fixture that used to
+    inherit 22 shipped rows now has a budget of **1** and gives up before the
+    skip it measures — which would have read as "the child listener is missing",
+    the most expensive kind of red.
 - **THE MUSIC CONTROLS LEFT THE BOX** — *shipped (branch `cs-music-controls`,
   2026-08-25)*. Matt: a button "to turn the music on and off without viewing the
   playlist"; up/down arrows in the playlist that "auto-play the track"; it

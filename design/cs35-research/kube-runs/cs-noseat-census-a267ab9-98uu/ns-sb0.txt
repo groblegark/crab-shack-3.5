@@ -1,0 +1,23 @@
+seed 1337: noSeatCrab=3 noSeatTour=1 seatedCrab=18 seatedTour=94
+seed 1338: noSeatCrab=1 noSeatTour=4 seatedCrab=27 seatedTour=108
+seed 1339: noSeatCrab=0 noSeatTour=4 seatedCrab=13 seatedTour=94
+seed 1340: noSeatCrab=0 noSeatTour=6 seatedCrab=18 seatedTour=109
+seed 1341: noSeatCrab=0 noSeatTour=3 seatedCrab=21 seatedTour=96
+seed 1342: noSeatCrab=0 noSeatTour=3 seatedCrab=13 seatedTour=68
+seed 1343: noSeatCrab=0 noSeatTour=2 seatedCrab=21 seatedTour=95
+seed 1344: noSeatCrab=0 noSeatTour=3 seatedCrab=20 seatedTour=107
+
+TOTALS over 8 seeds x 12 days (seedbase 0):
+{
+  "seatedCrab": 151,
+  "seatedTour": 771,
+  "noSeatCrab": 4,
+  "noSeatTour": 26,
+  "noTablesCrab": 0,
+  "noTablesTour": 0,
+  "lodging": 123,
+  "stall": 1238,
+  "seatDecline": 0,
+  "seatSatAnyway": 0
+}
+EXIT=0

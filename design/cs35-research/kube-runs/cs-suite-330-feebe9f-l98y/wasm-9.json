@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-feebe9f-l98y",
+  "armId": "wasm-9",
+  "index": 21,
+  "sha": "feebe9f90ea58a2a89f83cec6851eb151aad13b0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 58201,
+  "verdict": "35/35 passed in slice 9/12 (58.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (429ms)\n  PASS  npc: SUDSY dines at the player shack (2798ms)\n  PASS  slots: the preview card reflects the town it came from (1451ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (42ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (132ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (72ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (7298ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1088ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (9700ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (4700ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (774ms)\n  PASS  a science run is silent and the mind panel banks at the fold (688ms)\n  PASS  almanac: mist is one ocean for the fleet, swell and wind are per-town (74ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (599ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (909ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3014ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1926ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2252ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (597ms)\n  PASS  the help card fits the card, in the font the card is printed in (8ms)\n  PASS  the title screen credits the track that is actually queued (12ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (0ms)\n  PASS  the house limit stops a hire and never fires anybody (4762ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (8ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (9056ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (11ms)\n  PASS  cultureways: a save without cultures changes nothing (657ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (10ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (289ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2393ms)\n  PASS  the build stamp is well-formed and wired (0ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1012ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (16ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (11ms)\n  PASS  the arcade floor survives a save and reload (1304ms)\n35/35 passed in slice 9/12 (58.1s)\n"
+}

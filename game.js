@@ -2235,8 +2235,26 @@ function declarePoll() {
       policy: policyLine(hall.policy), tally: "-" });
     return;
   }
-  let win = B.cands[0];
-  for (const k of B.cands)
+  // A CANDIDATE WHO IS NO LONGER IN TOWN CANNOT TAKE THE OFFICE. The ballot is
+  // PRINTED THE NIGHT BEFORE (see printBallots, called from runTownHall), and
+  // between the printing and the count a crab can die - this town has universal
+  // mortality - or quit for the pier. Nothing re-checked the field, so a dead
+  // crab could win outright: measured, SALTY died of illness on a day 6 and won
+  // the day-7 ballot with 2 votes, whereupon the never-vacant-office rule
+  // correctly re-seated somebody else and hall.mayor no longer matched
+  // hall.poll.winner - which is exactly what two election gates assert.
+  // The papers still COUNT (they were honestly cast, and the tally is what the
+  // town did); they simply cannot seat a crab who is not there to be seated.
+  // Nothing changes in a town where every candidate survives the night, which
+  // is why this sat latent - 60 seeds of main never caught a candidate out.
+  const standing = B.cands.filter(k => allCrabs().some(c => c.p.name === k.name));
+  if (!standing.length) {   // the whole field is gone: the incumbent stays
+    hall.poll = rec(hall.mayor, false, B.cands, B.cast.map(p => p.line).filter(Boolean));
+    today.moved.push("EVERY CANDIDATE HAS LEFT TOWN - " + (hall.mayor || "NOBODY") + " STAYS IN THE HAT");
+    return;
+  }
+  let win = standing[0];
+  for (const k of standing)
     if (k.votes > win.votes || (k.votes === win.votes && !win.inc && (k.inc || k.name < win.name))) win = k;
   hall.mayor = win.name;
   // FIELD BY FIELD, AND THAT IS THE HAZARD: a platform that grows a dial and
@@ -5715,6 +5733,93 @@ function loadSlot(i) {
 // is stuck with - see WAGE_STD / bizWage / wageRate. Kept as the name the rest
 // of the file (and the tools) already say when they mean "the town's wage".
 const CRAB_WAGE = WAGE_STD, HOUSE_RENT = 1000;   // cents   // wage raised 22 -> 23 with T2 thirst: crews drink at retail, the wage keeps their wallets liquid
+// ---- WHAT A CRAB KEEPS BACK (the spend reserve) ---------------------------
+// Every affordability gate in pickErrand used to read `wallet >= price + 200`:
+// a flat $2, written when the only thing a crab could run out of was lunch
+// money. HOUSE_RENT is 1000 - five times that - so a housed crab would spend
+// down to $2 with $10 due at midnight and lose the house for want of a dollar.
+// MEASURED before this change (seed 909, 40 days): 18 evictions, and THREE of
+// them were crabs holding $9 of the $10 they needed. SCUTTLE on d16 is the
+// clean case - $22 in pocket, buys a $13 soak, keeps $9, evicted that night.
+// The diary read like a character flaw; it was an off-by-800-cents.
+//
+// SO THE FLOOR IS NOW WHAT THE NIGHT ACTUALLY COSTS: pocket money, plus the
+// roof if this crab is paying for one. Read through ONE helper so the reserve
+// can never drift between the twelve gates that ask.
+//
+// AND IT IS A TEMPERAMENT, NOT A RULE (this is the part that keeps the town
+// funny). A uniform reserve makes every crab identically prudent, which is
+// safer and much duller - measured, it flattened exactly the differently-wrong
+// behaviour the town's comedy comes from. `thrift` is twentieths of the roof a
+// crab thinks to keep back: LAZY and DREAMY barely plan, TIDY is careful, and
+// the rest sit near 1.0. It rides the TRAIT the persona already carries, so it
+// is deterministic from the town seed, needs no new registry, and SUDSY is
+// constitutionally feckless while PINCHY saves - which is the per-individual
+// axis ruling 6 h2 declared and left unsourced.
+//
+// AND IT IS CAPPED AT THE ROOF, which is a correction the suite extracted from
+// me. TIDY was authored at 28 twentieths - $16 held against a $10 rent - and
+// that is not prudence, it is hoarding: measured on seed 909, CLAWDIA's median
+// AFTERNOON HEADROOM (wallet minus reserve) ran to MINUS $7, so she could
+// afford nothing after noon whatever she wanted. It surfaced as the brain
+// save-round-trip scenario going quiet - a temperament corrupted to act
+// compulsively changed nothing, because the crab it rode had no affordable
+// candidate to act ON (12/12 seeds bit on main, 1/12 on the uncapped build).
+// A reserve is for the bill that is actually coming; anything past it just
+// stops a crab living. So the term is min(thrift, 20)/20 of the roof - the
+// AXIS still runs 0..8 x quarters for authors, the EFFECT saturates at one
+// night's rent.
+const POCKET_KEEP = 200;      // cents - the original flat float, unchanged
+function rentDue(c) {         // what tonight's roof costs THIS crab, 0 if none
+  const p = c && c.p;
+  if (!p || p.homeless) return 0;         // a cot is billed to the fund, not the sleeper
+  if (p.boat != null) return MOORING_FEE; // a boat runs a tab, but they still plan for it
+  return HOUSE_RENT;
+}
+// WHEN a crab starts holding the rent back, and this half is load-bearing.
+// A reserve that runs all day is too blunt: at 9am there are still hours of
+// wages to come, so refusing a $7 rinse at breakfast protects a roof that was
+// never at risk and costs the town a sale. MEASURED (6 towns, 40 days): the
+// all-day version cut evictions 97 -> 74 but drove seed 4242 to rep 15,
+// through exactly the demand-collapse chain the earlier harness experiment
+// found - crab spend 154 -> 105, BRASS's till starves, she misses payroll on
+// d37/d38, SALTY and KELP quit to the pier, and the hotel ends UNOWNED.
+// Thrift that closes the shops is not thrift.
+//
+// So the reserve switches on at MIDDAY, when what is in the pocket is most of
+// what tonight has to work with. Morning crabs spend like crabs.
+//
+// THE HOUR IS MEASURED, NOT GUESSED. Swept on the UNCAPPED build (6 towns x 40
+// days: evictions / summed rep / serves / non-fishing jobs / worst town rep):
+//     off      97   355   5486   39   33
+//     all day  74   331   5642   37   15   <- best evictions, 4242 still dies
+//     NOON     78   354   5610   42   42   <- nearly all the win, no damage
+//     3pm      88   361   5465   40   54   <- too late to save many houses
+// My first guess was 3pm and the sweep overruled it: by mid-afternoon the money
+// a crab would have kept is already spent. Noon it is.
+//
+// THE LANDED BUILD IS THE CAPPED ONE, and it is gentler than that sweep - the
+// cap removes the hoarding half, so the reserve now only ever holds back a
+// bill that is really coming. Re-measured after the cap (3 towns x 25 days,
+// same instrument, thrift 0 as the off-arm):
+//     off   evict 35   rep 166   serves 1744   jobs 21   worst-town rep 42
+//     ON    evict 31   rep 177   serves 1671   jobs 20   worst-town rep 56
+// Evictions down ~11%, total reputation UP, and the worst town in the block
+// improves 42 -> 56: no town is left worse off, which is the property the
+// uncapped build could not hold (4242 fell to rep 15 there).
+const KEEP_FROM = 12 * 60;   // noon - after the morning trade, before the 8pm settle
+function keepFrom() {        // a harness hatch, so the hour can be swept
+  return typeof window !== "undefined" && window._keepFrom != null ? window._keepFrom : KEEP_FROM;
+}
+// the reserve a gate must clear on top of the price
+function spendKeep(c) {
+  if (tmin < keepFrom()) return POCKET_KEEP;   // the morning is for spending
+  const t = traitOf(c), raw = t && t.thrift != null ? t.thrift : 20;   // twentieths, 20 = x1
+  const th = raw > 20 ? 20 : raw;   // capped at the roof: see the note above
+  return POCKET_KEEP + Math.floor(rentDue(c) * th / 20);
+}
+// ...and the gate itself, so a call site reads as the question it is asking.
+function canAfford(c, price) { return c.p.wallet >= price + spendKeep(c); }
 // RENT IS DUE FROM NIGHT ONE, and the question was re-opened and re-closed
 // with a number on 2026-08-19. CS3 shipped its first commit with a rent-free
 // opening night (`day <= 1 ? 0 : rent`); e6e3476 deleted it - "no more
@@ -6062,10 +6167,60 @@ refreshHatches();
 const patOff = (k) => !!(_fOff && _fOff[k]);
 
 // ---- IDLE HANDS (the wander-off) -----------------------------------------
-const WANDER_AT = qn(0.6);        // restless enough to leave the post
+// RESTLESS ENOUGH TO LEAVE THE POST - and this bar is now the WANDER'S OWN,
+// separate from the one the mood ring and the quips read (RESTLESS_AT, below).
+// It was 0.6 for both, and 0.6 was half the bug.
+//
+// WHY THE BAR HAD TO MOVE AT ALL. Boredom arrives in +0.20 lumps at shift END,
+// so a save's first four days carry 0.0 / 0.2 / 0.4 / 0.6-minus-one-Q20-grain
+// into work against a bar of 0.6: the wander was ARITHMETICALLY IMPOSSIBLE
+// before day 5, and by day 5 hunger has pinned at 1.00 so boredYields (rightly)
+// slams the door. The two gates never blocked at once - they own DIFFERENT DAYS,
+// which is exactly why relaxing either alone left the freeze untouched in the
+// intervention table and only relaxing BOTH moved it. Measured, 16/16 seeds took
+// their worst freeze on DAY 1: 11.1 GAME-HOURS at one sub-pixel x in one kstate.
+// That is a new player's first look at the shower house.
+//
+// AND 0.6 CONTRADICTED ITS OWN DESIGN. The design doc (NEEDS THAT FAIL IN THEIR
+// OWN CHARACTER, below) makes idle hands the EARLY stage of boredom and the
+// walk-out its LATE stage - but 0.6 against WALKOUT_AT's 0.95 is a gap of 1.75
+// lumps. "Late" and "slightly later", not "early" and "late". A crab could not
+// be restless without being nearly ready to quit.
+//
+// 0.15 IS UNDER ONE SHIFT'S LUMP, which is what lets the trickle reach it on
+// day 1 (see BORED_IDLE: a zero-net advance can move at most one lump, 0.20, so
+// any bar above that leaves day 1 frozen no matter how fast the trickle runs -
+// measured, an advance trickle at 3.0/shift against the old 0.6 bar: worst
+// still-run 11.1 game-hours, UNCHANGED). Every later day clears it on the
+// settlement lump alone.
+//
+// WHAT THIS IS NOT: it is not a licence to roam. The wander is reachable only
+// when every dispatch above it has declined - no order, no dirty stall, no
+// table to bus - and WANDER_QUIET / WANDER_DWELL / WANDER_CD still bound the
+// share of a dead spell spent off-post to about half. Lowering the bar changes
+// WHEN a crab may drift, never how much of a busy shop's time it can eat.
+const WANDER_AT = qn(0.15);
+// ...and the DISPLAY bar stays where it was, deliberately. "RESTLESS" on the
+// mood ring and the SAME OLD SAME OLD / I'D KILL FOR AN ARCADE quips are how
+// the player reads deep boredom, and they are tuned against WALKOUT_AT - a crab
+// wearing RESTLESS is a crab heading for a walk-out, which is a warning the
+// player can act on. Splitting the two keeps that warning honest and leaves
+// every pixel of the UI exactly as it was. It also reads better, not worse: a
+// mild drift off-post comes with the wander's own quips (NOTHING DOING, JUST
+// STRETCHING MY LEGS), which is the right register for 0.15, while the ARCADE
+// lines stay for a crab who genuinely has had enough.
+const RESTLESS_AT = qn(0.6);
 const WANDER_PX = 340;        // how far off post a wander may take them
-const WANDER_QUIET = 3;       // real seconds the counter must be DEAD first - a
-                              // crab doesn't bolt the instant the queue empties
+const WANDER_QUIET = 3 * SEC; // real seconds the counter must be DEAD first - a
+                              // crab doesn't bolt the instant the queue empties.
+                              // The `* SEC` is NOT cosmetic and it was missing:
+                              // this is compared against c.idleT, which sums
+                              // TICKS, so a bare 3 was 3 ticks = 0.15s - twenty
+                              // times too short, and PLAN documented it as "3s".
+                              // Both siblings below carry the same conversion;
+                              // the bug was visible in the three lines of this
+                              // block. At 0.15s the "counter has to be DEAD
+                              // first" clause below was doing nothing at all.
 const WANDER_DWELL = 14 * SEC;  // ...then 14-24s stood there watching
 const WANDER_CD = 20 * SEC;   // real seconds back at the post before the next one
                               // (a six-hour shift is only 90 REAL seconds, so these
@@ -6091,6 +6246,170 @@ const WANDER_SPOTS = [
 // for the crab's behaviour - and the town sits near 0.7 dirt permanently, so
 // including it would switch the whole pattern off.
 const BORED_YIELD = qn(0.8);
+// A DEAD COUNTER IS THE BORING PART OF THE JOB, and until now the game did not
+// think so: boredom moved in ONE lump at shift END, so nothing about standing
+// at an empty counter for six hours was any more boring than a rush. That is
+// the other half of the freeze (the bar itself is WANDER_AT, above), and it is
+// why the fix needs both - the bar alone still leaves day 1 starting at a flat
+// 0.000 with no way to move until knock-off.
+//
+// THIS IS A RE-TIMING, NOT A NEW CHARGE, and that distinction is the whole
+// reason it is safe. It is an ADVANCE against the +0.20 the shift was going to
+// bill at knock-off anyway: p.boredAdv banks what idleness has already drawn,
+// the settlement pays only the REMAINDER, and a crab who idled a full shift has
+// paid in full and gets no lump. So a crab can never end a day more bored than
+// the old code left them - what changes is WHEN it arrives inside the day, which
+// is the entire bug. The precedent is exactly the tiredness trickle's (see the
+// shift settlement): same total, different timing, because a crab should be at
+// their most tired at the grill rather than the instant they clock off.
+//
+// MEASUREMENT FORCED THIS SHAPE - two wrong versions came first, and both looked
+// fine on the freeze number:
+//   1. AN ADDITIVE TRICKLE. Boredom has NO ambient decay and no free cure (that
+//      is the cure ledger below, and it is arithmetic rather than flavour), so
+//      any permanent addition raises the WHOLE later trajectory forever. At
+//      0.75/shift, 2 seeds x 8d: the freeze came 11.1 -> 8.0 game-hours while
+//      boredom pinned >= WALKOUT_AT on DAY 2 instead of day 5 and mean on-shift
+//      boredom went 0.571 -> 0.840. A fifth of the fix for a walk-out ladder
+//      pulled in by three days, town-wide, forever.
+//   2. CAPPING IT. Also no: the +0.20 lump stacks on top of any cap, so
+//      settlement boredom still read 0.82 / 1.00 / 1.00 against as-shipped's
+//      0.20 / 0.40 / 0.60, and the ladder still moved to day 2.
+// Only bounding it BY THE LUMP leaves the ladder where it was - which is the
+// version that survives, and the version that spends no pillar.
+//
+// AND IT IS STILL PAID FOR BY IDLENESS. It accrues only while a crab is on shift
+// with nothing to do - applied at the bottom of the idle branch, past every
+// dispatch - so a crab who is working pays nothing, and a SHACK THAT IS GROWING
+// is busy. The town the growth matrix measures pays this least, which is the
+// same argument the wander itself makes one screen down: "it lands hardest
+// exactly when the shop is quiet, which is when it costs the town least."
+//
+// THE CURE LEDGER IS THEREFORE EXACTLY AS AUTHORED: at most +0.20 a shift
+// against 0.12 of chat relief, so a gossiping crew still drifts upward across a
+// week and only the arcade buys the bar back.
+//
+// Read as "a whole standard shift spent idle would cost this much boredom" - the
+// units TIRED_SHIFT is quoted in. Above 1.0 is not a typo: the ADVANCE CAP, not
+// this number, sets how much a crab ends up with, so this only sets how FAST an
+// empty shop gets them off the wall. 3.0 spends the whole advance in about a
+// third of a shift. Measured against the freeze, cap fixed and only this moving:
+// 0.75 -> 8.0 game-hours; 3.0 -> 2.0; 6.0 -> 1.5 on day 1 but 6.6 overall,
+// because a crab who exhausts the advance in the first hour has nothing left to
+// draw and stands still through the rest of a dead day. 3.0 is the knee.
+const BORED_IDLE = qn(3.0);
+// ONE BOUND, AND IT IS THE LUMP ITSELF. An earlier version carried a second,
+// separate ceiling on the LEVEL as well; it was redundant once the advance is
+// bounded (the draw can never exceed what the settlement would have charged) and
+// two interacting caps on one quantity is how a balance number stops being
+// readable. Keep this equal to the shift-end lump - they are two halves of one
+// charge, and a drift between them would silently start adding or forgiving
+// boredom.
+//
+// p.boredAdv IS "HOW MUCH OF TODAY'S LUMP HAS ALREADY BEEN CHARGED", by either
+// half, and p.boredAdvDay STAMPS WHICH DAY "TODAY" MEANS. The stamp is what
+// makes the bound provable, and it took two measured bugs to arrive at:
+//
+//   1. CLEARING IT AT CLOCK-IN let a crab who breaks for an errand and clocks
+//      back in draw a SECOND full advance against a lump already paid - REEF,
+//      +0.40 in a day against everyone else's +0.20.
+//   2. CLEARING IT IN THE NIGHTLY BLOCK looked right and was worse, because
+//      that block fires at TMIN 20:00 while REEF's and SALTY's shifts run to
+//      20:30. The reset landed MID-SHIFT, re-opening the budget in time for the
+//      settlement half an hour later to charge a full second lump. Same +0.40,
+//      but now arriving through a path that reads like end-of-day tidy-up.
+//
+// A stamp has no such ordering to get wrong: the advance simply IS NOT VALID on
+// any day but the one it was drawn on, so it self-expires without anyone having
+// to remember to clear it, in any order, on any path - including the paths where
+// a shift never settles at all (a crab called sick mid-shift, a walk-out, a rota
+// reshuffle), which was the third bug in this same family.
+//
+// The lesson generalises past this constant: an expiry that depends on WHEN a
+// reset runs is only as correct as the reset's position relative to every other
+// event, and "the nightly block" is not the end of the night.
+const BORED_ADV_MAX = qn(0.2);
+// ...AND IT STOPS DEAD AT THE SPEED LINE. This is the fifth thing measurement
+// forced, and it is the one that makes the whole change economically inert.
+//
+// Re-timing boredom EARLIER in a day raises its TIME-AVERAGE even when the daily
+// total is identical - and above qn(0.5) every point of boredom is a movement
+// penalty (crabMoveQ8's `over`). Measured: mean on-shift boredom 0.571 -> 0.632,
+// and the consequences were two systems away and entirely in the wage bill -
+// slower crabs run errands worse, so sick-days went 8 -> 13 and 6 -> 13 on two
+// seeds, a sick day pays NO WAGE (crabDueTonight), and the always-open arm of
+// the anti-exploit gate reads takings-per-crew-day 1.06 -> 1.12 against a limit
+// of 1.10. A BOREDOM RE-TIMING RE-OPENED AN ECONOMIC EXPLOIT THROUGH PAYROLL.
+//
+// So the trickle may not cross qn(0.5). It does not need to: its whole job is to
+// get an EARLY-GAME crab (boredom 0.0-0.4, nowhere near the line) over
+// WANDER_AT. Once the settlement lumps have carried a crab past 0.5 the bar is
+// long since cleared and the trickle has nothing left to do - it simply stops.
+// Every crab above the line therefore moves at EXACTLY the speed it did before
+// this change existed, which is what keeps the growth pillar out of it.
+const BORED_IDLE_LEVEL = qn(0.5);
+// how much of TODAY's lump is already spent - 0 on any day we have not drawn on
+function boredAdvOf(c) { return c.p.boredAdvDay === day ? (c.p.boredAdv || 0) : 0; }
+// ...AND THE WALK-OUT LADDER MUST NOT SEE AN UNBILLED ADVANCE. This is the
+// fourth thing measurement forced, and it is a pure ORDERING fact that no
+// amount of "the totals match" reasoning would have caught.
+//
+// The nightly walk-out check runs at TMIN 20:00; a late shift knocks off at
+// 20:30. As-shipped, a lump that pushes a crab over WALKOUT_AT therefore lands
+// AFTER the check and is first counted the FOLLOWING night - one day of grace
+// that is baked into WALKOUT_DAYS' tuning. Re-time part of that same lump into
+// the afternoon and the crossing is counted the SAME night: the 4-settlement
+// ladder quietly becomes 3.
+//
+// MEASURED, seed 4242 x 10d, and it is not subtle: walk-outs 1 -> 3 on normal
+// hours and 2 -> 4 on always-open. A walk-out is a day with NO WAGE, so it
+// inflates takings-per-crew-day MOST in the arm with the most idle hours - which
+// is precisely the always-open arm, and it pushed the anti-exploit gate from
+// 1.06 to 1.12 against a limit of 1.10. A boredom re-timing reopened an
+// ECONOMIC exploit two systems away, through the wage bill.
+//
+// So the ladder reads the boredom the crab would have had at this point in the
+// day WITHOUT the UNBILLED part of the advance. Nothing else uses this: the bar,
+// the quips, the mood ring and the speed penalty all read the real, current
+// value, because for those the whole point is that the crab IS bored now.
+//
+// "UNBILLED" IS THE LOAD-BEARING WORD, and getting it wrong broke the walk-out
+// gate. Once the shift settles, that boredom HAS been charged the way the ladder
+// was tuned on - it must count in full. But the settlement also closes the day's
+// budget by setting boredAdv to the max, so a naive `bored - boredAdv` keeps
+// subtracting a lump that is already paid, and a crab pinned at 1.00 reads 0.80
+// forever: the walk-out never fires at all. p.boredBilled records that the
+// settlement has run, which separates "drawn early" from "drawn early and since
+// accounted for" - two different things that one counter cannot say.
+function boredSettled(c) {
+  if (c.p.boredBilled === day) return c.p.bored || 0;   // the shift settled: it all counts
+  return Math.max(0, (c.p.bored || 0) - boredAdvOf(c));
+}
+// ...and it accrues EXACTLY, by the otPremium remainder pattern the tiredness
+// trickle already uses: add the numerator, move floor(R/D) whole grains, keep
+// R % D for the next tick. Banking a float in a Q20 field would be a spec
+// violation the C port cannot reproduce even though it stays deterministic.
+// The remainder lives at p.boredRem so a mid-shift save carries it.
+function boredIdleTick(c) {
+  if (patOff("boredidle")) return;
+  if ((c.p.bored || 0) >= BORED_IDLE_LEVEL) return;   // never past the speed line
+  const spent = boredAdvOf(c);                        // 0 once the stamp is stale
+  let room = BORED_ADV_MAX - spent;                   // nothing beyond one shift's lump
+  const headroom = BORED_IDLE_LEVEL - (c.p.bored || 0);
+  if (headroom < room) room = headroom;               // ...and never over the line
+  if (room <= 0) return;
+  const den = Math.max(1, ownStdSpan(c)) * GMIN;
+  const R = (c.p.boredRem || 0) + BORED_IDLE * dtT;
+  let move = (R - R % den) / den;
+  c.p.boredRem = R % den;
+  if (move <= 0) return;
+  if (move > room) move = room;
+  const b1 = (c.p.bored || 0) + move;
+  if (b1 >= Q20) { move = Q20 - (c.p.bored || 0); c.p.bored = Q20; c.p.boredRem = 0; }
+  else c.p.bored = b1;
+  c.p.boredAdv = spent + move;                        // banked against today's lump
+  c.p.boredAdvDay = day;
+}
 function boredYields(c) {
   return (c.p.hunger || 0) >= BORED_YIELD || (c.p.thirst || 0) >= BORED_YIELD
     || (c.p.tired || 0) >= BORED_YIELD;
@@ -7155,49 +7474,106 @@ const PLAYLIST = (typeof BUNDLED_PLAYLIST !== "undefined" && Array.isArray(BUNDL
   && BUNDLED_PLAYLIST.length && BUNDLED_PLAYLIST.every(t => t && t.src && t.name))
   ? BUNDLED_PLAYLIST : PLAYLIST_LITERAL;
 
-// THE ROTATION IS WHAT THE BOX EDITS. Matt asked for a menu "so you can assign
-// songs to stuff and remove them from consideration" - and until this existed
-// the box could not do either: it recorded judgements that nothing read, so
-// dropping a track you were sick of did not stop it playing.
+// THE ROTATION IS THE MUSIC BOX (Matt, 2026-08-26: "we should forget about the
+// old playlist of just a few songs and expand"), and that sentence is a change
+// of KIND, not of size.
 //
-// The rotation is the shipped playlist MINUS what you dropped, PLUS every
-// catalog track you kept, at the energy you gave it. That is also the answer to
-// "we could have the whole playlist": all 1,201 candidates are auditionable in
-// the box, and the ones you keep join the music the town actually plays.
+// It used to be an OPT-IN list: the 22 shipped tracks, minus what you dropped,
+// plus the handful you had personally tapped KEEP on. So the box was a vetting
+// bench that fed a tiny playlist - 1,201 tracks were auditionable and 22 were
+// audible, and hearing a new one meant judging it first. That is a curation
+// tool. Matt asked for a jukebox.
 //
-// It is INERT until you judge something - with no judgements it rebuilds to
-// exactly PLAYLIST - so a player who never opens the box hears what they always
-// heard.
+// So the rotation is now the BOX'S OWN LIST, in the box's own order, minus only
+// what you DROPPED. Every row you can see is a row the town can play, which is
+// what makes "the next one in the music box" (below) a sentence about one list
+// rather than two. KEEP survives as a filter and an export - it is how a
+// vetting pass still reaches tools/mkplaylist.mjs - it is just no longer the
+// gate on being heard.
+//
+// TWO POOLS, ONE RULE, unchanged: with no catalog the pool IS PLAYLIST, so a
+// checkout with no index behaves exactly as it always did.
 //
 // Roled tracks (title, ending) are never dropped: they are moments rather than
-// rotation, pickTrack already skips them, and losing the ending sting to a
-// stray tap on a vetting screen is not a trade anyone asked for.
+// rotation, and both the picker and the sequential walk skip them, so losing
+// the ending sting to a stray tap on a vetting screen is not a trade anyone
+// asked for. The catalog names them differently from PLAYLIST ("BEACH
+// VOLLEYBALL START SCREEN" vs "BEACH VOLLEYBALL"), so the role is carried
+// across by FILE - musLoadShipmap stamps a shipped row's `file` to the same
+// same-origin path PLAYLIST's `src` holds - and never by name.
 let ROTATION = PLAYLIST.slice();
+function roleOfFile(file) {
+  const p = file && PLAYLIST.find(x => x.src === file);
+  return p ? p.role : undefined;
+}
+// WHAT ENERGY THE ROTATION READS. Distinct from `musEnergy`, which is what the
+// BOX shows: the box must keep saying "-" for a row nobody has judged, because
+// that dash is the difference between your tag and our guess and the energy
+// chip cycles from it. The rotation cannot afford a null - with 1,179 untagged
+// candidates in the list, defaulting them all to "steady" would flatten the one
+// feature that makes the music agree with the town (see targetEnergy) - so it
+// falls through to a guess read off the catalog's own tag prose.
+function rotEnergy(t) {
+  const e = musEnergy(t);
+  if (e != null) return e;
+  const g = musTagEnergy(t.tags);
+  return g == null ? 1 : g;
+}
+// THE GUESS, and it is deliberately crude: two word lists and whichever side
+// scores higher. MEASURED over the shipped 1,201-track catalog: 340 calm, 283
+// lively, 578 undecided-and-therefore-steady - a spread that gives every hour
+// of the town's day something to reach for, which is the only property that
+// matters here. A wrong guess costs a lullaby on a busy afternoon; a player who
+// cares taps the energy chip and their judgement outranks this forever.
+const MUS_CALM = ["lullaby", "slow", "sparse", "ballad", "ambient", "quiet", "gentle",
+  "soft", "calm", "sleepy", "night", "dreamy", "lonely", "mellow", "sad",
+  "meditative", "hymn", "nocturne", "tender", "drifting", "spare"];
+const MUS_LIVELY = ["dance", "fast", "thumping", "frantic", "driving", "party", "hard",
+  "upbeat", "punk", "rave", "racing", "aggressive", "banger", "hyper",
+  "breakbeat", "stomp", "march", "energetic", "chase", "funk", "disco",
+  "hustle", "bright"];
+function musTagEnergy(tags) {
+  if (!tags) return null;
+  const s = String(tags).toLowerCase();
+  let calm = 0, hot = 0;
+  for (const w of MUS_CALM) if (s.indexOf(w) >= 0) calm++;
+  for (const w of MUS_LIVELY) if (s.indexOf(w) >= 0) hot++;
+  return hot > calm ? 2 : calm > hot ? 0 : null;
+}
 function rebuildRotation() {
-  const playing = ROTATION[trackIdx] ? ROTATION[trackIdx].name : null;
+  // WHAT IS PLAYING IS AN IDENTITY, NOT AN INDEX, and with the whole catalog in
+  // the list the identity has to be the catalog id where there is one: 1,201
+  // rows contain repeated titles (mkmusic numbers them, but only after the
+  // first), so a name match could land the playhead on a different song.
+  const cur = ROTATION[trackIdx];
+  const curId = cur && cur.cat ? cur.cat.id : null;
+  const curName = cur ? cur.name : null;
   const rows = [];
-  for (let i = 0; i < PLAYLIST.length; i++) {
-    const t = PLAYLIST[i];
-    const j = musJudge["p" + i];                       // musPool ids shipped tracks "p<index>"
-    if (j && j.k === 0 && !t.role) continue;           // dropped, and not a moment
-    // A re-tagged energy is honoured here too, which is the other half of
-    // "assign songs to stuff" - it used to be recorded and ignored.
-    rows.push(j && j.e != null && j.e !== t.e ? Object.assign({}, t, { e: j.e }) : t);
-  }
   if (MUSCAT && MUSCAT.tracks) {
     for (const t of MUSCAT.tracks) {
-      const j = musJudge[t.id];
-      if (!j || j.k !== 1) continue;                   // only what you kept
+      const role = roleOfFile(t.shipped && t.file);
+      if (musState(t) === 0 && !role) continue;        // dropped, and not a moment
       // `cat` carries the catalog row so playTrack can resolve its source the
       // same way the box does - local mirror if you have one, our release if
       // you do not.
-      rows.push({ cat: t, name: t.name, e: j.e == null ? 1 : j.e });
+      rows.push({ cat: t, name: t.name, e: rotEnergy(t), role });
+    }
+  } else {
+    for (let i = 0; i < PLAYLIST.length; i++) {
+      const t = PLAYLIST[i];
+      const j = musJudge["p" + i];                     // musPool ids shipped tracks "p<index>"
+      if (j && j.k === 0 && !t.role) continue;
+      // A re-tagged energy is honoured here too, which is the other half of
+      // "assign songs to stuff" - it used to be recorded and ignored.
+      rows.push(j && j.e != null && j.e !== t.e ? Object.assign({}, t, { e: j.e }) : t);
     }
   }
   ROTATION = rows.length ? rows : PLAYLIST.slice();
   // Keep playing what was playing: trackIdx is an index, and the array it
   // indexes just changed underneath it.
-  const at = playing ? ROTATION.findIndex(r => r.name === playing) : -1;
+  let at = -1;
+  if (curId) at = ROTATION.findIndex(r => r.cat && r.cat.id === curId);
+  if (at < 0 && curName) at = ROTATION.findIndex(r => r.name === curName);
   if (at >= 0) trackIdx = at;
   else if (trackIdx >= ROTATION.length) trackIdx = 0;
 }
@@ -7214,6 +7590,11 @@ function targetEnergy() {
 // ...and the track for it. Never a roled track, never the one just played, and
 // it falls back through the neighbouring energies rather than going silent -
 // a town with no lively track left still gets music, just calmer music.
+//
+// THIS IS NOW THE ENTRY POINT ONLY - what plays when the music STARTS (MUS,
+// unmute, a fresh town). What follows a track is `nextTrack` below. The town
+// still gets a first song that agrees with it; it then gets a side of the
+// record rather than a re-roll per track.
 function pickTrack() {
   const want = targetEnergy();
   for (const d of [0, 1, 2, 3]) {
@@ -7226,6 +7607,53 @@ function pickTrack() {
     if (pool.length) return pool[(vrand() * pool.length) | 0];   // music is view: the shuffle never advances the sim stream
   }
   return trackIdx;
+}
+// WHAT FOLLOWS A TRACK IS THE NEXT ROW IN THE BOX (Matt, 2026-08-26: "once the
+// selected song is done playing the next one in the music box should play, and
+// then the next").
+//
+// It used to be another `pickTrack` - an energy-matched re-shuffle at every
+// track boundary. That was the right answer for a twelve-track loop, where
+// walking the list in order meant hearing the same twelve songs in the same
+// order forever, and it is the WRONG answer for the box: a player who picks a
+// song is stating where in the list they want to be, and a shuffle threw that
+// away one track later. The rotation is the box's own order now (see
+// rebuildRotation), so "the next one in the music box" and "the next one in the
+// rotation" are the same row.
+//
+// It wraps, and it steps OVER the moments - the title theme and the ending
+// sting are not rotation, and a record box that walks into thirty-one seconds
+// of somebody telling you how it went is a bug wearing a feature's coat.
+// WHETHER A ROTATION ROW SOUNDS FROM OUR OWN HOST. It does iff it resolves to a
+// relative path: a shipped catalog row (musSrc returns its same-origin file) or
+// a PLAYLIST fallback row (its baked src). A non-shipped catalog row streams
+// from the release CDN, which is the source Safari refuses (see STREAM_OK).
+function rowSameOrigin(r) { return r ? (r.cat ? !!r.cat.shipped : true) : false; }
+function nextTrack(d = 1) {
+  const n = ROTATION.length;
+  if (!n) return 0;
+  // ONCE THE BROWSER HAS REFUSED THE STREAMS, walk to a row we host ourselves.
+  // The 1,179 streamed rows will all refuse the same way, so stepping onto one
+  // is a dead track and, on a phone, a wasted request - the exact bill the
+  // give-up was invented to bound. Skip them and land on one of the 22 instead;
+  // this holds for the auto-advance after a track AND the arrow keys alike,
+  // because a stream is no more playable when a finger asks for it.
+  if (STREAM_OK === false) {
+    for (let step = 1; step <= n; step++) {
+      const i = ((trackIdx + d * step) % n + n) % n;
+      const r = ROTATION[i];
+      if (!r.role && rowSameOrigin(r)) return i;
+    }
+    // ...but if this build ships no same-origin row (an all-stream rotation),
+    // fall through to the plain next row and let musSkip's give-up stop the
+    // cascade: "only the streams are dead" and "everything is dead" are
+    // different states and each needs its own answer.
+  }
+  for (let step = 1; step <= n; step++) {
+    const i = ((trackIdx + d * step) % n + n) % n;
+    if (!ROTATION[i].role) return i;
+  }
+  return trackIdx;   // a rotation of nothing but moments: stay put rather than sound one
 }
 function roleTrack(role) {
   for (let i = 0; i < ROTATION.length; i++) if (ROTATION[i].role === role) return i;
@@ -7254,6 +7682,17 @@ function toggleMute() {
 // the archive; starting at true would cost a stranger one 404 per track. So
 // the first play tries local, and its result decides for the rest.
 let ARCHIVE_OK = null;
+// WHETHER THIS BROWSER WILL PLAY A RELEASE ASSET AT ALL, learned the same way
+// ARCHIVE_OK is: tri-state, null until a real play() settles it. Safari refuses
+// a GitHub release url with NotSupportedError - it will not sniff the
+// application/octet-stream the CDN sends (the full account is up by musSetSrc) -
+// and with 1,179 of the 1,201 rotation rows streaming from exactly there, a
+// single refusal is the whole soundtrack's answer. So once a stream comes back
+// refused, stop offering streams to the town and rotate the 22 we host
+// ourselves (nextTrack reads this). It is a CAPABILITY fact, not a permission
+// one, so unlike musBlocked a gesture does NOT clear it: tapping cannot teach
+// WebKit a codec it does not have, and re-arming it would just re-cascade.
+let STREAM_OK = null;
 let trackIdx = (srand() * PLAYLIST.length) | 0;
 // ONE TRACK AT A TIME, AND THE GENERATION IS WHY. Every play is asynchronous:
 // `play()` hands back a promise, and 'ended' fires from an element we may have
@@ -7300,6 +7739,80 @@ let SPEAKER = null;
 // and both would otherwise start their own fallback. Stamping the attempt lets
 // the second one see it has been superseded and return.
 let musSrcGen = -1;
+// WHAT IS ON THE ELEMENT, as a string we kept - because after this change the
+// element's own `src` property is empty and `currentSrc` is the RESOLVED url,
+// which the archive test below cannot match against a relative path. Three
+// readers ask "did that attempt come from the local mirror?" to decide whether
+// a failure means "fall through to the release we host"; they read this.
+let musCurSrc = "";
+// THE TYPE HAS TO BE DECLARED WHERE WE ARE NOT THE SERVER, and on Safari that
+// is the whole record-box bug.
+//
+// The tracks this build ships are served by our own host as `audio/mp3`. The
+// 1,201 catalog tracks the box streams are GitHub RELEASE ASSETS, and GitHub
+// serves every release asset as `application/octet-stream` with an attachment
+// disposition NO MATTER WHAT - ours are stored as `audio/mpeg` (mkmusichost
+// uploads them that way and the API still reports it) and the download is
+// rewritten anyway, in a signed redirect we cannot alter. Verified against
+// other repos too: cli/cli's `text/plain` checksums file downloads as
+// octet-stream. So there is no server-side fix to reach for here.
+//
+// Chrome sniffs the bytes, finds an MP3 and plays it, which is why the bench
+// worked on every machine this was written on. WebKit does not sniff: it takes
+// the content type at its word and refuses the source. MEASURED in Safari 26.6,
+// a bare `a.src = <release url>` gives `NotSupportedError` /
+// MEDIA_ERR_SRC_NOT_SUPPORTED, while the same bytes behind our own `audio/mp3`
+// play fine. So in Safari the town's music worked and the record box was
+// silent - every audition, all 1,179 of them.
+//
+// A `<source>` child with an explicit `type` is the one lever that moves it:
+// WebKit picks the decoder from the AUTHOR-DECLARED type and stops consulting
+// the server's. Measured: same url, same element, PLAYING. The blob route -
+// fetch the bytes and re-wrap them - is not available even as a fallback,
+// because the release CDN sends no CORS headers (`TypeError: Load failed`).
+//
+// BUT IT IS NOT USED FOR OUR OWN PATHS, and that restraint is the interesting
+// half. A `<source>` child changes how FAILURE is reported: the spec hands an
+// exhausted candidate list to NETWORK_NO_SOURCE without firing 'error' at the
+// media element, and MEASURED in Safari 26.6 a 404 behind a `<source>` reports
+// NOTHING for at least 30 seconds - not on the source, not on the element -
+// and only the play() promise ever settles, somewhere past 6s. A relative path
+// is the one source we EXPECT to miss (the archive mirror is gitignored and
+// absent from every build but one, and its 404 is what teaches ARCHIVE_OK and
+// falls through to the release), so routing it through `<source>` would trade
+// an instant, well-tested fallthrough for a twenty-second stall. We serve
+// those ourselves with a real content type, so they have nothing to gain from
+// a declaration and everything to lose. Absolute url -> declare; our own
+// path -> the plain `src` this file has always used.
+function musSetSrc(a, url) {
+  musCurSrc = url;
+  // WHERE THERE IS NO DOM THERE IS NO DECODER EITHER. The headless sim's
+  // `Audio` is an inert stub - no children, no `removeAttribute`, no `load` -
+  // and the suite's spy counts `src` ASSIGNMENTS to prove the one-element,
+  // one-swap-per-track shape iOS needs. Off-browser this stays the single
+  // `src` write every one of those scenarios was written against.
+  const ours = !/^https?:/i.test(url);
+  if (ours || !a.ownerDocument || typeof a.appendChild !== "function" || typeof a.load !== "function") {
+    while (a.firstChild) a.removeChild(a.firstChild);   // a leftover <source> outranks the src attribute
+    a.src = url;
+    return;
+  }
+  a.removeAttribute("src");                       // an empty `src` attribute is itself a candidate, and a failing one
+  while (a.firstChild) a.removeChild(a.firstChild);
+  const s = a.ownerDocument.createElement("source");
+  s.src = url;
+  s.type = "audio/mpeg";
+  // THE FAILURE MOVES TO THE CHILD, so the handler moves with it. With a bare
+  // `src` a dead source reached us twice - the element's 'error' and the
+  // play() rejection - and `musSrcGen` existed to drop the duplicate. The
+  // element-level listener in `speaker` never fires for a `<source>`, so this
+  // carries the same stamp and the same `musFail`. (Chrome does fire it here;
+  // Safari, measured above, does not - the play() rejection is its only
+  // signal, and that is why the expected-miss path above stays on `src`.)
+  s.addEventListener("error", () => musFail(musSrcGen));
+  a.appendChild(s);
+  a.load();                                       // children are only re-read on an explicit load; setting .src used to do this for us
+}
 function speaker() {
   if (SPEAKER) return SPEAKER;
   const a = SPEAKER = new Audio();
@@ -7312,9 +7825,16 @@ function speaker() {
     if (musPreview) { musAdvance(1); return; }        // the bench walks its own list
     if (!music) return;
     music = null;
-    // WHAT FOLLOWS A TRACK IS CHOSEN, NOT COUNTED. The next one is picked to
-    // match what the town is doing when this one runs out - see pickTrack.
-    if (musicOn && !musicView) playTrack(pickTrack());
+    // WHAT FOLLOWS A TRACK IS THE NEXT ROW IN THE BOX - see nextTrack. (It used
+    // to be another energy re-roll, which is what made "the next one in the
+    // music box" impossible to hear.)
+    //
+    // AND IT NO LONGER STOPS BECAUSE THE BOX IS OPEN. `!musicView` was here
+    // because the box owned the speakers the moment it opened; it does not any
+    // more (musOpen), so a track running out while you are reading the list
+    // walks on exactly as it would with the list shut. `musPreview` above is
+    // the real ownership test and it already answered.
+    if (musicOn) playTrack(nextTrack(1));
   });
   a.addEventListener("error", () => musFail(musSrcGen));
   return a;
@@ -7368,7 +7888,7 @@ function playTrack(i) {
   // baked src that would be wrong on the other kind of machine.
   const a = speaker();
   a.pause();
-  a.src = t.cat ? musSrc(t.cat) : t.src;
+  musSetSrc(a, t.cat ? musSrc(t.cat) : t.src);
   music = a;
   musMeta(t.name);
   a.play().then(() => { musFails = 0; musBlocked = false; if (!toast) toast = { text: "NOW PLAYING: " + t.name, t: 4 }; })   // don't stomp a live toast (e.g. the migration refund)
@@ -7414,23 +7934,35 @@ function musFail(gen, e) {
   }
   if (musPreview) return musPrevFail(gen);
   if (!music) return;
+  // THE CDN SAID NO, AND IT WILL SAY NO TO ALL 1,179 OF THEM. A NotSupportedError
+  // on an absolute url is Safari refusing to sniff the octet-stream a release
+  // asset is served as - a codec/container verdict, not this one file's luck -
+  // so the whole streamed catalog is unreachable on this browser. Latch it once
+  // and nextTrack stops offering streams to the town (it rotates the 22 we host
+  // instead); this is what keeps the give-up from burning its whole budget
+  // cascading through dead urls before it lands on a track that plays. Only an
+  // absolute url counts: a same-origin miss is a 404, a different thing.
+  if (e && e.name === "NotSupportedError" && /^https?:/i.test(musCurSrc)) STREAM_OK = false;
   const t = ROTATION[trackIdx], cat = t && t.cat;
-  if (cat && cat.url && a.src.indexOf("music/archive/") >= 0) {
+  if (cat && cat.url && musCurSrc.indexOf("music/archive/") >= 0) {
     ARCHIVE_OK = false;                  // learned once; later tracks go straight to the CDN
     const g = musSrcGen = ++musGen;
     a.pause();
-    a.src = cat.url;
+    musSetSrc(a, cat.url);
     a.play().then(() => { musFails = 0; musBlocked = false; }).catch(e2 => musFail(g, e2));
     return;
   }
   musSkip(gen);
 }
-// PAST THE TRACK, NOT INTO SILENCE.
+// PAST THE TRACK, NOT INTO SILENCE. A dead file steps to the NEXT ROW rather
+// than re-rolling: with the whole catalog in the rotation a re-roll could land
+// on the dead track's neighbour anyway, and stepping is what the player asked
+// the box to do.
 function musSkip(gen) {
   if (gen !== musGen) return;
   music = null;
   if (++musFails >= musGiveUp()) return;   // nothing is reachable: stop trying
-  if (musicOn && !musicView) playTrack(pickTrack());
+  if (musicOn) playTrack(nextTrack(1));
 }
 // THE LOCK SCREEN, THE CAR, AND THE HEADPHONE BUTTON. Matt: "we should have
 // 'next' and 'last' tracks available if we can in the browser, esp if i can go
@@ -7469,10 +8001,17 @@ function musMeta(name) {
 // player's own gesture goes through `musArm` and is never refused: pressing MUS
 // must always mean "try, right now", even on the frame after a failure.
 function musMayAutoPlay() { return !musBlocked && musFails < musGiveUp(); }
-// THE BENCH OWNS THE SPEAKERS WHILE IT IS UP, so the rotation does not start
-// underneath a track you are auditioning - which is what the box's own MUSIC ON
-// button used to do.
-function startMusic() { if (!music && musicOn && !muted && !musicView && musMayAutoPlay()) playTrack(pickTrack()); }
+// THE BENCH OWNS THE SPEAKERS WHILE IT IS PLAYING, so the rotation does not
+// start underneath a track you are auditioning - which is what the box's own
+// MUSIC ON button used to do.
+//
+// THE TEST IS `musPreview`, NOT `musicView`, and that swap is Matt's first ask
+// ("opening the music box shouldn't stop the music from playing"). The box used
+// to claim the speakers by EXISTING - open it and the town went silent, whether
+// or not you ever tapped a row. Ownership belongs to whoever is actually
+// sounding, and `musPreview` is the handle that says so; an open box with
+// nothing auditioned owns nothing.
+function startMusic() { if (!music && !musPreview && musicOn && !muted && musMayAutoPlay()) playTrack(pickTrack()); }
 // THE SAME START, ASKED FOR BY A FINGER. Every caller of this is inside a real
 // tap/click/key handler, and that matters twice over: iOS grants playback only
 // to a play() made SYNCHRONOUSLY inside the gesture, and a gesture is also the
@@ -7494,9 +8033,16 @@ function startMusicTapped() { musArm(); startMusic(); }
 // without the latch, an iOS refusal nulled `music`, the `trackIdx` guard fell
 // open on the next frame, and the title screen spent 127 attempts a second
 // re-requesting a track the phone had already said no to.
+//
+// AND IT YIELDS TO THE BENCH, which it never had to before. The box used to
+// silence the rotation on the way in, so `music` was null and this guard was
+// the only thing standing between the title screen and a second track. Now that
+// an open box leaves the music alone, an audition on the title screen would be
+// stomped by the title theme on the very next frame - `musPlay` nulls `music`,
+// which is exactly the shape of the hole `musMayAutoPlay` was invented to plug.
 function playRole(role) {
   const i = roleTrack(role);
-  if (i < 0 || !musicOn || muted || !musMayAutoPlay()) return;
+  if (i < 0 || !musicOn || muted || musPreview || !musMayAutoPlay()) return;
   if (music && trackIdx === i) return;
   playTrack(i);
 }
@@ -7519,7 +8065,12 @@ function musStep(d) {
   // whole of this function's care: unmuting runs startMusic, which picks a
   // random track and WRITES trackIdx - so stepping afterwards would step from
   // a track nobody chose rather than from the one you were listening to.
-  const to = trackIdx + d;
+  // ...and it steps over the MOMENTS, which it never had to before: the title
+  // theme and the ending sting used to be two rows in a 22-row rotation you
+  // reached only by walking past twenty others. With the whole catalog in the
+  // list they are still exactly two rows, and a next-track button that can land
+  // on thirty-one seconds of "here is how it went" is a broken button.
+  const to = nextTrack(d);
   musicOn = true;
   if (muted) muted = false;              // a skip while muted means "let me hear it"
   musArm();                              // a skip is a gesture: it may unlock what autoplay could not
@@ -7541,7 +8092,7 @@ function musNowRow() {
   const t = ROTATION[trackIdx];
   if (!t) return null;
   if (t.cat) return t.cat;
-  const i = PLAYLIST.findIndex(x => x.name === t.name);
+  const i = PLAYLIST.findIndex(x => x.src === t.src);
   if (i < 0) return null;
   return { id: "p" + i, name: t.name, file: t.src, shipped: 1 };
 }
@@ -8376,6 +8927,11 @@ function traitsProblem(t) {
     if (!line(r.label) || r.label.length > 20) return "A BAD TRAIT LABEL";
     for (const k of ["move20", "work20", "tip20"]) if (!m20(r[k])) return "A BAD TRAIT MULTIPLIER";
     if (r.lateMin != null && !(Number.isInteger(r.lateMin) && r.lateMin >= 0 && r.lateMin <= 240)) return "A LATENESS PAST ALL PATIENCE";
+    // thrift: twentieths of tonight's roof this trait keeps back. Optional -
+    // an old table that predates the reserve is a valid table, and buildTraits
+    // defaults it to the identity 20. Capped at 60 like the other twentieths:
+    // a crab may reserve up to three nights, never an unbounded hoard.
+    if (r.thrift != null && !(Number.isInteger(r.thrift) && r.thrift >= 0 && r.thrift <= 60)) return "A THRIFT NOBODY COULD KEEP";
     if (r.pauses != null && typeof r.pauses !== "boolean") return "A BAD TRAIT";
     if (!r.quips || typeof r.quips !== "object" || Array.isArray(r.quips)) return "A TRAIT WITH NOTHING TO SAY";
     for (const q in r.quips) {
@@ -8402,6 +8958,11 @@ function buildTraits(src) {
     };
     if (r.lateMin != null) out[id].lateMin = r.lateMin;
     if (r.pauses) out[id].pauses = true;
+    // thrift stays in TWENTIETHS (spendKeep divides by 20 in ints) rather than
+    // becoming a double like move/work/tip - the reserve is money, and money
+    // in this engine is integer cents. A table that predates the reserve gets
+    // the identity, so an old document keeps its crabs' pockets unchanged.
+    out[id].thrift = r.thrift != null ? r.thrift : 20;
     out[id].moveQ8 = Math.round(40 * out[id].move * Q8);
   }
   return out;
@@ -9044,8 +9605,18 @@ const NEURO_PARAM_OBS = {
   // ...and the citizen-priced trio: a resident pays localPrice, not the
   // tourist menu, and reads staffing where a guest reads opening hours.
   "cit.staffed":      { units: "flag*4096", read: (b) => () => nclamp((bizStaffed(b) ? 1 : 0) * 4096) },
+  // PERCEPTION, NOT POLICY - and this one deliberately did NOT move when the
+  // spend reserve landed. `canAfford` now holds back tonight's rent by
+  // temperament, but that is a crab DECIDING what to allow itself; this
+  // observable answers the prior question of what is purchasable at all, which
+  // is what a crab can SEE on the board. Keeping the two apart is what lets a
+  // brain learn "I could have had the soak and saved anyway" instead of being
+  // told the soak was never there. It also keeps the shipped artifact's input
+  // semantics stable - a reserve-aware feature would silently change what
+  // every trained weight means under an unchanged REGISTRY_VERSION, which is
+  // the exact trap that field exists to prevent. POCKET_KEEP, not spendKeep().
   "cit.afford.count": { units: "n<<10",
-    read: (b) => (c) => nclamp(bizRecipes(b).filter(r => c.p.wallet >= localPrice(b, r) + 200).length * 1024) },
+    read: (b) => (c) => nclamp(bizRecipes(b).filter(r => c.p.wallet >= localPrice(b, r) + POCKET_KEEP).length * 1024) },
   "cit.dist.px":      { units: "px<<3", read: (b) => (c) => nclamp(Math.floor(Math.abs(c.x - BIZ[b].queueX) * 8)) },
 };
 // THE DECISION-SURFACE REGISTRY: the named places a policy may decide, each
@@ -10955,7 +11526,7 @@ function maybeQuip(c, dt) {
       lines = ["DAY OFF!", "BEACH DAY", "THE SAND'S ALL MINE", "NOT COOKING TODAY"];
     if (walkoutToday(c) && !c.p.sick && !isNight && tmin >= rhythmOf(c).LIEIN)
       lines = ["THEY'LL COPE", "I NEEDED THIS", "NOT TODAY", "SOMEONE ELSE'S TURN"];
-    if ((c.p.bored || 0) >= WANDER_AT && !isNight && !walkoutToday(c))
+    if ((c.p.bored || 0) >= RESTLESS_AT && !isNight && !walkoutToday(c))
       lines = ["SAME OLD SAME OLD", "IS IT HOME TIME", "NOTHING EVER HAPPENS", "I'D KILL FOR AN ARCADE"];
     if ((c.p.tired || 0) >= qn(0.8) && !isNight)
       lines = ["DEAD ON MY FEET", "SO... SLEEPY", "NEED MY BED"];
@@ -11283,6 +11854,13 @@ function arriveCommute(c, atWork) {
   if (atWork) {
     c.dsC = DS.working; c.duty = true; c.ksC = KS.idle; c.workBiz = c.p.job;
     c.tiredIn = c.p.tired || 0;   // how tired they turned UP: the thirst coupling reads this, not the shift's own accrual
+    // NB: the boredom advance (BORED_IDLE) is deliberately NOT reset here. This
+    // is not the start of a DAY - a crab who breaks for an errand and comes back
+    // clocks in again, and an earlier version of this change did clear it here.
+    // MEASURED: that let one crab draw a second full advance after lunch and
+    // climb +0.40 in a day against everyone else's +0.20, which is the exact
+    // double-charge the advance is supposed to make impossible. The advance is
+    // per-DAY, so it expires at the day boundary and nowhere else.
     c.workedToday = true;   // wages follow actual work: a mid-day rota reshuffle (job-board hire) can't unpay a worked shift
     logClockIn(c);   // DIARY
     if (c.p.job === "fishing" && c.fishSpot) { c.x = c.fishSpot.x; c.y = c.fishSpot.y; c.castT = 3 * SEC + ((srand() * 6 * SEC) | 0); }
@@ -11677,9 +12255,27 @@ function updateSchedule(c, dt) {
       c.p.thirst = Math.min(Q20, (c.p.thirst || 0) + (tN - tN % tD) / tD);  // working a whole shift ALREADY tired makes you thirsty
     // (the day's tiredness accrued through the shift itself - see the working
     //  branch of updateSchedule. The total is still TIRED_SHIFT * workLoad.)
+    // U1: the shift-end dirt/bored lump is one of the discrete metabolic bumps
+    // the continuous drain subsumes, so under crabDecayOn() the whole settlement
+    // turns OFF (crabTick owns dirt/bored off-duty; boredIdleTick still owns the
+    // ON-DUTY idle case, where crabTick is paused). Under --nodecay this runs the
+    // pre-U1 tree's idle-trickle settlement unchanged.
     if (!crabDecayOn()) {
       c.p.dirt = Math.min(Q20, (c.p.dirt || 0) + qn(0.25));      // and grubbies up the shell
-      c.p.bored = Math.min(Q20, (c.p.bored || 0) + qn(0.2));     // all work and no play...
+      // ...all work and no play. STILL +0.20 A SHIFT, but idleness may already
+      // have drawn some of it down during the day (BORED_IDLE): the settlement
+      // pays only what is left owing, so standing about re-times this charge
+      // without ever increasing it. A crab who idled the whole shift has paid in
+      // full already and gets nothing here. boredAdv is cleared either way, so
+      // tomorrow starts with the full lump available to draw against again.
+      c.p.bored = Math.min(Q20, (c.p.bored || 0) + Math.max(0, qn(0.2) - boredAdvOf(c)));
+      // ...and today's boredom budget is now CLOSED rather than cleared, stamped
+      // with today. A crab can clock off, run an errand and clock back in, so
+      // clearing it would let the afternoon draw a second full advance against a
+      // lump already paid (measured: +0.40 in a day). The stamp expires it at
+      // midnight on its own, on every path, including the ones that never settle.
+      c.p.boredAdv = BORED_ADV_MAX; c.p.boredAdvDay = day; c.p.boredRem = 0;
+      c.p.boredBilled = day;   // ...and the ladder may now count it in full
     }
     // grab dinner on the way home instead of trekking back later (gated on
     // STAFFING, not hours: a staffed counter serves the after-shift crowd).
@@ -12147,7 +12743,7 @@ function dataErrand(d) {
     gather: (c, take, X) => {
       if ((needOf(c, d.need) || 0) < (X.off ? offAt : at) - nudgeRelax(c, d.need)) return;
       if (!X.staffed(d.biz)) return;
-      const rs = bizRecipes(d.biz).filter(r => c.p.wallet >= localPrice(d.biz, r) + 200);
+      const rs = bizRecipes(d.biz).filter(r => canAfford(c, localPrice(d.biz, r)));
       if (!rs.length) return;
       rs.sort((a, b) => a.pay - b.pay);
       take({ biz: d.biz, recipe: rs[0], need: d.need, ap100 });
@@ -12163,7 +12759,7 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
   // unstaffed. Charged per the shop's staff-meal POLICY (management screen):
   // RETAIL by default, AT COST or FREE if the owner says so.
   if (X.wantFood && !X.staffed("shack") && c.p.job === "shack" && !c.p.npc) {
-    const affordable = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
+    const affordable = bizRecipes("shack").filter(r => canAfford(c, staffMealCharge("shack", r)));
     if (affordable.length) {
       affordable.sort((a, b) => a.pay - b.pay);
       const r = c.p.wallet > 4000 ? affordable[(srand() * affordable.length) | 0] : affordable[0];
@@ -12173,7 +12769,7 @@ registerErrand({ id: "meal.self", need: "food", kind: "selfCook", gather: (c, ta
 } });
 registerErrand({ id: "meal.counter", need: "food", kind: "biz", gather: (c, take, X) => {
   if (X.wantFood && X.staffed("shack")) {
-    const affordable = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
+    const affordable = bizRecipes("shack").filter(r => canAfford(c, localPrice("shack", r)));
     if (affordable.length) {
       // treat yourself when flush, eat cheap when broke
       affordable.sort((a, b) => a.pay - b.pay);
@@ -12246,7 +12842,7 @@ registerErrand({ id: "drink", need: "drink", kind: "biz", gather: (c, take, X) =
   if ((c.p.thirst || 0) >= qn(0.45) - nudgeRelax(c, "drink")) {
     const drinkAt = staffed("juicebar") ? "juicebar" : staffed("shack") ? "shack" : null;
     if (drinkAt) {
-      const drinks = bizRecipes(drinkAt).filter(r => DRINKS[r.id] && c.p.wallet >= localPrice(drinkAt, r) + 200);
+      const drinks = bizRecipes(drinkAt).filter(r => DRINKS[r.id] && canAfford(c, localPrice(drinkAt, r)));
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         const r = c.p.wallet > 4000 ? drinks[drinks.length - 1] : drinks[0];   // a COOLER when flush
@@ -12254,7 +12850,7 @@ registerErrand({ id: "drink", need: "drink", kind: "biz", gather: (c, take, X) =
       }
     } else if (!c.p.npc && (c.p.job === "shack" || c.p.job === "juicebar")
         && bizUnlocked(c.p.job) && !staffed(c.p.job)) {
-      const drinks = bizRecipes(c.p.job).filter(r => DRINKS[r.id] && c.p.wallet >= staffMealCharge(c.p.job, r) + 200);
+      const drinks = bizRecipes(c.p.job).filter(r => DRINKS[r.id] && canAfford(c, staffMealCharge(c.p.job, r)));
       if (drinks.length) {
         drinks.sort((a, b) => a.pay - b.pay);
         take({ selfCook: true, biz: c.p.job, recipe: drinks[0], need: "drink" });
@@ -12344,7 +12940,7 @@ registerErrand({ id: "fun.arcade", need: "fun", kind: "biz", gather: (c, take, X
   // bed rest otherwise: no arcade nights while ill
   if (!c.p.sick && (c.p.bored || 0) >= (X.off ? qn(0.35) : qn(0.6)) - nudgeRelax(c, "fun") && X.staffed("arcade")) {
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];   // splurge on game night when flush
-    if (c.p.wallet >= localPrice("arcade", r) + 200) take({ biz: "arcade", recipe: r, need: "fun" });
+    if (canAfford(c, localPrice("arcade", r))) take({ biz: "arcade", recipe: r, need: "fun" });
   }
 } });
 function pickErrand(c) {
@@ -12374,7 +12970,7 @@ function pickErrand(c) {
   // while you're the one handing out the kits".
   const rinseR = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];   // deluxe soak when flush
   const showerOpen = staffed("showers") && !(c.duty && c.workBiz === "showers");
-  const canShower = showerOpen && c.p.wallet >= localPrice("showers", rinseR) + 200;
+  const canShower = showerOpen && canAfford(c, localPrice("showers", rinseR));
   const X = { staffed, cand, off, wantFood, needsBath, rinseR, showerOpen, canShower };
   for (const e of ERRANDS) e.gather(c, take, X);
   // THE CITIZEN BRAIN SEAM (cit_errand.candidate). Candidates and their draws
@@ -13108,12 +13704,12 @@ function forcedErrand(c, b) {
   if (b === "shack") {
     if (!bizStaffed("shack")) {
       if (c.p.job === "shack" && !c.p.npc) {   // staff privilege: cook your own, at the shop's meal policy
-        const aff = bizRecipes("shack").filter(r => c.p.wallet >= staffMealCharge("shack", r) + 200);
+        const aff = bizRecipes("shack").filter(r => canAfford(c, staffMealCharge("shack", r)));
         if (aff.length) { aff.sort((a, b2) => a.pay - b2.pay); return { selfCook: true, recipe: aff[0] }; }
       }
       return null;
     }
-    const aff = bizRecipes("shack").filter(r => c.p.wallet >= localPrice("shack", r) + 200);
+    const aff = bizRecipes("shack").filter(r => canAfford(c, localPrice("shack", r)));
     if (!aff.length) return null;
     aff.sort((a, b2) => a.pay - b2.pay);
     return { biz: "shack", recipe: c.p.wallet > 4000 ? aff[(srand() * aff.length) | 0] : aff[0], need: "food" };
@@ -13121,12 +13717,12 @@ function forcedErrand(c, b) {
   if (!bizStaffed(b)) return null;
   if (b === "showers") {
     const r = BIZ.showers.recipes[c.p.wallet > 4000 ? 1 : 0];
-    return c.p.wallet >= localPrice(b, r) + 200 ? { biz: b, recipe: r, need: "spa" } : null;
+    return canAfford(c, localPrice(b, r)) ? { biz: b, recipe: r, need: "spa" } : null;
   }
   if (b === "arcade") {
     if (c.p.sick) return null;   // bed rest: no game nights while ill
     const r = BIZ.arcade.recipes[c.p.wallet > 4000 ? 2 : 1];
-    return c.p.wallet >= localPrice(b, r) + 200 ? { biz: b, recipe: r, need: "fun" } : null;
+    return canAfford(c, localPrice(b, r)) ? { biz: b, recipe: r, need: "fun" } : null;
   }
   return null;
 }
@@ -13550,6 +14146,14 @@ function updateKitchen(c, dt) {
     }
     if (c.wanderCd > 0) c.wanderCd -= dtT;
     c.idleT = (c.idleT || 0) + dtT;
+    // A DEAD COUNTER MAKES YOU RESTLESS (BORED_IDLE, and the reasoning is up
+    // there with the constant). Reaching this line means every dispatch above
+    // declined: no order to claim, no stall to scrub, no table to bus. This is
+    // the SAME clock c.idleT counts, so the charge and the "counter has been
+    // dead this long" test can never disagree about what idle means. Not levied
+    // on a crab already on their way out (pendingOff) or off sick, matching the
+    // wander's own gate - a shift that is over is not boring, it is finished.
+    if (!c.pendingOff && !c.p.sick) boredIdleTick(c);
     if (!c.pendingOff && !c.p.sick && !patOff("wander")
         && (c.p.bored || 0) >= WANDER_AT && !boredYields(c)
         && c.idleT >= WANDER_QUIET && c.wanderCd <= 0) {
@@ -14401,6 +15005,18 @@ const VIS_ARRIVE = {                       // [floor, span], Q20 at the boundary
   bored:  [qn(0.20), qn(0.30)],            // a ferry is a bench
   tired:  [qn(0.10), qn(0.25)],            // depends who slept aboard
 };
+// THE LOADED BAND, named because a gate has to be able to ASK. A fresh body
+// gets one or two needs pushed into this band so the pier is legible - somebody
+// visibly wants something. It was an anonymous pair of literals inside visNeeds,
+// which let a suite gate test for "loaded" with `v[key] > floor + span` instead
+// - and that OVERLAPS: thirst's floor+span is 0.60, ABOVE this band's own floor
+// of 0.55, so a loaded thirst that rolled low was invisible to the check and the
+// scenario read the body as having nothing pressing. Measured on main: 9 of 40
+// seeds fail that way, so the gate had been one stream-shift from red the whole
+// time. `visLoaded()` is now the single definition both the mint and the gate
+// read, which is the only way the two cannot drift apart.
+const VIS_LOADED = [qn(0.55), qn(0.40)];   // [floor, span], Q20
+const visLoaded = (v) => v >= VIS_LOADED[0];
 function visNeeds() {
   const n = { hunger: 0, thirst: 0, dirt: 0, bored: 0, tired: 0 };
   const keys = Object.keys(n);
@@ -14411,7 +15027,7 @@ function visNeeds() {
   const loaded = 1 + ((srand() * 2) | 0);
   for (let i = 0; i < loaded; i++) {
     const key = keys[(srand() * keys.length) | 0];
-    n[key] = qn(0.55) + Math.floor(srand() * qn(0.40));
+    n[key] = VIS_LOADED[0] + Math.floor(srand() * VIS_LOADED[1]);
   }
   return n;
 }
@@ -17680,6 +18296,92 @@ function surfQuality(d) { return surfQualityQ16(d) / 65536; }
 registerChannel("mist", mistPeakQ16, mistNowQ16);   // the calendar's fog - day-only, byte-identical
 registerChannel("swell", swellPeakQ16);             // the surf's size - per-town, no intraday envelope
 registerChannel("wind", windPeakQ16);               // blows the swell out - independent per-day
+
+// ── THE FORECAST ─────────────────────────────────────────────────────────
+// A channel is a pure function of day, so forecast(day + n) is a CALL, not a
+// simulation - the swell N days out is not predicted, it is looked up. That is
+// the whole reason the board can be confident. But the board is deliberately
+// HONEST about what it does not know: quality = swell * (1 - wind), and the
+// wind is an INDEPENDENT per-day roll with zero memory (measured against the
+// LANDED channels @ a34bd73, 2000 days x 64 towns: wind lag-1 autocorrelation
+// ~0.00). So the board reveals the SWELL forecast - the groundswell a real
+// forecaster genuinely can see coming off distant storms - and refuses to name
+// the QUALITY of any future day, because the local wind that decides clean-vs-
+// blown is not knowable until that morning.
+//
+// MEASURED, and the pins below defend these bands (not the digits): when the
+// board names a coming swell, that day turns out CLEAN only ~36% of the time -
+// CONSTANT across lead time, because the wind is iid. So "A BIG SWELL THU" is
+// true and confident and useful, and "THU WILL FIRE" is a promise the sea has
+// not made. Interface opacity - hiding a swell the engine could show - would be
+// a bug; this economic uncertainty is the game.
+const FC_BIG   = 32768;   // Q16 0.50 - a swell worth walking a shift off for
+const FC_CLEAN = 29491;   // Q16 0.45 - quality at/above this is a CLEAN, firing day
+const FC_HORIZON = 4;     // days ahead the board looks - names a coming swell on ~63% of days
+// TODAY, as one of three states the sea is actually in (a read you CAN make -
+// you are standing on the beach). Quality decides first: a clean day is clean
+// however big; only once the wind has NOT blown it out does size get a word -
+// a swell below FC_BIG that never fired is just a FLAT day, nothing to say.
+function surfToday(d) {
+  d = d | 0;
+  if (surfQualityQ16(d) >= FC_CLEAN) return "FIRING";
+  if (swellPeakQ16(d) >= FC_BIG)     return "BLOWN OUT";
+  return "FLAT";
+}
+// THE COMING SWELL, or null. Looks FC_HORIZON days out for the first day whose
+// swell tops FC_BIG and reports { n, day } - the lead, never the quality. Only
+// the swell is a function of a day the board can see; the wind on that day is
+// not, so it is not returned and cannot be printed.
+function surfForecast(d) {
+  d = d | 0;
+  for (let n = 1; n <= FC_HORIZON; n++)
+    if (swellPeakQ16(d + n) >= FC_BIG) return { n, day: d + n };
+  return null;
+}
+// The board's three short rows, cut for a narrow sign (WEEKDAYS is the town's
+// week). SURF heads it; TODAY is the fact you can verify by looking at the sea;
+// the COMING SWELL under it is the value the board adds over that glance. Every
+// string is kept to <=8 chars so it fits a 32px slot at BOTH ends without a
+// trim - the pier head has less room than the promenade (the deck is at 1856).
+function forecastLines(d) {
+  d = d | 0;
+  const today = surfToday(d);            // FIRING / BLOWN / FLAT (one of three)
+  const fc = surfForecast(d);
+  // the coming swell names a WEEKDAY when it is inside the town's own week, else
+  // a plain "+Nd" - a lead a fisher can plan a day off around either way. The
+  // horizon is 4, so it is always a weekday, but the fallback is honest anyway.
+  const when = fc ? (fc.n <= 6 ? WEEKDAYS[weekdayIdx(fc.day)] : "+" + fc.n + "D") : null;
+  const todayShort = today === "BLOWN OUT" ? "BLOWN" : today;   // "BLOWN OUT" is the read; "BLOWN" is what fits
+  return {
+    today: todayShort,
+    forecast: fc ? "BIG " + when : "NO SWELL",   // "BIG THU" - true and confident; the quality is NOT named
+    firing: today === "FIRING",
+    swellComing: !!fc,
+  };
+}
+// The colours are the three states of the sea, plus whether a swell is named:
+// a firing day is green, a blown-out day dim, a flat day the sea's own blue;
+// and the forecast row lights amber when there is a swell to walk a shift for.
+const FC_COL = {
+  FIRING: [130, 235, 150], BLOWN: [170, 175, 190], FLAT: [150, 200, 240],
+  swell: [255, 216, 96], nada: [150, 150, 160], head: [235, 248, 255],
+};
+// The two boards, and the width of each - TOP-LEVEL consts (drawForecast is
+// nested in drawTown like drawPollingPlaces, so these must live outside it or
+// they land in the temporal dead zone when the draw runs; POLL_PLACES sits at
+// top level for the same reason). A line on existing furniture, never a new
+// object: the coast is full - "there is NOT ONE 74px gap left on 2512px", the
+// ballot-box block - so the forecast hangs in the clear air above two anchors.
+// Same reason the town gave for two ballot boxes and two standpipes: with one
+// board on the promenade the whole D-shift fishing fleet, who work the pier
+// 1200px away and would have to sprint, could not read it. So it hangs where
+// the people are, TWICE: over the town notice board (the housing row and the
+// promenade) and at the pier head (the fleet and the east end).
+const FORECAST_PLACES = [
+  { x: 712 },    // over the town notice board (716): the gap east of the west poll table's board and west of the juice-bar lot (752)
+  { x: 1808 },   // the pier head: in the clear band above the ferry-office roofline (114), west of the plank deck (1856)
+];
+const FC_BW = 36;   // 34px of text + a 1px frame each side - fits "NO SWELL" (31px) with room, at BOTH ends
 // ─────────────────────────────────────────────────────────────────────────
 
 function drawMist() {
@@ -17987,6 +18689,7 @@ function drawTown() {
       wblit(TAP_FLOW[((viewT * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
   }
   drawPollingPlaces();
+  drawForecast();
 // THE POLLING PLACE. A trestle, a box with a slot cut in the lid, and a board
 // saying when it shuts. It is set up on polling day and gone by morning, which
 // is the right amount of permanence for a thing this town does once a week.
@@ -18034,6 +18737,32 @@ function drawPollingPlaces() {
     smallText(ctx, fitSmall(b[0], POLL_BW - 4), sx + 1, sy + 1, [255, 250, 235]);
     smallText(ctx, fitSmall(b[1], POLL_BW - 4), sx + 1, sy + 8, b[3]);
     if (b[2]) smallText(ctx, fitSmall(b[2], POLL_BW - 4), sx + 1, sy + 15, b[3]);
+  }
+}
+
+// THE SURF FORECAST, on TWO boards (FORECAST_PLACES/FC_BW/FC_COL above). It
+// grows UPWARD from a fixed bottom like the dorm notice, into the clear air
+// above each anchor, so a taller state never lands on the furniture's own label
+// below it. Three rows: SURF; TODAY (a read you can make by looking at the sea -
+// FIRING/BLOWN/FLAT); and the COMING SWELL, the value the board adds. It names a
+// future day's SWELL with confidence (forecast(day+n) is a function call, not a
+// guess) and NEVER names that day's quality, because the wind that decides
+// clean-vs-blown is an iid per-day roll nobody can see coming. "BIG THU" is
+// true; "THU WILL FIRE" is a promise the sea has not made.
+function drawForecast() {
+  if (window._noFcast) return;   // arm-off hatch, in the idiom of _noMist/_noHall (draw-only, no CLI flag: a matrix cannot read a board)
+  const L = forecastLines(day);
+  for (let i = 0; i < FORECAST_PLACES.length; i++) {
+    const px = FORECAST_PLACES[i].x;
+    if (px - camX < -FC_BW - 10 || px - camX > W + 10) continue;
+    // three rows of 7px, bottom pinned at y=112 (clear of the ferry roof at
+    // 114 and the notice board's own JOBS label), growing upward.
+    const rows = 3, sy = 112 - 7 * rows, sx = px + 1 - camX;
+    wrect(px - 1, sy - 2, FC_BW + 2, 7 * rows + 4, [30, 20, 36]);      // the board's dark edge
+    wrect(px, sy - 1, FC_BW, 7 * rows + 2, [46, 58, 74]);             // ...and its slate-blue face (a sea board, not a paper one)
+    smallText(ctx, "SURF", sx + 1, sy + 1, FC_COL.head);
+    smallText(ctx, fitSmall(L.today, FC_BW - 2), sx + 1, sy + 8, FC_COL[L.today] || FC_COL.FLAT);
+    smallText(ctx, fitSmall(L.forecast, FC_BW - 2), sx + 1, sy + 15, L.swellComing ? FC_COL.swell : FC_COL.nada);
   }
 }
   // the crab shelter
@@ -18593,7 +19322,7 @@ function crabMood(c) {
   if (darkness() > 0.7 && c.dsC !== DS.home) return ["UP LATE", [120, 120, 140]];
   if (darkness() > 0.7 && c.dsC === DS.home) return ["COZY", [180, 120, 60]];
   if (c.dsC === DS.working && c.ksC === KS.work) return ["BUSY", [40, 110, 190]];
-  if ((c.p.bored || 0) >= WANDER_AT) return ["RESTLESS", [125, 135, 180]];
+  if ((c.p.bored || 0) >= RESTLESS_AT) return ["RESTLESS", [125, 135, 180]];
   return ["SUNNY", [40, 150, 70]];
 }
 function custStatus(k) {
@@ -22548,14 +23277,136 @@ function departTick(dt) {
   if (departPage < departPages() - 1) { departPage++; departT = DEPART_T2; }
   else { departT = 0; depart = null; }
 }
+// THE TOAST IS A WINDOW, AND A LONG ONE CRAWLS PAST IT (Matt, from play: "why
+// do i get 'town is at the house limit of ..' and then i cant see the rest" -
+// then "we need all next like that to scroll").
+//
+// The old card clamped its own WIDTH to 252px and then drew the text anyway.
+// `text()` puts glyph i at x + i*spacing with no idea a box exists, so every
+// character past the edge was drawn off the side of a 256px screen and simply
+// lost - no ellipsis, no second page, no sign anything was missing. The narrow
+// 5px spacing was a partial dodge that bought 8 characters and then gave up
+// silently at 49. Measured across game.js: 33 of the 95 toast sites can build
+// a string longer than that, so this was systemic rather than one bad message.
+//
+// A crawl rather than a wrap, because the toast is a one-line strip at a fixed
+// y and things are docked under it; growing it to two lines moves furniture.
+// It is CHARACTER-GRAINED - slice the string, draw the window - which needs no
+// ctx.clip(): the fonts are fixed-width, and neither the sim's ctx stub nor
+// mcp/canvas.mjs (fillRect + drawImage, nothing else) implements clipping, so
+// a pixel-grained scroll would have rendered fine in a browser and been
+// invisible to every test we have.
+const TOAST_MAX_W = 252;
+const TOAST_HOLD = 1.1;   // seconds parked at each end - you get to read the start before it moves
+const TOAST_CPS = 12;     // characters a second once it is moving
+function toastFit(s) {
+  const sp = textWidth(s) + 12 > TOAST_MAX_W ? 5 : 6;
+  const fits = Math.floor((TOAST_MAX_W - 12 + 1) / sp);   // 40 at 6px, 48 at 5px
+  return { sp, fits, over: Math.max(0, String(s).length - fits) };
+}
+// ...and a scrolling toast has to OUTLIVE ITS OWN CRAWL. Every call site picked
+// its `t` for a message that appeared all at once; left alone, a long one would
+// now expire mid-sentence - the same bug wearing a nicer coat.
+function toastSecs(s) {
+  const f = toastFit(s);
+  return f.over ? 2 * TOAST_HOLD + f.over / TOAST_CPS : 0;
+}
+function toastOffset(s, age) {
+  const f = toastFit(s);
+  if (!f.over) return 0;
+  return Math.max(0, Math.min(f.over, Math.floor(Math.max(0, (age || 0) - TOAST_HOLD) * TOAST_CPS)));
+}
+// ============================================== THE NOW-PLAYING TICKER
+// Matt, 2026-08-26: "need a tiny scrolling ticker w song name in bottom left
+// corner". The rotation is 1,201 tracks now, so "what IS this?" is a question a
+// player will actually have - and the only answers before this were a four-
+// second toast at the moment of the change (gone if you were reading a card)
+// and opening the box.
+//
+// WHERE: the LEFT END OF THE NAV CHIP ROW - y159..167 hard against the left
+// margin, between the shop tooltip's floor (156) and the nav map's ceiling
+// (PANEL_Y-7 = 169). That row is eleven pixels of HUD whose only tenants are
+// MANAGE / TOWN / GUESTS, and those hold the RIGHT end from x214 (see the note
+// at NAV_CHIPS: they were moved there precisely to leave the world alone). The
+// ticker ends at x78, so the two cannot meet at any crew count or canvas
+// height. Derived from NAV_MAP rather than typed, because that whole stack
+// moves with H - VERIFIED at both 240 and 288.
+//
+// CHARACTER-GRAINED, LIKE THE TOAST, and for the same reason: neither the sim's
+// ctx stub nor mcp/canvas.mjs implements ctx.clip(), so a pixel-grained scroll
+// would look right in a browser and be invisible to every test we have. The
+// fonts are fixed-width; slice the string and draw the window.
+//
+// IT LOOPS rather than ping-ponging (the toast's idiom): a toast is a sentence
+// you read once and a ticker is a name that stays true until the track changes,
+// so it wraps through a separator and comes round again.
+const MUS_TICK_W = 76;          // px of strip: 18 characters of 3x5 plus its margins
+const MUS_TICK_CPS = 4;         // characters a second - a readout, not a race
+const MUS_TICK_GAP = "   -   ";
+function musTickRect() { return { x: 2, y: NAV_MAP.y - 10, w: MUS_TICK_W, h: 8 }; }
+function musTickFits() { return Math.floor((MUS_TICK_W - 4) / 4); }
+// THE WINDOW, as a pure function of (name, seconds) so the suite can drive the
+// crawl without a clock. A name that fits does not move at all - a ticker that
+// scrolls "BUTTER POW" for no reason is just a twitch.
+function musTickWindow(name, secs) {
+  const s = String(name || "").toUpperCase();
+  const fits = musTickFits();
+  if (s.length <= fits) return s;
+  const loop = s + MUS_TICK_GAP;
+  const at = Math.floor(Math.max(0, secs) * MUS_TICK_CPS) % loop.length;
+  return (loop + loop).slice(at, at + fits);
+}
+// WHAT IS AUDIBLE, as a name - the bench first, because when you are auditioning
+// a row that is what you can hear. Empty string means nothing is playing, and
+// the ticker draws nothing at all rather than a box saying so.
+function musTickName() {
+  if (musPreview && musPreviewId) {
+    const row = musPool().find(t => t.id === musPreviewId);
+    if (row) return row.name;
+  }
+  if (!music || !musicOn) return "";
+  const t = ROTATION[trackIdx];
+  return t ? t.name : "";
+}
+// THE SURFACE TEST AND THE NAME ARE SEPARATE, and deliberately so: this runs
+// every frame, and `musTickName` can walk the 1,201-row pool to resolve an
+// audition. The cheap screen predicates short-circuit first, and the draw asks
+// for the name ONCE rather than once here and once again on the way out.
+function musTickLive() {
+  return screen === "play" && !gameOver && !helpView && !musicView
+    && !(dossier || manage || boardView || saveView || departT > 0)
+    && !(window.MergeMode && MergeMode.active());
+}
+function drawMusTicker() {
+  if (!musTickLive()) return;
+  const name = musTickName();
+  if (!name) return;              // nothing playing: no strip at all, rather than an empty one
+  const r = musTickRect();
+  // THE PHASE IS WALL TIME, deliberately - `nowMs` rather than `viewT`. viewT is
+  // sim seconds and scales with the speed chips, so at >>>> the name would crawl
+  // four times faster than the song it names. The music plays at wall speed and
+  // so does its label. (nowMs is the guarded reader: a headless sandbox with no
+  // clock gets 0 and a ticker that holds still, which is correct for a surface
+  // no headless run draws.)
+  const shown = musTickWindow(name, nowMs() / 1000);
+  rect(ctx, r.x, r.y, r.w, r.h, [26, 18, 30]);
+  rect(ctx, r.x + 1, r.y + 1, 2, r.h - 2, muted ? [120, 70, 70] : [140, 220, 140]);   // the speaker pip: green when it is sounding
+  smallText(ctx, shown, r.x + 5, r.y + 2, muted ? [160, 140, 140] : [225, 215, 235]);
+}
+
 function drawToast() {
   if (!toast) return;
-  const sp = textWidth(toast.text) + 12 > 252 ? 5 : 6;
-  const w2 = Math.min(252, textWidth(toast.text, sp) + 12);
+  const f = toastFit(toast.text);
+  // Always exactly `fits` characters while it crawls, so the card holds still
+  // and only the letters move - a box that resized per frame would strobe.
+  const shown = f.over
+    ? String(toast.text).slice(toastOffset(toast.text, toast.age), toastOffset(toast.text, toast.age) + f.fits)
+    : String(toast.text);
+  const w2 = Math.min(TOAST_MAX_W, textWidth(shown, f.sp) + 12);
   const x = Math.max(2, ((W - w2) / 2) | 0), y = 62;
   rect(ctx, x, y, w2, 13, [30, 20, 36]);
   rect(ctx, x + 1, y + 1, w2 - 2, 11, [255, 250, 230]);
-  text(ctx, toast.text, x + 6, y + 3, [90, 50, 30], sp);
+  text(ctx, shown, x + 6, y + 3, [90, 50, 30], f.sp);
 }
 
 // ===========================================================================
@@ -23430,7 +24281,14 @@ function simClock(dt, rawMs) {
         k.p.roughLast = 0;
       }
       if (walkoutToday(k)) today.moved.push(k.p.name + " NEVER CAME IN - NO WAGE");
-      k.p.boredDays = (k.p.bored || 0) >= WALKOUT_AT ? (k.p.boredDays || 0) + 1 : 0;
+      // (the boredom advance is NOT cleared here - see BORED_ADV_MAX. This block
+      // fires at tmin 20:00 and REEF's shift runs to 20:30, so a reset here
+      // lands mid-shift and hands the settlement a fresh budget to double-charge
+      // against. It carries a day stamp and expires on its own instead.)
+      // boredSettled, NOT k.p.bored: this check runs at tmin 20:00 and a late
+      // shift settles at 20:30, so counting an advance the shift has not billed
+      // yet turns the 4-settlement ladder into 3. See BORED_ADV_MAX.
+      k.p.boredDays = boredSettled(k) >= WALKOUT_AT ? (k.p.boredDays || 0) + 1 : 0;
       if ((k.p.boredDays || 0) < WALKOUT_DAYS || k.p.walkout === day + 1 || patOff("walkout")) continue;
       if (k.p.sick || dayOffIdx(k) === weekdayIdx(day + 1)) continue;   // already off - it'd prove nothing
       k.p.walkout = day + 1; k.p.walkoutWhy = "bored"; k.p.boredDays = 0;
@@ -23554,6 +24412,15 @@ function simTown(dt) {
   if (departT > 0 && !ffSleep && !reading) departTick(dt);
   if (toast && (reading || departT > 0)) toast.t = Math.max(toast.t, 0.4);   // a toast holds while you read, then plays out
   if (newConfirmT > 0) newConfirmT -= dt;
+  // ...and the CRAWL holds behind a card too, on the same rule: `age` drives
+  // which slice of a long toast is showing, so advancing it while the strip is
+  // covered would scroll the sentence past a player who cannot see it.
+  if (toast && !reading && departT <= 0) toast.age = (toast.age || 0) + dt;
+  // ONE CHOKE POINT FOR THE LIFETIME, stamped the first tick a toast is seen,
+  // rather than 95 hand-edited `t:` values that would drift the moment somebody
+  // wrote a 96th. A toast that does not overflow keeps exactly the duration its
+  // author chose (toastSecs returns 0 and the max is a no-op).
+  if (toast && !toast._sized) { toast._sized = 1; toast.t = Math.max(toast.t, toastSecs(toast.text)); }
   if (toast) { toast.t -= dt; if (toast.t <= 0) toast = null; }
   saveT += dt; if (saveT > 5) { saveT = 0; save(); }
   }
@@ -23855,6 +24722,7 @@ function viewFrame(dt) {
   drawPanel();
   drawNavChips();      // MANAGE / TOWN sit IN the panel now, so they go on after it
   drawShopTip();       // hangs off the bottom of the world, pointing at the grid it explains
+  drawMusTicker();     // ...and the now-playing name sits under it, bottom-left
   drawHireCard();
   if (!boardView && !manage && !saveView && !dossier && !helpView && departT <= 0) drawToast();   // reading surfaces own the screen
   // ...AND SO DOES THE END, either kind of it: the ferry ending and the
@@ -23973,7 +24841,16 @@ function musLoadCatalog() {
     .then(j => {
       if (!j || !j.tracks) return;
       MUSCAT = j;
-      rebuildRotation();
+      // THE REBUILD WAITS FOR THE SHIPMAP, and that ordering became load-bearing
+      // the moment the whole catalog became the rotation. A role - the title
+      // theme, the ending sting - is carried across by FILE (roleOfFile), and a
+      // catalog row only HAS its same-origin file after musApplyShipmap stamps
+      // it. Rebuilding here, one fetch too early, would put both moments into
+      // the rotation as ordinary rows pointing at the absent archive mirror: the
+      // title screen would go quiet (roleTrack finds nothing) while the shuffle
+      // was free to 404 on a win sting. So musLoadShipmap owns the rebuild, and
+      // it rebuilds however it settles - stamped, 404, or thrown.
+      //
       // THE SHIPPED ROWS MUST KNOW THEY ARE SHIPPED, and this is the whole iOS
       // fix. 22 of these 1,201 rows are tracks this build already carries in
       // music/ - but nothing in the catalog says so, so musSrc sent every one
@@ -23992,9 +24869,17 @@ function musLoadCatalog() {
 }
 // Optional, like the catalog: absent shipmap just means nothing is stamped and
 // every row streams, which is exactly the old behaviour.
+//
+// IT REBUILDS UNCONDITIONALLY NOW - on a stamp, on a 404, and on a throw. It
+// used to rebuild only `if (musApplyShipmap(j))`, which was right when the
+// rotation was 22 shipped rows plus your keeps: an unstamped catalog changed
+// nothing about it. It is wrong now that the catalog IS the rotation, because
+// the rebuild that puts 1,201 rows in the list is the one being skipped, and a
+// build whose shipmap is missing would play the 22 it started with forever.
 function musLoadShipmap() {
   fetch("music/shipmap.json").then(r => (r.ok ? r.json() : null))
-    .then(j => { if (musApplyShipmap(j)) rebuildRotation(); }).catch(() => {});
+    .then(j => { musApplyShipmap(j); rebuildRotation(); })
+    .catch(() => rebuildRotation());
 }
 // THE STAMP IS ITS OWN FUNCTION so the suite can drive it. Left inside the
 // fetch callback it was unreachable from a test - and a scenario that re-typed
@@ -24076,7 +24961,16 @@ function musState(t) { const j = musJudge[t.id]; return j && j.k != null ? j.k :
 function musEnergy(t) {
   const j = musJudge[t.id];
   if (j && j.e != null) return j.e;
-  if (t.shipped) { const p = PLAYLIST.find(x => x.name === t.name); if (p) return p.e; }
+  // BY FILE, NOT BY NAME. The catalog and PLAYLIST disagree about titles for
+  // five of the 22 shipped tracks - mkmusic numbers duplicates ("DANCE UP 5")
+  // and spells out what PLAYLIST abbreviates ("BEACH VOLLEYBALL START SCREEN") -
+  // so a name lookup silently dropped their hand-tagged energy and fell to the
+  // guess. musLoadShipmap stamps `file` to the same same-origin path `src`
+  // holds, which is the one key both sides agree on.
+  if (t.shipped) {
+    const p = PLAYLIST.find(x => x.src === t.file) || PLAYLIST.find(x => x.name === t.name);
+    if (p) return p.e;
+  }
   return null;
 }
 function musFiltered() {
@@ -24104,9 +24998,19 @@ function musStopPreview() {
 // would refuse. The 'ended' and 'error' listeners live on the element and
 // dispatch on who owns it, so there are none to bind here.
 function musPlay(t, toggle = true) {
-  const wasPlaying = musPreviewId === t.id;
+  // TAPPING THE LIT ROW STOPS IT, whoever is driving it. `musPreviewId` was the
+  // whole test while the box silenced the town on the way in - the lit row could
+  // only ever be the bench's. Now the lit row is usually the ROTATION's, and a
+  // tap on it that RESTARTED the song you are already hearing (from the top, on
+  // the bench, as an audition) is not what the gesture means anywhere else in
+  // this box.
+  const rotRow = !musPreviewId && music && musNowRow();
+  const wasPlaying = musPreviewId ? musPreviewId === t.id : !!(rotRow && rotRow.id === t.id);
   musStopPreview();
-  if (toggle && wasPlaying) return;   // tapping the playing row stops it
+  if (toggle && wasPlaying) {
+    if (music) { musGen++; music.pause(); music = null; }   // the rotation's turn to be stopped by a tap
+    return;
+  }
   // The rotation yields to the bench: two tracks at once is nobody's idea of
   // vetting. It resumes when the screen closes.
   music = null;
@@ -24114,13 +25018,13 @@ function musPlay(t, toggle = true) {
   const gen = musSrcGen = ++musGen;
   const a = speaker();
   a.pause();
-  a.src = musSrc(t);
+  musSetSrc(a, musSrc(t));
   musPreview = a;
   musPreviewId = t.id;
   musMeta(t.name);
   a.play().then(() => {
     musBlocked = false;
-    if (musGen === gen && ARCHIVE_OK === null && a.src.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
+    if (musGen === gen && ARCHIVE_OK === null && musCurSrc.indexOf("music/archive/") >= 0) ARCHIVE_OK = true;
   }).catch(e => musFail(gen, e));
 }
 // THE BENCH'S HALF OF THE FALLBACK, reached through `musFail` so the rotation
@@ -24134,11 +25038,11 @@ function musPrevFail(gen) {
     musPreview = null; musPreviewId = "";
     toast = { text: "NO AUDIO FOR " + (t ? t.name : "THAT TRACK"), t: 3 };
   };
-  if (t && !t.shipped && t.url && a.src.indexOf("music/archive/") >= 0) {
+  if (t && !t.shipped && t.url && musCurSrc.indexOf("music/archive/") >= 0) {
     ARCHIVE_OK = false;   // learned once; every later track goes straight to the CDN
     const g = musSrcGen = ++musGen;
     a.pause();
-    a.src = t.url;
+    musSetSrc(a, t.url);
     a.play().catch(() => { if (musGen === g) giveUp(); });
     return;
   }
@@ -24154,8 +25058,17 @@ function musPrevFail(gen) {
 function musAdvance(d) {
   const list = musFiltered(), n = list.length;
   if (!n) return;
-  let at = list.findIndex(t => t.id === musPreviewId);
-  if (at < 0) at = d > 0 ? -1 : 0;              // nothing playing: start at the top
+  let at = musPreviewId ? list.findIndex(t => t.id === musPreviewId) : -1;
+  // ...AND IT WALKS FROM WHAT THE TOWN IS PLAYING when the bench itself is
+  // silent, which is the case the open box could not produce until now. With
+  // the music still running behind the list, `musPreviewId` is empty and the
+  // arrows used to jump to row 1 of 1,201 - a cursor that teleports away from
+  // the song you can hear. The rotation's own row is the honest starting point.
+  if (at < 0) {
+    const now = musNowRow();
+    if (now) at = list.findIndex(t => t.id === now.id);
+  }
+  if (at < 0) at = d > 0 ? -1 : 0;              // nothing playing at all: start at the top
   const next = ((at + d) % n + n) % n;          // and it wraps, like the rotation does
   musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS),
     next < musTop ? next : next >= musTop + MUS_ROWS ? next - MUS_ROWS + 1 : musTop));
@@ -24214,25 +25127,66 @@ function musClose() {
     trackIdx = rotIndexFor(row);
     return;
   }
-  musStopPreview();
-  if (musicOn && !muted) startMusicTapped();   // nothing was playing: hand the speakers back (BACK is a tap)
+  // NOTHING WAS AUDITIONED, so there is nothing to hand over - and now, nothing
+  // to restart either. The rotation was never stopped on the way in (musOpen),
+  // so a town that was playing when you opened the list is still playing, and
+  // touching it here would restart a track mid-bar for no reason. The only case
+  // left is a box opened over SILENCE and shut again, which is what
+  // startMusicTapped is for; its own `!music` guard makes it a no-op otherwise.
+  if (musPreview) musStopPreview();        // paused mid-audition: let the rotation have them back
+  if (musicOn && !muted) startMusicTapped();
 }
 // WHERE A CHOSEN TRACK SITS IN THE ROTATION, making room for it if it is not
-// there yet. A shipped track is already a row. A catalog track you have not
-// kept is not, so it is spliced in after the cursor for this session rather
-// than being quietly promoted to a KEPT judgement - BACK means "play this",
-// not "remember this", and the two are different promises.
+// there yet.
+//
+// THE SPLICE IS NEARLY DEAD CODE NOW and is kept deliberately. Every catalog row
+// is already a rotation row (rebuildRotation), so the lookup hits for anything
+// you can see in the box, and "the next one in the music box" is a real walk
+// through a real list rather than a one-row detour. The one case left is a row
+// you DROPPED and then chose anyway - the box still lists it under the DROPPED
+// filter, and tapping it plainly means play it. It goes in after the cursor for
+// this session only, rather than being quietly promoted to a KEEP: BACK means
+// "play this", not "un-drop this", and the two are different promises.
+//
+// Matched by catalog ID first: 1,201 rows contain repeated titles, so a name
+// match can find the wrong song.
 function rotIndexFor(row) {
-  const at = ROTATION.findIndex(r => (r.cat && r.cat.id === row.id) || r.name === row.name);
+  let at = ROTATION.findIndex(r => r.cat && r.cat.id === row.id);
+  if (at < 0) at = ROTATION.findIndex(r => r.name === row.name);
   if (at >= 0) return at;
-  const e = musEnergy(row);
-  ROTATION.splice(trackIdx + 1, 0, { cat: row, name: row.name, e: e == null ? 1 : e });
+  const e = rotEnergy(row);
+  ROTATION.splice(trackIdx + 1, 0, { cat: row, name: row.name, e });
   return trackIdx + 1;
 }
+// OPENING THE BOX PLAYS NOTHING AND STOPS NOTHING (Matt, 2026-08-26: "opening
+// the music box shouldn't stop the music from playing").
+//
+// It used to pause the speaker and null the handle on the way in, on the theory
+// that the bench owned the speakers while it was up. The theory was half right -
+// two tracks at once is nobody's idea of vetting - but it charged the whole cost
+// at the door: you opened the list to SEE what was in it and the town went
+// quiet, and it stayed quiet until you tapped a row or hit BACK. Ownership is
+// now taken by the first audition (musPlay pauses the rotation itself) and by
+// nothing else, so the list is free to browse.
+//
+// IT ALSO SCROLLS TO WHAT IS PLAYING, which only became possible once the music
+// survived the door: opening on row 0 of 1,201 while a track plays is a list
+// that has lost your place before you have looked at it.
 function musOpen() {
-  musicView = true; musTop = 0;
-  musGen++;
-  if (music) { music.pause(); music = null; }   // the bench owns the speakers while it is up
+  musicView = true;
+  musTop = 0;
+  musShowNowPlaying();
+}
+// PUT THE PLAYHEAD ON SCREEN. Same window arithmetic musAdvance uses - centred
+// where there is room, clamped at both ends - so the row you can hear is the
+// row you are looking at.
+function musShowNowPlaying() {
+  const row = musNowRow();
+  if (!row) return;
+  const list = musFiltered(), n = list.length;
+  const at = list.findIndex(t => t.id === row.id);
+  if (at < 0) return;
+  musTop = Math.max(0, Math.min(Math.max(0, n - MUS_ROWS), at - ((MUS_ROWS / 2) | 0)));
 }
 function musBarIndex(p, n) {
   const bar = musBarRect();
@@ -24288,6 +25242,7 @@ function drawMusic(ctx) {
     musicOn ? [190, 240, 195] : [200, 170, 170]);
   const kept = musPool().filter(t => musState(t) === 1).length;
   smallText(ctx, kept + " KEPT", musCountRect().x, musCountRect().y + 4, [180, 235, 190]);
+  const now = musNowRow();
   for (let i = 0; i < MUS_ROWS; i++) {
     const t = list[musTop + i];
     if (!t) break;
@@ -24296,7 +25251,11 @@ function drawMusic(ctx) {
     const er = musEnergyRect(i);
     rect(ctx, er.x + 1, er.y + 3, 12, 12, e == null ? [50, 46, 60] : [70, 90, 130]);
     smallText(ctx, e == null ? "-" : String(e), er.x + 5, er.y + 6, [230, 235, 245]);
-    const playing = musPreviewId === t.id;
+    // WHAT IS PLAYING IS LIT WHETHER OR NOT THE BENCH IS DRIVING IT. The box no
+    // longer silences the town on the way in, so the audible row is often the
+    // ROTATION's - and a list that lights nothing while a song plays is a list
+    // that has lost track of it. `now` is computed once outside the loop.
+    const playing = now && now.id === t.id;
     smallText(ctx, fitSmall(t.name, r.w - 66), r.x + 20, r.y + 3,
       playing ? [255, 240, 170] : [225, 220, 235]);
     const secs = t.secs ? Math.floor(t.secs / 60) + ":" + String(t.secs % 60).padStart(2, "0") : "";

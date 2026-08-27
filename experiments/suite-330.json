@@ -1,6 +1,6 @@
 {
   "name": "suite-330",
-  "note": "The full suite at the interruptible-commitment count (333/backend), 12-way slices: the 10-way arms died unbanked when this slice's multi-day scenarios fattened slice heaps (js-0..3, js-6 and wasm-6 lost at 10-way). Same resources; fewer worlds per heap.",
+  "note": "The full suite, 439 scenarios/backend (878 merged), 12-way strided slices (index i, i+12, i+24...). The 12-way COUNT is a MEMORY choice, not a wall-time one: at 10-way the multi-day scenarios fattened slice heaps until js-0..3, js-6 and wasm-6 died unbanked (OOM); 12-way keeps fewer worlds per heap on the same 6Gi/8Gi. RE-SLICING FOR SPEED CANNOT HELP HERE -- the gate's wall time is floored by ONE atomic scenario, 'rivalry: after a refusal...' (~226s js / ~140s wasm, unsplittable), so an ideal content-aware pack lands at ~226s against the current slowest shard's ~380s while total work (== cluster cost) is conserved by ANY slicing (measured: design/cs35-research/kube-runs/cs-suite-330-fb4c917-kb1x, per-scenario times). Green and heap-safe at 439/backend there: all 24 shards exit 0. Re-derive slicing (a NEW suite-4xx manifest, never an edit here) only when a slice OOMs again or the fat scenarios themselves shrink; the once-333/backend count premise is history, the memory reasoning is not.",
   "resources": {
     "requests": { "cpu": "2", "memory": "6Gi" },
     "limits": { "cpu": "2", "memory": "8Gi" }

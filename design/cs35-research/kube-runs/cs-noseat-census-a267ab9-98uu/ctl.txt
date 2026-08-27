@@ -1,0 +1,8 @@
+seed 1337: tables=6 noSeatCrab=0 noSeatTour=0 seatedCrab=23 seatedTour=113
+seed 1338: tables=6 noSeatCrab=0 noSeatTour=0 seatedCrab=24 seatedTour=122
+seed 1339: tables=6 noSeatCrab=0 noSeatTour=0 seatedCrab=19 seatedTour=88
+seed 1340: tables=6 noSeatCrab=0 noSeatTour=0 seatedCrab=24 seatedTour=133
+
+CONTROL TOTALS (6 tables): noSeatCrab=0 noSeatTour=0 seatedCrab=90 seatedTour=456
+AS-SHIPPED same 4 seeds (2 tables): noSeatCrab=4 noSeatTour=15 seatedCrab=76 seatedTour=405
+EXIT=0

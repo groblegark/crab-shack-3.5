@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-af83b28-vo5z",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "af83b28a958ae005a01f2bb67450f8dc47b12941",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 188756,
+  "verdict": "35/35 passed in slice 10/12 (188.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2697ms)\n  PASS  housing: npcs sleep at the shelter, then move up (789ms)\n  PASS  queue hard cap holds for locals too (3264ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (928ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (893ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (93ms)\n  PASS  fish market: price + series roundtrip save/load (48ms)\n  PASS  labor policy: every new setting roundtrips save/load (1846ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (6390ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7542ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (41335ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1091ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (2598ms)\n  PASS  visitors: the wallet is real money, and it runs out (728ms)\n  PASS  the town fund moves money and never mints it (16153ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (960ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (8ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (3633ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1487ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (412ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (72418ms)\n  PASS  a dead <source> reaches musFail through the child's own listener (18ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1919ms)\n  PASS  idle quips: the island's table is the literal, key for key (12ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (64ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (10ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (2593ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3874ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (16ms)\n  PASS  seam: a headless day never enters the view (1237ms)\n  PASS  brains: a town full of thinking heads round-trips its save (8580ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (22ms)\n  PASS  science: a scrub lands on the day the run recorded (4930ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (11ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (63ms)\n35/35 passed in slice 10/12 (188.7s)\n"
+}

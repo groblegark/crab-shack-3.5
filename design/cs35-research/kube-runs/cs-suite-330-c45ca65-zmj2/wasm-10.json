@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-c45ca65-zmj2",
+  "armId": "wasm-10",
+  "index": 22,
+  "sha": "c45ca65d6795ea41af11d67c094ca3dd4879a425",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 125565,
+  "verdict": "35/35 passed in slice 10/12 (125.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (1716ms)\n  PASS  housing: npcs sleep at the shelter, then move up (496ms)\n  PASS  queue hard cap holds for locals too (2261ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (460ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (387ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (44ms)\n  PASS  fish market: price + series roundtrip save/load (59ms)\n  PASS  labor policy: every new setting roundtrips save/load (1117ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (4218ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (5783ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (25679ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (987ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (1600ms)\n  PASS  visitors: the wallet is real money, and it runs out (340ms)\n  PASS  the town fund moves money and never mints it (10761ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (1228ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (21ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (3133ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1348ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (320ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (41916ms)\n  PASS  the shipmap stamps shipped rows onto the catalog (10ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1012ms)\n  PASS  crab voice: two whole days with the table off are the same town (1138ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (547ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (8ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (13033ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (241ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (305ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (1489ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (16ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1067ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (130ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (22ms)\n  PASS  the arcade: the chore is named for the shop it happens in (2569ms)\n35/35 passed in slice 10/12 (125.5s)\n"
+}

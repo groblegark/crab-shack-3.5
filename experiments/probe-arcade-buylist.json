@@ -1,0 +1,61 @@
+{
+  "name": "arcade-buylist-probe",
+  "note": "PROBE, not the measurement. Finds a --buy list that actually BUILDS and USES an arcade under the headless autopilot, so the real --noplay A/B (matrix-arcade16) is not pointed at towns with no machines - a null result that reads like 'the arcade costs nothing'. All arms are AS-BUILT (occupancy on): the number that matters is `arcade.playedIn` (towns where >=1 game was played = built AND staffed AND a bored, funded customer reached it). Staffing needs >=2 shack crabs on a shift, so a used arcade needs the arcade built PLUS ~2 chef hires - which is why order matters. Four buy lists x {30d, 40d}, one 16-town block each (16 is plenty to read a build/play FRACTION; the escape delta is the measurement's job, not the probe's). batch.mjs's new arcade instrument reports built/playedIn/games. 30-day arms answer the bead's window directly; 40-day arms diagnose whether a weak result is a TIME problem or a fundamental one.",
+  "resources": {
+    "requests": { "cpu": "7", "memory": "2Gi" },
+    "limits": { "cpu": "8", "memory": "4Gi" }
+  },
+  "arms": [
+    {
+      "id": "buyA-cta-30",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,table,arcade", "--json"]
+    },
+    {
+      "id": "buyB-ca-30",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "chef,arcade", "--json"]
+    },
+    {
+      "id": "buyC-act-30",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "arcade,chef,table", "--json"]
+    },
+    {
+      "id": "buyD-ac-30",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "30", "--jobs", "7", "--buy", "arcade,chef", "--json"]
+    },
+    {
+      "id": "buyA-cta-40",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "40", "--jobs", "7", "--buy", "chef,table,arcade", "--json"]
+    },
+    {
+      "id": "buyB-ca-40",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "40", "--jobs", "7", "--buy", "chef,arcade", "--json"]
+    },
+    {
+      "id": "buyC-act-40",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "40", "--jobs", "7", "--buy", "arcade,chef,table", "--json"]
+    },
+    {
+      "id": "buyD-ac-40",
+      "entry": "tools/batch.mjs",
+      "args": ["--towns", "16", "--seedbase", "0", "--days", "40", "--jobs", "7", "--buy", "arcade,chef", "--json"]
+    }
+  ],
+  "nodeSelector": {
+    "karpenter.sh/nodepool": "ephemeral-pool"
+  },
+  "tolerations": [
+    {
+      "key": "gasboat.ephemeral",
+      "operator": "Equal",
+      "value": "true",
+      "effect": "NoSchedule"
+    }
+  ]
+}

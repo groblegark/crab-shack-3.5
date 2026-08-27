@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-feebe9f-l98y",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "feebe9f90ea58a2a89f83cec6851eb151aad13b0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 159631,
+  "verdict": "35/35 passed in slice 5/12 (159.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (10472ms)\n  PASS  save guard: a town born from a rejected save does not bury it (828ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (34ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (882ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (605ms)\n  PASS  days off: everyone rests their weekday and plays customer (4167ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (331ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (804ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (1932ms)\n  PASS  idle hands: the boredom trickle is an ADVANCE - never more than one lump a day (2055ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (651ms)\n  PASS  the title's credit block never lands on the science button (9ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (50201ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2536ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (1909ms)\n  PASS  the mayor wears the hat, and nobody else ever does (701ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (418ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (713ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (57764ms)\n  PASS  the shop tooltip promises what the button actually does (440ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (12ms)\n  PASS  every track in the playlist is a file that exists (23ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (1928ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (9ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (81ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (13ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (6099ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4071ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (11ms)\n  PASS  seam: a headless day never enters the view (782ms)\n  PASS  brains: a town full of thinking heads round-trips its save (5829ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (18ms)\n  PASS  science: a scrub lands on the day the run recorded (3129ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (13ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (48ms)\n35/35 passed in slice 5/12 (159.5s)\n"
+}

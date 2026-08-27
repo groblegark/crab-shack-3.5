@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-4b9f5bb-sdxe",
+  "armId": "wasm-11",
+  "index": 23,
+  "sha": "4b9f5bb3a64ee4ac23571e430116314e3da2d159",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 80645,
+  "verdict": "35/35 passed in slice 11/12 (80.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1140ms)\n  PASS  sick crabs can still wash (mobility + cure path) (696ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (235ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (691ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (19ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (12ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (4633ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1210ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (21469ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (6068ms)\n  PASS  tip sharing + the table cap roundtrip save/load (367ms)\n  PASS  no surface prints off the canvas (1030ms)\n  PASS  forecast: names the swell it can see, never the quality it cannot (24ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (797ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (890ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3165ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1640ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2065ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (845ms)\n  PASS  the help card fits the card, in the font the card is printed in (28ms)\n  PASS  the title screen credits the track that is actually queued (11ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (8ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (2903ms)\n  PASS  traits: the island's table is the literal, value for value (12ms)\n  PASS  depart programs: a hostile table is refused by name (13ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (23742ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (16ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (14ms)\n  PASS  foodways: the validator names its refusals (12ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (635ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (9ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (4248ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (44ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (21ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (1811ms)\n35/35 passed in slice 11/12 (80.5s)\n"
+}
