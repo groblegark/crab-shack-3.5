@@ -6904,77 +6904,227 @@ scenario("forecast: names the swell it can see, never the quality it cannot", ()
   return true;
 });
 
-scenario("forecast: draws on both boards, on the canvas and never over its neighbours", () => {
-  // The forecast is a LINE ON EXISTING FURNITURE on a coast with "NOT ONE 74px
-  // gap left" - so it gets the polling board's two checks: its measured text
-  // must stay on the canvas, and neither its strings nor its filled rects may
-  // land on a neighbour (the class of bug where the first poll table printed
-  // through the JOB BOARD's sign).
+scenario("the sea: the weather is legible off the water, and never printed on the town", () => {
+  // THE BOARD'S REPLACEMENT (Matt, 2026-08-28: "it should just be implied by
+  // subtle graphical cues"). The old scenario here checked that a SIGN drew on
+  // the canvas and never over its neighbours. There is no sign; the claim to
+  // defend is now the harder one, and it is the whole feature:
   //
-  // But the town's OWN furniture already overlaps in the east end (the ferry
-  // office draws across the pier tap's WATER label - not this feature's bug),
-  // so a whole-town sweep is noisy. Instead ISOLATE the forecast's own draws:
-  // render the town twice per state, once with _noFcast and once without. Draw
-  // order is deterministic, so the ON pass is the OFF pass with drawForecast's
-  // ops inserted at one point - a longest-common-prefix/suffix diff extracts
-  // EXACTLY those ops, and only they are checked against the OFF pass's boxes.
-  // Driven across days so all four board states (FIRING/BLOWN/FLAT today, and
-  // swell-coming vs none) are painted, at BOTH camera anchors, with the arcade
-  // on so ferryKnown() puts the pier-head neighbour on screen.
+  //   1. THE THREE STATES OF THE SEA LOOK DIFFERENT. A big glassy day, the
+  //      SAME size of swell blown to bits, and a flat day must each paint a
+  //      DISTINCT picture. If a firing day and a blown-out day render the same
+  //      pixels then the sign was load-bearing after all and removing it hid a
+  //      fact the engine holds - which is exactly the interface-opacity bug.
+  //   2. THE WEATHER STAYS IN THE WATER. Every op the cues add sits inside the
+  //      sea band; nothing leaks up into the sky or down onto the sand, which
+  //      is the old "never over its neighbours" check restated for a feature
+  //      that has no furniture of its own.
+  //   3. IT IS PURE. Same day, same viewT, same pixels - twice.
+  //
+  // Isolated the old way: render with the _noSeaCues hatch and without it, at
+  // the SAME day and clock, and take the multiset difference. Everything else
+  // in drawBG (the mist, the horizon traffic, the sand grains) is identical
+  // across the pair by construction, so it cancels and the difference is the
+  // weather and only the weather. Only rect is captured, and that is the whole
+  // picture: ppu's px() is a 1x1 rect, so every pixel funnels through it. blit
+  // does not, so the gull - whose absence in a blow is a fourth cue - is
+  // deliberately outside this sweep.
   const sim = createSim({ seed: 1337 });
   sim.runDays(2);
   const out = JSON.parse(sim.G(`(() => {
-    const T = text, S = smallText, R = rect;
-    let ops = [];   // ordered draw ops for the current pass: {t,x0,x1,y0,y1,s,sig}
-    const push = (t, x, y, w, h, s) => {
-      const o = { t, x0: x, x1: x + w, y0: y, y1: y + h, s: String(s),
-        sig: t + "|" + Math.round(x) + "|" + Math.round(y) + "|" + Math.round(w) + "|" + Math.round(h) + "|" + s };
-      ops.push(o); return o;
+    const R = rect;
+    let ops = [];
+    rect = (c, x, y, w, h, col) => { ops.push([x, y, w, h, String(col)]); return R(c, x, y, w, h, col); };
+    const pass = () => { ops = []; drawBG(); return ops.map(o => o.join("|")); };
+    // the multiset difference, both ways: what the weather added and what it
+    // replaced (the chop stride moves in place, so it is not a clean insert)
+    const diffOf = (a, b) => {
+      const m = {}; for (const k of b) m[k] = (m[k] || 0) + 1;
+      const d = []; for (const k of a) { if (m[k] > 0) m[k]--; else d.push(k); }
+      return d;
     };
-    text = (c, str, x, y, col, sz) => { push("t", x, y, textWidth(str, sz), 7, str); return T(c, str, x, y, col, sz); };
-    smallText = (c, str, x, y, col) => { push("s", x, y, smallTextWidth(str), 5, str); return S(c, str, x, y, col); };
-    rect = (c, x, y, w, h, col) => { push("r", x, y, w, h, ""); return R(c, x, y, w, h, col); };
-    const pass = () => { ops = []; drawTown(); return ops; };
-    const bad = [], seen = {};
-    UPS.arcade.lvl = 1;
-    for (let d = 1; d <= 40 && Object.keys(seen).length < 4; d++) {
+    // three archetype days out of this town's own history - if the almanac
+    // cannot produce all three, that is a finding, not a broken test
+    let glass = -1, blown = -1, flat = -1;
+    for (let d = 1; d <= 800; d++) {
+      const sw = swellPeakQ16(d), wd = windPeakQ16(d);
+      if (glass < 0 && sw >= 45000 && wd < WIND_GLASS) glass = d;
+      if (blown < 0 && sw >= 45000 && wd >= 45000) blown = d;
+      if (flat  < 0 && sw < SWELL_SEEN) flat = d;
+    }
+    if (glass < 0 || blown < 0 || flat < 0)
+      return JSON.stringify({ fail: "the almanac never produced all three seas in 800 days: " + [glass, blown, flat] });
+    const held = { day, tday, camX, mist: window._noMist };
+    tday = 720 * 5; reclock(); camX = 0;     // midday, west end: a lit, still frame
+                                             // (tday is the clock's ONE setter - tmin/tdgm are derived)
+    const shot = {}, band = [], twice = [];
+    for (const [name, d] of [["glass", glass], ["blown", blown], ["flat", flat]]) {
       day = d;
-      const L = forecastLines(day);
-      const key = L.today + "/" + (L.swellComing ? "swell" : "none");
-      if (seen[key]) continue;
-      seen[key] = 1;
-      for (const pl of FORECAST_PLACES) {
-        camX = clampCam(pl.x - 100);
-        window._noFcast = true;  const off = pass().slice();
-        window._noFcast = false; const on  = pass().slice();
-        // longest common prefix / suffix by signature -> the middle of the ON
-        // pass is exactly what drawForecast added at this camera.
-        let p = 0; while (p < off.length && p < on.length && off[p].sig === on[p].sig) p++;
-        let q = 0; while (q < off.length - p && q < on.length - p && off[off.length-1-q].sig === on[on.length-1-q].sig) q++;
-        const fc = on.slice(p, on.length - q);
-        if (!fc.length) { bad.push([key, "drew NOTHING at x" + pl.x]); continue; }
-        // furniture = everything the OFF pass drew (with a real label, for text)
-        for (const f of fc) {
-          if (f.x0 < 0 || f.x1 > W) bad.push([key + " x" + pl.x, "OFF CANVAS", f.s || f.sig]);
-          for (const b of off) {
-            const hit = f.x0 < b.x1 && f.x1 > b.x0 && f.y0 < b.y1 && f.y1 > b.y0;
-            if (!hit) continue;
-            // a forecast STRING over a furniture string, or a forecast RECT over
-            // a furniture string, is the collision that matters (the poll table
-            // over the JOB BOARD sign). Forecast rects over furniture rects are
-            // fine - a board panel sits on the sky/sea fill by design.
-            if (b.t !== "r" && b.s.trim())
-              bad.push([key + " x" + pl.x, (f.t === "r" ? "RECT" : "'" + f.s + "'") + " OVER '" + b.s + "'"]);
-          }
-        }
+      window._noSeaCues = true;  const off = pass();
+      window._noSeaCues = false; const on1 = pass();
+      const on2 = pass();                    // 3: same day, same clock, same pixels
+      if (on1.join() !== on2.join()) twice.push(name);
+      const weather = diffOf(on1, off).concat(diffOf(off, on1));
+      shot[name] = weather.slice().sort().join();
+      // 2: every weather op inside the water. SKY_H-6 admits the storm bar on
+      // the horizon; SHORE_Y+6 admits the shorebreak running up the sand.
+      for (const w of weather) {
+        const f = w.split("|");
+        const y0 = +f[1], y1 = +f[1] + +f[3];
+        if (y0 < SKY_H - 6 || y1 > SHORE_Y + 6) band.push(name + " :: " + w);
       }
     }
-    text = T; smallText = S; rect = R; window._noFcast = false;
-    return JSON.stringify({ bad: bad.slice(0, 8), states: Object.keys(seen) });
+    day = held.day; tday = held.tday; reclock(); camX = held.camX; window._noMist = held.mist;
+    rect = R; window._noSeaCues = false;
+    return JSON.stringify({ days: { glass, blown, flat }, band: band.slice(0, 6), twice,
+      same: { gb: shot.glass === shot.blown, gf: shot.glass === shot.flat, bf: shot.blown === shot.flat },
+      empty: Object.keys(shot).filter(k => !shot[k].length) });
   })()`));
-  if (out.bad && out.bad.length) return out.bad.map(b => b.join(" :: ")).join("\n        ");
-  if (!out.states || out.states.length < 3)
-    return "only drew forecast states: " + JSON.stringify(out.states) + " - the sweep must exercise more than one";
+  if (out.fail) return out.fail;
+  if (out.twice.length) return "the sea is not a pure function of the day: " + out.twice.join(", ") + " drew differently twice at one clock";
+  if (out.empty.length) return "these seas drew NO cue at all: " + out.empty.join(", ") + " - the hatch and the live path are identical, so nothing is being said";
+  if (out.same.gb) return `a glassy day (${out.days.glass}) and a blown-out day (${out.days.blown}) at the same swell paint IDENTICAL water - the firing-vs-blown read is invisible without the sign`;
+  if (out.same.gf) return `a big day (${out.days.glass}) and a flat day (${out.days.flat}) paint identical water`;
+  if (out.same.bf) return `a blown day (${out.days.blown}) and a flat day (${out.days.flat}) paint identical water`;
+  if (out.band.length) return "the weather printed outside the water:\n        " + out.band.join("\n        ");
+  return true;
+});
+
+scenario("surf: the sea rations it, the peak is capped, and a crowd takes the edge off", () => {
+  // THE CURE MATT ASKED FOR ("fun cure, of course!"), and the three limits it
+  // is built on - each checked against a live town rather than by reading the
+  // constants back. What matters is that the SEA is the rationer: no cooldown
+  // we invented gates this, so if surfIsUp() ever disagrees with surfToday()
+  // the feature has quietly become an unlimited free cure standing next to a
+  // paid arcade, which is the exact mistake the shelter pot taught us.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const o = JSON.parse(sim.G(`JSON.stringify((() => {
+    // THE CLOCK HAS ONE SETTER: tday. tmin and tdgm are DERIVED by reclock, and
+    // darkness() reads tdgm - so assigning tmin alone moves the label and not
+    // the sun, and every daylight gate below would read whatever the last tick
+    // left behind. (Cost an hour: the first run of this scenario had a firing
+    // day at "noon" that was pitch dark.)
+    const held = { day, tday };
+    const setClock = (m) => { tday = m * 5; reclock(); };
+    // 1. THE SEA DECIDES WHEN. surfIsUp is FIRING and daylight, no more and no
+    //    less - swept over the town's own history at noon and at 3 AM.
+    let openDay = 0, wrong = null, night = 0;
+    for (let d = 1; d <= 300; d++) {
+      day = d; setClock(720);
+      const up = surfIsUp(), firing = surfToday(d) === "FIRING";
+      if (up !== firing) { wrong = "day " + d + ": surfIsUp=" + up + " but surfToday=" + surfToday(d); break; }
+      if (up) openDay++;
+      setClock(180); if (surfIsUp()) night++;   // 3 AM: nobody paddles out in the dark
+    }
+    day = held.day; tday = held.tday; reclock();
+    // 2. THE PEAK HOLDS THREE. surfHasRoom must shut at SURF_LINEUP, counted
+    //    off live state rather than trusted - park a lineup and ask.
+    const pool = allCrabs().slice(0, SURF_LINEUP + 2);
+    const room = [];
+    if (pool.length >= SURF_LINEUP + 1) {
+      const hold = pool.map(c => [c, c.dsC, c.surfT, c.hidden]);
+      for (let n = 0; n <= SURF_LINEUP; n++) {
+        for (let i = 0; i < pool.length; i++) { pool[i].dsC = i < n ? DS.atSurf : DS.home; pool[i].surfT = i < n ? 100 : 0; }
+        room.push(surfHasRoom(pool[pool.length - 1]) ? 1 : 0);
+      }
+      for (const [c, ds, t, h] of hold) { c.dsC = ds; c.surfT = t; c.hidden = h; }
+    }
+    // 3. A CROWD TAKES THE EDGE OFF, and a perfect day beats a marginal one.
+    //    The relief arithmetic, evaluated the way updateSurf evaluates it.
+    const worth = (qQ16, others) => {
+      const grade = Math.max(0, qQ16 - FC_CLEAN);
+      const earned = SURF_MIN + idiv(Math.min(grade, 65536 - FC_CLEAN) * (SURF_MAX - SURF_MIN), 65536 - FC_CLEAN);
+      return Math.max(0, earned - others * SURF_CROWD);
+    };
+    return { openDay, night, wrong, room, lineup: SURF_LINEUP,
+      solo: worth(65536, 0), packed: worth(65536, SURF_LINEUP - 1),
+      marginal: worth(FC_CLEAN, 0), marginalPacked: worth(FC_CLEAN, SURF_LINEUP - 1),
+      ball: BALL_PAIR, ballSolo: BALL_SOLO, at: SURF_AT, cd: SURF_CD, lead: SURF_LEAD };
+  })())`));
+  if (o.wrong) return "surfIsUp() and surfToday() disagree - " + o.wrong;
+  if (o.night) return o.night + " of 300 days let a crab paddle out at 3 AM";
+  if (!(o.openDay > 5 && o.openDay < 90))
+    return `the sea is open ${o.openDay}/300 days - want rare (it is the best fun in town) but real`;
+  if (o.room.length !== o.lineup + 1 || o.room[o.lineup - 1] !== 1 || o.room[o.lineup] !== 0)
+    return `the lineup cap is not at SURF_LINEUP (${o.lineup}): room-by-occupancy reads ` + JSON.stringify(o.room);
+  // the payoff ladder, top to bottom: a perfect solo day is the best fun that
+  // is not the arcade; a marginal day in a crowd is worse than knocking the
+  // beach ball about alone, which is the "limited" word doing real work.
+  if (!(o.solo > o.marginal)) return `a perfect day (${o.solo}) is worth no more than a marginal one (${o.marginal})`;
+  if (!(o.solo > o.packed)) return `a crowded peak (${o.packed}) costs nothing against an empty one (${o.solo})`;
+  if (!(o.solo > o.ball)) return `a perfect wave (${o.solo}) beats no game of catch (${o.ball}) - then why walk down`;
+  if (!(o.marginalPacked < o.ballSolo))
+    return `a marginal day shared three ways (${o.marginalPacked}) still beats knocking the ball about alone (${o.ballSolo}) - the crowd is not limiting anything`;
+  // ...and it never becomes the cheap answer: you go at MORE boredom than the
+  // 0.45 where a crab would BUY fun, so anyone who would have paid still pays.
+  if (o.at <= qn(0.45)) return `SURF_AT is ${o.at}, at or under the 0.45 buy-fun line - this takes the arcade's takings`;
+  if (o.lead <= 90) return `SURF_LEAD is ${o.lead} game-minutes for a ~68-minute session - a crab can start one and turn up late`;
+  return true;
+});
+
+scenario("surf: a crab rides on a firing day, blocks nothing while out, and comes back on the sand", () => {
+  // THE SESSION, END TO END, on a day the sea is actually working. The one
+  // thing here that would be a real bug rather than a balance question: a
+  // rider goes HIDDEN to be painted out on the water (the shower-stall idiom),
+  // and a hidden crab is skipped by collision, by lane clearance and by quips.
+  // If a session can END without clearing that flag the town has an invisible
+  // resident forever - so this drives one all the way through and checks the
+  // crab comes back, visible, on the sand, on a cooldown and less bored.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(3);
+  const o = JSON.parse(sim.G(`JSON.stringify((() => {
+    // a firing day out of the town's own history - never forced onto the channel
+    let d = -1;
+    for (let n = day + 1; n <= day + 400; n++) if (surfToday(n) === "FIRING") { d = n; break; }
+    if (d < 0) return { fail: "no firing day within 400 of today" };
+    const heldDay = day, heldT = tday, heldDt = dtT;
+    day = d; dtT = 1;
+    // tday is the clock's ONE setter; tmin/tdgm (and so darkness) are derived
+    const setClock = (m) => { tday = m * 5; reclock(); };
+    // FIND A CRAB WHO IS ACTUALLY FREE rather than assuming one is: surfFree
+    // wants them off duty, off shift and not about to start one, and which
+    // crab that is depends on the roster this seed dealt. Sweep the afternoon.
+    let c = null, e = null;
+    const why = [];
+    for (const t of [600, 720, 840, 960, 1020]) {
+      setClock(t);
+      if (!surfIsUp()) { why.push(t + ":sea shut (dark " + darkness().toFixed(2) + ")"); continue; }
+      for (const k of allCrabs()) {
+        if (k.duty || k.p.sick) continue;
+        k.dsC = DS.home; k.p.bored = qn(0.95);
+        k.p.thirst = 0; k.p.hunger = 0; k.p.dirt = 0; k.p.tired = 0;
+        k.surfCd = 0; k.ballCd = 0; k.errandCd = 0; k.chainN = 0;
+        const pick = pickErrand(k);
+        if (pick && pick.surf) { c = k; e = pick; break; }
+        if (pick) why.push(t + ":" + k.p.name + " picked " + (pick.ball ? "ball" : pick.biz || "?"));
+      }
+      if (c) break;
+    }
+    if (!c) { day = heldDay; tday = heldT; reclock(); dtT = heldDt;
+      return { fail: "no crab on a firing day picked the surf: " + why.slice(0, 6).join("; ") }; }
+    if (!beginErrand(c, e, false)) return { fail: "beginErrand refused the surf stop" };
+    const bored0 = c.p.bored;
+    let hid = false, guard = 0;
+    while (c.dsC === DS.atSurf && guard++ < 60000) {
+      updateSurf(c, 1 / SEC);
+      if (c.hidden) hid = true;
+    }
+    const out = { fail: null, hid, guard, hidden: !!c.hidden, ds: DS_NAMES[c.dsC],
+      y: c.y, bored0, bored1: c.p.bored, cd: c.surfCd, floorMin: FLOOR_MIN };
+    day = heldDay; tday = heldT; reclock(); dtT = heldDt;
+    return out;
+  })())`));
+  if (o.fail) return o.fail;
+  if (o.guard >= 60000) return "the session never ended";
+  if (!o.hid) return "the rider never went hidden - a crab stood on the sand while being painted out on a wave";
+  if (o.hidden) return "the session ended with the crab still HIDDEN - an invisible resident, forever";
+  // afterErrand hands them straight on to the next thing (home, a chained stop
+  // or the commute) exactly as the ball does - what must NOT survive is atSurf
+  if (o.ds === "atSurf") return "the session ended still in atSurf";
+  if (o.y < o.floorMin) return `the crab ended at y${o.y}, above FLOOR_MIN ${o.floorMin} - it walked into the sea`;
+  if (!(o.bored1 < o.bored0)) return `a whole session on a firing day relieved nothing (${o.bored0} -> ${o.bored1})`;
+  if (!(o.cd > 0)) return "no cooldown was set - the crab can turn straight round and paddle out again";
   return true;
 });
 
@@ -18899,7 +19049,11 @@ scenario("errands: the census is the registry, and the ballot order is pinned", 
   const sim = createSim({ seed: 31 });
   const got = JSON.parse(sim.G(`JSON.stringify(ERRANDS.map(e => [e.id, e.need, e.kind]))`));
   const want = [["meal.self", "food", "selfCook"], ["meal.counter", "food", "biz"],
-    ["ball", "fun", "post"], ["drink", "drink", "biz"],
+    // surf BEFORE ball is load-bearing, not cosmetic: order is semantic here,
+    // and the ball's own guard ("no fun candidate already on the ballot") is
+    // what makes catch stand aside on a firing day. Swap these two and the
+    // beach ball silently outranks the surf every time the sea is working.
+    ["surf", "fun", "post"], ["ball", "fun", "post"], ["drink", "drink", "biz"],
     ["bath.shower", "clean", "biz"], ["bath.rinse", "clean", "post"],
     ["soup", "food", "post"], ["vote", "vote", "post"], ["fun.arcade", "fun", "biz"]];
   if (got.length !== want.length) return "census is " + got.length + " entries, want " + want.length;
@@ -18945,7 +19099,7 @@ scenario("errands: a data errand joins the ballot, wins when it should, and its 
       return "a bad errand was not refused by name: " + bad + " -> " + msg;
   }
   const n = sim.G("ERRANDS.length");
-  if (n !== 9) return "a refused errand left the census at " + n;
+  if (n !== 10) return "a refused errand left the census at " + n;
   return true;
 });
 
