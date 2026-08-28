@@ -14649,6 +14649,15 @@ function serve(c) {
       if (tt && tt.length && !BIZ[cust.biz].lodging && !BIZ[cust.biz].stalls
           && !pickSeat(tt, cust)) {
         if (window._stats) window._stats.seatWalkout = (window._stats.seatWalkout || 0) + 1;
+        // MEASURED THE HARD WAY (kd-riXXp2Yvty, this probe's v1): leaving with
+        // served=false is NOT "ate elsewhere" - visAfterCounter reads !served
+        // as GAVE UP WAITING and calls stayQuit(), so the guest abandons their
+        // whole multi-day stay and says so on the boat. v1 read 0/48 on a ~5%
+        // event because 5% of covers became a ~30% collapse in ARRIVALS. A
+        // guest who calmly dines elsewhere is CONTENT: mark them served+happy
+        // so they finish their stay, and let the shop lose only what option B
+        // says it loses - the cover, the table tip and the rep tier.
+        cust.served = true; cust.happy = true;
         if (window._noSeatSaleFed && cust.isCrab && cust.crab && cust.crab.p) {
           // eaten elsewhere, out of the crab's own pocket - the town keeps
           // running, the PLAYER's books are the only thing that lost.

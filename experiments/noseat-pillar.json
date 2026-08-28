@@ -1,6 +1,6 @@
 {
- "name": "noseat-pillar",
- "note": "Prices option B of decision kd-riXXp2Yvty (crabs eat elsewhere when no table). The decision states the A-vs-B fork turns on a growth-pillar cost it explicitly does NOT quantify. Today the sale is taken BEFORE the seat is looked for, so an unseated guest is already paid and fed; option B makes them a LOST COVER. Two arms model that, both on one tree so this is an A/B DELTA (kd-RSS4Nkil3c: a delta does not need an absolute re-base, but the control is re-taken here anyway as corroboration against the ruled 7/48). ub = --noseatsale, guest walks with nothing (no till, no rep, no need-cure) = STRICTLY WORSE than option B = an UPPER BOUND. fed = --noseatsale-fed, the crab is fed and charged elsewhere = the faithful option-B model. ctl = flag off, byte-identical to trunk. base-* = buy nothing, must stay 0/48 or the pillar reading is broken. batch sets kernel=wasm realm=main.",
+ "name": "noseat-pillar-v2",
+ "note": "v2 of the option-B pricing for kd-riXXp2Yvty. v1 (b28329b) read 0/48 for BOTH arms and was WRONG: leaving with served=false routes through visAfterCounter's !served branch, which calls stayQuit() - the guest abandons their whole multi-day stay. v1 therefore measured huff-quit contagion (arrivals 120->82 on a ~5% event), not 'ate elsewhere'. v2 marks the walkout served+happy so the stay completes, and the shop loses exactly what option B says: the cover, the table tip, the rep tier. ctl re-taken in this same run (flag off = byte-identical to trunk); ctl must reproduce ~7/48 or the instrument is broken. base must stay 0/48.",
  "resources": {
   "requests": {
    "cpu": "7",
@@ -77,21 +77,6 @@
    ]
   },
   {
-   "id": "ctl-base-sb0",
-   "entry": "tools/batch.mjs",
-   "args": [
-    "--towns",
-    "16",
-    "--seedbase",
-    "0",
-    "--days",
-    "30",
-    "--jobs",
-    "7",
-    "--json"
-   ]
-  },
-  {
    "id": "ub-base-sb0",
    "entry": "tools/batch.mjs",
    "args": [
@@ -161,21 +146,6 @@
    ]
   },
   {
-   "id": "ctl-base-sb16",
-   "entry": "tools/batch.mjs",
-   "args": [
-    "--towns",
-    "16",
-    "--seedbase",
-    "16",
-    "--days",
-    "30",
-    "--jobs",
-    "7",
-    "--json"
-   ]
-  },
-  {
    "id": "ub-base-sb16",
    "entry": "tools/batch.mjs",
    "args": [
@@ -241,21 +211,6 @@
     "--noseatsale-fed",
     "--buy",
     "chef,table",
-    "--json"
-   ]
-  },
-  {
-   "id": "ctl-base-sb32",
-   "entry": "tools/batch.mjs",
-   "args": [
-    "--towns",
-    "16",
-    "--seedbase",
-    "32",
-    "--days",
-    "30",
-    "--jobs",
-    "7",
     "--json"
    ]
   },
