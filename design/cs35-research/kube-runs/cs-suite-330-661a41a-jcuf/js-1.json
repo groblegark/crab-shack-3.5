@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-661a41a-jcuf",
+  "armId": "js-1",
+  "index": 1,
+  "sha": "661a41aaa3983c8cad3cddabd3ce4f4ef7529cf7",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 316369,
+  "verdict": "37/37 passed in slice 1/12 (316.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (59879ms)\n  PASS  disease: care cures, neglect can kill (43784ms)\n  PASS  job board: unpaid staff quit back to the pier (470ms)\n  PASS  crew never staff npc-owned shops (450ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (1036ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (66180ms)\n  PASS  hours: shortened hours really close the shop (670ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (2178ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (4148ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (4930ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (1200ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (17ms)\n  PASS  the lease card: every term fits on the card it is printed on (17ms)\n  PASS  the sea: the weather is legible off the water, and never printed on the town (1271ms)\n  PASS  visitors: the wallet is real money, and it runs out (519ms)\n  PASS  the town fund moves money and never mints it (16544ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (1525ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (20ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (4310ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1904ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (452ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (67109ms)\n  PASS  an absolute catalog url plays through a typed <source>, our own paths stay a plain src (14ms)\n  PASS  an audition still owns the speakers, and BACK does not restart the town (12ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1917ms)\n  PASS  crab voice: two whole days with the table off are the same town (2304ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (1156ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (7ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (20245ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (23ms)\n  PASS  foodways: the validator names its refusals (43ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1186ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (11ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (6894ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (105ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (47ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (3648ms)\n37/37 passed in slice 1/12 (316.2s)\n"
+}

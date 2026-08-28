@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5bea929-fc1q",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "5bea92941ac78ee3f6d0ad23a5c89111b3538c4b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 255303,
+  "verdict": "37/37 passed in slice 0/12 (255.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (50841ms)\n  PASS  disease: sustained neglect breeds sickness (1150ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (673ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (3835ms)\n  PASS  credit: the town is warned before it goes under (48749ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (608ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (1854ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (53970ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (11ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (14900ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (9601ms)\n  PASS  tip sharing + the table cap roundtrip save/load (809ms)\n  PASS  no surface prints off the canvas (1916ms)\n  PASS  forecast: names the swell it can see, never the quality it cannot (9ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (63ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4774ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (5181ms)\n  PASS  departures: the card waits behind the day report, then pages itself (602ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (4424ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (2140ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (11ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (11ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (11ms)\n  PASS  the walk steps over the moments and the dropped rows (11ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (3429ms)\n  PASS  traits: the island's table is the literal, value for value (10ms)\n  PASS  depart programs: a hostile table is refused by name (9ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (34148ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (16ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (12ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (33ms)\n  PASS  seam: the view is a reader - two renders move nothing (71ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (25ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (10220ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (61ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (9ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1002ms)\n37/37 passed in slice 0/12 (255.2s)\n"
+}

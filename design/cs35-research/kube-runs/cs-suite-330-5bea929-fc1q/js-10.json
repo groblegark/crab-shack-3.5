@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-5bea929-fc1q",
+  "armId": "js-10",
+  "index": 10,
+  "sha": "5bea92941ac78ee3f6d0ad23a5c89111b3538c4b",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 143700,
+  "verdict": "36/36 passed in slice 10/12 (143.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (2489ms)\n  PASS  housing: npcs sleep at the shelter, then move up (760ms)\n  PASS  queue hard cap holds for locals too (3723ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (823ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (880ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (167ms)\n  PASS  fish market: price + series roundtrip save/load (41ms)\n  PASS  labor policy: every new setting roundtrips save/load (1659ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (6032ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (1560ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (1332ms)\n  PASS  a science run is silent and the mind panel banks at the fold (1019ms)\n  PASS  almanac: mist is one ocean for the fleet, swell and wind are per-town (66ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (3337ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2330ms)\n  PASS  the mayor wears the hat, and nobody else ever does (1446ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (621ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (869ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (95339ms)\n  PASS  the shop tooltip promises what the button actually does (402ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (8ms)\n  PASS  every track in the playlist is a file that exists (11ms)\n  PASS  the record box scrolls without the drag thumb (11ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2660ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (22ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (35ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (9ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (9000ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (13ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (11ms)\n  PASS  space: every position rides the Q8 grain, all day (1235ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (9ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (7ms)\n  PASS  science: the seed is the town - a different one lives differently (5594ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (11ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (73ms)\n36/36 passed in slice 10/12 (143.6s)\n"
+}
