@@ -114,6 +114,22 @@ const gamesPlayed = results.reduce((s, r) => s + (statOf(r).gamesPlayed || 0), 0
 const gamesTour = results.reduce((s, r) => s + (statOf(r).gamesPlayedTour || 0), 0);
 const gamesCrab = results.reduce((s, r) => s + (statOf(r).gamesPlayedCrab || 0), 0);
 
+// SURF BREAK DOSE. Exactly the same problem as the arcade above, one notch
+// worse: the sea only fires ~8% of days and most towns are evicted inside a
+// fortnight, so an as-built arm can easily contain ZERO surf sessions - and
+// then the --nosurf A/B under it is two identical numbers that read as "the
+// surf costs nothing." THE DOSE IS NOT OPTIONAL INSTRUMENTATION, it is the
+// difference between a measurement and a null result, and the first run of
+// this matrix shipped without it and could not tell the two apart.
+// `sessions` = crabs who paddled out; `rides` = sessions that finished (a
+// town evicted mid-session logs one of the first and none of the second);
+// `crowded` = rides that shared the peak, the number SURF_CROWD is priced on.
+// Must be 0 in every --nosurf arm; must be >0 in an as-built arm, or say so.
+const surfSessions = results.reduce((s, r) => s + (statOf(r).surfSessions || 0), 0);
+const surfRides = results.reduce((s, r) => s + (statOf(r).surfRides || 0), 0);
+const surfCrowded = results.reduce((s, r) => s + (statOf(r).surfCrowded || 0), 0);
+const surfTowns = results.filter((r) => (statOf(r).surfSessions || 0) > 0).length;
+
 const out = {
   towns: TOWNS, seedbase: SEEDBASE, jobs: JOBS, cores: usableCores(),
   workload: passthrough.join(" "),

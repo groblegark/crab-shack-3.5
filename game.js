@@ -18650,8 +18650,18 @@ function drawBG() {
   // A SWELL ON THE WAY SITS ON THE HORIZON: the distant storm as a dark bar,
   // thickening as it closes. Drawn before the water so the sea rides over it.
   if (S.coming) {
+    // Sits FLUSH on the waterline, because that is where a squall line is seen
+    // from a beach - a band of weather standing on the horizon, not a cloud in
+    // the sky. Darker and greyer than the sunlit far shore behind it (88,120,
+    // 160), or it is invisible: the first cut was a one-row (104,114,138) and
+    // reads as a slightly-off pixel of headland. Ragged along the top by
+    // _almHash so it is a weather front rather than a ruler, stable per column
+    // per storm, and reading no stream.
     const bh = 1 + (((FC_HORIZON + 1 - S.coming.n) / FC_HORIZON * 3) | 0);
-    rect(ctx, 0, SKY_H - 1 - bh, W, bh, [104, 114, 138]);   // the storm's own cloud, low and flat
+    rect(ctx, 0, SKY_H - bh, W, bh, [70, 76, 100]);
+    for (let x = 0; x < W; x += 8)
+      if (_almHash(x + S.coming.day * 977, _almanacSeed) & 1)
+        rect(ctx, x, SKY_H - bh - 1, 8, 1, [70, 76, 100]);
   }
   // ocean (screen fixed)
   rect(ctx, 0, SKY_H, W, SHORE_Y - SKY_H, [40, 140, 220]);

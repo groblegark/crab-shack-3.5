@@ -53,6 +53,17 @@ export function createVisibleSim({ seed = 1337, screenH = 240, cultures = null, 
   if (cultures) G(`loadCultures(${JSON.stringify(cultures)})`);
   G(`soundOn = false; musicOn = false; screen = "play"; window._headless = true;
      window._stats = { tourServes: 0, crabServes: 0, tourRage: 0, crabRage: 0, bused: 0 };`);
+  // THE OCEAN IS NOT ON THE SEED UNLESS YOU PUT IT THERE. A fresh town draws
+  // `_almanacSeed` from the WALL CLOCK (game.js, in the new-town branch) so
+  // that every real player's surf history is their own without forking the one
+  // random sequence the fingerprint gates guard - and every harness is
+  // therefore expected to overwrite it, which simlib.mjs and headless.mjs both
+  // do. This door did not, so `createVisibleSim({ seed })` was reproducible in
+  // everything EXCEPT the weather: three processes at seed 1337 returned three
+  // different swell histories, and a photograph of the sea could not be
+  // re-taken. Same line, same idiom, same place in the sequence as the other
+  // two harnesses.
+  G(`_almanacSeed = ${seed >>> 0};`);
   const step = mkFn("window.simNow += 50; window.rafCb(window.simNow);");
   const getDay = mkExpr("day"), getOver = mkExpr("gameOver");
   // ONE FRAME, WITH THE FLAG DOWN. draw() is whatever viewFrame does; the

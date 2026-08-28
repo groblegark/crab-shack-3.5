@@ -5038,33 +5038,63 @@ scenario("boredom's free cures are LIMITED, and neither pays for itself", () => 
   // boredom moves down for reasons nobody wrote) and none of them may PAY FOR
   // ITSELF over a working week. A game of catch takes the edge off; only the
   // arcade zeroes the bar.
+  //
+  // RE-BASELINED AGAIN 2026-08-28 for THE SURF BREAK (kd-diTcbMAxFT), and this
+  // scenario is how the break was caught: it went red the first time it ran,
+  // `{"n":"PINCHY","by":504180,"chat":false,"ball":false}` - a 0.48 drop with
+  // nobody's name on it. That is the guard working exactly as written, so what
+  // changes here is the ROSTER of legal cures (now three) and nothing else.
+  // The surf's ceiling is SURF_MAX, and it is deliberately the BIGGEST of the
+  // three: a firing day is worth more than a game of catch. What keeps it off
+  // the arcade's lawn is not a small number, it is RATIONING - the sea fires
+  // ~8% of days, in daylight only, three to a peak, four game-hours between
+  // sessions. The self-sustain clause below is left exactly as it stood; if a
+  // third cure had broken it, the number to move would have been SURF_MAX and
+  // not this scenario.
+  //
+  // BUT DO NOT READ THAT CLAUSE AS THE PROOF OF THE RATIONING, because it is
+  // weaker than its own prose (a PRE-EXISTING defect, found while adding the
+  // surf and deliberately NOT fixed in the same change - see the note on it
+  // below). The rationing is priced where prices belong: the --nosurf matrix,
+  // experiments/surf16.json.
+  //
+  // Note the surf, unlike the ball, is NOT asserted to have fired: eight days
+  // against a ~8% sea is a coin, and a `surfing > 0` clause here would be
+  // flaky by construction. The break's own dose lives in the `surf:` scenarios,
+  // which seek a firing day rather than hoping for one.
   const sim = createSim({ seed: 41 });
   idleTown(sim, 4);
   if (sim.G(`bizUnlocked("arcade")`)) return "the fixture town has an arcade - it cannot prove anything";
   const start = {}, last = {}, chatSamples = {}, drops = [];
-  const prev = {}, wasChat = {}, wasBall = {};
-  let chatting = 0, playing = 0;
+  const prev = {}, wasChat = {}, wasBall = {}, wasSurf = {};
+  let chatting = 0, playing = 0, surfing = 0;
   sim.runDays(8, { tickEvery: 2, onTick: (G) => {
     G(`coins = Math.max(coins, 150000);`);
     for (const r of JSON.parse(G(`JSON.stringify(allCrabs().map(c => [c.p.name, c.p.bored || 0,
-        c.dayState === "chat", c.dayState === "atBall"]))`))) {
-      const [n, bored, inChat, atBall] = r;
+        c.dayState === "chat", c.dayState === "atBall", c.dayState === "atSurf"]))`))) {
+      const [n, bored, inChat, atBall, atSurf] = r;
       if (start[n] == null) start[n] = bored;
       last[n] = bored;
       if (inChat) { chatting++; chatSamples[n] = (chatSamples[n] || 0) + 1; }
       if (atBall) playing++;
+      if (atSurf) surfing++;
       if (prev[n] != null && bored < prev[n] - 1e-6)
-        drops.push({ n, by: prev[n] - bored, chat: !!wasChat[n], ball: !!wasBall[n] });
-      prev[n] = bored; wasChat[n] = inChat; wasBall[n] = atBall;
+        drops.push({ n, by: prev[n] - bored, chat: !!wasChat[n], ball: !!wasBall[n], surf: !!wasSurf[n] });
+      prev[n] = bored; wasChat[n] = inChat; wasBall[n] = atBall; wasSurf[n] = atSurf;
     }
   } });
   if (!drops.length) return "boredom never moved down at all - the chatter cure is not firing";
-  // EVERY DROP IS ONE OF THE TWO, AND WITHIN ITS OWN CEILING.
+  // EVERY DROP IS ONE OF THE THREE, AND WITHIN ITS OWN CEILING.
   const ballMax = sim.G(`BALL_PAIR`) + 1e-6;
+  // RAW Q20, like BALL_PAIR above and like the drops themselves - `c.p.bored`
+  // is never divided anywhere in this scenario. Dividing by Q20 here (the
+  // first cut did) makes the ceiling 0.62 against drops of ~500000 and flags
+  // every legal session as rogue.
+  const surfMax = sim.G(`SURF_MAX`) + 1e-6;
   const rogue = drops.filter(d => (d.chat ? d.by > CHAT_RELIEF_MAX
-    : d.ball ? d.by > ballMax : true));
+    : d.ball ? d.by > ballMax : d.surf ? d.by > surfMax : true));
   if (rogue.length)
-    return `${rogue.length} boredom drop(s) came from neither a finished conversation nor a game, `
+    return `${rogue.length} boredom drop(s) came from no conversation, game or session, `
       + `or exceeded its ceiling, e.g. ${JSON.stringify(rogue[0])}`;
   if (!(chatting > 0)) return "nobody in a bored town ever stopped to talk";
   if (!(playing > 0)) return "nobody in a bored town ever went and played with the ball";
@@ -5072,6 +5102,17 @@ scenario("boredom's free cures are LIMITED, and neither pays for itself", () => 
   // included - still ends MORE bored than they started, or the $650 arcade
   // rung stops mattering. (0.06 of relief, at most twice a day against a
   // shift's +0.20, is the arithmetic this asserts.)
+  // UNITS DEFECT, PRE-EXISTING (found 2026-08-28 while adding the surf to the
+  // roster above; left standing on purpose so one change does not silently
+  // re-strengthen an unrelated invariant). `c.p.bored` is RAW Q20 everywhere
+  // in this scenario - the failure message that caught the surf printed
+  // by=504180 - but the two thresholds on the next two lines are written as
+  // fractions, 0.9 and 0.05. So `start[n] < 0.9` selects crabs sampled at
+  // bored 0, and `last[n] <= start[n] + 0.05` asks whether they FINISHED at
+  // ~zero rather than whether they held their ground. The clause still fires
+  // on a town that cures itself completely; it does not test the margin its
+  // comment claims. Fixing it is its own change with its own gate, because
+  // the honest version may well go red on the shipped balance.
   const names = Object.keys(start).filter((n) => start[n] < 0.9);   // a crab already pinned at 1.0 cannot rise
   const held = names.filter((n) => last[n] <= start[n] + 0.05);
   if (held.length)
