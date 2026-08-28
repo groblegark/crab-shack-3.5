@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-2b944ee-31bc",
+  "armId": "wasm-1",
+  "index": 13,
+  "sha": "2b944ee795f5d0c9793a9271c891c2adde35b0cb",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 156696,
+  "verdict": "37/37 passed in slice 1/12 (156.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (42187ms)\n  PASS  disease: care cures, neglect can kill (27534ms)\n  PASS  job board: unpaid staff quit back to the pier (361ms)\n  PASS  crew never staff npc-owned shops (401ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (964ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (46540ms)\n  PASS  hours: shortened hours really close the shop (487ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (980ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (3052ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (5149ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (1035ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (17ms)\n  PASS  the lease card: every term fits on the card it is printed on (9ms)\n  PASS  forecast: draws on both boards, on the canvas and never over its neighbours (868ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1071ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (1049ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1350ms)\n  PASS  departures: every character the card prints exists in the font (717ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2813ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (46ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (295ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (317ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (9ms)\n  PASS  a networkless town gives up after four tracks, not after a thousand (9ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (5737ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (7ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (8604ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (14ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (278ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (9ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (289ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2049ms)\n  PASS  the build stamp is well-formed and wired (1ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1260ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (9ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (9ms)\n  PASS  the arcade floor survives a save and reload (1061ms)\n37/37 passed in slice 1/12 (156.6s)\n"
+}
