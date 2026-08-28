@@ -8726,7 +8726,17 @@ scenario("the player can stand for office and win, and then the levy is theirs",
   // 4242). Seed 5 is chosen for the CLEAREST margin - a 4-1 shelter-bloc
   // majority, no tie-break in the result at all - which is the same "5-1 tally,
   // shelter-bloc mechanics" demonstration 7 gave before the economy moved.
-  const sim = createSim({ seed: 5 });
+  //
+  // RE-STAGED 5 -> 11 (THE HOTEL TAP). THE CROSSING THAT MOVED IT: a third
+  // WATER_TAPS entry adds a pickErrand candidate, which shifts the errand-draw
+  // RNG stream - so every seed's turnout re-shuffles. Seed 5 fell to
+  // PINCHY:2 DRIFT:1 SUDSY:2, a tie the incumbent breaks; measured on the tap
+  // tree, 11, 21 and 42 all carry the room. This is the SAME staged-coincidence
+  // this comment already warns about, arriving for the fourth time: the seed is
+  // not a rule, only a tally that happens to clear the incumbent, and the next
+  // stream shift will move it again. What is seed-generic is the RECIPE (stand
+  // on the shelter bloc where it is a plurality), not the number.
+  const sim = createSim({ seed: 11 });
   sim.runDays(3);
   sim.G(`(() => {
     for (const c of allCrabs()) if (!c.p.owner) { c.p.homeless = true; c.p.house = null; c.p.fisher = false; }
