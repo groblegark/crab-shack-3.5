@@ -1,0 +1,75 @@
+{
+ "name": "noseat-census-postu1",
+ "note": "RE-TAKES the no-seat census headline of decision kd-riXXp2Yvty. The original (tools/noseat.mjs header, crab 7/334=2.1%, tourist 51/1640=3.1%) was measured at a267ab9 (2026-08-26 21:10), which PREDATES the U1 citizen-decay merge 8e1f760 (2026-08-27 20:16). U1 drains citizen hunger/thirst/dirt/bored continuously at CIT_DECAY_MUL=7 - the exact demand driver for crab covers - so the crab leg of that census is measured on a tree where crabs ate far less often. Option C of the decision rests on the claim that the case 'fires on 2.1%/3.1% of covers'. 4 arms x 4 seeds = 16 seeds, two 8-blocks, per CLAUDE.md (8 is a coin). Flags off, so the probe branch is byte-identical to trunk here.",
+ "resources": {
+  "requests": {
+   "cpu": "5",
+   "memory": "2Gi"
+  },
+  "limits": {
+   "cpu": "6",
+   "memory": "4Gi"
+  }
+ },
+ "nodeSelector": {
+  "karpenter.sh/nodepool": "ephemeral-pool"
+ },
+ "tolerations": [
+  {
+   "key": "gasboat.ephemeral",
+   "operator": "Equal",
+   "value": "true",
+   "effect": "NoSchedule"
+  }
+ ],
+ "arms": [
+  {
+   "id": "census-sb0",
+   "entry": "tools/noseat.mjs",
+   "args": [
+    "--days",
+    "12",
+    "--seeds",
+    "4",
+    "--seedbase",
+    "0"
+   ]
+  },
+  {
+   "id": "census-sb4",
+   "entry": "tools/noseat.mjs",
+   "args": [
+    "--days",
+    "12",
+    "--seeds",
+    "4",
+    "--seedbase",
+    "4"
+   ]
+  },
+  {
+   "id": "census-sb8",
+   "entry": "tools/noseat.mjs",
+   "args": [
+    "--days",
+    "12",
+    "--seeds",
+    "4",
+    "--seedbase",
+    "8"
+   ]
+  },
+  {
+   "id": "census-sb12",
+   "entry": "tools/noseat.mjs",
+   "args": [
+    "--days",
+    "12",
+    "--seeds",
+    "4",
+    "--seedbase",
+    "12"
+   ]
+  }
+ ]
+}
