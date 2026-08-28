@@ -1,0 +1,21 @@
+{
+  "name": "sleepdebt",
+  "note": "Decision kd-h28QBb1lvO ship-precondition: the `consequential` option says merge-ready 'pending full suite + growth escape on both 16-seed blocks' and that was NEVER measured. This is the ADJACENT A/B on the LANDING tree (probe merge of cs-sleep-debt onto post-U1 main): default = sleep debt ON, --nodebt = the same tree with the accumulating hazard armed off (the flat tired>=0.95 roll stays, so the control is the pre-ramp build and not a town with no fatigue). baseline (buy nothing) + growth (--buy chef,table) x seedbase {0,16,32}. Per kd-RSS4Nkil3c the growth escape is an ABSOLUTE target so its control is re-taken HERE rather than quoted from the U1 receipt. batch sets kernel=wasm realm=main.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "debt-baseline-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "debt-baseline-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "debt-baseline-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "debt-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "debt-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "debt-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "nodebt-baseline-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--nodebt","--json"] },
+    { "id": "nodebt-baseline-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--nodebt","--json"] },
+    { "id": "nodebt-baseline-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--nodebt","--json"] },
+    { "id": "nodebt-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--nodebt","--buy","chef,table","--json"] },
+    { "id": "nodebt-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--nodebt","--buy","chef,table","--json"] },
+    { "id": "nodebt-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--nodebt","--buy","chef,table","--json"] }
+  ]
+}
