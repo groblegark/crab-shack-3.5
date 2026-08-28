@@ -14630,6 +14630,39 @@ function serve(c) {
     return;
   }
   if (cust && cust.stC === VS.waiting) {
+    // PROBE HATCH (--noseatsale / --noseatsale-fed, kd-riXXp2Yvty). NOT A
+    // SHIPPING BEHAVIOUR - this branch exists only to price option B of the
+    // eat-elsewhere decision, and the branch it lives on is DO-NOT-LAND.
+    // Today the sale is taken FIRST and the seat looked for SECOND, so an
+    // unseated guest is already paid and already fed; the shop loses only the
+    // table tip and half the rep. Option B says the guest LEAVES and the
+    // player loses the COVER. Model that by refusing the sale when the shop
+    // has tables and none is free:
+    //   _noSeatSale      the guest walks with nothing - no till, no rep, no
+    //                    need-cure. Strictly WORSE than option B, so whatever
+    //                    it costs the growth pillar is an UPPER BOUND.
+    //   _noSeatSaleFed   ...but a crab is fed and charged elsewhere (wallet
+    //                    debited at local retail, need zeroed), which is what
+    //                    option B actually says happens. The faithful model.
+    if (window._noSeatSale) {
+      const tt = bizTables(cust.biz);
+      if (tt && tt.length && !BIZ[cust.biz].lodging && !BIZ[cust.biz].stalls
+          && !pickSeat(tt, cust)) {
+        if (window._stats) window._stats.seatWalkout = (window._stats.seatWalkout || 0) + 1;
+        if (window._noSeatSaleFed && cust.isCrab && cust.crab && cust.crab.p) {
+          // eaten elsewhere, out of the crab's own pocket - the town keeps
+          // running, the PLAYER's books are the only thing that lost.
+          const price = localPrice(cust.biz, cust.recipe);
+          cust.crab.p.wallet = Math.max(0, cust.crab.p.wallet - price);
+          if (cust.need === "food") cust.crab.p.hunger = 0;
+          if (cust.need === "drink" || (cust.recipe && DRINKS[cust.recipe.id])) cust.crab.p.thirst = 0;
+          if (cust.need === "fun") cust.crab.p.bored = 0;
+        }
+        cust.stC = VS.leaving;
+        c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
+        return;
+      }
+    }
     ringUpTray(c, cust);
     cust.served = true; cust.happy = true; sfx.ding();
     if (!cust.isCrab) repAdd(cust.culture, 400);

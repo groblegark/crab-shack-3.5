@@ -1,0 +1,279 @@
+{
+ "name": "noseat-pillar",
+ "note": "Prices option B of decision kd-riXXp2Yvty (crabs eat elsewhere when no table). The decision states the A-vs-B fork turns on a growth-pillar cost it explicitly does NOT quantify. Today the sale is taken BEFORE the seat is looked for, so an unseated guest is already paid and fed; option B makes them a LOST COVER. Two arms model that, both on one tree so this is an A/B DELTA (kd-RSS4Nkil3c: a delta does not need an absolute re-base, but the control is re-taken here anyway as corroboration against the ruled 7/48). ub = --noseatsale, guest walks with nothing (no till, no rep, no need-cure) = STRICTLY WORSE than option B = an UPPER BOUND. fed = --noseatsale-fed, the crab is fed and charged elsewhere = the faithful option-B model. ctl = flag off, byte-identical to trunk. base-* = buy nothing, must stay 0/48 or the pillar reading is broken. batch sets kernel=wasm realm=main.",
+ "resources": {
+  "requests": {
+   "cpu": "7",
+   "memory": "2Gi"
+  },
+  "limits": {
+   "cpu": "8",
+   "memory": "4Gi"
+  }
+ },
+ "nodeSelector": {
+  "karpenter.sh/nodepool": "ephemeral-pool"
+ },
+ "tolerations": [
+  {
+   "key": "gasboat.ephemeral",
+   "operator": "Equal",
+   "value": "true",
+   "effect": "NoSchedule"
+  }
+ ],
+ "arms": [
+  {
+   "id": "ctl-grow-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ub-grow-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "fed-grow-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale-fed",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-base-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--json"
+   ]
+  },
+  {
+   "id": "ub-base-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-grow-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ub-grow-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "fed-grow-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale-fed",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-base-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--json"
+   ]
+  },
+  {
+   "id": "ub-base-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-grow-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ub-grow-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "fed-grow-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale-fed",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-base-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--json"
+   ]
+  },
+  {
+   "id": "ub-base-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--json"
+   ]
+  }
+ ]
+}

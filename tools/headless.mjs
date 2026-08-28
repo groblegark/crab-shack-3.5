@@ -99,6 +99,8 @@ const NODORM = args.includes("--nodorm");
 // gives the pre-U1 tree back, so a 48-town matrix can measure the drain as
 // exactly one variable, the --norival / --nohall idiom.
 const NODECAY = args.includes("--nodecay");
+const NOSEATSALE = args.includes("--noseatsale") || args.includes("--noseatsale-fed");   // probe hatch, kd-riXXp2Yvty
+const NOSEATFED  = args.includes("--noseatsale-fed");
 // `--citdecay N` overrides CIT_DECAY_MUL (twentieths of VIS_RATE - the fraction
 // of the tourist's per-frame rate a resident crab drains at). The sweep lever
 // for U1's rate calibration: game.js reads window._citDecayMul through
@@ -211,6 +213,8 @@ if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: E
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
 if (NODECAY) G(`window._noDecay = true;`);
+if (NOSEATSALE) G(`window._noSeatSale = true;`);
+if (NOSEATFED) G(`window._noSeatSaleFed = true;`);
 if (CITDECAY != null) G(`window._citDecayMul = ${CITDECAY};`);
 if (CITNOWORKPAUSE) G(`window._citNoWorkPause = true;`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
