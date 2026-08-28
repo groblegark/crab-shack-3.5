@@ -14648,6 +14648,19 @@ function serve(c) {
       const tt = bizTables(cust.biz);
       if (tt && tt.length && !BIZ[cust.biz].lodging && !BIZ[cust.biz].stalls
           && !pickSeat(tt, cust)) {
+        // DOSE, so the arm can be falsified. _noSeatDose = 0 runs every line of
+        // this hatch - the second pickSeat call, the counter, the stat - and
+        // then walks NOBODY out. That arm MUST come back byte-identical to the
+        // flag-off control; if it does not, the plumbing perturbs the very
+        // stream it is measuring and no dose reading here means anything.
+        // _noSeatDose = 0.5 fires on every other eligible guest, so a real
+        // economic effect has to show up as dose-response and a plumbing
+        // artifact cannot. Deterministic counter - never srand().
+        const _n = (window._seatWalkN = (window._seatWalkN || 0) + 1);
+        const _dose = window._noSeatDose == null ? 1 : window._noSeatDose;
+        if (window._stats) window._stats.seatEligible = (window._stats.seatEligible || 0) + 1;
+        if (!(_dose >= 1 || (_dose > 0 && _n % 2 === 0))) { /* dosed out: fall through to the stock path */ }
+        else {
         if (window._stats) window._stats.seatWalkout = (window._stats.seatWalkout || 0) + 1;
         // MEASURED THE HARD WAY (kd-riXXp2Yvty, this probe's v1): leaving with
         // served=false is NOT "ate elsewhere" - visAfterCounter reads !served
@@ -14670,6 +14683,7 @@ function serve(c) {
         cust.stC = VS.leaving;
         c.cust = null; c.carrying = null; c.ksC = KS.idle; c.stepIdx = 0;
         return;
+        }
       }
     }
     ringUpTray(c, cust);

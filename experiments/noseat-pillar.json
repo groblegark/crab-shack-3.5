@@ -1,6 +1,6 @@
 {
- "name": "noseat-pillar-v2",
- "note": "v2 of the option-B pricing for kd-riXXp2Yvty. v1 (b28329b) read 0/48 for BOTH arms and was WRONG: leaving with served=false routes through visAfterCounter's !served branch, which calls stayQuit() - the guest abandons their whole multi-day stay. v1 therefore measured huff-quit contagion (arrivals 120->82 on a ~5% event), not 'ate elsewhere'. v2 marks the walkout served+happy so the stay completes, and the shop loses exactly what option B says: the cover, the table tip, the rep tier. ctl re-taken in this same run (flag off = byte-identical to trunk); ctl must reproduce ~7/48 or the instrument is broken. base must stay 0/48.",
+ "name": "noseat-dose",
+ "note": "DOSE-RESPONSE test for kd-riXXp2Yvty. v1 and v2 both read 0/48 with a ~33% collapse in town lifetime off a ~2-3% event, which is disproportionate enough that the arm must be falsified before it is reported. dose0 runs EVERY line of the hatch (the second pickSeat call, the counter, the stat) and walks NOBODY out: it MUST come back byte-identical to ctl, or the plumbing perturbs the stream it measures and no reading here means anything. dose50 fires on every other eligible guest: a real economic effect shows dose-response, a plumbing artifact does not. ctl re-taken in-run; must reproduce ~7/48.",
  "resources": {
   "requests": {
    "cpu": "7",
@@ -24,7 +24,7 @@
  ],
  "arms": [
   {
-   "id": "ctl-grow-sb0",
+   "id": "ctl-sb0",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -41,7 +41,7 @@
    ]
   },
   {
-   "id": "ub-grow-sb0",
+   "id": "dose0-sb0",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -53,31 +53,15 @@
     "--jobs",
     "7",
     "--noseatsale",
-    "--buy",
-    "chef,table",
-    "--json"
-   ]
-  },
-  {
-   "id": "fed-grow-sb0",
-   "entry": "tools/batch.mjs",
-   "args": [
-    "--towns",
-    "16",
-    "--seedbase",
+    "--noseatdose",
     "0",
-    "--days",
-    "30",
-    "--jobs",
-    "7",
-    "--noseatsale-fed",
     "--buy",
     "chef,table",
     "--json"
    ]
   },
   {
-   "id": "ub-base-sb0",
+   "id": "dose50-sb0",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -89,11 +73,35 @@
     "--jobs",
     "7",
     "--noseatsale",
+    "--noseatdose",
+    "0.5",
+    "--buy",
+    "chef,table",
     "--json"
    ]
   },
   {
-   "id": "ctl-grow-sb16",
+   "id": "dose100-sb0",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "0",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--noseatdose",
+    "1",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-sb16",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -110,7 +118,7 @@
    ]
   },
   {
-   "id": "ub-grow-sb16",
+   "id": "dose0-sb16",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -122,31 +130,15 @@
     "--jobs",
     "7",
     "--noseatsale",
+    "--noseatdose",
+    "0",
     "--buy",
     "chef,table",
     "--json"
    ]
   },
   {
-   "id": "fed-grow-sb16",
-   "entry": "tools/batch.mjs",
-   "args": [
-    "--towns",
-    "16",
-    "--seedbase",
-    "16",
-    "--days",
-    "30",
-    "--jobs",
-    "7",
-    "--noseatsale-fed",
-    "--buy",
-    "chef,table",
-    "--json"
-   ]
-  },
-  {
-   "id": "ub-base-sb16",
+   "id": "dose50-sb16",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -158,11 +150,35 @@
     "--jobs",
     "7",
     "--noseatsale",
+    "--noseatdose",
+    "0.5",
+    "--buy",
+    "chef,table",
     "--json"
    ]
   },
   {
-   "id": "ctl-grow-sb32",
+   "id": "dose100-sb16",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--noseatdose",
+    "1",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "ctl-sb32",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -179,7 +195,7 @@
    ]
   },
   {
-   "id": "ub-grow-sb32",
+   "id": "dose0-sb32",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -191,31 +207,15 @@
     "--jobs",
     "7",
     "--noseatsale",
+    "--noseatdose",
+    "0",
     "--buy",
     "chef,table",
     "--json"
    ]
   },
   {
-   "id": "fed-grow-sb32",
-   "entry": "tools/batch.mjs",
-   "args": [
-    "--towns",
-    "16",
-    "--seedbase",
-    "32",
-    "--days",
-    "30",
-    "--jobs",
-    "7",
-    "--noseatsale-fed",
-    "--buy",
-    "chef,table",
-    "--json"
-   ]
-  },
-  {
-   "id": "ub-base-sb32",
+   "id": "dose50-sb32",
    "entry": "tools/batch.mjs",
    "args": [
     "--towns",
@@ -227,6 +227,30 @@
     "--jobs",
     "7",
     "--noseatsale",
+    "--noseatdose",
+    "0.5",
+    "--buy",
+    "chef,table",
+    "--json"
+   ]
+  },
+  {
+   "id": "dose100-sb32",
+   "entry": "tools/batch.mjs",
+   "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--noseatsale",
+    "--noseatdose",
+    "1",
+    "--buy",
+    "chef,table",
     "--json"
    ]
   }

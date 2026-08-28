@@ -101,6 +101,7 @@ const NODORM = args.includes("--nodorm");
 const NODECAY = args.includes("--nodecay");
 const NOSEATSALE = args.includes("--noseatsale") || args.includes("--noseatsale-fed");   // probe hatch, kd-riXXp2Yvty
 const NOSEATFED  = args.includes("--noseatsale-fed");
+const NOSEATDOSE = (() => { const i = args.indexOf("--noseatdose"); return i < 0 ? null : parseFloat(args[i+1]); })();
 // `--citdecay N` overrides CIT_DECAY_MUL (twentieths of VIS_RATE - the fraction
 // of the tourist's per-frame rate a resident crab drains at). The sweep lever
 // for U1's rate calibration: game.js reads window._citDecayMul through
@@ -215,6 +216,7 @@ if (NODORM) G(`DORM_CFG.BASE = 99;`);
 if (NODECAY) G(`window._noDecay = true;`);
 if (NOSEATSALE) G(`window._noSeatSale = true;`);
 if (NOSEATFED) G(`window._noSeatSaleFed = true;`);
+if (NOSEATDOSE != null) G(`window._noSeatDose = ${NOSEATDOSE};`);
 if (CITDECAY != null) G(`window._citDecayMul = ${CITDECAY};`);
 if (CITNOWORKPAUSE) G(`window._citNoWorkPause = true;`);
 const stepFn = mkFn(`window.simNow += ${STEP * 1000}; window.rafCb(window.simNow);`);
