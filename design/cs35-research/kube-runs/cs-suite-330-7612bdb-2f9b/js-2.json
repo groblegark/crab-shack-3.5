@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 143360,
+  "verdict": "37/37 passed in slice 2/12 (143.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2767ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2343ms)\n  PASS  save/load: townsfolk keep wallets and houses (1532ms)\n  PASS  all crew dead: town survives, rehire recovers (1189ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (2063ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (779ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (23481ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (506ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4383ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (22499ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (5600ms)\n  PASS  ferry: the arming tap times out, and an old save never won (70ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (16ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1614ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (2394ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (6512ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1961ms)\n  PASS  departures: nobody on the boat knows the town's name (1014ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (2586ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (2196ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (12ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (11ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (16ms)\n  PASS  the walk steps over the moments and the dropped rows (18ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (4096ms)\n  PASS  traits: the island's table is the literal, value for value (7ms)\n  PASS  depart programs: a hostile table is refused by name (8ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (39361ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (28ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (18ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (34ms)\n  PASS  seam: the view is a reader - two renders move nothing (154ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (10ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (12627ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (75ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (17ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1239ms)\n37/37 passed in slice 2/12 (143.2s)\n"
+}

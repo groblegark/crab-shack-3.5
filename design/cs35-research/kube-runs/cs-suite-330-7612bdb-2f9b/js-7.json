@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 109454,
+  "verdict": "37/37 passed in slice 7/12 (109.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (5238ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (2147ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1759ms)\n  PASS  boat: ownership and berth roundtrip through save/load (1607ms)\n  PASS  the drop nudge: open sand nudges nothing (2438ms)\n  PASS  days off: wages skip exactly and the bill dips to match (2174ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (36ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (1509ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1354ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1203ms)\n  PASS  tips: the counter gets a token, the table gets the lot (8ms)\n  PASS  no card prints text on top of its own text (1644ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (5746ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (9973ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (6810ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (23983ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2700ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1484ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (2879ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (245ms)\n  PASS  a hire is something you can see happen (574ms)\n  PASS  a shop's takings show on its owner's card the moment they land (2205ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (2ms)\n  PASS  the ticker sits in free HUD space at both canvas heights (62ms)\n  PASS  missing payday costs the crew, not the lease (9562ms)\n  PASS  crab-as-document: a hostile document is refused by name (12ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (10665ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (69ms)\n  PASS  toast: a message longer than the card CRAWLS, and every character reaches the screen (164ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (3552ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (661ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2624ms)\n  PASS  the title screen ages the build, and keeps ticking (15ms)\n  PASS  load: the same envelope lands the same way however often you land it (2188ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (1773ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (12ms)\n  PASS  spend reserve: a housed crab keeps tonight's rent back, by temperament (241ms)\n37/37 passed in slice 7/12 (109.3s)\n"
+}

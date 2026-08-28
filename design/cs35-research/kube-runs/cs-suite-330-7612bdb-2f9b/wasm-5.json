@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "wasm-5",
+  "index": 17,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 204974,
+  "verdict": "37/37 passed in slice 5/12 (204.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (12777ms)\n  PASS  save guard: a town born from a rejected save does not bury it (937ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (38ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (994ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (743ms)\n  PASS  days off: everyone rests their weekday and plays customer (4848ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (354ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (844ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (2153ms)\n  PASS  idle hands: boredom per day stays bounded - the trickle-lump plus a day's off-duty drain (2301ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (12823ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1542ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (447ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (140920ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (4086ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1238ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (16ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (14ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (123ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (79ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (382ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (296ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (8ms)\n  PASS  a networkless town gives up after four tracks, not after a thousand (9ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (5338ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (14ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (6815ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (16ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (361ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (10ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (305ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2136ms)\n  PASS  the build stamp is well-formed and wired (1ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (988ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (8ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (7ms)\n  PASS  the arcade floor survives a save and reload (900ms)\n37/37 passed in slice 5/12 (204.9s)\n"
+}

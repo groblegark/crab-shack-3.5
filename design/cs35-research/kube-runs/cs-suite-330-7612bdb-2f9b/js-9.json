@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "js-9",
+  "index": 9,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 84894,
+  "verdict": "37/37 passed in slice 9/12 (84.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (633ms)\n  PASS  npc: SUDSY dines at the player shack (4141ms)\n  PASS  slots: the preview card reflects the town it came from (2272ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (34ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (117ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (226ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (12069ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1457ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (19102ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4317ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (170ms)\n  PASS  one reading surface owns the screen (1566ms)\n  PASS  almanac: swell is an autocorrelated per-town history, wind an independent gate (17ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1483ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (7775ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1602ms)\n  PASS  departures: the money band prints the manifest's own dollars (545ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (534ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (3579ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (783ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1897ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (11ms)\n  PASS  an iOS refusal latches instead of re-arming every frame (8ms)\n  PASS  a streamed town still reaches a same-origin track when the browser refuses release assets (30ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (7520ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (13ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (22ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (10ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (12ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (13ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (9ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (2063ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1813ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (4698ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1757ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1739ms)\n  PASS  spend reserve: the affordability gates read the reserve, and it BINDS (753ms)\n37/37 passed in slice 9/12 (84.8s)\n"
+}

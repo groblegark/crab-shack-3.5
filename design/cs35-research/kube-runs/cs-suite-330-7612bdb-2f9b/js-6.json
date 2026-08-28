@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 168848,
+  "verdict": "37/37 passed in slice 6/12 (168.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3808ms)\n  PASS  save guard: an empty slot still receives the first town (19ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (4116ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1946ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1863ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (4944ms)\n  PASS  census: rows derive live state, and sort + filter actually move (717ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2736ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (29ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1178ms)\n  PASS  the title's credit block never lands on the science button (12ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (82520ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (3543ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (5932ms)\n  PASS  an election is held on the week, and every voter is accounted for (4698ms)\n  PASS  departures: three ways to be turned away are three different counters (265ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (542ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1779ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (165ms)\n  PASS  the help card teaches the machine and does not spoil the ending (8ms)\n  PASS  nothing paints over an open card except another card (1107ms)\n  PASS  the shipmap stamps shipped rows onto the catalog (11ms)\n  PASS  mute and MUSIC OFF still reach a track playing behind an open box (13ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (11020ms)\n  PASS  crab-as-document: the crab diary never reaches the code literal (995ms)\n  PASS  civics receipt: voteReason is byte-equal to the lambda receipt on every voter, every platform (11182ms)\n  PASS  the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none (8ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (1169ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (63ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (565ms)\n  PASS  brains: a live brain spends the script's own draws, no more (2975ms)\n  PASS  the stamp gate watches every file a player is served (0ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (11485ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (87ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (15ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (7216ms)\n37/37 passed in slice 6/12 (168.7s)\n"
+}

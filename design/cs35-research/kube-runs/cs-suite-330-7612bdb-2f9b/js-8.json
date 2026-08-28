@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 137038,
+  "verdict": "37/37 passed in slice 8/12 (136.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (775ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (2132ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (1328ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (138ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5490ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (281ms)\n  PASS  roster: the refactor preserves every census ordering (1143ms)\n  PASS  sale: the player buys a failed business through the shopfront (4001ms)\n  PASS  idle hands: the boredom advance is reconciled at day's end (boredBilled, both models) (812ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (17ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (1485ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (10ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (3919ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (2803ms)\n  PASS  the mayor wears the hat, and nobody else ever does (1239ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (415ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (761ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (89460ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (1022ms)\n  PASS  the hire card runs on the wall clock, not the game clock (1350ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (523ms)\n  PASS  the whole session plays through one audio element (11ms)\n  PASS  the shipped catalog builds a rotation of every track, with its moments intact (75ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (4058ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (81ms)\n  PASS  civics stakes: a hostile table is refused by name (17ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (26ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (824ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (592ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (447ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3214ms)\n  PASS  the kernel and the reference agree, byte for byte (2045ms)\n  PASS  load: the new town's desk is clear of the last town's books (4964ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (8ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1055ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (400ms)\n37/37 passed in slice 8/12 (136.9s)\n"
+}

@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-7612bdb-2f9b",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "7612bdb41176e06f76a797660d89441bf36618a1",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 220878,
+  "verdict": "37/37 passed in slice 0/12 (220.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (46493ms)\n  PASS  disease: sustained neglect breeds sickness (1337ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (596ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (2131ms)\n  PASS  credit: the town is warned before it goes under (50672ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (707ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (2167ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (57742ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (10ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (15618ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (8535ms)\n  PASS  tip sharing + the table cap roundtrip save/load (870ms)\n  PASS  no surface prints off the canvas (1571ms)\n  PASS  forecast: names the swell it can see, never the quality it cannot (10ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (715ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (1019ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3852ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2333ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3101ms)\n  PASS  sleep debt: the ledger counts NIGHTS, not hours awake (the M/E trap) (846ms)\n  PASS  the shop tooltip promises what the button actually does (452ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (8ms)\n  PASS  every track in the playlist is a file that exists (10ms)\n  PASS  the record box scrolls without the drag thumb (11ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2704ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (27ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (76ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (17ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (9429ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (18ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (16ms)\n  PASS  space: every position rides the Q8 grain, all day (1331ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (15ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (14ms)\n  PASS  science: the seed is the town - a different one lives differently (6187ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (20ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (90ms)\n37/37 passed in slice 0/12 (220.8s)\n"
+}
