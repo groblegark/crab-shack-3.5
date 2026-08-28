@@ -71,6 +71,14 @@ const NOCAP = args.includes("--nocap");
 // at a claw machine is a crab not being handed something at the prize counter.
 // Named rather than tuned away, per the measurement rule.
 const NOPLAY = args.includes("--noplay");
+// `--nosurf` shuts the surf break: surfIsUp() returns false however the
+// almanac reads, so the sea never offers the free fun cure and no crab ever
+// paddles out. THE ZERO-DOSE TWIN for the break (kd-1XqylH3kmJ) - the same
+// tree, one variable, so a matrix can price what the surf took from the
+// arcade instead of inferring it from a survival number that moved. The water
+// still LOOKS like the weather (that is `window._noSeaCues`, a separate
+// hatch): --nosurf moves behaviour only.
+const NOSURF = args.includes("--nosurf");
 // `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
 // body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
 // the same buildPhys conversion a document does, lands on ENG_BODY and the
@@ -207,6 +215,7 @@ if (NODEPART) G(`window._nodepart = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);
+if (NOSURF) G(`window._noSurf = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);

@@ -1,0 +1,32 @@
+{
+  "name": "surf16",
+  "note": "THE SURF BREAK, priced by its OWN --nosurf hatch (kd-diTcbMAxFT). Eighteen arms: {baseline, growth chef+table, growth chef+table+arcade} x seedbase {0,16,32} x {as-built, nosurf}. as-built = the shipped break (a FIRING day in daylight offers a free, time-priced fun cure at the beach ball's sand); nosurf = the SAME TREE with surfIsUp() forced false, so the sea never offers and no crab paddles out. One variable, same tree - the delta is the surf, not whatever else moved on main. INSTRUMENT VALIDATION is not a null arm here (the break needs no purchase, so nosurf is never a no-op): it is stats.surfSessions, which MUST be 0 in every nosurf arm and >0 in the as-built growth arms. If an as-built arm reads 0 sessions the whole matrix is a null result and the arm never fired. THE TWO NUMBERS TO READ: (1) THE PILLAR on the tree we are landing on - growth-asbuilt survived over 48, against growth-nosurf survived over 48 as the control RE-TAKEN on this base (CLAUDE.md: measure against the tree you are landing on). (2) THE ARCADE'S TAKINGS, the shelter-pot question - in the chef,table,arcade arms, arcade.games as-built vs nosurf over the towns that actually built one. A free cure standing beside a paid one takes the takings rather than the need; SURF_AT=0.50 sits above the 0.45 where a crab would BUY fun and ap100=88 sits under the arcade's 100 precisely to stop that, and this arm is what says whether that was enough. Expect a SMALL negative on arcade games and a small positive-or-flat on survival. Name it; do not tune it away. 30 days, --json receipts, batch sets kernel=wasm realm=main.",
+  "resources": {
+    "requests": { "cpu": "7", "memory": "2Gi" },
+    "limits": { "cpu": "8", "memory": "4Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "base-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "base-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb0-nosurf",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--nosurf","--json"] },
+    { "id": "base-sb16-nosurf",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--nosurf","--json"] },
+    { "id": "base-sb32-nosurf",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--nosurf","--json"] },
+
+    { "id": "growth-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb0-nosurf",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--nosurf","--json"] },
+    { "id": "growth-sb16-nosurf",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--nosurf","--json"] },
+    { "id": "growth-sb32-nosurf",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--nosurf","--json"] },
+
+    { "id": "arc-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "arc-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "arc-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "arc-sb0-nosurf",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table,arcade","--nosurf","--json"] },
+    { "id": "arc-sb16-nosurf",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table,arcade","--nosurf","--json"] },
+    { "id": "arc-sb32-nosurf",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table,arcade","--nosurf","--json"] }
+  ]
+}

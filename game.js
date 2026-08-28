@@ -6621,7 +6621,10 @@ const SURF_CROWD = qn(0.12);      // what each other crab in the water costs you
 const SURF_LINES = ["OUTSIDE!", "MY WAVE", "SET COMING", "CLEAN OUT HERE", "ONE MORE"];
 // THE SEA IS OPEN when it is firing and you can see. Everything else about the
 // break reads through this one predicate, so there is one place to be wrong.
-function surfIsUp() { return surfToday(day) === "FIRING" && darkness() < 0.55; }
+// `window._noSurf` (harness `--nosurf`) is the break's ZERO-DOSE TWIN: the
+// sea never offers, so a matrix prices what the surf took off the arcade on
+// the SAME tree. Distinct from `_noSeaCues`, which is the water's LOOK only.
+function surfIsUp() { return !window._noSurf && surfToday(day) === "FIRING" && darkness() < 0.55; }
 function surfers() { return allCrabs().filter(k => k.dsC === DS.atSurf); }
 function surfHasRoom(c) { return surfers().filter(k => k !== c).length < SURF_LINEUP; }
 function startSurfStop(c) {

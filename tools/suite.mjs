@@ -7017,6 +7017,20 @@ scenario("surf: the sea rations it, the peak is capped, and a crowd takes the ed
       if (up) openDay++;
       setClock(180); if (surfIsUp()) night++;   // 3 AM: nobody paddles out in the dark
     }
+    // 1b. THE ZERO-DOSE TWIN. --nosurf sets window._noSurf, and the matrix
+    //     (no backticks in here: this whole block lives inside a template
+    //     literal, and one would end it mid-scenario)
+    //     that prices what the break took off the arcade is only worth reading
+    //     if that flag actually shuts the sea. Find a firing day and ask twice.
+    let hatch = "no firing day in 300 to test the hatch on";
+    for (let d = 1; d <= 300; d++) {
+      day = d; setClock(720);
+      if (!surfIsUp()) continue;
+      window._noSurf = true;
+      hatch = surfIsUp() ? "window._noSurf did not shut the sea on day " + d : null;
+      window._noSurf = false;
+      break;
+    }
     day = held.day; tday = held.tday; reclock();
     // 2. THE PEAK HOLDS THREE. surfHasRoom must shut at SURF_LINEUP, counted
     //    off live state rather than trusted - park a lineup and ask.
@@ -7037,13 +7051,14 @@ scenario("surf: the sea rations it, the peak is capped, and a crowd takes the ed
       const earned = SURF_MIN + idiv(Math.min(grade, 65536 - FC_CLEAN) * (SURF_MAX - SURF_MIN), 65536 - FC_CLEAN);
       return Math.max(0, earned - others * SURF_CROWD);
     };
-    return { openDay, night, wrong, room, lineup: SURF_LINEUP,
+    return { openDay, night, wrong, hatch, room, lineup: SURF_LINEUP,
       solo: worth(65536, 0), packed: worth(65536, SURF_LINEUP - 1),
       marginal: worth(FC_CLEAN, 0), marginalPacked: worth(FC_CLEAN, SURF_LINEUP - 1),
       ball: BALL_PAIR, ballSolo: BALL_SOLO, at: SURF_AT, cd: SURF_CD, lead: SURF_LEAD };
   })())`));
   if (o.wrong) return "surfIsUp() and surfToday() disagree - " + o.wrong;
   if (o.night) return o.night + " of 300 days let a crab paddle out at 3 AM";
+  if (o.hatch) return o.hatch;
   if (!(o.openDay > 5 && o.openDay < 90))
     return `the sea is open ${o.openDay}/300 days - want rare (it is the best fun in town) but real`;
   if (o.room.length !== o.lineup + 1 || o.room[o.lineup - 1] !== 1 || o.room[o.lineup] !== 0)
