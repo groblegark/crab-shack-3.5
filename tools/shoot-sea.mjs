@@ -86,3 +86,40 @@ for (const s of SHOTS) {
   console.log(`${outdir}/sea-${s.name}.png  day ${s.d}  swell ${s.s.toFixed(2)}` +
               `  wind ${s.w.toFixed(2)}  quality ${s.q.toFixed(2)}${s.c ? `  storm in ${s.c}` : ""}`);
 }
+
+// AND THE CRABS IN IT. Not a posed frame: the day is moved to a firing one and
+// the town is made BORED, and then the errand registry is left alone to decide.
+// Nobody is placed in the water by this file - if `surf` does not win the
+// ballot on its own merits there is no picture, and the script says so.
+// Asked with the GAME'S own predicate, not a proxy on swell and quality: the
+// first cut scored r.q > 0.5 && r.s > 0.5 and picked a day surfToday() does not
+// call FIRING at all. And the hour matters as much as the day - a session needs
+// SURF_LEAD clear of a shift and refuses a crab who is at work, so a midday
+// frame photographs an empty peak however good the waves are. 17:00: shifts
+// done, still an hour of daylight (darkness() < 0.55 up to ~18:30).
+const fire = days.find((r) => sim.G(`surfToday(${r.d}) === "FIRING"`));
+if (!fire) console.log("no firing day in 400 - no lineup to photograph");
+else {
+  sim.G(`day = ${fire.d}; tday = 1020 * 5; reclock(); musNudged = true;
+         allCrabs().forEach(c => { c.p.bored = qn(0.85); c.surfCd = 0; c.errandCd = 0; });
+         camX = clampCam(1140); toast = null; sel = null; dossier = null; manage = null;`);
+  // SHOOT AT FIRST SIGHT OF ANYBODY IN THE WATER, and count surfT > 0 rather
+  // than dsC alone - a crab still walking down the beach is `atSurf` but is not
+  // yet a picture. The first cut waited for a lineup of two and got nothing:
+  // one crab paddled out, rode, and came back inside the window, so the loop
+  // ran to its cap and read zero. Waiting for a crowd is how you photograph an
+  // empty peak.
+  let riders = 0;
+  for (let i = 0; i < 8000 && !riders; i++) {
+    sim.runTicks(1);
+    riders = +sim.G(`surfers().filter(k => k.surfT > 0).length`);
+  }
+  if (!riders) console.log(`day ${fire.d} fired and NOBODY paddled out - the errand never won`);
+  else {
+    sim.G(`toast = null; sel = null; dossier = null; manage = null;`);
+    writeFileSync(`${outdir}/sea-lineup.png`, sim.frame({ scale: 3 }));
+    writeFileSync(`${outdir}/sea-lineup-water.png`, strip(sim.screen.rgba, 256, 40, 96, 6));
+    console.log(`${outdir}/sea-lineup.png  day ${fire.d}  quality ${fire.q.toFixed(2)}  ` +
+                sim.G(`surfers().map(c => c.p.name).join(", ")`) + " out there");
+  }
+}
