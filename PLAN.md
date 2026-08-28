@@ -360,8 +360,9 @@ Open, in order:
   the first screen a new player sees. It wants a hook, not more words.
 - **Deepening the crabocracy** — the office, the ballot and the count are the
   town's central institution now, not a side system.
-- ~~A surf spot mid-beach~~ — **HELD** by Matt: "not quite yet, but we will do
-  it." Do not build it; do not drop it.
+- ~~A surf spot mid-beach~~ — **SHIPPED 2026-08-28**, un-held by Matt ("we
+  need to get crabs surfing, yeah?" / "fun cure, of course!"). See "THE SURF
+  BREAK, AND THE SIGN THAT CAME DOWN" at the foot of this file.
 - ~~Owner-initiated FOR SALE~~ — **SETTLED**: the player answers an offer, they
   do not invite one. "Let's keep (3) the same for now."
 - ~~**The departure card**~~ — **SHIPPED 2026-08-20**: the day report's second
@@ -375,7 +376,8 @@ Open, in order:
   mush plus the class behind it. **Still open from Ben's list: the wall-of-
   text opening** — the lease card is the first screen and it explains terms
   to somebody who does not yet care. It wants a hook, not more words.
-- **A surf spot mid-beach** — explicitly deferred by Matt behind the ball.
+- ~~**A surf spot mid-beach**~~ — **SHIPPED 2026-08-28.** It shares the
+  beach ball's measured sand and is rationed by the sea, not by a price.
 
 **THE THREE RULINGS THAT CONSTRAIN NEW WORK** (each has its own section
 below): resources are never conjured; the town's name is embargoed until the
@@ -4005,8 +4007,8 @@ crab island feel like a place with its own way of doing things".
 
 ### WHAT THIS DOES TO THE BACKLOG
 
-- **The surf spot is HELD** — "not quite yet, but we will do it". Keep it; do
-  not build it yet.
+- ~~**The surf spot is HELD**~~ — **UN-HELD 2026-08-28** by Matt, and built
+  the same day. The hold was always "not quite yet", never "no".
 - **The rivalry stays as it is** — the player answers an offer, they do not
   invite one. Matt: "let's keep (3) the same for now."
 - **CS4 is further off than the 2026-08-18 CLOSING ACT assumed.** That section
@@ -6067,7 +6069,9 @@ copy of them.
   only they could say. Same editorial rule as the devlog — individual named
   crabs, specifics over aggregates. Pairs naturally with the nightly report
   (`drawReport`), which already owns the end-of-day moment.
-- **A SURF SPOT, mid-beach (Matt, 2026-08-19, queued behind the beach ball):**
+- ~~**A SURF SPOT, mid-beach**~~ — **SHIPPED 2026-08-28** (see THE SURF BREAK
+  at the foot of this file). The original ask, for the record **(Matt,
+  2026-08-19, queued behind the beach ball):**
   *"i was thinking there needs to be a surf spot kind of right in the middle,
   but one thing at a time."* Explicitly deferred by him; the beach ball comes
   first. Both belong to the same want: **better sources of LIMITED fun**, so
@@ -8196,3 +8200,174 @@ road left. `wageLoanWhy()` says which of the two it is.
 first three attempts at this fixture "proved" that missing payday did nothing,
 and all three were measuring a loop that never ran. Now in CLAUDE.md, and
 called out at the top of the payday scenarios.
+
+## THE SURF BREAK, AND THE SIGN THAT CAME DOWN (2026-08-28)
+
+Matt, in one message: *"the surf forecast sign shouldn't be there, it should
+just be implied by subtle graphical queues you can decide on based on you
+knowledge of weahter. also, we need to get crabs surfing, yeah?"* — and then,
+asked whether surfing should cure boredom or just look nice: *"fun cure, of
+course! didn't we already plan this?"* We had: the surf spot has sat in this
+file as **HELD** since 2026-08-19. This was the un-hold, not a new idea.
+
+### Why taking the sign down is not the interface-opacity bug
+
+The ruling is that **the engine must not hide a fact it holds**. The forecast
+board held four: a swell is coming, roughly how big, roughly when, and how the
+water looks right now. Every one of those is still on screen — the sea says it
+instead of a sign:
+
+| what the board printed | what the water does now |
+|---|---|
+| today's wind | **chop stride**: 30px apart and 12px long on a glassy day, tightening to 12px/6px as it tears up; rows 5px apart, 4px in a real blow |
+| a hard blow | **whitecaps** — flecks above a threshold, not a ramp, because that is how a whitecap works: the tops tear off or they don't |
+| glass | **specular streaks** — long oily glints that only survive under `WIND_GLASS` (Q16 0.28) |
+| today's swell | **fewer, longer lines**. Big swell = *fewer* sets, wider apart — the count is `1 + ((1 − swell) * 3)`, and the shorebreak surge grows with it |
+| swell × wind, i.e. quality | a clean line **feathers** (offshore spray off the crest); a blown line **crumbles** (broken 8px segments smearing inshore) |
+| BIG THU, the forecast | **forerunners** — one long line at a time, running through, plus a bar of the storm's own cloud on the horizon that thickens as the day nears |
+| — | **the gulls sit out a blow** (they stop flying over 0.62 wind), which no sign ever said |
+
+The suite enforces it. The sea scenario finds three archetype days out of the
+town's own history — glassy-and-big, blown-and-big, flat — renders `drawBG()`
+with the cues on and off, takes the multiset difference to isolate the weather,
+and **fails if any two of those three seas paint the same picture**. If a
+glassy day and a blown day at the same swell were pixel-identical, the sign
+would have been load-bearing after all. It also pins every weather op inside
+`y ∈ [SKY_H−6, SHORE_Y+6]` — the weather may never wander into the town.
+
+`window._noFcast` is gone; the hatch is now `window._noSeaCues`, and it flattens
+the sea to a fixed `SEA_FLAT` (wind 0.34) whose arithmetic reproduces the
+shipped 24px/10px/5px water exactly. Every new draw reads only `viewT`, `day`
+and `_almHash` — **zero randomness**, same as the mist.
+
+### The break itself
+
+**It stands on the beach ball's sand**, `SURF_X = 1206`. That x was not chosen
+by eye: it was chosen by the dehydration guard, which measured 1150 at 32% FAIL
+and 1588 at 28% FAIL before 1206 passed. It is the one stretch of open sand in
+front of nothing, and it is "kind of right in the middle", as asked. A second
+fun stop at an unmeasured x would re-open the exact detour question that table
+was built to close. The two never compete for the sand, because **a surfer goes
+`hidden` the instant they arrive** — the shower-stall idiom, so a session
+blocks no lane, parks nobody, and takes no collision box.
+
+Four things ration it, and they are all the sea, never a price:
+
+- **The sea only offers it.** `surfIsUp()` is `surfToday(day) === "FIRING"` and
+  daylight — about 8% of days. Nobody decides this; the almanac does.
+- **`SURF_AT = qn(0.50)`** — above the 0.45 at which a crab would *buy* fun, so
+  the arcade keeps its customers. `ap100: 88` sits under the arcade's flat 100,
+  so a near, open, affordable arcade still wins the argmax outright.
+- **A crowd takes the edge off.** `SURF_LINEUP = 3` in the water, and each
+  other rider costs `SURF_CROWD = qn(0.12)` of your relief. Three crabs on a
+  marginal day get less each than one crab alone with the beach ball.
+- **`SURF_LEAD = 150` game-minutes** of clear air before a shift. Nobody paddles
+  out with two hours of work in front of them.
+
+The relief is graded off the day: `SURF_MIN` (0.30) on a barely-clean day up to
+`SURF_MAX` (0.62) on a perfect one, so a firing day is *worth* something the
+ball never is. Cost is TIME — ~68 game-minutes out the back, plus a four-hour
+cooldown — which is the self-healing rule, unbent.
+
+### The thing that cost an hour
+
+**The clock has one setter: `tday`.** A scenario that assigns `tmin` directly
+moves the label and not the sun, because `darkness()` reads `tdgm` and *both*
+are derived by `reclock()`. The first run had a firing day at "noon" that was
+pitch dark, and `surfIsUp()` was right the whole time. The fixture now uses
+`setClock(m) { tday = m * 5; reclock(); }` and restores `tday` after.
+
+### Registration order is the whole feature
+
+`surf` is registered **before** `ball`. The ball's already-shipped guard —
+`!X.cand.some(e2 => e2.need === "fun")` — then suppresses it on a firing day,
+with zero new logic in either errand. The census scenario pins that order with
+a comment saying so, because swapping the two lines silently gives the beach
+ball the wave.
+
+### THE GATE FOUND THE THIRD CURE BEFORE I TOLD IT (2026-08-28)
+
+suite-330 @ `661a41a` returned **882/884**, one scenario red on both backends:
+
+    boredom's free cures are LIMITED, and neither pays for itself
+    {"n":"PINCHY","by":504180,"chat":false,"ball":false}
+
+A 0.48 boredom drop with nobody's name on it — the surf, arriving in a roster
+that knew two cures. That guard's whole job is *no boredom moves down for
+reasons nobody wrote*, and it did it. The roster now knows three, with
+`SURF_MAX` as the surf's ceiling **in raw Q20** (the first cut divided by Q20,
+which would have flagged every legal session as rogue). The self-sustain half
+is untouched: had a third cure broken it, the number to move would have been
+`SURF_MAX`, not the test.
+
+**Do not read that clause as proof of the rationing.** It compares raw-Q20
+`bored` against `0.9` and `0.05` written as fractions, so `start < 0.9` selects
+crabs sampled at zero and `last <= start + 0.05` asks whether they *finished*
+at zero rather than whether they held their ground. Pre-existing, noted at the
+site, filed as **kd-aVobPxvGSP**, and deliberately not fixed inside a feature
+change — the honest version may well go red on the shipped balance, which is a
+balance conversation. The rationing is priced where prices belong:
+`experiments/surf16.json` and its `--nosurf` twin.
+
+### THREE INSTRUMENTS THAT LIED, AND THE ONE THAT LIED TWICE
+
+- **The ocean was not on the seed.** `createVisibleSim({seed})` set
+  `Math.random` and never `_almanacSeed`, which a fresh town draws from the
+  wall clock; `simlib` and `headless` both overwrite it, the render door did
+  not. Three processes at seed 1337 → three swell histories, so a photograph
+  of the sea could not be re-taken. Gates and science runs were never affected
+  — only the camera. Fixed; filed and closed as **kd-y54VhPlmlz**. The general
+  shape: a harness can be seeded, deterministic and audited and still carry an
+  un-seeded channel, because the channel was added later with "every harness
+  overwrites this" as an unwritten convention rather than a default.
+- **The storm bar was invisible.** A coming-storm day differed from a flat one
+  on exactly one row, (88,120,160) → (104,112,136). "It's in the diff" is not
+  "you can see it." Now dark (70,76,100), flush on the waterline, ragged along
+  its top by `_almHash`.
+- **The dose was not in the receipt, twice.** The matrix that prices what the
+  break takes off the arcade is worthless without proof a crab surfed during
+  it — otherwise *costs nothing* and *never happened* are the same two numbers.
+  Run 1 had no counter. Run 2 had the counter computed and **not put in the
+  output object**, so every surf field came back `null`. An instrument that
+  exists but does not reach the receipt is not an instrument.
+
+### THE SCREENSHOT TOOL POSES NOBODY
+
+`tools/shoot-sea.mjs` hunts the town's own almanac for firing / blown / coming /
+flat and shoots each through the game's renderer with only `day` moving. For
+the lineup it moves the day to a firing one and makes the town bored, then
+leaves the errand registry alone — nothing places a crab in the water, so if
+`surf` does not win the ballot there is no picture and it says so. Three misses
+worth keeping:
+
+- Ask `surfToday()`, not a proxy on swell and quality.
+- **The hour matters as much as the day.** A session refuses a crab who is at
+  work, so a midday frame photographs an empty peak however good the waves.
+- Shoot at first sight of one rider. Waiting for a lineup of two let PINCHY
+  paddle out, ride and come back inside the window, and the loop read zero.
+
+### THE SURF BREAK'S NUMBERS (2026-08-28, receipt `cs-surf16-5bea929-f6k8`)
+
+Eighteen arms, `--buy chef,table` for the growth rows, `--seedbase 0,16,32`.
+
+**The dose validated**, which is the only reason the rest is readable: all nine
+`--nosurf` arms 0 sessions; all nine as-built arms 16–40 sessions (233 total,
+229 rides, 38 crowded), the break firing in 6–14 of every 16 towns.
+
+| arm | as-built | `--nosurf` |
+| --- | --- | --- |
+| growth (chef,table) | **10/48** | **7/48** |
+| baseline (buy nothing) | 0/48 | 0/48 |
+
+The `--nosurf` control reproduces the U1 land-asis figure of 7/48 exactly. The
++3 is **not** claimed as an effect — three towns over three sixteen-seed blocks
+is inside this project's own coin. The claim is the negative one, and it has a
+dose behind it: **a third free cure with a real ceiling did not cost the growth
+pillar**, which is what a free option beside a paid one usually does.
+
+**The arcade cannibalisation question is still open and this matrix cannot close
+it**: six arcades across ninety-six towns (as-built 0/0/2 built, 0/0/34 games;
+`--nosurf` 1/0/3 built, 10/0/50 games). Directionally expected, far too thin to
+price — most towns are evicted before they can afford a machine, so this arm
+measures eviction, not competition. Needs a run that *starts* towns with an
+arcade instead of hoping they buy one.

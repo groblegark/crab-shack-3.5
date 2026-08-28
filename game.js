@@ -6556,6 +6556,143 @@ function updateBall(c, dt) {
   c.dsC = DS.home;
   afterErrand(c, true);
 }
+// ---- THE SURF BREAK -------------------------------------------------------
+// (Matt, 2026-08-19: "i was thinking there needs to be a surf spot kind of
+// right in the middle, but one thing at a time." HELD in PLAN for nine days
+// behind the beach ball, un-held 2026-08-28: "we need to get crabs surfing,
+// yeah?" - and, asked whether it was decoration or a cure: "fun cure, of
+// course! didn't we already plan this?" We did. This is that item.)
+//
+// The ball's three limits, asked again of a better cure - and the good one is
+// the first, because it costs the town nothing to enforce:
+//   1. THE SEA DECIDES WHEN. You surf on a FIRING day, in daylight, and that
+//      is it. Firing is quality >= FC_CLEAN, which the almanac hands out on
+//      about 8% of days CLUSTERED INTO EVENTS - so the best fun in town is
+//      rationed by weather rather than by a cooldown we invented. That is why
+//      this may be a much stronger cure than a game of catch without becoming
+//      the answer to boredom: eleven days in twelve there is no answer here.
+//   2. THE PEAK HOLDS THREE, AND A CROWD RUINS IT. The lineup caps at
+//      SURF_LINEUP, and every other crab out there costs you SURF_CROWD of
+//      what you came for. Three crabs on a marginal day get less each than a
+//      solo crab knocking the beach ball about, which is both the honest
+//      surfing complaint and the "limited" word doing real work.
+//   3. IT COSTS THE DAY, and more of it than the ball does: ~68 game-minutes
+//      against the ball's ~48, because you have to paddle out and wait. TIME,
+//      never money - THE SELF-HEALING RULE, same as every free cure here.
+// AND WHAT YOU GET BACK IS THE DAY'S OWN QUALITY. Relief scales from SURF_MIN
+// at a barely-clean day to SURF_MAX at a perfect one, so the sea the player
+// learned to read off the water in WHAT THE SEA LOOKS LIKE is the same sea
+// that decides what the session was worth. The cue and the payoff are one fact.
+//
+// ON TAKING THE ARCADE'S TAKINGS - the shelter pot's lesson, which is that a
+// free option standing beside a paid one takes the money rather than the need.
+// It is respected two ways and then deliberately not a fourth: the bar to go
+// (SURF_AT) sits ABOVE the 0.45 where a crab would BUY fun, so anyone who
+// would have paid still pays; the appeal is under the arcade's flat 100, so a
+// near, open, affordable arcade still wins the argmax. But it is high, not
+// timid, because on a firing day the surf genuinely IS the better thing and
+// the sea only offers it one day in twelve. The matrix is the arbiter of
+// whether that was too generous, not this comment.
+//
+// WHERE. 1206 - the ball's own patch, and reusing it is the point rather than
+// laziness. That x was chosen BY THE DEHYDRATION GUARD and not by eye (see the
+// ball's table: 1150 and 1588 both FAIL, 1206 and 1290 pass), it is the one
+// stretch of open sand in front of nothing, and it is "kind of right in the
+// middle" as asked. A second fun stop somewhere unmeasured would re-open
+// exactly the detour question that table was built to close. The two never
+// compete for the sand: a surfer goes HIDDEN the instant they arrive (the
+// shower-stall idiom - hidden crabs are skipped by collision, by lane
+// clearance and by quips), so unlike a game of catch a session blocks nothing
+// and parks nobody. And on a firing day the ball steps aside on its own, with
+// no rule written for it: `surf` registers BEFORE `ball` in the census, and
+// the ball's shipped guard already refuses to join a ballot that has a fun
+// candidate on it.
+const SURF_X = 1206;              // the ball's measured sand; see above
+const SURF_Y = 157;               // ...and its lane-clear y (146/168, 11px each way)
+const SURF_AT = qn(0.50);         // above the 0.45 you'd BUY fun at, below the ball's 0.66
+const SURF_YIELD = qn(0.60);      // any real need outranks a wave
+const SURF_LEAD = 150;            // game-minutes of clear air before a shift: a session is ~68
+const SURF_SECS = 17 * SEC;       // real seconds out there - paddle out, sit, catch a few
+const SURF_CD = 240 * GMIN;       // game minutes: the swell usually runs out first
+const SURF_LINEUP = 3;            // how many fit on the peak
+const SURF_MIN = qn(0.30);        // a barely-clean day...
+const SURF_MAX = qn(0.62);        // ...and a perfect one
+const SURF_CROWD = qn(0.12);      // what each other crab in the water costs you
+const SURF_LINES = ["OUTSIDE!", "MY WAVE", "SET COMING", "CLEAN OUT HERE", "ONE MORE"];
+// THE SEA IS OPEN when it is firing and you can see. Everything else about the
+// break reads through this one predicate, so there is one place to be wrong.
+// `window._noSurf` (harness `--nosurf`) is the break's ZERO-DOSE TWIN: the
+// sea never offers, so a matrix prices what the surf took off the arcade on
+// the SAME tree. Distinct from `_noSeaCues`, which is the water's LOOK only.
+function surfIsUp() { return !window._noSurf && surfToday(day) === "FIRING" && darkness() < 0.55; }
+function surfers() { return allCrabs().filter(k => k.dsC === DS.atSurf); }
+function surfHasRoom(c) { return surfers().filter(k => k !== c).length < SURF_LINEUP; }
+function startSurfStop(c) {
+  c.dsC = DS.atSurf; c.surfT = 0;
+  // NO TIRED_ERRAND, for the ball's measured reason: that charge models a
+  // chore, and hanging it on an optional session tilts the morning/evening
+  // fatigue gap past what the shift-fairness scenario allows.
+  setT(c, SURF_X + (surfers().length ? 20 : -8), SURF_Y);
+}
+function updateSurf(c, dt) {
+  if (c.surfT <= 0) {                        // still walking down to the water
+    if (routedStep(c, crabMoveQ8(c), dt)) {
+      c.surfT = SURF_SECS + ((srand() * 5 * SEC) | 0);
+      c.hidden = true;                       // paddled out; see the shower stalls
+      popText("PADDLING OUT", c.x - 20, FLOOR_Y - 30, [150, 220, 255]);
+      if (window._stats) window._stats.surfSessions = (window._stats.surfSessions || 0) + 1;
+    }
+    return;
+  }
+  c.surfT -= dtT;
+  if (c.surfT > 0) return;
+  c.hidden = false;
+  // WHAT THE DAY WAS WORTH: the sea's own quality, less what the crowd took.
+  // Integer throughout and floor-divided - the same Q16*Q20 magnitudes that
+  // overflow a signed >>16 in swellPeakQ16, so idiv (exact in doubles) not >>.
+  const others = surfers().filter(k => k !== c && k.surfT > 0).length;
+  const grade = Math.max(0, surfQualityQ16(day) - FC_CLEAN);
+  const earned = SURF_MIN + idiv(Math.min(grade, 65536 - FC_CLEAN) * (SURF_MAX - SURF_MIN), 65536 - FC_CLEAN);
+  const relief = Math.max(0, earned - others * SURF_CROWD);
+  c.p.bored = Math.max(0, (c.p.bored || 0) - relief);
+  const good = relief >= SURF_MIN;
+  crabLog(c, "need", others ? "SURFED THE PEAK WITH " + others + " OTHER" + (others > 1 ? "S" : "")
+    : "HAD THE PEAK TO THEMSELVES", 0);
+  popText(good ? "CAUGHT A FEW" : "TOO CROWDED", c.x - 16, FLOOR_Y - 30, good ? [150, 235, 255] : [255, 210, 140]);
+  const SL = idleLines(c, "surf", SURF_LINES);
+  c.quip = { text: good ? SL[(srand() * SL.length) | 0] : "IT'S A ZOO OUT THERE", t: 2.4 * SEC };
+  if (window._stats) {
+    window._stats.surfRides = (window._stats.surfRides || 0) + 1;
+    if (others) window._stats.surfCrowded = (window._stats.surfCrowded || 0) + 1;
+  }
+  c.surfT = 0; c.errandCd = 4 * SEC; c.surfCd = SURF_CD;
+  c.dsC = DS.home;
+  afterErrand(c, true);
+}
+// THE RIDERS, painted into the water rather than onto the sand - the sea band
+// is only 28px of screen-fixed ocean (SKY_H..SHORE_Y), and FLOOR_MIN is 126, so
+// a crab can never legally STAND out there. They go hidden at the waterline and
+// are drawn here instead: a board, a rider on it, and a wake off the tail.
+// Each takes its own lane and its own phase, so three crabs read as a lineup.
+function drawSurfers() {
+  const out = surfers().filter(k => k.surfT > 0);
+  for (let i = 0; i < out.length; i++) {
+    const c = out[i];
+    const ph = ((viewT * 0.42 + i * 0.37) % 1);
+    const sx = SURF_X - 46 + ((ph * 92) | 0);            // sliding down the line, shorewards
+    if (sx - camX < -20 || sx - camX > W + 20) continue;
+    const sy = SKY_H + 8 + i * 5 + ((Math.sin(viewT * 2.4 + i) * 1.5) | 0);
+    const ccul = c.p.culture && c.p.culture !== "crab" ? CULTURES[c.p.culture] : null;
+    const arts = ccul ? ccul.arts[c.p.color] : CRAB_ARTS[c.p.color % CRAB_ARTS.length];
+    const art = ((viewT * 5 + i) | 0) % 2 ? arts.a : arts.b;
+    wrect(sx - 3, sy + 8, 14, 2, BOARD_COL[c.p.color % BOARD_COL.length]);   // the board
+    wblit(art, sx, sy - (ccul ? ccul.body.h : 12) + 8);
+    // the wave under them and the wake off the tail - white water, trailing
+    wrect(sx - 8, sy + 10, 22, 1, [236, 250, 255]);
+    for (let s = 1; s <= 3; s++) px(ctx, sx - 8 - s * 3 - camX, sy + 9 - (s > 1 ? 1 : 0), [214, 240, 252]);
+  }
+}
+const BOARD_COL = [[240, 90, 110], [250, 220, 110], [120, 220, 190], [235, 240, 250], [190, 150, 240], [255, 160, 90]];
 // ---- CHATTER (the time-priced cure) ---------------------------------------
 const CHAT_AT = qn(0.55);         // both parties have to actually want the company
 const CHAT_PX = 26;           // close enough to fall into step
@@ -6628,6 +6765,7 @@ function runChatter(dt) {
   for (const c of all) {
     if ((c.chatCd || 0) > 0) c.chatCd -= dtT;
     if ((c.ballCd || 0) > 0) c.ballCd -= dtT;
+    if ((c.surfCd || 0) > 0) c.surfCd -= dtT;
   }
   for (let i = 0; i < all.length; i++) {
     const a = all[i];
@@ -6810,7 +6948,7 @@ function updateHome(c, dt) {
 // point. Setters are STRICT - an unknown string is a thrown error, not a
 // silent NaN state - so every write site is provably in-table.
 const DS_NAMES = ["home", "toWork", "working", "toErrand", "errand", "atTap",
-  "toHome", "selfCook", "chat", "atBall", "directed"];
+  "toHome", "selfCook", "chat", "atBall", "directed", "atSurf"];
 const KS_NAMES = ["idle", "walk", "work", "toSlot", "waitSlot", "waitCash",
   "busingTable", "cleaningStall", "toStallClean", "toTableClean", "nap", "wander"];
 const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
@@ -9581,6 +9719,12 @@ const NEURO_OBSERVABLES = {
   "citizen.ball.players":    { units: "n<<10",  read: () => nclamp(ballPlayers().length * 1024) },
   "citizen.ball.cd":         { units: "ticks",  read: (c) => nclamp(c.ballCd | 0) },
   "citizen.ball.dist.px":    { units: "px<<3",  read: (c) => nclamp(Math.floor(Math.abs(c.x - BALL_X) * 8)) },
+  // the surf break, in the ball's own idiom (adding names is additive). No
+  // dist.px twin: SURF_X is BALL_X, so a second copy of the same number would
+  // be an input that can never disagree with the one above it.
+  "citizen.surf.up":         { units: "flag*4096", read: () => nclamp((surfIsUp() ? 1 : 0) * 4096) },
+  "citizen.surf.riders":     { units: "n<<10",  read: () => nclamp(surfers().length * 1024) },
+  "citizen.surf.cd":         { units: "ticks",  read: (c) => nclamp(c.surfCd | 0) },
   "citizen.job.shack":       { units: "flag*4096", read: (c) => nclamp((c.p.job === "shack" ? 1 : 0) * 4096) },
   "citizen.job.juicebar":    { units: "flag*4096", read: (c) => nclamp((c.p.job === "juicebar" ? 1 : 0) * 4096) },
   "citizen.npc":             { units: "flag*4096", read: (c) => nclamp((c.p.npc ? 1 : 0) * 4096) },
@@ -12576,6 +12720,7 @@ function anchorX(c) {
 function errandStopX(e) {
   if (e.vote) return POLL_PLACES[e.poll].x;
   if (e.ball) return BALL_X;
+  if (e.surf) return SURF_X;
   if (e.soup) return SOUP_X;
   if (e.tap != null) return WATER_TAPS[e.tap].x;
   const b = e.biz || "shack";
@@ -12793,6 +12938,31 @@ registerErrand({ id: "meal.counter", need: "food", kind: "biz", gather: (c, take
 // only answer boredom has that is not a very expensive chat.
 // (The ball gates - ballAt, ballYields, ballFree, with their measured
 // receipts - live in pickErrand's prelude; the registry entry reads X.)
+// THE SURF BREAK, and it registers BEFORE the ball on purpose. Order is
+// semantic here (registry rule 1: the argmax tie-break keeps the FIRST
+// candidate at a score), and the ball's shipped guard already refuses to join
+// a ballot that has a fun candidate on it - so a firing day makes catch stand
+// aside with no rule written for it, in either file. The arcade registers
+// last and is NOT suppressed: it has a flat appeal of 100 against this entry's
+// 88, so a near, open, affordable arcade still wins, which is the shelter
+// pot's lesson kept. See THE SURF BREAK for the three limits and the geometry.
+registerErrand({ id: "surf", need: "fun", kind: "post", gather: (c, take, X) => {
+  // NOBODY SURFS PARCHED, and the bars are the ball's - each need at the exact
+  // point the crab would have gone and dealt with it, which is what stopped
+  // SUDSY spending a third of her life on the dehydration line.
+  const surfYields = (c.p.thirst || 0) >= qn(0.45) || (c.p.hunger || 0) >= qn(0.50)
+    || (c.p.tired || 0) >= SURF_YIELD || (c.p.dirt || 0) >= qn(0.66);
+  // ...AND NOT ON THE CLOCK, NOR WITH A SHIFT COMING. A session is ~68
+  // game-minutes with the walk, half again the ball's, so it needs a longer
+  // lead - a late crab is an UNSTAFFED COUNTER and the rivalry scenario
+  // measures exactly that.
+  const surfFree = !c.duty && c.dsC !== DS.working
+    && (awayToday(c) || tmin >= effShift(c).end || tmin + SURF_LEAD < leaveGmin(c));
+  if (surfIsUp() && (c.p.bored || 0) >= SURF_AT - nudgeRelax(c, "fun") && (c.surfCd || 0) <= 0
+      && !boredYields(c) && !surfYields && surfFree && !c.p.sick && surfHasRoom(c)
+      && !X.cand.some(e2 => e2.need === "fun"))
+    take({ surf: true, need: "fun", ap100: 88 });
+} });
 registerErrand({ id: "ball", need: "fun", kind: "post", gather: (c, take, X) => {
   // ...and the bar to JOIN one is lower than the bar to start one. A crab who
   // would not walk out to the middle of the beach on their own will absolutely
@@ -13224,6 +13394,7 @@ function updateTap(c, dt) {
 // at-home dispatch checks the shop's hours. A tap has neither.)
 function beginErrand(c, e, requireOpen) {
   if (!e) return false;
+  if (e.surf) { startSurfStop(c); return true; }
   if (e.ball) { startBallStop(c); return true; }
   if (e.vote || e.soup || e.tap != null) { startTapStop(c, e); return true; }
   if (e.selfCook) { startSelfCook(c, e); return true; }
@@ -13247,15 +13418,16 @@ function afterErrand(c, chain) {
   const sh = effShift(c);
   if (chain && !c.p.sick && (c.chainN || 0) < 2) {
     const e = pickErrand(c);
-    // four kinds of stop that never ring a till now - the taps, the shelter
-    // pot, the beach ball and the ballot box - and none of them is "the same
-    // stop" as a shop counter
-    const free = (x) => !!x && (x.ball || x.soup || x.vote || x.tap != null);
+    // five kinds of stop that never ring a till now - the taps, the shelter
+    // pot, the beach ball, the surf break and the ballot box - and none of
+    // them is "the same stop" as a shop counter
+    const free = (x) => !!x && (x.ball || x.surf || x.soup || x.vote || x.tap != null);
     const sameStop = e && (free(e) ? false : e.biz === c.errandBiz);
     if (e && !e.selfCook && !sameStop && (free(e) || bizOpenNow(e.biz))
         && errandDetour(c, e) <= CHAIN_PX) {
       c.chainN = (c.chainN || 0) + 1; c.errandCd = 0;
-      if (e.ball) startBallStop(c);
+      if (e.surf) startSurfStop(c);
+      else if (e.ball) startBallStop(c);
       else if (e.vote || e.soup || e.tap != null) startTapStop(c, e);
       else startErrand(c, e);
       return;
@@ -13281,7 +13453,7 @@ function updateErrand(c, dt) {
         c.rethinkT = VIS_RETHINK;
         const e2 = pickErrand(c);
         if (e2 && !(e2.biz === c.errand.biz && e2.need === c.errand.need
-            && !e2.ball && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
+            && !e2.ball && !e2.surf && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
           const s2 = errandScore(c, e2), s1 = errandScore(c, c.errand);
           if (ratGt(4 * s2.n, s2.d, 5 * s1.n, s1.d)) {
             if (window._stats) {
@@ -13289,9 +13461,10 @@ function updateErrand(c, dt) {
               window._stats.rethinkCit = (window._stats.rethinkCit || 0) + 1;
               if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
                 { day, tmin, who: c.p.name, from: c.errand.biz + ":" + (c.errand.need || "?"),
-                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
+                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.surf ? "surf" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
             }
             if (e2.selfCook) startSelfCook(c, e2);
+            else if (e2.surf) startSurfStop(c);
             else if (e2.ball) startBallStop(c);
             else if (e2.vote || e2.soup || e2.tap != null) startTapStop(c, e2);
             else startErrand(c, e2);
@@ -13674,6 +13847,7 @@ function abortActivity(c) {
   c.p.rough = false;   // a directed crab is on their feet again
   c.cookStep = 0; c.cookRecipe = null;
   c.tapStop = null; c.tapT = 0;   // a tap holds nothing, but don't leave the stop armed
+  c.surfT = 0;                    // ...and a rider yanked off a wave is back on the sand (hidden clears below)
   c.duty = false; c.pendingOff = false;
   c.csC = 0; c.busFrom = -1; c.busTo = -1;
   c.hidden = false; c.pauseT = 0;
@@ -16850,6 +17024,7 @@ function crabStatus(c) {
     if (c.dsC === DS.errand) return "DAY OFF - AT " + BIZ[c.errandBiz].name;
     if (c.dsC === DS.selfCook) return "DAY OFF - RAIDING THE PANTRY";
     if (c.dsC === DS.atBall) return "DAY OFF - BEACH BALL";
+    if (c.dsC === DS.atSurf) return "DAY OFF - " + (c.surfT > 0 ? "OUT IN THE SURF" : "OFF TO SURF");
     if (c.dsC === DS.atTap) return "DAY OFF - " + tapStatus(c);
     if (c.dsC === DS.toHome) return "DAY OFF - STROLLING HOME";
     if (c.dsC === DS.home) {
@@ -16886,6 +17061,7 @@ function crabStatus(c) {
   if (c.dsC === DS.toErrand) return "OFF TO " + BIZ[c.errandBiz].name;
   if (c.dsC === DS.errand) return "IN LINE AT " + BIZ[c.errandBiz].name;
   if (c.dsC === DS.atBall) return c.ballT > 0 ? "PLAYING BEACH BALL" : "OFF TO THE BEACH BALL";
+  if (c.dsC === DS.atSurf) return c.surfT > 0 ? "OUT IN THE SURF" : "PADDLING OUT";
   if (c.dsC === DS.atTap) return tapStatus(c);
   const toWork = c.dsC === DS.toWork;
   if (c.csC === CS.waitBus) return "WAITING FOR THE BUS";
@@ -18346,50 +18522,76 @@ function surfForecast(d) {
     if (swellPeakQ16(d + n) >= FC_BIG) return { n, day: d + n };
   return null;
 }
-// The board's three short rows, cut for a narrow sign (WEEKDAYS is the town's
-// week). SURF heads it; TODAY is the fact you can verify by looking at the sea;
-// the COMING SWELL under it is the value the board adds over that glance. Every
-// string is kept to <=8 chars so it fits a 32px slot at BOTH ends without a
-// trim - the pier head has less room than the promenade (the deck is at 1856).
-function forecastLines(d) {
+// ── WHAT THE SEA LOOKS LIKE ──────────────────────────────────────────────
+// (Matt, 2026-08-28: "the surf forecast sign shouldn't be there, it should
+// just be implied by subtle graphical cues you can decide on based on your
+// knowledge of weather.")
+//
+// THE BOARD IS GONE - the two signs, their three text rows and their colour
+// table with it. NOTHING THE BOARD KNEW WAS LOST: surfToday and surfForecast
+// above are untouched and still the town's whole weather truth. What changed is
+// the SURFACE the player reads it off. It is painted into the water now, in the
+// tells a forecaster actually reads off a real sea. Nothing below is invented
+// for the picture - every cue is a REAL consequence of the two channels, so a
+// player who learns to read this water has learned something about weather
+// rather than something about our HUD. This is NOT the interface-opacity bug
+// the three rulings warn about: the ruling is that the ENGINE must not hide a
+// fact it holds, and every fact the board printed is still on screen. The sea
+// says it instead of a sign, which is the request.
+//
+//   WIND WRITES THE SURFACE TEXTURE. Light air leaves water glassy - long
+//   specular streaks lying flat, an oily sheen. Wind stands the ripples up:
+//   chop gets TIGHTER and SHORTER, never bigger. Past about a force 4 the tops
+//   start tearing off into whitecaps, and that is a THRESHOLD, not a ramp,
+//   which is why they appear all at once at WIND_CAPS and multiply above it.
+//
+//   SWELL WRITES THE LINES. Groundswell arrives as long, straight, WELL-SPACED
+//   corduroy, and the counter-intuitive part is the real one: a bigger swell
+//   has a LONGER PERIOD, so it shows FEWER lines further apart, not more of
+//   them. Each is a dark trough with a lit crest riding it, and it stands up
+//   as it feels the bottom - which is why the crest thickens as it nears shore.
+//
+//   THE TWO TOGETHER WRITE THE CREST, and that is the whole blown-out-vs-firing
+//   read - the one cue neither channel gives you alone. In light air the lip
+//   holds and FEATHERS: spray blows back off the top, out to sea, the offshore
+//   plume every surf photograph is taken for. In strong wind the same swell
+//   CRUMBLES - the line comes apart into pieces and the tops smear downwind.
+//   Same size of sea, opposite picture, which is exactly what surfQualityQ16
+//   says (quality is swell GATED by wind, never swell minus wind).
+//
+//   THE SHOREBREAK IS THE READ WITH YOUR BACK TO THE HORIZON: a big day dumps a
+//   fatter, further-running foam line up the sand. It is the cue that still
+//   works when the camera is down the promenade and the sets are off-screen.
+//
+//   AND A SWELL ANNOUNCES ITSELF BEFORE IT ARRIVES, which is what the board's
+//   second row was for. Two honest tells, both real. A dark bar low on the
+//   horizon - the distant storm itself - closing and thickening as it closes.
+//   And FORERUNNERS: the long-period outriders that turn up a day or two ahead
+//   of the swell proper, ONE lone line crossing an otherwise quiet sea, well
+//   spaced, because well-spaced IS what long period means. Neither promises a
+//   clean day. The wind on that morning is not knowable, and refusing to
+//   promise it is the same honesty the board had, drawn instead of written.
+//
+// All of it reads viewT, day and _almHash only - no srand, so the weather
+// costs the sim exactly as much randomness as the mist does, which is none.
+const WIND_GLASS = 18350;   // Q16 0.28 - under this the water goes oily and streaked
+const WIND_CAPS  = 32768;   // Q16 0.50 - the tops tear off: whitecaps, a threshold not a ramp
+const SWELL_SEEN = 13107;   // Q16 0.20 - under this there is no line out there to see
+// The draw layer's read of a day, as floats. Pure lookups on pure functions:
+// no state, no stream, safe to call once a frame - or for any other day.
+function seaState(d) {
   d = d | 0;
-  const today = surfToday(d);            // FIRING / BLOWN / FLAT (one of three)
-  const fc = surfForecast(d);
-  // the coming swell names a WEEKDAY when it is inside the town's own week, else
-  // a plain "+Nd" - a lead a fisher can plan a day off around either way. The
-  // horizon is 4, so it is always a weekday, but the fallback is honest anyway.
-  const when = fc ? (fc.n <= 6 ? WEEKDAYS[weekdayIdx(fc.day)] : "+" + fc.n + "D") : null;
-  const todayShort = today === "BLOWN OUT" ? "BLOWN" : today;   // "BLOWN OUT" is the read; "BLOWN" is what fits
   return {
-    today: todayShort,
-    forecast: fc ? "BIG " + when : "NO SWELL",   // "BIG THU" - true and confident; the quality is NOT named
-    firing: today === "FIRING",
-    swellComing: !!fc,
+    swell: swellPeakQ16(d) / 65536,
+    wind: windPeakQ16(d) / 65536,
+    quality: surfQualityQ16(d) / 65536,
+    coming: surfForecast(d),
   };
 }
-// The colours are the three states of the sea, plus whether a swell is named:
-// a firing day is green, a blown-out day dim, a flat day the sea's own blue;
-// and the forecast row lights amber when there is a swell to walk a shift for.
-const FC_COL = {
-  FIRING: [130, 235, 150], BLOWN: [170, 175, 190], FLAT: [150, 200, 240],
-  swell: [255, 216, 96], nada: [150, 150, 160], head: [235, 248, 255],
-};
-// The two boards, and the width of each - TOP-LEVEL consts (drawForecast is
-// nested in drawTown like drawPollingPlaces, so these must live outside it or
-// they land in the temporal dead zone when the draw runs; POLL_PLACES sits at
-// top level for the same reason). A line on existing furniture, never a new
-// object: the coast is full - "there is NOT ONE 74px gap left on 2512px", the
-// ballot-box block - so the forecast hangs in the clear air above two anchors.
-// Same reason the town gave for two ballot boxes and two standpipes: with one
-// board on the promenade the whole D-shift fishing fleet, who work the pier
-// 1200px away and would have to sprint, could not read it. So it hangs where
-// the people are, TWICE: over the town notice board (the housing row and the
-// promenade) and at the pier head (the fleet and the east end).
-const FORECAST_PLACES = [
-  { x: 712 },    // over the town notice board (716): the gap east of the west poll table's board and west of the juice-bar lot (752)
-  { x: 1808 },   // the pier head: in the clear band above the ferry-office roofline (114), west of the plank deck (1856)
-];
-const FC_BW = 36;   // 34px of text + a 1px frame each side - fits "NO SWELL" (31px) with room, at BOTH ends
+// THE ARM-OFF HATCH, draw-only, same shape as _noMist: a middling wind and a
+// dead flat sea, which reproduces the pre-weather ocean exactly (see the stride
+// arithmetic in drawBG - 0.34 wind is the shipped 24px/10px chop).
+const SEA_FLAT = { swell: 0, wind: 0.34, quality: 0, coming: null };
 // ─────────────────────────────────────────────────────────────────────────
 
 function drawMist() {
@@ -18437,15 +18639,53 @@ function drawBG() {
   // clouds (parallax)
   blit(ctx, CLOUD, ((viewT * 4 - camX * 0.4) % 320 + 320) % 320 - 30, 12);
   blit(ctx, CLOUD, ((viewT * 2.5 - camX * 0.3 + 160) % 320 + 320) % 320 - 30, 30);
+  // THE DAY'S WEATHER, read once (see WHAT THE SEA LOOKS LIKE for why each cue
+  // is the cue it is). Everything from here to the mist is that read, drawn.
+  const S = window._noSeaCues ? SEA_FLAT : seaState(day);
   const gt = viewT % 24;
-  if (gt < 12 && dark < 0.5) blit(ctx, GULL[((viewT * 4) | 0) % 2], 256 - gt * 24, 22 + Math.sin(viewT * 2) * 3);
+  // GULLS SIT OUT A BLOW. Seabirds stop working a windy sea and stand on the
+  // sand facing into it - so an empty sky is itself a wind cue, for free.
+  if (gt < 12 && dark < 0.5 && S.wind < 0.62)
+    blit(ctx, GULL[((viewT * 4) | 0) % 2], 256 - gt * 24, 22 + Math.sin(viewT * 2) * 3);
+  // A SWELL ON THE WAY SITS ON THE HORIZON: the distant storm as a dark bar,
+  // thickening as it closes. Drawn before the water so the sea rides over it.
+  if (S.coming) {
+    // Sits FLUSH on the waterline, because that is where a squall line is seen
+    // from a beach - a band of weather standing on the horizon, not a cloud in
+    // the sky. Darker and greyer than the sunlit far shore behind it (88,120,
+    // 160), or it is invisible: the first cut was a one-row (104,114,138) and
+    // reads as a slightly-off pixel of headland. Ragged along the top by
+    // _almHash so it is a weather front rather than a ruler, stable per column
+    // per storm, and reading no stream.
+    const bh = 1 + (((FC_HORIZON + 1 - S.coming.n) / FC_HORIZON * 3) | 0);
+    rect(ctx, 0, SKY_H - bh, W, bh, [70, 76, 100]);
+    for (let x = 0; x < W; x += 8)
+      if (_almHash(x + S.coming.day * 977, _almanacSeed) & 1)
+        rect(ctx, x, SKY_H - bh - 1, 8, 1, [70, 76, 100]);
+  }
   // ocean (screen fixed)
   rect(ctx, 0, SKY_H, W, SHORE_Y - SKY_H, [40, 140, 220]);
-  for (let y = SKY_H + 2; y < SHORE_Y; y += 5)
-    for (let x = -8; x < W; x += 24) {
+  // WIND TEXTURE: chop tightens and shortens as it blows, and packs into more
+  // rows once it is really up. At wind 0.34 this is the shipped 24px stride
+  // and 10px dash exactly, so a middling day looks like the sea always did.
+  const chopX = 30 - ((S.wind * 18) | 0);        // 30px apart (glass) .. 12px (torn up)
+  const chopW = 12 - ((S.wind * 6) | 0);         // 12px long .. 6px
+  const chopY = S.wind >= 0.62 ? 4 : 5;
+  for (let y = SKY_H + 2; y < SHORE_Y; y += chopY)
+    for (let x = -8; x < W; x += chopX) {
       const off = ((Math.sin(viewT * 1.3 + y) * 8) | 0) + ((y * 7) % 13);
-      rect(ctx, x + off, y, 10, 1, [96, 200, 255]);
+      rect(ctx, x + off, y, chopW, 1, [96, 200, 255]);
     }
+  // GLASS: light air and the surface goes to a mirror - long specular streaks
+  // lying flat on it. The lighter the air, the more of them and the longer.
+  if (S.wind < WIND_GLASS / 65536) {
+    const n = 3 + (((WIND_GLASS / 65536 - S.wind) * 26) | 0);
+    for (let i = 0; i < n; i++) {
+      const gy = SKY_H + 3 + ((i * 7 + 1) % (SHORE_Y - SKY_H - 6));
+      const gx = (((i * 137 + ((viewT * 5) | 0)) % (W + 60)) | 0) - 30;
+      rect(ctx, gx, gy, 14 + (i % 3) * 6, 1, [166, 224, 255]);
+    }
+  }
   // glints on the water
   for (let i = 0; i < 6; i++) {
     if (((viewT * 2 + i * 1.7) | 0) % 3) continue;
@@ -18453,9 +18693,67 @@ function drawBG() {
     const gy = SKY_H + 3 + (i * 11 + ((viewT * 0.4) | 0) * 5) % (SHORE_Y - SKY_H - 7);
     px(ctx, gx, gy, [235, 250, 255]);
   }
-  const f = (Math.sin(viewT * 0.9) * 3) | 0;
-  rect(ctx, 0, SHORE_Y - 3 + Math.max(0, f), W, 2, [230, 250, 255]);
+  // THE SETS. Long-period corduroy: a BIGGER swell shows FEWER lines, further
+  // apart, because bigger means longer period. Each stands up as it comes in.
+  if (S.swell >= SWELL_SEEN / 65536) {
+    const lines = 1 + (((1 - S.swell) * 3) | 0);           // 3 on a small swell, 1 on a big one
+    const span = SHORE_Y - SKY_H, blown = S.wind >= WIND_CAPS / 65536;
+    for (let i = 0; i < lines; i++) {
+      const ph = (viewT * (0.10 + S.swell * 0.16) + i / lines) % 1;   // 0 out the back, 1 at the bar
+      const ly = SKY_H + 3 + ((ph * (span - 6)) | 0);
+      const th = 1 + ((S.swell * ph * 2) | 0);              // it thickens as it feels the bottom
+      rect(ctx, 0, ly + th, W, 1, [26, 108, 186]);          // the trough ahead of it
+      if (blown) {
+        // CRUMBLING: the wind takes the line apart and smears the tops inshore
+        for (let x = -12; x < W; x += 14) {
+          const j = (Math.sin(x * 0.7 + viewT * 3 + i) * 3) | 0;
+          rect(ctx, x + j, ly, 8, th, [188, 228, 250]);
+          if ((x + i * 7) % 42 === 0) px(ctx, x + j + 4, ly + th + 1, [214, 238, 252]);
+        }
+      } else {
+        rect(ctx, 0, ly, W, th, [200, 236, 255]);
+        // FEATHERING: light air holds the lip up and blows the spray back out
+        // to sea. The lighter the wind, the longer the plume.
+        if (ph > 0.45) {
+          const plume = 1 + (((WIND_CAPS / 65536 - S.wind) * 6) | 0);
+          for (let x = 6; x < W; x += 26) {
+            const j = (Math.sin(x * 0.4 + viewT * 2.2) * 2) | 0;
+            for (let s = 1; s <= plume; s++) px(ctx, x + j + s, ly - s, [232, 248, 255]);
+          }
+        }
+      }
+    }
+  }
+  // WHITECAPS: past a force 4 the tops tear off. Flecks, not lines - a breaking
+  // cap is a point event - and they blink, because one breaks and is gone.
+  if (S.wind >= WIND_CAPS / 65536) {
+    const n = ((S.wind - WIND_CAPS / 65536) * 150) | 0;
+    for (let i = 0; i < n; i++) {
+      const h = _almHash(i, 0x1d0f);   // stable per fleck, and reads no stream
+      if (((viewT * 2 + (h >>> 24)) | 0) % 3) continue;
+      const cy = SKY_H + 2 + (h % (SHORE_Y - SKY_H - 4));
+      const cx = ((((h >>> 9) % W) + ((viewT * (3 + (h & 3))) | 0)) % (W + 40)) - 20;
+      rect(ctx, cx, cy, 2, 1, [245, 252, 255]);
+    }
+  }
+  // FORERUNNERS: the outriders that run ahead of a swell, one at a time across
+  // an otherwise quiet sea. Well spaced, because well spaced IS long period.
+  if (S.coming) {
+    const fp = (viewT * 0.07 + S.coming.n * 0.31) % 1;
+    if (fp < 0.34) {
+      const fy = SKY_H + 4 + (((fp / 0.34) * (SHORE_Y - SKY_H - 10)) | 0);
+      rect(ctx, 0, fy, W, 1, [186, 226, 250]);
+      rect(ctx, 0, fy + 1, W, 1, [34, 118, 196]);
+    }
+  }
+  // THE SHOREBREAK - the read you can make with your back to the horizon, and
+  // the one cue that still works with the sets off the side of the screen: a
+  // big day dumps a fatter foam line that runs further up the sand.
+  const surge = 3 + ((S.swell * 4) | 0);
+  const f = (Math.sin(viewT * 0.9) * surge) | 0;
+  rect(ctx, 0, SHORE_Y - surge + Math.max(0, f), W, 2 + ((S.swell * 2) | 0), [230, 250, 255]);
   drawHorizonTraffic();   // boats float ON the water, so: after it
+  drawSurfers();          // ...and a crab on a wave is nearer than any boat
   drawMist();             // and the weather takes the water and the shore together
   // sand (world)
   rect(ctx, 0, SHORE_Y, W, PANEL_Y - SHORE_Y, [246, 222, 170]);
@@ -18697,7 +18995,6 @@ function drawTown() {
       wblit(TAP_FLOW[((viewT * 6) | 0) % 2], t.x + 15, HOME_BOTTOM - STANDPIPE2.h + 12);
   }
   drawPollingPlaces();
-  drawForecast();
 // THE POLLING PLACE. A trestle, a box with a slot cut in the lid, and a board
 // saying when it shuts. It is set up on polling day and gone by morning, which
 // is the right amount of permanence for a thing this town does once a week.
@@ -18748,31 +19045,6 @@ function drawPollingPlaces() {
   }
 }
 
-// THE SURF FORECAST, on TWO boards (FORECAST_PLACES/FC_BW/FC_COL above). It
-// grows UPWARD from a fixed bottom like the dorm notice, into the clear air
-// above each anchor, so a taller state never lands on the furniture's own label
-// below it. Three rows: SURF; TODAY (a read you can make by looking at the sea -
-// FIRING/BLOWN/FLAT); and the COMING SWELL, the value the board adds. It names a
-// future day's SWELL with confidence (forecast(day+n) is a function call, not a
-// guess) and NEVER names that day's quality, because the wind that decides
-// clean-vs-blown is an iid per-day roll nobody can see coming. "BIG THU" is
-// true; "THU WILL FIRE" is a promise the sea has not made.
-function drawForecast() {
-  if (window._noFcast) return;   // arm-off hatch, in the idiom of _noMist/_noHall (draw-only, no CLI flag: a matrix cannot read a board)
-  const L = forecastLines(day);
-  for (let i = 0; i < FORECAST_PLACES.length; i++) {
-    const px = FORECAST_PLACES[i].x;
-    if (px - camX < -FC_BW - 10 || px - camX > W + 10) continue;
-    // three rows of 7px, bottom pinned at y=112 (clear of the ferry roof at
-    // 114 and the notice board's own JOBS label), growing upward.
-    const rows = 3, sy = 112 - 7 * rows, sx = px + 1 - camX;
-    wrect(px - 1, sy - 2, FC_BW + 2, 7 * rows + 4, [30, 20, 36]);      // the board's dark edge
-    wrect(px, sy - 1, FC_BW, 7 * rows + 2, [46, 58, 74]);             // ...and its slate-blue face (a sea board, not a paper one)
-    smallText(ctx, "SURF", sx + 1, sy + 1, FC_COL.head);
-    smallText(ctx, fitSmall(L.today, FC_BW - 2), sx + 1, sy + 8, FC_COL[L.today] || FC_COL.FLAT);
-    smallText(ctx, fitSmall(L.forecast, FC_BW - 2), sx + 1, sy + 15, L.swellComing ? FC_COL.swell : FC_COL.nada);
-  }
-}
   // the crab shelter
   // the crab shelter - and the storeys the town has signed for on top of it
   drawDormLoft();
@@ -19623,6 +19895,9 @@ function brainTvObs(name, v) {
     case "citizen.home.dist.px":    return ["HOME AWAY", ((v / 8) | 0) + "PX"];
     case "citizen.ball.players":    return ["BALL GAME", ((v / 1024) | 0) + " IN"];
     case "citizen.ball.cd":         return ["BALL REST", "" + v];
+    case "citizen.surf.up":         return ["SURF'S UP", yn];
+    case "citizen.surf.riders":     return ["IN THE WATER", ((v / 1024) | 0) + " OUT"];
+    case "citizen.surf.cd":         return ["SURF REST", "" + v];
     case "citizen.nudge.live":      return ["THE THUMB", yn];
     case "citizen.poll.open":       return ["POLLS OPEN", yn];
     case "citizen.voted":           return ["HAS VOTED", yn];
@@ -24415,6 +24690,7 @@ function simTown(dt) {
     else if (c.dsC === DS.toErrand || c.dsC === DS.errand) updateErrand(c, dt);
     else if (c.dsC === DS.atTap) updateTap(c, dt);
     else if (c.dsC === DS.atBall) updateBall(c, dt);
+    else if (c.dsC === DS.atSurf) updateSurf(c, dt);
     else if (c.dsC === DS.selfCook) updateSelfCook(c, dt);
     else if (c.dsC === DS.working && c.p.job === "fishing") updateFishing(c, dt);
     else if (c.dsC === DS.working) updateKitchen(c, dt);

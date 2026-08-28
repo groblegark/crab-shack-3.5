@@ -8,7 +8,191 @@ Play it: **[groblegark.github.io/crab-shack-3.5](https://groblegark.github.io/cr
 
 ---
 
-## 2026-08-27, latest — THE TOWN PLAYS ON
+## 2026-08-28, latest — THE SIGN COMES DOWN AND PINCHY PADDLES OUT
+
+Two days ago the town got weather. The sea learned to have a swell running
+before anyone looked at it, and — because a swell you cannot know about is just
+a random number — it got a **forecast board** on the promenade to say so.
+
+Matt read it and said the quiet part: *"the surf forecast sign shouldn't be
+there, it should just be implied by subtle graphical queues you can decide on
+based on you knowledge of weahter. also, we need to get crabs surfing, yeah?"*
+
+He is right, and the board was a trade the town did not have to make. Crab Shack
+has a standing ruling that **interface opacity is a bug while economic
+uncertainty is the game** — you may hide what the market will do, never what the
+machine is doing. A sign that prints `SWELL BUILDING — 2D` satisfies that
+ruling by the cheapest possible route: it *tells* you, in letters, standing in
+the middle of a beach. The expensive route is to make the fact **legible off the
+thing itself**, and that is what a sea is for.
+
+So the board came down and the water took the job. Every fact it printed is
+still on screen; none of it is spelled.
+
+The vocabulary is real-weather vocabulary, because that is the knowledge Matt
+told me to spend. Surf quality is a **gate**, not a sum: `swell × (1 − wind)`.
+A big sea with the wind on it is worth nothing, which is why the two cues had to
+be *separable* and not one "how good is it today" dial.
+
+**Wind** is written in the chop. It sets the spacing (30px apart when it is
+glassy, 12px when it is torn up) and the length of every dash, so the whole
+surface goes from a few long lines to a dense mat. Under 0.28 the water goes
+oily and picks up long specular streaks; over 0.50 the tops start tearing off
+and whitecaps fleck through it — a threshold, not a ramp, because that is how
+it actually works. And the **gulls sit out a blow**: over 0.62 they stop
+crossing the sky at all, which is the cue nobody notices consciously and
+everybody reads.
+
+**Swell** is written in the sets. Bigger swell means *fewer* lines, further
+apart, and a deeper shorebreak surge up the sand. What those lines DO is the
+gate made visible: on a clean day a crest **feathers**, spray blowing back off
+the top of it; on a blown day the same crest **crumbles** into broken segments
+that smear inshore. Day 98 (swell 1.00, wind 0.05) and day 197 (swell 0.99,
+wind 1.00) are the same size ocean and they do not look remotely alike.
+
+A **storm on its way** gets forerunners running through the sets and its own
+ragged bar of cloud sitting flush on the waterline, thickening as it closes.
+The bar is raggedly edged by the almanac hash rather than ruled straight,
+because a weather front is not a rectangle.
+
+None of this consumes a single draw of randomness — every cue reads only the
+day, the view clock, and the almanac hash. And the **honesty contract survives
+intact**: a swell is a forward-knowable thing and the water can hint at it days
+out, but wind is an iid daily roll, so *quality* is never forecastable. About
+36% of named-swell days turn out clean. The sea can still let you down, and now
+it lets you down without having promised anything in writing.
+
+### And then: crabs surf
+
+The backlog has carried *"A SURF SPOT, mid-beach"* since 19 August, held by Matt
+himself — *"one thing at a time."* This was the other thing.
+
+It is a **fun cure**, same family as the beach ball and the arcade, and it obeys
+the town's oldest rule about free cures: **every free cure costs TIME, never
+money.** A session is about 68 game-minutes. What it does not cost is a
+building, a hire, or a coin.
+
+The break sits at x=1206 — the beach ball's own measured sand. That is not
+laziness, it is the dehydration guard: the ball's stop was placed there because
+1150 and 1588 both failed it, and a second fun stop somewhere unmeasured would
+re-open the exact detour question that measurement closed. The two never
+compete, because a surfer goes **hidden** the instant they reach the water (the
+shower-stall idiom — hidden crabs are skipped by collision, lane clearance and
+quips), so unlike a game of catch a session blocks nothing and parks nobody.
+And on a firing day the ball steps aside **with no rule written for it**: `surf`
+registers before `ball` in the errand census, and the ball's shipped guard
+already refuses to join a ballot that has a fun candidate on it.
+
+The riders are painted *into* the water rather than onto the sand, because the
+sea band is 28 screen pixels and `FLOOR_MIN` is 126 — a crab can never legally
+stand out there. Each gets a board in their own colour, a lane, a phase, and a
+wake off the tail, so three of them read as a lineup.
+
+What keeps a free cure off the $650 arcade's lawn is not a small number — a
+firing day is worth *more* than a game of catch, and should be. It is
+**rationing**: the sea fires about 8% of days, in daylight only, three to a
+peak, four game-hours between sessions, and it refuses anyone who is at work,
+thirsty, hungry, filthy or tired. Every other need outranks a wave.
+
+### The gate caught me, and it was right to
+
+The first cluster run came back **882/884**, one scenario red on both backends:
+
+    boredom's free cures are LIMITED, and neither pays for itself
+    1 boredom drop(s) came from neither a finished conversation nor a game
+    {"n":"PINCHY","by":504180,"chat":false,"ball":false}
+
+PINCHY, 0.48 of boredom gone, with nobody's name on it. That guard exists to
+say *no boredom moves down for reasons nobody wrote*, and it had just watched a
+third free cure appear in the game without being told. It was doing its job
+perfectly. The roster learned the third name; the self-sustain half was left
+exactly as it stood, because if a third cure had broken it the number to move
+would have been the surf's ceiling and not the test.
+
+While in there, that clause turned out to compare raw Q20 boredom against
+thresholds written as fractions — `0.9` and `0.05` — so it reads considerably
+weaker than its own prose. **Pre-existing**, noted in place, filed, and
+deliberately *not* fixed in the same change: re-strengthening an unrelated
+invariant inside a feature change is how one red arm becomes two confusing ones,
+and the honest version may well go red on the shipped balance, which is a
+balance conversation and not a test-hygiene one.
+
+### Three instruments that were lying, and the one that was lying twice
+
+**The ocean was not on the seed.** `createVisibleSim({seed: 1337})` was
+reproducible in everything except the weather: three separate processes returned
+three different swell histories. A fresh town draws its almanac seed from the
+*wall clock*, so every real player's surf history is their own without forking
+the one random sequence the fingerprint gates guard — and every harness is
+therefore expected to overwrite it. Two of the three did. The render door did
+not, which meant a photograph of the sea could not be re-taken on the exact day
+that mattered. One line, same idiom as its siblings. The gates and the science
+runs were never affected; only the camera was.
+
+**The storm bar was invisible.** A pixel diff of a coming-storm day against a
+flat one differed on exactly *one row*, (88,120,160) → (104,112,136): a
+near-identical grey sitting a pixel clear of the water, reading as a slightly
+off-colour bit of headland. It is dark, flush and ragged now. "It's in the
+diff" is not "you can see it."
+
+**The dose was not in the receipt — twice.** The eighteen-arm matrix that prices
+what the break takes off the arcade is only worth reading if you can prove a
+crab actually surfed during it; otherwise "the surf costs nothing" and "the surf
+never happened" are the same two numbers. The first run had no session counter
+at all. The fix added one — and the *second* run came back with every surf field
+`null`, because the counters were computed and never put in the output object.
+The instrument existed and the receipt still could not see it. Third time it
+reported.
+
+### What the matrix said, once it could see its own dose
+
+Eighteen arms, 96 towns an arm-pair, `cs-surf16-5bea929-f6k8`. The dose reads
+exactly as an honest instrument should: **every one of the nine `--nosurf` arms
+returned 0 sessions**, and **every one of the nine as-built arms returned
+between 16 and 40** — 233 sessions and 229 completed rides in all, 38 of them
+sharing the peak with somebody. The break fired in 6 to 14 towns out of every
+16. So the A/B under it is a measurement, not two copies of the same number.
+
+And the number it measures is: **growth 10/48 as-built against 7/48 with the
+sea armed off**, baseline **0/48 both**. The control reproduces the U1 land-asis
+figure in PLAN to the town, which is the reassuring part — this tree has not
+moved the pillar out from under anyone. The +3 is three towns across three
+sixteen-seed blocks and I am not going to dress it up as an effect: by this
+project's own rule an eight-town block is a coin and forty-eight is three of
+them. What it does say, and says with a dose behind it, is that a third free
+cure with a real ceiling did **not** cost the growth pillar anything, which is
+the thing a free option standing beside a paid one usually does.
+
+The cannibalisation question the matrix was built to answer is still open, and
+for a boring reason: **six arcades across ninety-six towns**. As-built the arms
+built 0/0/2 and played 0/0/34 games; armed off they built 1/0/3 and played
+10/0/50. That is directionally what you would expect and far too thin to price.
+Most towns are evicted before they can afford a machine, so the arcade arm of
+this matrix is measuring eviction, not competition. It needs a run that starts
+towns with an arcade rather than hoping they buy one.
+
+### What the shots look like
+
+Nobody posed for the surfing picture. The screenshot tool moves the day to a
+firing one and makes the town bored, and then leaves the errand registry alone;
+if `surf` does not win the ballot on its own merits there is no picture and the
+script says so out loud. It said so twice before it said PINCHY.
+
+The first miss was asking the wrong question — scoring days by swell and quality
+instead of asking the game's own `surfToday()`, and landing on a day it does not
+call firing. The second was subtler and worth keeping: the **hour** matters as
+much as the day. A session refuses a crab who is at work, so a midday frame
+photographs an empty peak however good the waves are. And waiting for a *lineup*
+of two riders let PINCHY paddle out, ride and come back inside the window, so
+the loop ran to its cap and read zero. Waiting for a crowd is how you photograph
+an empty peak.
+
+Day 7, 17:55. Shift done, an hour of light left, sea firing at 0.47. PINCHY
+went and got wet.
+
+---
+
+## 2026-08-27 — THE TOWN PLAYS ON
 
 The last music entry fixed the *silences* — the release that couldn't reach a
 track, the phone that stopped after one song. This one is about what the music
