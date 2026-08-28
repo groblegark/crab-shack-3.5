@@ -8345,3 +8345,29 @@ worth keeping:
   work, so a midday frame photographs an empty peak however good the waves.
 - Shoot at first sight of one rider. Waiting for a lineup of two let PINCHY
   paddle out, ride and come back inside the window, and the loop read zero.
+
+### THE SURF BREAK'S NUMBERS (2026-08-28, receipt `cs-surf16-5bea929-f6k8`)
+
+Eighteen arms, `--buy chef,table` for the growth rows, `--seedbase 0,16,32`.
+
+**The dose validated**, which is the only reason the rest is readable: all nine
+`--nosurf` arms 0 sessions; all nine as-built arms 16–40 sessions (233 total,
+229 rides, 38 crowded), the break firing in 6–14 of every 16 towns.
+
+| arm | as-built | `--nosurf` |
+| --- | --- | --- |
+| growth (chef,table) | **10/48** | **7/48** |
+| baseline (buy nothing) | 0/48 | 0/48 |
+
+The `--nosurf` control reproduces the U1 land-asis figure of 7/48 exactly. The
++3 is **not** claimed as an effect — three towns over three sixteen-seed blocks
+is inside this project's own coin. The claim is the negative one, and it has a
+dose behind it: **a third free cure with a real ceiling did not cost the growth
+pillar**, which is what a free option beside a paid one usually does.
+
+**The arcade cannibalisation question is still open and this matrix cannot close
+it**: six arcades across ninety-six towns (as-built 0/0/2 built, 0/0/34 games;
+`--nosurf` 1/0/3 built, 10/0/50 games). Directionally expected, far too thin to
+price — most towns are evicted before they can afford a machine, so this arm
+measures eviction, not competition. Needs a run that *starts* towns with an
+arcade instead of hoping they buy one.

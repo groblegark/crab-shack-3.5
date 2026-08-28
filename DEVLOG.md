@@ -144,6 +144,33 @@ at all. The fix added one — and the *second* run came back with every surf fie
 The instrument existed and the receipt still could not see it. Third time it
 reported.
 
+### What the matrix said, once it could see its own dose
+
+Eighteen arms, 96 towns an arm-pair, `cs-surf16-5bea929-f6k8`. The dose reads
+exactly as an honest instrument should: **every one of the nine `--nosurf` arms
+returned 0 sessions**, and **every one of the nine as-built arms returned
+between 16 and 40** — 233 sessions and 229 completed rides in all, 38 of them
+sharing the peak with somebody. The break fired in 6 to 14 towns out of every
+16. So the A/B under it is a measurement, not two copies of the same number.
+
+And the number it measures is: **growth 10/48 as-built against 7/48 with the
+sea armed off**, baseline **0/48 both**. The control reproduces the U1 land-asis
+figure in PLAN to the town, which is the reassuring part — this tree has not
+moved the pillar out from under anyone. The +3 is three towns across three
+sixteen-seed blocks and I am not going to dress it up as an effect: by this
+project's own rule an eight-town block is a coin and forty-eight is three of
+them. What it does say, and says with a dose behind it, is that a third free
+cure with a real ceiling did **not** cost the growth pillar anything, which is
+the thing a free option standing beside a paid one usually does.
+
+The cannibalisation question the matrix was built to answer is still open, and
+for a boring reason: **six arcades across ninety-six towns**. As-built the arms
+built 0/0/2 and played 0/0/34 games; armed off they built 1/0/3 and played
+10/0/50. That is directionally what you would expect and far too thin to price.
+Most towns are evicted before they can afford a machine, so the arcade arm of
+this matrix is measuring eviction, not competition. It needs a run that starts
+towns with an arcade rather than hoping they buy one.
+
 ### What the shots look like
 
 Nobody posed for the surfing picture. The screenshot tool moves the day to a
