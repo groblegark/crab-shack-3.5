@@ -1,0 +1,24 @@
+{
+  "release": "cs-noseat-census-postu1-578da4e-tc5w",
+  "armId": "census-sb0",
+  "index": 0,
+  "sha": "578da4e8d463b30041ab615e3ac7477dace2e10a",
+  "entry": "tools/noseat.mjs",
+  "args": [
+    "--days",
+    "12",
+    "--seeds",
+    "4",
+    "--seedbase",
+    "0"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 83098,
+  "verdict": null,
+  "failures": [],
+  "cores": 6,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "seed 1337: noSeatCrab=0 noSeatTour=4 seatedCrab=15 seatedTour=98\nseed 1338: noSeatCrab=0 noSeatTour=1 seatedCrab=14 seatedTour=73\nseed 1339: noSeatCrab=0 noSeatTour=3 seatedCrab=14 seatedTour=111\nseed 1340: noSeatCrab=0 noSeatTour=3 seatedCrab=16 seatedTour=93\n\nTOTALS over 4 seeds x 12 days (seedbase 0):\n{\n  \"seatedCrab\": 59,\n  \"seatedTour\": 375,\n  \"noSeatCrab\": 0,\n  \"noSeatTour\": 11,\n  \"noTablesCrab\": 0,\n  \"noTablesTour\": 0,\n  \"lodging\": 66,\n  \"stall\": 688,\n  \"seatDecline\": 0,\n  \"seatSatAnyway\": 0\n}\n"
+}
