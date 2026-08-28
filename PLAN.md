@@ -8284,3 +8284,64 @@ pitch dark, and `surfIsUp()` was right the whole time. The fixture now uses
 with zero new logic in either errand. The census scenario pins that order with
 a comment saying so, because swapping the two lines silently gives the beach
 ball the wave.
+
+### THE GATE FOUND THE THIRD CURE BEFORE I TOLD IT (2026-08-28)
+
+suite-330 @ `661a41a` returned **882/884**, one scenario red on both backends:
+
+    boredom's free cures are LIMITED, and neither pays for itself
+    {"n":"PINCHY","by":504180,"chat":false,"ball":false}
+
+A 0.48 boredom drop with nobody's name on it — the surf, arriving in a roster
+that knew two cures. That guard's whole job is *no boredom moves down for
+reasons nobody wrote*, and it did it. The roster now knows three, with
+`SURF_MAX` as the surf's ceiling **in raw Q20** (the first cut divided by Q20,
+which would have flagged every legal session as rogue). The self-sustain half
+is untouched: had a third cure broken it, the number to move would have been
+`SURF_MAX`, not the test.
+
+**Do not read that clause as proof of the rationing.** It compares raw-Q20
+`bored` against `0.9` and `0.05` written as fractions, so `start < 0.9` selects
+crabs sampled at zero and `last <= start + 0.05` asks whether they *finished*
+at zero rather than whether they held their ground. Pre-existing, noted at the
+site, filed as **kd-aVobPxvGSP**, and deliberately not fixed inside a feature
+change — the honest version may well go red on the shipped balance, which is a
+balance conversation. The rationing is priced where prices belong:
+`experiments/surf16.json` and its `--nosurf` twin.
+
+### THREE INSTRUMENTS THAT LIED, AND THE ONE THAT LIED TWICE
+
+- **The ocean was not on the seed.** `createVisibleSim({seed})` set
+  `Math.random` and never `_almanacSeed`, which a fresh town draws from the
+  wall clock; `simlib` and `headless` both overwrite it, the render door did
+  not. Three processes at seed 1337 → three swell histories, so a photograph
+  of the sea could not be re-taken. Gates and science runs were never affected
+  — only the camera. Fixed; filed and closed as **kd-y54VhPlmlz**. The general
+  shape: a harness can be seeded, deterministic and audited and still carry an
+  un-seeded channel, because the channel was added later with "every harness
+  overwrites this" as an unwritten convention rather than a default.
+- **The storm bar was invisible.** A coming-storm day differed from a flat one
+  on exactly one row, (88,120,160) → (104,112,136). "It's in the diff" is not
+  "you can see it." Now dark (70,76,100), flush on the waterline, ragged along
+  its top by `_almHash`.
+- **The dose was not in the receipt, twice.** The matrix that prices what the
+  break takes off the arcade is worthless without proof a crab surfed during
+  it — otherwise *costs nothing* and *never happened* are the same two numbers.
+  Run 1 had no counter. Run 2 had the counter computed and **not put in the
+  output object**, so every surf field came back `null`. An instrument that
+  exists but does not reach the receipt is not an instrument.
+
+### THE SCREENSHOT TOOL POSES NOBODY
+
+`tools/shoot-sea.mjs` hunts the town's own almanac for firing / blown / coming /
+flat and shoots each through the game's renderer with only `day` moving. For
+the lineup it moves the day to a firing one and makes the town bored, then
+leaves the errand registry alone — nothing places a crab in the water, so if
+`surf` does not win the ballot there is no picture and it says so. Three misses
+worth keeping:
+
+- Ask `surfToday()`, not a proxy on swell and quality.
+- **The hour matters as much as the day.** A session refuses a crab who is at
+  work, so a midday frame photographs an empty peak however good the waves.
+- Shoot at first sight of one rider. Waiting for a lineup of two let PINCHY
+  paddle out, ride and come back inside the window, and the loop read zero.
