@@ -71,6 +71,11 @@ const NOCAP = args.includes("--nocap");
 // at a claw machine is a crab not being handed something at the prize counter.
 // Named rather than tuned away, per the measurement rule.
 const NOPLAY = args.includes("--noplay");
+// ...and `--nodebt` for the SLEEP DEBT ramp, so a matrix that moved can be
+// asked whether THIS is what moved it. Arms off the accumulating hazard only;
+// the flat tired >= 0.95 term the roll always had stays exactly as it was, so
+// the control arm is the pre-ramp build and not a town with no fatigue in it.
+const NODEBT = args.includes("--nodebt");
 // `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
 // body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
 // the same buildPhys conversion a document does, lands on ENG_BODY and the
@@ -207,6 +212,7 @@ if (NODEPART) G(`window._nodepart = true;`);
 if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);
+if (NODEBT) G(`window._noDebt = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);
