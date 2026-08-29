@@ -128,6 +128,7 @@ function freeBerth() {
 const WATER_TAPS = [
   { x: 640, name: "THE TOWN TAP" },    // promenade, beside the notice board
   { x: 1844, name: "THE PIER TAP" },   // foot of the pier, where the catch gets hosed down
+  { x: 2190, name: "THE HOTEL TAP" },  // west face of the DRIFTWOOD HOTEL, closing the 626px far-east gap
 ];
 // THE STANDING RULE FOR SELF-HEALING (Matt, 2026-08-19): "deficiency should
 // encourage player intervention but have some potential for auto resolution,
