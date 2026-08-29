@@ -22,10 +22,12 @@ const BUY = (opt("buy", "") || "").split(",").filter(Boolean);
 const SET = (opt("set", "") || "").split(",").filter(Boolean);
 const STEP = parseFloat(opt("step", "0.05"));   // sim timestep, seconds
 const QUIET = args.includes("--quiet");
-// `--failoff wander,chat,walkout,nod,rough,boredidle` switches individual needs-failure
-// behaviours off, so the balance matrix can attribute its own movement to one
-// of them at a time (game.js reads window._failOff through one helper and
-// never sets it). This is how the attribution table in PLAN was built.
+// `--failoff wander,chat,walkout,nod,rough,boredidle,meet` switches individual
+// needs-failure/steer behaviours off, so the balance matrix can attribute its own
+// movement to one of them at a time (game.js reads window._failOff through one
+// helper and never sets it). This is how the attribution table in PLAN was built.
+// `meet` is the SOCIAL DESTINATION bias (wanderSpot): with it off, the wander
+// pick is the old blind uniform draw - the before/after control for kd-aLTKJsYnHn.
 const FAILOFF = (opt("failoff", "") || "").split(",").filter(Boolean);
 // `--norival` switches THE RIVALRY off (game.js reads window._noRival through
 // rivalOn() and never sets it) so a matrix can attribute its own movement to a
