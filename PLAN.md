@@ -8371,3 +8371,57 @@ it**: six arcades across ninety-six towns (as-built 0/0/2 built, 0/0/34 games;
 price — most towns are evicted before they can afford a machine, so this arm
 measures eviction, not competition. Needs a run that *starts* towns with an
 arcade instead of hoping they buy one.
+
+### THE PRICE OF A WAVE, AND THE P3 ACTIVITY PRIMITIVE (2026-08-29, `351b1c2`)
+
+The break shipped as a pure fun cure. Matt's ask was always the other half:
+surfing "should cause fun but cause **lots of hunger and thirst and make crabs
+less clean**." This is that half — and the seam it needed.
+
+**The primitive (P3).** A continuous need clock had three hand-written
+multiplier sites — the sand's dirt (`(R.dirt*3)>>1`), the errand's tiredness
+(`+= T.errand`), and the shift-end bump — three writings of one idea: *an
+activity scales the body's per-frame decay*. They are now one. An ACTIVITY
+declares a rate-multiplier vector over the five needs in TWENTIETHS (20 = 1x,
+0 = paused, 30 = 1.5x, 40 = 2x); the BODY owns the rate; the engine multiplies
+(`actNeed`/`actTired`, game.js ~15111). `20/20` is byte-identical to declaring
+nothing, so every existing clock — the tourist's `visTick`, the sand, the
+citizen's `crabTick`, the errand — reduces to its old arithmetic to the bit
+(proven: add=0 keeps the sand's floor matching its `kernel.wasm` twin `vis_tick`;
+add=200 is the citizen clock's round-half-up). The shift-end bump is *already
+subsumed by U1* (its metabolic lumps are `if(!crabDecayOn())`, off under
+continuous decay — charging them too would double-count), so the U1 tree's
+shift-end idea IS `crabTick`, and `crabTick` now speaks `actNeed`.
+
+**Surfing's vector**: `{hunger:40, thirst:40, dirt:30, bored:0, tired:0}`.
+Hunger/thirst 2x (up hard), dirt 1.5x (salt and sand), bored PAUSED (the ride is
+its own anti-boredom; the fun relief stays the lump in `updateSurf`), and tired
+**0** — honest. That last zero is THE MEASURED TRAP, stated as data:
+`startSurfStop` already declined `TIRED_ERRAND` because hanging chore-fatigue on
+an optional leisure session pushed the morning/evening shift-fairness gap
+−0.007 → 0.054, past the 0.04 the scenario allows. Surfing is *longer* than the
+ball, so `SURF_VEC.tired = 0` makes that refusal a value in both clocks (the
+continuous 4-need loop that excludes tired, and the discrete `actTired` that is
+simply never called). The shift-fairness scenario is GREEN.
+
+A hidden surfer is **not** skipped by the need tick: `crabTick` runs for every
+crab before the `dsC` dispatch and `hidden` is not one of its guards, so the
+elevated drain runs the whole session; a rider yanked off a wave (`surfT→0`)
+stops paying immediately. The gap the break left was genuinely "no multiplier"
+(ordinary U1 drain), never "skipped" — now closed.
+
+**THE NUMBERS (2026-08-29, receipt `cs-surf16-0a46a58-6fad`, tree `351b1c2`).** The same
+18-arm matrix, its `--nosurf` zero-dose twin re-taken on the landing tree.
+
+| arm | as-built (fun + need-cost) | `--nosurf` |
+| --- | --- | --- |
+| growth (chef,table) | **9/48** | **7/48** |
+| baseline (buy nothing) | 0/48 | 0/48 |
+
+The need-cost took the as-built pillar from the pre-cost break's 10/48 to
+9/48 — inside this project's own coin — and it stays above the 7/48
+`--nosurf` floor (the U1 land-asis figure, reproduced exactly). Instrument
+validated: every `--nosurf` arm 0 surf sessions, every as-built growth arm live.
+The claim is the negative one it was built to test: **charging surfing
+hunger/thirst/dirt did not cost the growth pillar.** suite-330 GREEN both
+backends at the landing (886/886, js 443/443 + wasm 443/443).
