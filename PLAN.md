@@ -527,11 +527,13 @@ compounds or collapses → the landlord collects at 20:00 either way.
   barely rests you (one night from 0.80 leaves 0.06 in your own bed, 0.33 on a
   cot, 0.80 on the sand). The housing ladder now decides who nods off at the
   grill. See the feature entry below for every number and the attribution table.
-- **Public taps** (`WATER_TAPS`, 2026-08-19): two free standpipes, promenade
-  (x640) and pier head (x1844). No queue, no staff, no till, no hours - the
-  floor under every crab's thirst, plus a cold rinse for a crab the showers
-  cannot serve. Pitched ABOVE the drink errand's threshold so the juice bar
-  keeps first refusal (see the public-taps entry for the numbers).
+- **Public taps** (`WATER_TAPS`, 2026-08-19; third tap 2026-08-29): three free
+  standpipes, promenade (x640), pier head (x1844) and — since Step 0.5 of the
+  SURF SPOT build — the west face of the DRIFTWOOD HOTEL (x2190), closing the
+  626px far-east gap that was the largest on the map. No queue, no staff, no
+  till, no hours - the floor under every crab's thirst, plus a cold rinse for a
+  crab the showers cannot serve. Pitched ABOVE the drink errand's threshold so
+  the juice bar keeps first refusal (see the public-taps entry for the numbers).
 - **Facilities pattern**: guests occupy things. Shower stalls — attendant
   hands out a kit, guest showers, stall goes dirty, staff cleans it. Dining —
   guests are seated when their order is claimed, server carries the plate to
@@ -4371,9 +4373,15 @@ Two more of the same shape found en route, both pre-existing:
   execute a crab on day three of a cared-for illness.
 
 ### THE TAP (the environmental fix)
-Two public standpipes — `WATER_TAPS`, one on the promenade beside the notice
-board (x640) and one at the foot of the pier (x1844), where a fisher hoses
-down the catch. Free, always on, no queue, no staff, no till, no shop hours.
+Three public standpipes — `WATER_TAPS`, one on the promenade beside the notice
+board (x640), one at the foot of the pier (x1844) where a fisher hoses down the
+catch, and — added in Step 0.5 of the SURF SPOT build (2026-08-29, ruling
+kd-8dcofQUHT3=C, decision kd-GP3hz8hDAk=land) — a third on the west face of the
+DRIFTWOOD HOTEL (x2190), closing the 626px far-east gap that was the largest on
+the map. On the landing tree (main fbd8928) the third tap moved the taps
+scenario's worst-crab crit 4.13% → 1.36% (SANDY, a crew commuter, seed 9:
+4.13% → 0.34%), TOWARD headroom; dry/gap flat; both taps gates green on the
+cluster. Free, always on, no queue, no staff, no till, no shop hours.
 A stop in `pickErrand` that every crab can reach: crew, townsfolk,
 owner-operators, fishers. Its own tiny `dayState` ("atTap"), so nothing in the
 customer pipeline has to learn about a stop that never pays anybody.
