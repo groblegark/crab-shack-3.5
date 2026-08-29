@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-51e8781-3k3h",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "51e8781b56aaecdca5d6b3e2699e544da20ea5cb",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 141143,
+  "verdict": "36/36 passed in slice 11/12 (141.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (2240ms)\n  PASS  sick crabs can still wash (mobility + cure path) (842ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (342ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1183ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (18ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (14ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (6009ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1719ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (34549ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7753ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (43646ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1410ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (2898ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1434ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (6350ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1427ms)\n  PASS  departures: the money band prints the manifest's own dollars (562ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (506ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (3594ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (17ms)\n  PASS  a standing offer can be answered from the card that announces it (15ms)\n  PASS  bundled playlist: an empty or malformed bundle is refused, a valid one is obeyed (255ms)\n  PASS  the box does not stop the music, and a finished track walks to the next row (20ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1968ms)\n  PASS  idle quips: the island's table is the literal, key for key (8ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (72ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (9ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (2581ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (4490ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (8ms)\n  PASS  seam: a headless day never enters the view (1255ms)\n  PASS  brains: a town full of thinking heads round-trips its save (8673ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (23ms)\n  PASS  science: a scrub lands on the day the run recorded (5082ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (13ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (67ms)\n36/36 passed in slice 11/12 (141.1s)\n"
+}

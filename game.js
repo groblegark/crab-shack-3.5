@@ -5626,6 +5626,18 @@ function stationCap(bizKey, kind) {
   if (bizKey === "shack" && kind === "grill") return 1 + UPS.grill.lvl;
   if (bizKey === "shack" && kind === "board") return 1 + UPS.board.lvl;
   if (bizKey === "juicebar" && kind === "juicer") return 2;
+  // A DECLARED SHOP GETS THE CAPACITY IT WAS DEALT. businessProblem validates
+  // z.stations[s] in 1..4 (the "HAS A BAD STATION CAPACITY" refusal), then
+  // placeBusiness draws that many posts and sizes busy[biz][kind] to match, so
+  // the honest cap is that station's own post count. Reading it here closes the
+  // gap where an author who declared `bar: 4` got four counter posts on the
+  // floor and one worker's worth of throughput, with no refusal (kd-JhZE08kkEG).
+  // BYTE-INERT on the engine's own shops: every station reachable through
+  // tryAcquire on the shack/juicebar/arcade/hotel/showers literals is a
+  // length-1 post list except the three caps guarded above, so this returns the
+  // same 1 they returned before.
+  const b = BIZ[bizKey];
+  if (b && b.stations && b.stations[kind]) return b.stations[kind].length;
   return 1;
 }
 // RETUNED AT THE MERGE. Busing is a real labour cost and it stacked on the
@@ -13348,8 +13360,28 @@ function startSelfCook(c, e) {
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
   const s0 = sourceSpot(c.cookBiz, c); setT(c, s0.x, s0.y);   // same rule for a staff meal
 }
+// THE STAFF-MEAL WORK STATION. A simplified single-station cook: the crab rings
+// itself up at the source, stands at ONE station, and eats. The engine's two
+// production shops each have a canonical hot line the meal cooks at - shack at
+// the grill, juicebar at the juicer - and that pairing is load-bearing on the
+// matrix, NOT just "naming two shops": the shack's cheapest recipe (JUICE, the
+// default pick when the crab is not flush) finishes at the BOARD, so deriving
+// purely from the recipe would silently move a reachable staff meal off the
+// grill and change slot contention. A DECLARED shop has no station the engine
+// can name, so it derives one from the recipe it is cooking - the finishing
+// step's station, or NONE for a zero-step counter sale (kd-NjPUnXyBOv), which
+// cooks nothing. (kd-JhZE08kkEG: the old `sb === "juicebar" ? "juicer" :
+// "grill"` resolved to "grill" for every other shop, and tryAcquire then read
+// busy[sb].grill on a table with no grill key - a TypeError, not a named
+// refusal. It never fires today; cookBiz is always shack or juicebar.)
+function cookStation(sb, r) {
+  if (sb === "shack") return "grill";
+  if (sb === "juicebar") return "juicer";
+  const steps = r && r.steps;
+  return steps && steps.length ? steps[steps.length - 1][0] : null;
+}
 function updateSelfCook(c, dt) {
-  const sb = c.cookBiz || "shack", wk = sb === "juicebar" ? "juicer" : "grill";
+  const sb = c.cookBiz || "shack", wk = cookStation(sb, c.cookRecipe);
   if (c.cookStep === 0) {                      // to the source bin: ring yourself up first
     if (routedStep(c, crabMoveQ8(c), dt)) {
       const r = c.cookRecipe;
@@ -13368,11 +13400,15 @@ function updateSelfCook(c, dt) {
   } else if (c.cookStep === 1) {               // grab
     c.workT -= dtT;
     if (c.workT <= 0) {
-      const g = tryAcquire(sb, wk);
-      if (g >= 0) {
-        c.slotKind = wk; c.slot = g;
-        const sp = stationSpot(sb, wk, g); setT(c, sp.x, sp.y);
-        c.workBiz = sb; c.cookStep = 2;
+      if (!wk) {                               // zero-step counter sale: no station to work, straight to eating
+        c.workBiz = sb; c.cookStep = 3; c.workT = (c.cookNeed === "drink" ? 1.5 : 3) * SEC;
+      } else {
+        const g = tryAcquire(sb, wk);
+        if (g >= 0) {
+          c.slotKind = wk; c.slot = g;
+          const sp = stationSpot(sb, wk, g); setT(c, sp.x, sp.y);
+          c.workBiz = sb; c.cookStep = 2;
+        }
       }
     }
   } else if (c.cookStep === 2) {               // to the grill (or the juicer)
