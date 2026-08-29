@@ -59,6 +59,17 @@ const NODEBT = process.argv.includes("--nodebt");
 //   --nodebtlane    ramp only        (the `consequential` build: illness rescues)
 //   (neither)       ramp + bar       (the `deadly` build: illness stops rescuing)
 const NODEBTLANE = process.argv.includes("--nodebtlane");
+// --fed ISOLATES sleep deprivation from every other killer. The sweatshop
+// (--hours 6-24 --ot) works crabs to exhaustion but ALSO starves and dirties
+// them, so most die of neglect and the sleep-debt signal is buried in a
+// confounded death count. With --fed the harness zeroes hunger/thirst/dirt at
+// every settlement, keeps the crew housed, and grants sick days -- so a crab
+// can be perfectly cared-for and STILL be worked past the sleep line. This is
+// Matt's ceiling-probe scenario made lethal: pre-ramp a debt illness lands in a
+// good care lane and rescues (near-0 deaths, the town just earns); with the bar
+// on it lands in `spent` and kills. The clean control/ramp+bar swing lives here,
+// not in the neglect-saturated sweatshop.
+const FED = process.argv.includes("--fed");
 const PIN = 0.95;   // the sickness line: tired >= 0.95 is the +0.05 risk term
 
 function runSeed(seed) {
@@ -83,6 +94,12 @@ function runSeed(seed) {
     if (OT) sim.G(`for (const c of crabs) c.p.ot = true;`);   // re-arm: labor policy switches OT off at the tiredness cap
     // sample just before the settlement, which is where the roll reads them
     if (!sim.runUntil("tmin >= 19.9 * 60 && lastRentDay !== day", { maxSteps: 200000 })) break;
+    // --fed: perfect care applied right before the roll and the care assignment
+    // both read state here. Needs go to zero, nobody is homeless, sick days are
+    // granted -- so the roll can only fire on exhaustion/debt and careLane can
+    // only send a debt illness to `spent` (never to neglect). Leaves tired
+    // ALONE: they stay worked past the line, they just aren't hungry doing it.
+    if (FED) sim.G(`for (const c of crabs) { c.p.hunger = 0; c.p.thirst = 0; c.p.dirt = 0; c.p.homeless = false; c.p.sickPol = "grant"; }`);
     const pre = JSON.parse(sim.G(`JSON.stringify(allCrabs().map(c => ({
       name: c.p.name, npc: !!c.p.npc, shift: c.p.shift,
       tired: (c.p.tired || 0) / Q20, sick: !!c.p.sick, homeless: !!c.p.homeless,
