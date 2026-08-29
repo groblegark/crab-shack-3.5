@@ -306,11 +306,14 @@ const BIZ = {
     source: "booth", out: "prize", queueX: 1804,
     park: 1590, rack: 1604,
     // ONE STEP, AT THE BOOTH. The showers prove the engine runs a zero-step
-    // recipe (SUDS is `steps: []` with the occupancy on the recipe), but the
-    // cultureway validator REFUSES an empty `steps` - so a zero-step arcade
-    // would be a shape the engine's own literals use and a document may never
-    // declare, which is exactly the drift the hostile-file posture exists to
-    // prevent. A token sale is a real step at a real station instead.
+    // recipe (SUDS is `steps: []` with the occupancy on the recipe). The
+    // cultureway validator once REFUSED an empty `steps` - so a zero-step arcade
+    // was a shape the engine's own literals used and a document could not
+    // declare, exactly the drift the hostile-file posture exists to prevent.
+    // RULING `relax` (decision kd-NjPUnXyBOv) closed that gap: a document MAY now
+    // declare a counter sale with no production. The arcade still sells a token
+    // at a real station - its play is the STALL occupancy, not a bare counter -
+    // so this recipe is unchanged.
     recipes: [
       { id: "clawgame", icon: "plush", pay: 13, raw: "token", playT: 6, machine: "claw",
         steps: [["booth", 0.6, "token"]] },
@@ -9664,7 +9667,37 @@ function recipeRowProblem(r, stations, f, label) {
   if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return label + " HAS A BAD ICON";
   if (!ITEMS[r.icon] && !(f && f.items && f.items[r.icon] && f.items[r.icon].art))
     return label + " HAS NO PICTURE";
-  if (!Array.isArray(r.steps) || !r.steps.length || r.steps.length > 6) return label + " HAS BAD STEPS";
+  // ZERO STEPS = "A COUNTER SALE WITH NO PRODUCTION" — the engine's own name for
+  // the shape its SUDS SHOWERS literals ship in production (rinse/soak, both
+  // `steps: []`). A document may now declare it too: RULING `relax`, decision
+  // kd-NjPUnXyBOv (Matt, 2026-08-29), bug kd-R5J508vuh1. The Array.isArray guard
+  // and the >6 ceiling STAY; only the "at least one step" clause is dropped.
+  //
+  // HOSTILE-FILE ARGUMENT (a ruling requirement, written down, not assumed).
+  // Q: what can a document do with a zero-step recipe that it could not already
+  // do with a one-step one?  A: nothing — a zero-step row is a strict SUBSET of a
+  // one-step row's power, so relaxing this does not widen the trust boundary:
+  //  • The till is still debited. The source leg (stepIdx −1) runs BEFORE any
+  //    step branch — ownerFunds guard + debitBiz(ingredientCost(raw)) +
+  //    consumeIngredient (KS.walk / KS.waitCash). Zero and one step take that leg
+  //    identically, so there is no free-item path and no till bypass.
+  //  • The pantry/price rules still bite. raw/raw2, icon and picture (validated
+  //    just above) and pay 1..200 are ahead of this line and untouched by it.
+  //    serve() credits `pay` AFTER the debit, so margin = pay − ingredientCost,
+  //    bounded exactly as a one-step row's; a zero-step row cannot mint money or
+  //    beat the price cap.
+  //  • stations/stationCap still validate (businessProblem). A zero-step recipe
+  //    names NO station, so it adds nothing to the busy table and never calls
+  //    tryAcquire — it holds strictly FEWER runtime resources than a one-step
+  //    row, never more. No occupancy loop can hang: the "all steps done" guard
+  //    (stepIdx >= steps.length) is true the instant the source grab ends, so the
+  //    order always completes source → out → serve.
+  //  • It opens no new axis. The step-time bound (0.5..30s) already lets a
+  //    document author a ~2.9x throughput range; zero-step lands at the fast end
+  //    of a range documents can already span, it does not create one. Measured
+  //    (decision kd-NjPUnXyBOv): +4% serves at identical $/serve vs the tightest
+  //    legal one-step — under the seed noise — with no new failure mode.
+  if (!Array.isArray(r.steps) || r.steps.length > 6) return label + " HAS BAD STEPS";
   for (const st of r.steps) {
     if (!Array.isArray(st) || st.length < 3) return label + " HAS A BAD STEP";
     if (typeof st[0] !== "string" || !stations[st[0]]) return label + " WANTS A STATION " + String(st[0]).toUpperCase() + " DOESN'T HAVE";
