@@ -84,6 +84,12 @@ const NOSURF = args.includes("--nosurf");
 // the flat tired >= 0.95 term the roll always had stays exactly as it was, so
 // the control arm is the pre-ramp build and not a town with no fatigue in it.
 const NODEBT = args.includes("--nodebt");
+// ...and `--nodeadly` for the CARE-LANE half on top of it: the ramp still
+// bills the hazard, but a sleep-debt illness goes back to the ordinary care
+// ladder and the linger week. THE ZERO-DOSE TWIN for the `deadly` ruling
+// (kd-1XqylH3kmJ) - --nodebt prices the whole feature against the pre-ramp
+// build, --nodeadly prices ONLY what this pass added on top of the ramp.
+const NODEADLY = args.includes("--nodeadly");
 // `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
 // body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
 // the same buildPhys conversion a document does, lands on ENG_BODY and the
@@ -222,6 +228,7 @@ if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);
 if (NOSURF) G(`window._noSurf = true;`);
 if (NODEBT) G(`window._noDebt = true;`);
+if (NODEADLY) G(`window._noDeadly = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);

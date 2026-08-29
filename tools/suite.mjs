@@ -4505,12 +4505,18 @@ scenario("mortality: a cared-for crab is not taken on day three (the ladder stil
     const s2 = createSim({ seed: 500 + i });
     s2.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
     s2.G(setup);
+    const name = s2.G("crabs[0].p.name");
     s2.runUntil("lastRentDay === day", { maxSteps: 400000, onTick: (G) => {
       G(`{ coins = 300000; const k = crabs[0];
         if (k && k.p.sick) { k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1; } }`);
     } });
-    if (!s2.G("crabs[0]")) deaths++;
-    else if (!s2.G("crabs[0].p.sick")) cures++;
+    // BY NAME: killCrab splices `crabs`, so `!crabs[0]` reads the crab who
+    // moved UP into slot 0 and scores a death as a survival. This gate asserts
+    // deaths === 0, so the blind version passed for the wrong reason and would
+    // not have caught the ladder turning lethal.
+    const alive = s2.G(`allCrabs().some(c => c.p.name === ${JSON.stringify(name)})`);
+    if (!alive) deaths++;
+    else if (!s2.G(`allCrabs().find(c => c.p.name === ${JSON.stringify(name)}).p.sick`)) cures++;
   }
   if (deaths) return `${deaths}/24 cared-for crabs were taken on the third day of illness`;
   if (cures < 6) return `only ${cures}/24 cared-for crabs recovered - the improved lane stopped paying`;
@@ -10893,6 +10899,144 @@ scenario("sleep debt: an old save arrives with a clean slate, not a back-dated b
     if (d !== 0) return `${name} came back from an old save already ${d} nights in debt`;
   }
   if (+b.G("debtRisk(allCrabs()[0])") !== 0) return "a clean-slate crab is still being billed";
+  return true;
+});
+
+scenario("sleep debt: a COLLAPSE is denied the rest lanes and keeps neglect's timetable", () => {
+  // THE `deadly` RULING (kd-h28QBb1lvO), with no statistics in it. The same
+  // crab, in the same bed, fed and watered and rested and excused - the only
+  // difference is whether the illness they are carrying was latched as a
+  // sleep-debt collapse. One of them gets BED REST and a week to linger; the
+  // other gets the care the town can actually give and the neglect timetable.
+  const sim = createSim({ seed: 77 });
+  sim.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+  const GRACE = +sim.G("DEBT_GRACE");   // read the tuning off the GAME, not a literal
+  // the exact fixture the care-ladder gate uses: every good-care box ticked
+  const care = `k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+    k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1;
+    k.p.sickPol = "grant";`;
+  const laneWith = (worn) => {
+    sim.G(`{ const k = crabs[0]; ${care} k.p.sick = ${worn == null ? "{ days: 3 }" : `{ days: 3, worn: ${worn} }`}; }`);
+    return { lane: sim.G("careLane(crabs[0])"), grave: !!sim.G("gravelyIll(crabs[0])") };
+  };
+  // an ordinary illness on a well-kept crab is UNTOUCHED - the ladder still pays
+  const plain = laneWith(null);
+  if (plain.lane !== "bed") return "an ordinary illness no longer reaches BED REST: " + plain.lane;
+  if (plain.grave) return "an ordinary crab resting in their own bed was flagged GRAVELY ILL on day 3";
+  // ...and so is one whose debt never passed the grace: the ramp was not billing
+  // them, so their illness is not the ramp's doing and must not be punished
+  const inside = laneWith(GRACE);
+  if (inside.lane !== "bed")
+    return `an illness latched at the grace itself (${GRACE}) was treated as a collapse: ${inside.lane}`;
+  // one night past the grace - the ramp WAS billing them - and everything moves
+  const worn = laneWith(GRACE + 1);
+  if (worn.lane !== "worn") return `a sleep-debt collapse still reached ${worn.lane}`;
+  if (!worn.grave)
+    return "a collapsed crab was not flagged GRAVELY ILL on day 3 - the roll arms on day "
+      + sim.G(`deathArmsAt("worn")`) + ", so the warning is not landing a day ahead of it";
+  // the timetable, stated directly rather than inferred from the flag
+  if (+sim.G(`deathArmsAt("worn")`) !== +sim.G(`deathArmsAt("neglect")`))
+    return "a collapse no longer keeps neglect's timetable";
+  if (!(+sim.G(`deathArmsAt("bed")`) > +sim.G(`deathArmsAt("worn")`)))
+    return "a collapse arms no earlier than a crab in their own bed";
+  // and it costs them the rest lanes' odds, which is the other half
+  const L = JSON.parse(sim.G("JSON.stringify(CARE_LANES)"));
+  if (!(L.bed.cure > L.worn.cure && L.bed.die < L.worn.die))
+    return "the collapse lane is no worse than BED REST: " + JSON.stringify(L);
+  if (L.worn.cure > L.cared.cure)
+    return "a collapse is being cared for BETTER than an ordinary cared-for crab: " + JSON.stringify(L);
+  return true;
+});
+
+scenario("sleep debt: the collapse is latched at ONSET - convalescence cannot launder it", () => {
+  // THE LOAD-BEARING DESIGN CHOICE, and the reason the naive version of this
+  // change measures as a null. The ledger REPAYS while a crab convalesces (a
+  // resting crab ends the night under the line - that is the cure working).
+  // So a lane gate that reads the LIVE ledger unblocks the rest lanes around
+  // the fourth night of an illness whose roll does not arm until the seventh:
+  // it lifts before it can ever bite. The latch says the true thing instead -
+  // THIS illness was caused by weeks of no sleep, and that does not stop being
+  // true because they have now had one good night.
+  const sim = createSim({ seed: 909 });
+  sim.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+  const GRACE = +sim.G("DEBT_GRACE");
+  sim.G(`{ const k = crabs[0];
+    k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+    k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1;
+    k.p.sickPol = "grant";
+    k.p.sick = { days: 3, worn: ${GRACE + 5} };
+    k.p.sleepDebt = 0; k.p.tired = 0; }`);   // fully repaid, wide awake: the ledger says they are FINE
+  if (+sim.G("debtRisk(crabs[0])") !== 0)
+    return "the fixture is wrong - the live ledger is still billing, so this proves nothing";
+  const lane = sim.G("careLane(crabs[0])");
+  if (lane !== "worn")
+    return `a crab whose ledger had repaid to zero mid-illness was handed ${lane} - `
+      + "the gate is reading the LIVE ledger, so it lifts before the roll ever arms";
+  // and the mirror: the latch is what does it, not the crab's current state
+  sim.G("crabs[0].p.sick.worn = 0;");
+  if (sim.G("careLane(crabs[0])") !== "bed")
+    return "clearing the latch did not restore the rest lane - something else is gating it";
+  return true;
+});
+
+scenario("sleep debt: a collapse MEASURABLY kills, and the same crab cared for does not", () => {
+  // MUTATION-GRADE, and the one gate that goes red if the ruling was not
+  // honoured. The `consequential` pass shipped a ramp that raised
+  // exhaustion-tagged illness 17% and DROPPED deaths (18 -> 14), because
+  // illness was a RESCUE: home, bed rest, 0.55 a day, and a roll that would
+  // not arm for a week.
+  //
+  // ONE SETTLEMENT taken from the fifth day of an illness is all this needs,
+  // because the two arms differ in KIND rather than in degree:
+  //   collapse  the roll arms on day 4, so day 6 rolls at die 0.08 + 0.12x2
+  //             = 0.32 behind a 0.40 cure -> ~19% a trial.
+  //   cared     the roll does not arm until day 7, so day 6 cannot take them
+  //             AT ALL. That zero is STRUCTURAL, not a small number, which is
+  //             what also makes this the inertness half: if the ladder had
+  //             been made harsher for everybody, it would not be zero.
+  //
+  // COUNTED BY NAME, not by `crabs[0]`. killCrab splices the array, so the
+  // index check the neighbouring care-ladder gate used reads a DIFFERENT
+  // LIVING CRAB and silently scores every death as a survival - the first cut
+  // of this gate did exactly that and reported 0/32 on a build that was
+  // killing 5 of them.
+  const run = (worn, seeds) => {
+    let n = 0, died = 0;
+    for (const seed of seeds) {
+      const sim = createSim({ seed });
+      sim.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+      // the whole crew is the sample - same fixture, same settlement, and it
+      // costs one boot instead of one per trial
+      sim.G(`for (const k of crabs) { k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+        k.p.sickPol = "grant"; k.p.sick = ${worn == null ? "{ days: 5 }" : `{ days: 5, worn: ${worn} }`}; }`);
+      const names = JSON.parse(sim.G("JSON.stringify(crabs.map(c => c.p.name))"));
+      // held in PERFECT care across the settlement: fed, watered, clean,
+      // rested, excused. Whatever takes them, it is not a neglect anyone missed.
+      sim.runUntil("lastRentDay === day", { maxSteps: 400000, onTick: (G) => {
+        G(`{ coins = 300000; for (const k of crabs) if (k.p.sick) {
+          k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1; } }`);
+      } });
+      const alive = new Set(JSON.parse(sim.G("JSON.stringify(allCrabs().map(c => c.p.name))")));
+      n += names.length;
+      died += names.filter(x => !alive.has(x)).length;
+    }
+    return { n, died };
+  };
+  const GRACE = +createSim({ seed: 1 }).G("DEBT_GRACE");
+  const cared = run(null, [11, 12, 13, 14, 15, 16, 17, 18]);
+  if (!cared.n) return "the fixture caught no crabs at all";
+  if (cared.died)
+    return `${cared.died}/${cared.n} crabs died of an ORDINARY illness on day 6 of perfect care - `
+      + "the roll should not even ARM for them until day "
+      + createSim({ seed: 1 }).G(`deathArmsAt("bed")`)
+      + ", so the care ladder has been made harsher for everybody";
+  // ~19% a trial over ~40 trials puts P(zero | it works) near 3e-4, so a red
+  // here is the mechanism and not the dice
+  const coll = run(GRACE + 6, [11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+                               21, 22, 23, 24, 25, 26, 27, 28, 29, 30]);
+  if (!coll.died)
+    return `0/${coll.n} sleep-debt collapses were taken on a day the roll was armed against `
+      + "them, in perfect care - the ruling was `deadly` and this still cannot kill anybody";
   return true;
 });
 

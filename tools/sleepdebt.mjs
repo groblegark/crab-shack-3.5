@@ -52,11 +52,13 @@ const OT = process.argv.includes("--ot");
 // control. The flat tired >= 0.95 term the roll always had stays on, so this
 // arm IS the pre-ramp build rather than a town with no fatigue in it.
 const NODEBT = process.argv.includes("--nodebt");
+const NODEADLY = process.argv.includes("--nodeadly");   // ramp on, care-lane change off
 const PIN = 0.95;   // the sickness line: tired >= 0.95 is the +0.05 risk term
 
 function runSeed(seed) {
   const sim = createSim({ seed });
   if (NODEBT) sim.G(`window._noDebt = true;`);
+  if (NODEADLY) sim.G(`window._noDeadly = true;`);
   const nights = [];        // one row per crab-night
   const runs = new Map();   // name -> current unbroken run of pinned nights
   let best = 0, deaths = 0;
@@ -126,7 +128,7 @@ const pct = (a, b) => b === 0 ? "  n/a " : (100 * a / b).toFixed(1).padStart(6);
 const mean = (a, f) => a.length ? a.reduce((s, x) => s + f(x), 0) / a.length : 0;
 
 const arm = (HOURS || "8-20") + (OT ? " +OT" : "") + ", crew " + CREW
-  + (SEEDBASE ? "  seedbase " + SEEDBASE : "") + (NODEBT ? "  [DEBT ARMED OFF]" : "");
+  + (SEEDBASE ? "  seedbase " + SEEDBASE : "") + (NODEBT ? "  [DEBT ARMED OFF]" : "") + (NODEADLY ? "  [DEADLY ARMED OFF]" : "");
 console.log("\n== SLEEP DEBT   " + arm + "   ("
   + all.length + " crab-nights, " + SEEDS + " seeds x " + DAYS + "d)");
 console.log("who        nights   tired  woke  pinned%  rough%   home%   died");

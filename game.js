@@ -4788,14 +4788,77 @@ function gravelyIll(c) { return !!c.p.sick && (c.p.sick.days || 0) >= deathArmsA
 // Nobody's odds got worse - rest is a NEW, better lane, reachable only by
 // actually staying home on a granted sick day. That is what makes it real.
 const REST_HOURS = 9 * 60 * GMIN;   // daylight game-hours at home, ill and excused, to count as a day's rest
+//
+// ...AND THE ONE ILLNESS BED REST CANNOT FIX (2026-08-29, Matt's ruling
+// `deadly` on decision kd-h28QBb1lvO). The ladder above had an unintended
+// consequence that the sleep-debt pass measured and could not explain away:
+// making exhaustion dangerous made the town SAFER. Deaths went DOWN in both
+// 16-seed blocks (18 -> 14) while exhaustion-tagged illness went UP 17%,
+// because falling ill is how a crab gets RESCUED from a rota - illness sends
+// them home, home is BED REST, and bed rest cures 0.55 a day against a roll
+// that will not even ARM for a week. A crab worked into the ground got a
+// week off and better odds than they started with. "Lack of sleep should
+// eventually be deadly" cannot be true while the game's answer to sleep
+// deprivation is a paid holiday.
+//
+// So: an illness that struck a crab the sleep-debt ramp was ALREADY BILLING
+// is not a cold, it is a COLLAPSE, and it is latched as one at onset
+// (p.sick.worn). Two things follow from that latch, and only these two:
+//   1. IT IS DENIED THE REST LANES. You cannot convalesce your way out of a
+//      fortnight of lost sleep in an afternoon - lying down is not the same
+//      as being rested. Same odds as CARED FOR, which is what the town can
+//      actually do for them; the loss is the 0.55/0.04 they no longer reach.
+//   2. THE ROLL ARMS ON DEATH_DAY, not LINGER_DAY - the neglect timetable.
+//      This is the load-bearing half. The linger week exists so that "a fed,
+//      watered, clean crab in their own bed is not dying on day three, ever"
+//      (see deathArmsAt) - a fairness rule about crabs the town is LOOKING
+//      AFTER. A crab whose rota the player was warned about by name, for
+//      days, is not that crab. This IS a neglect somebody could have fixed,
+//      which is the exact test the fairness rule sets.
+// Together those take the case-fatality of a collapse from ~0.2% to ~4.6%
+// and, more to the point, reverse the SIGN of what exhaustion does to the
+// death count.
+//
+// WHY LATCHED AT ONSET AND NOT READ LIVE - and this is the whole reason the
+// naive version of this change does nothing. The ledger REPAYS while a crab
+// convalesces (a resting crab ends the night under the line; that is the
+// cure working, and tickSleepDebt is deliberately not frozen for the sick).
+// So a live read of the ledger unblocks the rest lanes on about the fourth
+// night of an illness whose death roll does not arm until the seventh: the
+// gate lifts before it can ever bite, and deaths do not move. Latching says
+// the true thing instead - THIS illness was caused by weeks of no sleep, and
+// that fact does not change because they have now had one good night. The
+// ledger stays a clean, live, escapable measure of ongoing abuse; the
+// illness carries its own cause.
+//
+// IT IS STILL SEEN COMING, four times over: the named warning the night the
+// grace runs out, the dossier SLEEP row counting the nights, FELL ILL, and
+// GRAVELY ILL - which fires a day early here automatically, because it reads
+// deathArmsAt(careLane(c)) - 1 and the lane moved. The way out is upstream
+// and always was: a shorter rota, a day off, less overtime.
 const CARE_LANES = {
   neglect: { cure: 0.12, die: 0.25, label: "NEGLECTED" },
+  worn:    { cure: 0.40, die: 0.08, label: "SLEEP-STARVED" },
   cared:   { cure: 0.40, die: 0.08, label: "CARED FOR" },
   cot:     { cure: 0.48, die: 0.06, label: "COT REST" },
   bed:     { cure: 0.55, die: 0.04, label: "BED REST" },
 };
+// Was this illness a sleep-debt collapse? Reads the LATCH on the illness, not
+// the crab's current ledger (see the note above - a live read is self-erasing).
+// `worn` is stamped at onset from debtNights, so an old save's in-flight
+// illness reads 0 and is an ordinary illness: never a back-dated death
+// sentence, the same clean-slate rule the ledger itself lands on.
+//   --nodebt   arms off the whole feature (ramp AND this) - the pre-ramp build.
+//   --nodeadly arms off ONLY this, leaving the ramp - the arm that prices what
+//              THIS pass adds on top of the shipped hazard. (kd-1XqylH3kmJ: a
+//              probe arm needs a zero-dose twin.)
+function wornOut(k) {
+  if (window._noDebt || window._noDeadly) return false;
+  return !!k.p.sick && (k.p.sick.worn || 0) > DEBT_GRACE;
+}
 function careLane(k) {
   if ((k.p.hunger || 0) >= qn(0.5) || (k.p.dirt || 0) >= qn(0.66)) return "neglect";
+  if (wornOut(k)) return "worn";   // no rest lane out of a sleep debt, and the roll arms early
   if ((k.p.restT || 0) < REST_HOURS || (k.p.thirst || 0) >= qn(0.5) || !onSickDay(k)) return "cared";
   return k.p.homeless ? "cot" : "bed";
 }
@@ -13860,7 +13923,11 @@ function abortErrand(c) {
 // their own bed is not dying on day three, ever.
 const DEATH_DAY = 4;     // ...neglected
 const LINGER_DAY = 7;    // ...cared for (any lane above NEGLECT)
-function deathArmsAt(lane) { return lane === "neglect" ? DEATH_DAY : LINGER_DAY; }
+// A COLLAPSE KEEPS NEGLECT'S TIMETABLE. The linger week is a promise made to
+// crabs the town is looking after; a crab ground down for weeks past a named
+// warning is a neglect somebody could have fixed, which is the test this rule
+// has always applied. See CARE_LANES for the measurement that forced it.
+function deathArmsAt(lane) { return (lane === "neglect" || lane === "worn") ? DEATH_DAY : LINGER_DAY; }
 // One removal path for crew and townsfolk alike. Releases everything the crab
 // held, files the memorial, and settles what their death does to the town.
 function killCrab(k) {
@@ -24619,7 +24686,12 @@ function simClock(dt, rawMs) {
                  dirt: +((k.p.dirt || 0) / Q20).toFixed(3), tired: +((k.p.tired || 0) / Q20).toFixed(3) },
         });
         if (risk > 0 && srand() < Math.min(0.5, risk)) {
-          k.p.sick = { days: 0 }; today.sick.push(k.p.name);
+          // LATCH THE CAUSE ONTO THE ILLNESS. `worn` is the sleep-debt ledger at
+          // the instant they fell, so the illness remembers what caused it even
+          // after convalescence has repaid the ledger. Past DEBT_GRACE means the
+          // ramp was actively billing this crab extra risk tonight - the game's
+          // own statement that sleep is why they are ill. See CARE_LANES.
+          k.p.sick = { days: 0, worn: debtNights(k) }; today.sick.push(k.p.name);
           logFellIll(k);   // DIARY
           if (window._stats) {
             const why = [];
