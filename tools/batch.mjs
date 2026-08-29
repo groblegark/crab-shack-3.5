@@ -130,6 +130,14 @@ const surfRides = results.reduce((s, r) => s + (statOf(r).surfRides || 0), 0);
 const surfCrowded = results.reduce((s, r) => s + (statOf(r).surfCrowded || 0), 0);
 const surfTowns = results.filter((r) => (statOf(r).surfSessions || 0) > 0).length;
 
+// See the SWIM DOSE note by the `swim:` report field. `dips` = crabs that
+// entered the water for a calm-day relief; `done` = dips that finished and
+// walked back out. Must be 0 in every --noswim arm; must be >0 in an as-built
+// arm, or the swim economy measured nothing (the instrument-validation twin).
+const swimDips = results.reduce((s, r) => s + (statOf(r).swimDips || 0), 0);
+const swimDone = results.reduce((s, r) => s + (statOf(r).swimDone || 0), 0);
+const swimTowns = results.filter((r) => (statOf(r).swimDips || 0) > 0).length;
+
 const out = {
   towns: TOWNS, seedbase: SEEDBASE, jobs: JOBS, cores: usableCores(),
   workload: passthrough.join(" "),
@@ -155,6 +163,10 @@ const out = {
   // crab paddled out; under --nosurf every number here must be 0, and in an
   // as-built arm `sessions` must not be, or the arm measured nothing.
   surf: { towns: surfTowns, sessions: surfSessions, rides: surfRides, crowded: surfCrowded },
+  // See the SWIM DOSE note above. `towns` = towns where at least one crab had a
+  // dip; under --noswim every number here must be 0, and in an as-built arm
+  // `dips` must not be, or the arm measured nothing.
+  swim: { towns: swimTowns, dips: swimDips, done: swimDone },
 };
 
 if (JSON_OUT) console.log(JSON.stringify(out));
@@ -171,5 +183,6 @@ else {
   console.log(`lifetime   median $${out.lifetime.median}  p10 $${out.lifetime.p10}  p90 $${out.lifetime.p90}  mean $${out.lifetime.mean}`);
   console.log(`arcade     built ${builtArcade}/${TOWNS}, played-in ${playedTowns.length}, games ${gamesPlayed} (tour ${gamesTour}/crab ${gamesCrab})`);
   console.log(`surf       paddled out in ${surfTowns}/${TOWNS} towns, ${surfSessions} sessions, ${surfRides} rides (${surfCrowded} shared the peak)`);
+  console.log(`swim       dipped in ${swimTowns}/${TOWNS} towns, ${swimDips} dips, ${swimDone} finished`);
   console.log(`\n>> ${out.throughput.simDaysPerSec} lived sim-days/sec machine-wide  (${livedDays} days / ${out.throughput.wallSec}s, loadavg ${out.throughput.loadavg.join(" ")})`);
 }

@@ -6857,27 +6857,279 @@ function updateSurf(c, dt) {
 // THE RIDERS, painted into the water rather than onto the sand - the sea band
 // is only 28px of screen-fixed ocean (SKY_H..SHORE_Y), and FLOOR_MIN is 126, so
 // a crab can never legally STAND out there. They go hidden at the waterline and
-// are drawn here instead: a board, a rider on it, and a wake off the tail.
-// Each takes its own lane and its own phase, so three crabs read as a lineup.
+// are drawn here instead.
+//
+// WHY THE FIRST CUT READ AS A CRAB ON A PLANK (Matt, 2026-08-29: "i wanna see
+// those crabs surfing on surfboard"). It slid the rider SIDEWAYS at a FIXED y,
+// on a 22x1 white rect, while drawBG's sets marched down the screen past her.
+// The rider and the water were two unrelated animations sharing a band, and no
+// amount of extra pixels on the crab fixes that. A SURFER IS NOT ON THE SEA,
+// SHE IS ON ONE WAVE - so the wave is drawn HERE, with her, it stands up as it
+// feels the bottom, and she comes shorewards because IT does.
+//
+// AND A SESSION IS WAVES, NOT A SLIDE. SURF_RIDE is one of them - paddle out,
+// pop up, trim the line, kick out - and it takes its clock off `c.surfT`,
+// which is already counting the session down. No new field, nothing to save,
+// nothing to seed, and NO STREAM: every number below is viewT, surfT, day and
+// _almHash, so the whole thing costs the sim exactly as much randomness as the
+// weather does, which is none. The beats the old draw hid are the best ones in
+// surfing, and hiding them is why the feature landed and still read as static.
+const SURF_RIDE = 4.6 * SEC;      // one wave, paddle-out to kick-out
+const SURF_OUT_Y = SKY_H + 5;     // out the back, sat waiting
+const SURF_IN_Y = SHORE_Y - 12;   // ...and the inside, where it closes out
+// The phases of one ride. PADDLING is the longest because it is - you wait far
+// more than you ride, and a lineup that is mostly sitting is the honest read.
+const SURF_P_UP = 0.34, SURF_P_RIDE = 0.42, SURF_P_END = 0.90;
 function drawSurfers() {
   const out = surfers().filter(k => k.surfT > 0);
+  const S = window._noSeaCues ? SEA_FLAT : seaState(day);
   for (let i = 0; i < out.length; i++) {
     const c = out[i];
-    const ph = ((viewT * 0.42 + i * 0.37) % 1);
-    const sx = SURF_X - 46 + ((ph * 92) | 0);            // sliding down the line, shorewards
-    if (sx - camX < -20 || sx - camX > W + 20) continue;
-    const sy = SKY_H + 8 + i * 5 + ((Math.sin(viewT * 2.4 + i) * 1.5) | 0);
+    // WHICH WAVE, AND HOW FAR THROUGH IT. surfT counts DOWN, so t rises 0->1.
+    const wave = (c.surfT / SURF_RIDE) | 0;
+    const t = 1 - (c.surfT % SURF_RIDE) / SURF_RIDE;
+    // The peak is shared: each rider gets her own slot on it and her own wave,
+    // so three crabs read as a LINEUP rather than a stack of clones.
+    const lane = i - (out.length - 1) / 2;
+    const x0 = SURF_X + ((lane * 26) | 0) - 32;   // where she takes off...
+    const x1 = x0 + 64;                           // ...and where she kicks out
+    // DOES THIS ONE END BADLY? Stable per crab, per wave, per day. A poorer sea
+    // throws you more often, which is the same fact the water is already
+    // drawing - so the wipeouts agree with the weather without being told.
+    const q = Math.max(0, Math.min(1, S.quality));
+    const wipe = (_almHash(day * 977 + ((c.p.si | 0) * 31) + wave, _almanacSeed) % 100)
+      < 10 + (((1 - q) * 26) | 0);
+    let sx, sy, prone = false, riding = false, tumble = false;
+    if (t < SURF_P_UP) {                          // PADDLING back out to the peak
+      const p = t / SURF_P_UP;
+      sx = x1 + (x0 - x1) * p;
+      sy = SURF_IN_Y + (SURF_OUT_Y - SURF_IN_Y) * Math.min(1, p * 1.5);
+      prone = true;
+    } else if (t < SURF_P_RIDE) {                 // POP-UP: the wave has her
+      sx = x0; sy = SURF_OUT_Y;
+    } else {                                      // THE RIDE, and the kick-out
+      const r = Math.min(1, (t - SURF_P_RIDE) / (SURF_P_END - SURF_P_RIDE));
+      sx = x0 + (x1 - x0) * r;
+      sy = SURF_OUT_Y + (SURF_IN_Y - SURF_OUT_Y) * r;
+      riding = !(wipe && r > 0.55);
+      tumble = !riding;
+    }
+    sx |= 0; sy |= 0;
+    if (sx - camX < -40 || sx - camX > W + 40) continue;
     const ccul = c.p.culture && c.p.culture !== "crab" ? CULTURES[c.p.culture] : null;
     const arts = ccul ? ccul.arts[c.p.color] : CRAB_ARTS[c.p.color % CRAB_ARTS.length];
-    const art = ((viewT * 5 + i) | 0) % 2 ? arts.a : arts.b;
-    wrect(sx - 3, sy + 8, 14, 2, BOARD_COL[c.p.color % BOARD_COL.length]);   // the board
-    wblit(art, sx, sy - (ccul ? ccul.body.h : 12) + 8);
-    // the wave under them and the wake off the tail - white water, trailing
-    wrect(sx - 8, sy + 10, 22, 1, [236, 250, 255]);
-    for (let s = 1; s <= 3; s++) px(ctx, sx - 8 - s * 3 - camX, sy + 9 - (s > 1 ? 1 : 0), [214, 240, 252]);
+    const bh = ccul ? ccul.body.h : 12;
+    const board = BOARD_COL[c.p.color % BOARD_COL.length];
+    // ── THE WAVE SHE IS ON ────────────────────────────────────────────────
+    // Only while she is riding one. It travels WITH her, which is the whole
+    // fix: drawBG's sets are the horizon's weather, this is the single wave
+    // under this crab. Everything up-line of the lip has already broken.
+    if (riding || tumble) {
+      const r = Math.min(1, (t - SURF_P_RIDE) / (SURF_P_END - SURF_P_RIDE));
+      const face = 2 + ((r * 4) | 0);             // it stands up as it feels the bottom
+      const yb = Math.min(SHORE_Y - 2, sy + 8);   // the waterline under the board
+      wrect(sx - 6, yb + 2, 26, 1, [26, 108, 186]);          // the trough ahead of it
+      // the unbroken face, running back up the line behind her
+      for (let k = 0; k < 40; k += 2) {
+        const fy = yb - 2 - ((Math.sin(k * 0.15 + viewT * 3.2) * 1) | 0);
+        const fh = Math.max(1, face - ((k / 16) | 0));
+        wrect(sx - 8 - k, fy, 2, fh, [58, 162, 226]);
+      }
+      wrect(sx - 46, yb - 3, 50, 1, [200, 236, 255]);        // the crest, back up the line
+      // THE LIP, throwing over right where she is - the brightest thing out
+      // there, because that is what your eye actually finds on a wave.
+      wrect(sx - 7, yb - 5, 13, 1, [236, 250, 255]);
+      wrect(sx - 3, yb - 6, 8, 1, [255, 255, 255]);
+      // WHITEWATER: what the wave has already eaten, broken and trailing.
+      for (let k = 6; k < 44; k += 6) {
+        const j = (Math.sin(k * 0.5 + viewT * 4) * 1) | 0;
+        wrect(sx - 12 - k, yb - 2 + j, 4, 2, [222, 244, 254]);
+      }
+    }
+    // ── HER ───────────────────────────────────────────────────────────────
+    if (tumble) {
+      // OFF. The board goes one way and the crab the other - they have to be
+      // drawn well APART or the board (which is HER colour, by design) just
+      // reads as more crab. Then the whitewater closes over her: the foam is
+      // painted OVER her lower half, because a crab floating clear above the
+      // water reads as a bug, not a wipeout. Back paddling on the next wave.
+      const yb = Math.min(SHORE_Y - 2, sy + 8);
+      wrect(sx + 15, yb - 7, 3, 8, board);                   // the board, flung up on its end
+      wblit(((viewT * 8) | 0) % 2 ? arts.a : arts.b, sx - 10, yb - bh + 3);
+      wrect(sx - 12, yb - 2, 20, 3, [236, 250, 255]);        // the sea closing over her
+      wrect(sx - 16, yb - 1, 34, 1, [214, 240, 252]);
+      for (let s = 0; s < 6; s++)                            // and the splash going up
+        px(ctx, sx - 8 + s * 5 - camX, yb - 6 - (s % 3) * 2, [245, 252, 255]);
+    } else {
+      wrect(sx - 3, sy + 8, 14, 2, board);                   // the board
+      if (prone) {
+        // PADDLING: lying on it, arms going. The sprite sits 4px lower so the
+        // legs are under the deck - at this scale "low on the board, splashing
+        // either side" is the whole read.
+        wblit(arts.a, sx, sy - bh + 12);
+        const s = ((viewT * 7) | 0) % 2;
+        px(ctx, sx - 4 - camX, sy + 6 + s, [236, 250, 255]);
+        px(ctx, sx + 15 - camX, sy + 7 - s, [236, 250, 255]);
+      } else {
+        // UP AND TRIMMING. `w` is the claw-raised pose both the island crabs
+        // and every culture pack declare (buildCulture parses all four), and a
+        // crab with a claw up, leaning, is a crab surfing - the walk cycle the
+        // first cut alternated is exactly what made her look like she was
+        // WALKING on the board.
+        wblit(arts.w || arts.a, sx, sy - bh + 8);
+        // spray off the tail, thrown back up the line
+        for (let s = 1; s <= 3; s++)
+          px(ctx, sx - 4 - s * 3 - camX, sy + 7 - s, [214, 240, 252]);
+      }
+    }
   }
 }
 const BOARD_COL = [[240, 90, 110], [250, 220, 110], [120, 220, 190], [235, 240, 250], [190, 150, 240], [255, 160, 90]];
+// ---- THE SWIM -------------------------------------------------------------
+// Matt, 2026-08-29: "also swimming should exist but it's less fun". So it does,
+// and it IS - and the two halves of that sentence are the whole design.
+//
+// THE SURF IS RARE AND BIG; THE SWIM IS ORDINARY AND SMALL. The sea fires ~8%
+// of days, so a player can go a long while without ever seeing the break work
+// (measured: 233 sessions across 144 towns x 30 days, ~1.6 a town-month). A dip
+// needs no swell at all - just a day it is not blowing and a sea that is not
+// heaving - so there is somebody in the water most days, and the break stays
+// the special thing it should be. That is the ANSWER to "i wanna see those
+// crabs swimming", and it is also why the swim must not be worth much.
+//
+// SWIM_RELIEF IS THE LADDER'S SECOND RUNG: chat 0.06 < ball solo 0.08 <
+// SWIM 0.13 < ball pair 0.22 < surf 0.30..0.62 < the arcade, which is the only
+// thing that ZEROES the bar. A dip takes the edge off; it never fixes a day.
+//
+// AND IT KEEPS THE ARCADE'S CUSTOMERS, by the surf's own rule: SWIM_AT sits
+// ABOVE the 0.45 at which a crab would BUY fun, and ap100 62 sits under the
+// arcade's flat 100, under the surf's 88 and under a ball game already going
+// (84) - so a swim only wins when nothing better is open. It registers AFTER
+// the ball ON PURPOSE: the ball's shipped guard refuses to join a ballot that
+// already has a fun candidate on it, so registering the swim first would have
+// silently suppressed the beach ball on every calm day in the game and traded
+// a 0.22 cure for a 0.13 one across the board. Order is semantic here.
+//
+// WHERE: SWIM_X is SURF_X is BALL_X, and that is deliberate. 1206 was chosen by
+// the dehydration guard and not by eye (1150 and 1588 both FAIL); a second fun
+// stop at an unmeasured x would re-open the exact detour question that table
+// was built to close. Swimmers use the SHALLOWS of the same patch of sand the
+// break sits off, so the two read as one beach at two depths.
+const SWIM_X = SURF_X;
+const SWIM_Y = 157;               // the ball's lane-clear y - same sand, same table
+const SWIM_AT = qn(0.52);         // above the 0.45 you'd BUY fun at
+const SWIM_YIELD = qn(0.60);      // any real need outranks a dip
+const SWIM_LEAD = 70;             // game-minutes of clear air: a dip is ~34, half a session
+const SWIM_SECS = 8 * SEC;        // in, bob about, out again
+const SWIM_CD = 180 * GMIN;       // game minutes between dips
+const SWIM_ROOM = 4;              // the shallows hold more than the peak does
+const SWIM_RELIEF = qn(0.13);     // LESS FUN THAN A WAVE, by the owner's ruling
+const SWIM_WIND = 36044;          // Q16 0.55 - nobody swims in a blow
+// ...NOR IN A HEAVING SHOREBREAK, and that bar is FC_BIG - the same swell the
+// forecast calls big. There is deliberately no SWIM_SWELL constant holding a
+// copy of it: FC_BIG is declared with the rest of the almanac twelve thousand
+// lines below this block, so `const SWIM_SWELL = FC_BIG` up here is a
+// TEMPORAL DEAD ZONE reference that throws at load and takes the whole game
+// down with it. (It did. Caught before a gate, by one boot.) swimIsUp() reads
+// it from inside a function body, where it is long since initialised.
+const SWIM_LINES = ["JUST A DIP", "IT'S FRESHER IN", "MIND THE WEED", "LOVELY", "ONE MORE LENGTH"];
+// THE SEA IS SWIMMABLE when it is neither blowing nor heaving, and you can see.
+// `window._noSwim` (harness `--noswim`) is the swim's ZERO-DOSE TWIN, the same
+// shape as `_noSurf`: the sea never offers a dip, so a matrix can price what
+// the swim took off the arcade and the ball on the SAME tree.
+function swimIsUp() {
+  return !window._noSwim && darkness() < 0.55
+    && windPeakQ16(day) < SWIM_WIND && swellPeakQ16(day) < FC_BIG;
+}
+function swimmers() { return allCrabs().filter(k => k.dsC === DS.atSwim); }
+function swimHasRoom(c) { return swimmers().filter(k => k !== c).length < SWIM_ROOM; }
+function startSwimStop(c) {
+  // NO TIRED_ERRAND, for the ball's and the surf's measured reason: that charge
+  // models a chore, and hanging it on an optional dip tilts the morning/evening
+  // fatigue gap past what the shift-fairness scenario allows.
+  c.dsC = DS.atSwim; c.swimT = 0;
+  setT(c, SWIM_X + ((swimmers().length % 3) - 1) * 22, SWIM_Y);
+}
+function updateSwim(c, dt) {
+  if (c.swimT <= 0) {                        // still walking down to the water
+    if (routedStep(c, crabMoveQ8(c), dt)) {
+      c.swimT = SWIM_SECS + ((srand() * 3 * SEC) | 0);
+      c.hidden = true;                       // in the water; see the shower stalls
+      popText("IN FOR A DIP", c.x - 18, FLOOR_Y - 30, [150, 220, 255]);
+      if (window._stats) window._stats.swimDips = (window._stats.swimDips || 0) + 1;
+    }
+    return;
+  }
+  c.swimT -= dtT;
+  if (c.swimT > 0) return;
+  c.hidden = false;
+  // A FLAT RELIEF, unlike the surf's graded one. The surf pays by the day's
+  // quality because the sea's quality is the whole point of it; a dip is a dip.
+  // No crowd term either - the shallows are not a peak and nobody is dropping
+  // in on anybody. Cheap to reason about, and cheap is what it should be.
+  c.p.bored = Math.max(0, (c.p.bored || 0) - SWIM_RELIEF);
+  crabLog(c, "need", "HAD A SWIM", 0);
+  popText("REFRESHED", c.x - 14, FLOOR_Y - 30, [150, 235, 255]);
+  const SL = idleLines(c, "swim", SWIM_LINES);
+  c.quip = { text: SL[(srand() * SL.length) | 0], t: 2.4 * SEC };
+  if (window._stats) window._stats.swimDone = (window._stats.swimDone || 0) + 1;
+  c.swimT = 0; c.errandCd = 4 * SEC; c.swimCd = SWIM_CD;
+  c.dsC = DS.home;
+  afterErrand(c, true);
+}
+// THE BATHERS. The surfers are out the back on the peak; these are in the
+// SHALLOWS, just off the sand, which is what keeps the two readable as one
+// beach at two depths rather than two competing crowds. A swimmer is drawn
+// half-submerged - the waterline is painted OVER her - because a whole crab
+// standing in the sea reads as a crab standing on it.
+const SWIM_LO = SHORE_Y - 9, SWIM_HI = SHORE_Y - 3;
+// THE SEA'S OWN BASE COLOUR, the one drawBG lays the whole band down in
+// (SEA_WET must BE that colour, not a shade near it): the water closing over
+// a bather is drawn by painting sea back over her, so if this is lighter than
+// the band - the first cut used [70,172,230] - every swimmer sits in a
+// visible blue BOX. Matching it exactly makes the cover-up disappear and
+// leaves only the surface line and the wake, which is all that should show.
+const SEA_WET = [40, 140, 220], SEA_LINE = [70, 172, 230], SEA_FOAM = [214, 240, 252];
+function drawSwimmers() {
+  const wet = swimmers().filter(k => k.swimT > 0);
+  for (let i = 0; i < wet.length; i++) {
+    const c = wet[i];
+    // Each bather has her own lane, her own lap phase and her own bob, so four
+    // of them read as four crabs in the water and not one crab drawn four times.
+    // SWIMMING, not treading water: each bather crawls one way, turns at the
+    // end of her lane and comes back, so the shallows read as a length being
+    // swum rather than four crabs bobbing on the spot.
+    const lap = (viewT * 0.22 + i * 0.37) % 2;
+    const swing = lap < 1 ? lap : 2 - lap;              // 0 -> 1 -> 0, and the turn
+    const dir = lap < 1 ? 1 : -1;
+    const sx = (SWIM_X - 56 + i * 24 + ((swing * 34) | 0)) | 0;
+    if (sx - camX < -30 || sx - camX > W + 30) continue;
+    const sy = (SWIM_LO + ((Math.sin(viewT * 1.6 + i) + 1) / 2 * (SWIM_HI - SWIM_LO))) | 0;
+    const ccul = c.p.culture && c.p.culture !== "crab" ? CULTURES[c.p.culture] : null;
+    const arts = ccul ? ccul.arts[c.p.color] : CRAB_ARTS[c.p.color % CRAB_ARTS.length];
+    const bh = ccul ? ccul.body.h : 12;
+    wblit(((viewT * 4 + i) | 0) % 2 ? arts.a : arts.b, sx, sy - bh + 6);
+    // THE WATER CLOSES OVER HER, and it has to close over ALL of her: the
+    // first cut painted two rows at sy+2 and left the sprite's bottom two rows
+    // showing under them, which read as a crab standing on the seabed with its
+    // legs in shot rather than a crab swimming. Cover to the sprite's own
+    // bottom edge (sy + 6), then let the surface line sit on top of that.
+    wrect(sx - 3, sy + 2, 22, 5, SEA_WET);
+    wrect(sx - 5, sy + 3, 26, 1, SEA_LINE);
+    // ...AND THE WAKE SHE IS PULLING, always BEHIND her, which is what tells a
+    // player which way she is going. Two chevrons, spaced off her lap phase.
+    for (let k = 1; k <= 2; k++) {
+      const wx = sx + (dir > 0 ? -4 - k * 5 : 20 + k * 5);
+      wrect(wx - 1, sy + 2 + (k & 1), 4, 1, SEA_FOAM);
+    }
+    // an arm out of the water on the beat, on her own phase so four bathers
+    // are not one bather drawn four times
+    if (((viewT * 6 + i * 2) | 0) % 5 < 2)
+      wrect(sx + (dir > 0 ? 15 : 0), sy - 4, 2, 3, SEA_FOAM);
+    if (((viewT * 3 + i) | 0) % 4 === 0)                    // an occasional splash
+      px(ctx, sx + 8 - camX, sy - 2, [245, 252, 255]);
+  }
+}
 // ---- CHATTER (the time-priced cure) ---------------------------------------
 const CHAT_AT = qn(0.55);         // both parties have to actually want the company
 const CHAT_PX = 26;           // close enough to fall into step
@@ -6951,6 +7203,7 @@ function runChatter(dt) {
     if ((c.chatCd || 0) > 0) c.chatCd -= dtT;
     if ((c.ballCd || 0) > 0) c.ballCd -= dtT;
     if ((c.surfCd || 0) > 0) c.surfCd -= dtT;
+    if ((c.swimCd || 0) > 0) c.swimCd -= dtT;
   }
   for (let i = 0; i < all.length; i++) {
     const a = all[i];
@@ -7133,7 +7386,7 @@ function updateHome(c, dt) {
 // point. Setters are STRICT - an unknown string is a thrown error, not a
 // silent NaN state - so every write site is provably in-table.
 const DS_NAMES = ["home", "toWork", "working", "toErrand", "errand", "atTap",
-  "toHome", "selfCook", "chat", "atBall", "directed", "atSurf"];
+  "toHome", "selfCook", "chat", "atBall", "directed", "atSurf", "atSwim"];
 const KS_NAMES = ["idle", "walk", "work", "toSlot", "waitSlot", "waitCash",
   "busingTable", "cleaningStall", "toStallClean", "toTableClean", "nap", "wander"];
 const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
@@ -9944,6 +10197,11 @@ const NEURO_OBSERVABLES = {
   "citizen.surf.up":         { units: "flag*4096", read: () => nclamp((surfIsUp() ? 1 : 0) * 4096) },
   "citizen.surf.riders":     { units: "n<<10",  read: () => nclamp(surfers().length * 1024) },
   "citizen.surf.cd":         { units: "ticks",  read: (c) => nclamp(c.surfCd | 0) },
+  // and the shallows, same idiom, same additive rule. No dist.px twin here
+  // either - SWIM_X is SURF_X is BALL_X, one number, drawn once.
+  "citizen.swim.up":         { units: "flag*4096", read: () => nclamp((swimIsUp() ? 1 : 0) * 4096) },
+  "citizen.swim.bathers":    { units: "n<<10",  read: () => nclamp(swimmers().length * 1024) },
+  "citizen.swim.cd":         { units: "ticks",  read: (c) => nclamp(c.swimCd | 0) },
   "citizen.job.shack":       { units: "flag*4096", read: (c) => nclamp((c.p.job === "shack" ? 1 : 0) * 4096) },
   "citizen.job.juicebar":    { units: "flag*4096", read: (c) => nclamp((c.p.job === "juicebar" ? 1 : 0) * 4096) },
   "citizen.npc":             { units: "flag*4096", read: (c) => nclamp((c.p.npc ? 1 : 0) * 4096) },
@@ -12968,6 +13226,7 @@ function errandStopX(e) {
   if (e.vote) return POLL_PLACES[e.poll].x;
   if (e.ball) return BALL_X;
   if (e.surf) return SURF_X;
+  if (e.swim) return SWIM_X;
   if (e.soup) return SOUP_X;
   if (e.tap != null) return WATER_TAPS[e.tap].x;
   const b = e.biz || "shack";
@@ -13278,6 +13537,34 @@ registerErrand({ id: "ball", need: "fun", kind: "post", gather: (c, take, X) => 
       // whole difference between 0.22 of relief and 0.08, so it should be
       // worth crossing the beach for.
       ap100: ballPlayers().length ? 84 : 35 });   // TAP_APPEAL x2.4 while the ball is out: 0.84 in hundredths
+} });
+// A DIP. REGISTERED AFTER THE BALL ON PURPOSE, and this is load-bearing: the
+// ball's shipped guard refuses to join a ballot that already carries a fun
+// candidate, so registering the swim above it would have silently suppressed
+// the beach ball on every calm day in the game and traded a 0.22 cure for a
+// 0.13 one across the board. Order is semantics here, not tidiness.
+//
+// The ladder that falls out of the three bars is the one Matt asked for
+// ("swimming should exist but it's less fun"): a FIRING day takes the crab at
+// 0.50, a dip takes her at 0.52, and the ball waits until she is properly bored
+// at 0.66 - so the sea is the ordinary thing you do and the game on the sand is
+// what you get up for. And because the surf's own gates are narrower (a 240min
+// cooldown, a three-crab lineup), a crab who wanted a wave and could not have
+// one falls through to here and has a swim instead, which is exactly right.
+registerErrand({ id: "swim", need: "fun", kind: "post", gather: (c, take, X) => {
+  // NOBODY SWIMS PARCHED - the surf's bars, which are the ball's measured ones:
+  // each need at the exact point the crab would have gone and dealt with it.
+  const swimYields = (c.p.thirst || 0) >= qn(0.45) || (c.p.hunger || 0) >= qn(0.50)
+    || (c.p.tired || 0) >= SWIM_YIELD || (c.p.dirt || 0) >= qn(0.66);
+  // A dip is ~34 game-minutes with the walk, half a surf session, so it needs
+  // half the lead - but it still needs one, because a late crab is an
+  // UNSTAFFED COUNTER and the rivalry scenario measures exactly that.
+  const swimFree = !c.duty && c.dsC !== DS.working
+    && (awayToday(c) || tmin >= effShift(c).end || tmin + SWIM_LEAD < leaveGmin(c));
+  if (swimIsUp() && (c.p.bored || 0) >= SWIM_AT - nudgeRelax(c, "fun") && (c.swimCd || 0) <= 0
+      && !boredYields(c) && !swimYields && swimFree && !c.p.sick && swimHasRoom(c)
+      && !X.cand.some(e2 => e2.need === "fun"))
+    take({ swim: true, need: "fun", ap100: 62 });   // under the surf's 88 and a game already going
 } });
 // thirst sits between food and clean: cheap, casual, frequent. The juice
 // bar is the spot when staffed; the shack pours its own juice otherwise -
@@ -13704,6 +13991,7 @@ function updateTap(c, dt) {
 function beginErrand(c, e, requireOpen) {
   if (!e) return false;
   if (e.surf) { startSurfStop(c); return true; }
+  if (e.swim) { startSwimStop(c); return true; }
   if (e.ball) { startBallStop(c); return true; }
   if (e.vote || e.soup || e.tap != null) { startTapStop(c, e); return true; }
   if (e.selfCook) { startSelfCook(c, e); return true; }
@@ -13730,12 +14018,13 @@ function afterErrand(c, chain) {
     // five kinds of stop that never ring a till now - the taps, the shelter
     // pot, the beach ball, the surf break and the ballot box - and none of
     // them is "the same stop" as a shop counter
-    const free = (x) => !!x && (x.ball || x.surf || x.soup || x.vote || x.tap != null);
+    const free = (x) => !!x && (x.ball || x.surf || x.swim || x.soup || x.vote || x.tap != null);
     const sameStop = e && (free(e) ? false : e.biz === c.errandBiz);
     if (e && !e.selfCook && !sameStop && (free(e) || bizOpenNow(e.biz))
         && errandDetour(c, e) <= CHAIN_PX) {
       c.chainN = (c.chainN || 0) + 1; c.errandCd = 0;
       if (e.surf) startSurfStop(c);
+      else if (e.swim) startSwimStop(c);
       else if (e.ball) startBallStop(c);
       else if (e.vote || e.soup || e.tap != null) startTapStop(c, e);
       else startErrand(c, e);
@@ -13762,7 +14051,7 @@ function updateErrand(c, dt) {
         c.rethinkT = VIS_RETHINK;
         const e2 = pickErrand(c);
         if (e2 && !(e2.biz === c.errand.biz && e2.need === c.errand.need
-            && !e2.ball && !e2.surf && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
+            && !e2.ball && !e2.surf && !e2.swim && !e2.soup && !e2.vote && e2.tap == null && !e2.selfCook)) {
           const s2 = errandScore(c, e2), s1 = errandScore(c, c.errand);
           if (ratGt(4 * s2.n, s2.d, 5 * s1.n, s1.d)) {
             if (window._stats) {
@@ -13770,10 +14059,19 @@ function updateErrand(c, dt) {
               window._stats.rethinkCit = (window._stats.rethinkCit || 0) + 1;
               if (!window._stats.rethinkFirst) window._stats.rethinkFirst =
                 { day, tmin, who: c.p.name, from: c.errand.biz + ":" + (c.errand.need || "?"),
-                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.surf ? "surf" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
+                  to: (e2.tap != null ? "tap" : e2.ball ? "ball" : e2.surf ? "surf" : e2.swim ? "swim" : e2.vote ? "vote" : e2.soup ? "soup" : e2.selfCook ? "selfcook" : e2.biz) + ":" + (e2.need || "?") };
             }
             if (e2.selfCook) startSelfCook(c, e2);
             else if (e2.surf) startSurfStop(c);
+            // THE RETHINK IS A SECOND DISPATCH, and it is the one that gets
+            // forgotten. beginErrand() above is the door everyone thinks of;
+            // this ladder is the door a crab uses when she changes her mind
+            // MID-WALK, and a stop missing from it does not fall back to
+            // "carry on" - it falls through to startErrand(), which reads
+            // e.biz off a stop that has no biz and dies in BIZ[undefined].
+            // Cost of the omission: four unrelated scenarios (fish market,
+            // taps, rivalry) red with a TypeError nowhere near the swim.
+            else if (e2.swim) startSwimStop(c);
             else if (e2.ball) startBallStop(c);
             else if (e2.vote || e2.soup || e2.tap != null) startTapStop(c, e2);
             else startErrand(c, e2);
@@ -16382,6 +16680,33 @@ function shadowObserve(k, bp, e) {
 // pickErrand's own census without policyProblem noticing the class list.
 function citErrandClass(e) {
   if (e.vote) return "vote:vote";
+  // THE SURF AND THE SWIM ARE DELIBERATELY ABSENT FROM THIS LADDER, and the
+  // reasoning is worth the lines because it looks exactly like an oversight
+  // and I "fixed" it and had to put it back.
+  //
+  // Neither has a branch, so both fall out of the bottom as "shack:fun" - a
+  // string on no brain's class list. That is not silence: citEngineOwned's
+  // unknown-class rule hands the WHOLE BALLOT to the script the moment any
+  // candidate has a word the artifact does not know, so a dip is scored by
+  // errandScore, exactly like every stop registered after the last training
+  // run. The 13 classes on cit_errand.candidate ARE the artifacts' arch.out
+  // (policyProblem refuses a brain whose classes are not the surface's, in
+  // order), so a 14th class is a RETRAINING event, not a line of code.
+  //
+  // The tempting shortcut is to file them under the ball - free fun on the
+  // sand, near enough. MEASURED 2026-08-29, and it is not near enough:
+  //   * the closure soak went red with "the crew is gone" - three crabs dead
+  //     of neglect at hunger 1.0, in a scenario main ends with crew=2 and no
+  //     deaths. Monkeypatching this line back made the same town live.
+  //   * the matrix agreed: dips fell 44-102 -> 6-29 across 18 arms.
+  // Because the net has never seen a beach ball ranked on a firing day, and
+  // ball:fun is a class it learned to rank almost-never. Wearing the ball's
+  // name gets the dip RANKED BY A NET THAT NEVER SAW ONE, which is the precise
+  // failure the unknown-class fallback exists to prevent. The exposure it was
+  // meant to fix is 0.1% of thinks (4 of 3805 measured), not the "lobotomy" I
+  // first called it: the fallback is the design working, not a shipped bug.
+  // When a citizen artifact is next trained, give them their own classes and
+  // delete this - until then the script is the RIGHT decider, not a fallback.
   if (e.ball) return "ball:fun";
   if (e.soup) return "soup:food";
   if (e.tap != null) return "tap:" + e.need;
@@ -17394,6 +17719,7 @@ function crabStatus(c) {
     if (c.dsC === DS.selfCook) return "DAY OFF - RAIDING THE PANTRY";
     if (c.dsC === DS.atBall) return "DAY OFF - BEACH BALL";
     if (c.dsC === DS.atSurf) return "DAY OFF - " + (c.surfT > 0 ? "OUT IN THE SURF" : "OFF TO SURF");
+    if (c.dsC === DS.atSwim) return "DAY OFF - " + (c.swimT > 0 ? "IN THE WATER" : "OFF FOR A DIP");
     if (c.dsC === DS.atTap) return "DAY OFF - " + tapStatus(c);
     if (c.dsC === DS.toHome) return "DAY OFF - STROLLING HOME";
     if (c.dsC === DS.home) {
@@ -17431,6 +17757,7 @@ function crabStatus(c) {
   if (c.dsC === DS.errand) return "IN LINE AT " + BIZ[c.errandBiz].name;
   if (c.dsC === DS.atBall) return c.ballT > 0 ? "PLAYING BEACH BALL" : "OFF TO THE BEACH BALL";
   if (c.dsC === DS.atSurf) return c.surfT > 0 ? "OUT IN THE SURF" : "PADDLING OUT";
+  if (c.dsC === DS.atSwim) return c.swimT > 0 ? "IN THE WATER" : "OFF FOR A DIP";
   if (c.dsC === DS.atTap) return tapStatus(c);
   const toWork = c.dsC === DS.toWork;
   if (c.csC === CS.waitBus) return "WAITING FOR THE BUS";
@@ -19138,6 +19465,7 @@ function drawBG() {
   rect(ctx, 0, SHORE_Y - surge + Math.max(0, f), W, 2 + ((S.swell * 2) | 0), [230, 250, 255]);
   drawHorizonTraffic();   // boats float ON the water, so: after it
   drawSurfers();          // ...and a crab on a wave is nearer than any boat
+  drawSwimmers();         // ...and a bather in the shallows is nearer still
   drawMist();             // and the weather takes the water and the shore together
   // sand (world)
   rect(ctx, 0, SHORE_Y, W, PANEL_Y - SHORE_Y, [246, 222, 170]);
@@ -20282,6 +20610,9 @@ function brainTvObs(name, v) {
     case "citizen.surf.up":         return ["SURF'S UP", yn];
     case "citizen.surf.riders":     return ["IN THE WATER", ((v / 1024) | 0) + " OUT"];
     case "citizen.surf.cd":         return ["SURF REST", "" + v];
+    case "citizen.swim.up":         return ["SWIMMABLE", yn];
+    case "citizen.swim.bathers":    return ["IN THE SHALLOWS", ((v / 1024) | 0) + " IN"];
+    case "citizen.swim.cd":         return ["SWIM REST", "" + v];
     case "citizen.nudge.live":      return ["THE THUMB", yn];
     case "citizen.poll.open":       return ["POLLS OPEN", yn];
     case "citizen.voted":           return ["HAS VOTED", yn];
@@ -25408,6 +25739,7 @@ function simTown(dt) {
     else if (c.dsC === DS.atTap) updateTap(c, dt);
     else if (c.dsC === DS.atBall) updateBall(c, dt);
     else if (c.dsC === DS.atSurf) updateSurf(c, dt);
+    else if (c.dsC === DS.atSwim) updateSwim(c, dt);
     else if (c.dsC === DS.selfCook) updateSelfCook(c, dt);
     else if (c.dsC === DS.working && c.p.job === "fishing") updateFishing(c, dt);
     else if (c.dsC === DS.working) updateKitchen(c, dt);
