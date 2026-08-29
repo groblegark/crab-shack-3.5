@@ -8559,21 +8559,35 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // (holds.includes "hotel"), or DANGLING - pointing at a business that is gone
   // (holds empty), which is the very field the death seam reads. Owning some
   // OTHER shop is the correction; it is not a leak.
-  const reef = JSON.parse(sim.G(`JSON.stringify((allCrabs().find(k => k.p.name === "REEF") || { p: {} }).p)`));
-  if (reef.owner != null) {
-    const holds = JSON.parse(sim.G(`JSON.stringify(Object.keys(BIZ).filter(b => bizOwner(b) === ${JSON.stringify(reef.owner)}))`));
-    if (holds.includes("hotel")) return "REEF still owns the hotel he sold: " + JSON.stringify(holds);
-    if (!holds.length) return "REEF's owner-id survived the sale but names no business (dangling): " + reef.owner;
-    // else: he holds some OTHER lease (SUDSY's showers, off the day-9 market) - allowed.
+  // ...UNLESS the universal-death system took him. The moment the sale clears
+  // REEF is jobless, and a jobless crab neglected past DEATH_DAY dies like any
+  // other - a butterfly a relief errand elsewhere in town can tip on a busy
+  // seed (the swim dips are OTHER crabs', never his). That is the death system
+  // working, not a handover leak: the money conservation above (buyerPaid ===
+  // sellerGain, REEF -> BRASS) already proved he was PAID, independent of
+  // whether he lives to spend it. So if REEF is GONE he must be gone through
+  // the death SEAM - a memorial - not vanished silently; a silent disappearance
+  // is the one shape that WOULD be a handover leak, and this still catches it.
+  const reef = JSON.parse(sim.G(`JSON.stringify((() => { const k = allCrabs().find(k => k.p.name === "REEF"); return k ? k.p : null; })())`));
+  if (reef === null) {
+    if (!sim.G(`memorials.some(m => m.name === "REEF")`))
+      return "REEF vanished after selling the Driftwood with no death on record (silent handover leak)";
+  } else {
+    if (reef.owner != null) {
+      const holds = JSON.parse(sim.G(`JSON.stringify(Object.keys(BIZ).filter(b => bizOwner(b) === ${JSON.stringify(reef.owner)}))`));
+      if (holds.includes("hotel")) return "REEF still owns the hotel he sold: " + JSON.stringify(holds);
+      if (!holds.length) return "REEF's owner-id survived the sale but names no business (dangling): " + reef.owner;
+      // else: he holds some OTHER lease (SUDSY's showers, off the day-9 market) - allowed.
+    }
+    // ...but the town may HIRE him back across the same counter: under the
+    // neuro visitor flow the hotel runs busy enough that BRASS posts a vacancy
+    // and REEF - jobless, experienced, standing right there - takes it. That is
+    // the wage market working, not the handover failing; what the handover owes
+    // us is that he holds no desk he was not HIRED to.
+    if (reef.job === "hotel" && reef.employer !== h.id)
+      return "REEF kept the desk he sold without being hired to it: employer " + JSON.stringify(reef.employer);
+    if (!(reef.wallet > 10000)) return "REEF sold a hotel and has nothing to show for it: $" + reef.wallet;
   }
-  // ...but the town may HIRE him back across the same counter: under the
-  // neuro visitor flow the hotel runs busy enough that BRASS posts a vacancy
-  // and REEF - jobless, experienced, standing right there - takes it. That is
-  // the wage market working, not the handover failing; what the handover owes
-  // us is that he holds no desk he was not HIRED to.
-  if (reef.job === "hotel" && reef.employer !== h.id)
-    return "REEF kept the desk he sold without being hired to it: employer " + JSON.stringify(reef.employer);
-  if (!(reef.wallet > 10000)) return "REEF sold a hotel and has nothing to show for it: $" + reef.wallet;
   // ...and the Driftwood keeps trading under her, same night
   const till0 = sim.G(`OWNERS[hotelier.id].till`);
   const traded = sim.runUntil(`OWNERS[hotelier.id].till > ${till0} + 10`,
