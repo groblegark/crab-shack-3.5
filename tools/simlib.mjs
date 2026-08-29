@@ -27,7 +27,12 @@ import vm from "vm";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const noop = () => {};
-const GAME_FILES = ["font.js", "ppu.js", "sprites.js", "crabs.js", "cultureways.js", "game.js"];
+// news.js is COPY, not code - two const arrays and no statements - and it is
+// here for the same reason cultureways.js is: the title screen reads it, so a
+// harness that cannot see it is photographing a different game than the one
+// that ships. It is sim-inert by construction (it draws no RNG and declares no
+// function), which is what makes adding it to this list safe.
+const GAME_FILES = ["font.js", "ppu.js", "sprites.js", "crabs.js", "cultureways.js", "news.js", "game.js"];
 const REALM_DEFAULT = process.env.SIMLIB_REALM === "main" ? "main" : "vm";
 
 export function mulberry32(a) {
