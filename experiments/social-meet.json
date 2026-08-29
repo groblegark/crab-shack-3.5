@@ -1,0 +1,25 @@
+{
+  "name": "social-meet",
+  "note": "THE SOCIAL DESTINATION, priced by its OWN --failoff meet hatch (kd-aLTKJsYnHn). Twelve arms: {baseline, growth chef+table} x seedbase {0,16,32} x {as-built, failoff-meet}. as-built = the shipped meeting bias (a bored crab's wander pick is steered toward a landmark where another chat-ready crab already is/heads, so two of them actually MEET and existing proximity chat cures them at existing rates); failoff-meet = the SAME TREE with the bias armed off (window._failOff={meet:1}), so the wander pick is the blind draw it always was. One variable, same tree - the delta is the bias, not whatever else moved on main. THIS IS A MEASUREMENT, NOT A GATE (the suite gate is suite-330, both backends): read the DOSE, not survival. THE THREE NUMBERS TO READ, as-built vs failoff-meet on the SAME seeds, over 48 towns per config: (1) social.chats - meetings that became a chat; expect MORE as-built. (2) social.chatRelief - the boredom RELIEF those chats banked, RAW Q20 (/1048576 for the fraction); expect MORE as-built, and this is the cure the bias BUYS TIME for - it is not a new cure, the existing proximity chat does the curing at CHAT_RELIEF unchanged. (3) social.wanders - the whole town's wander count; expect ROUGHLY EQUAL across the pair by construction (the bias changes WHICH landmark, never WHETHER a crab wanders), which is what proves the extra chats came from better MEETINGS and not from more wandering. Per-day rates = each total / throughput.livedSimDays (the same seeds live the same days, so the denominators match). The CURE LEDGER stays true: no new venue, no ambient decay, no solo cure, and CHAT_RELIEF/CHAT_CD/CHAT_AT/arcade are untouched - a crab that arrives at the meeting place ALONE still gets exactly nothing. 30 days, --json receipts, batch sets kernel=wasm realm=main.",
+  "resources": {
+    "requests": { "cpu": "7", "memory": "2Gi" },
+    "limits": { "cpu": "8", "memory": "4Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "base-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "base-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb0-meetoff",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--failoff","meet","--json"] },
+    { "id": "base-sb16-meetoff", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--failoff","meet","--json"] },
+    { "id": "base-sb32-meetoff", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--failoff","meet","--json"] },
+
+    { "id": "growth-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb0-meetoff",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--failoff","meet","--json"] },
+    { "id": "growth-sb16-meetoff", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--failoff","meet","--json"] },
+    { "id": "growth-sb32-meetoff", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--failoff","meet","--json"] }
+  ]
+}

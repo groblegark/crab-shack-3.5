@@ -130,6 +130,22 @@ const surfRides = results.reduce((s, r) => s + (statOf(r).surfRides || 0), 0);
 const surfCrowded = results.reduce((s, r) => s + (statOf(r).surfCrowded || 0), 0);
 const surfTowns = results.filter((r) => (statOf(r).surfSessions || 0) > 0).length;
 
+// SOCIAL DESTINATION DOSE (kd-aLTKJsYnHn). The meeting bias steers WHERE bored
+// crabs wander so two of them actually MEET; its effect shows up as CHATS and
+// the boredom RELIEF they bank, carried there by WANDERS. Same _stats the worker
+// already returns, no sim cost - exactly like the arcade/surf dose above. The
+// before/after control is `--failoff meet` (the bias off): expect FEWER chats
+// and less chatRelief for a comparable wander count on the same seeds, since the
+// wander pick is then blind and two bored crabs seldom land on the same landmark.
+// chatRelief is RAW Q20 (CHAT_RELIEF = 0.06 = 62914 per chat); divide by 1048576
+// for the fraction. wanders is the whole town's wander count, bias-independent by
+// construction (the bias changes WHICH spot, never WHETHER a crab wanders), so it
+// is the denominator that turns a chat count into a meetings-per-wander rate.
+const chats = results.reduce((s, r) => s + (statOf(r).chats || 0), 0);
+const chatRelief = results.reduce((s, r) => s + (statOf(r).chatRelief || 0), 0);
+const wanders = results.reduce((s, r) => s + (statOf(r).wanders || 0), 0);
+const chatTowns = results.filter((r) => (statOf(r).chats || 0) > 0).length;
+
 // See the SWIM DOSE note by the `swim:` report field. `dips` = crabs that
 // entered the water for a calm-day relief; `done` = dips that finished and
 // walked back out. Must be 0 in every --noswim arm; must be >0 in an as-built
@@ -163,6 +179,11 @@ const out = {
   // crab paddled out; under --nosurf every number here must be 0, and in an
   // as-built arm `sessions` must not be, or the arm measured nothing.
   surf: { towns: surfTowns, sessions: surfSessions, rides: surfRides, crowded: surfCrowded },
+  // See the SOCIAL DESTINATION DOSE note above. `towns` = towns where at least
+  // one chat happened; `chats`/`chatRelief`/`wanders` are the whole-matrix totals.
+  // Under --failoff meet the bias is off (blind wander draw): expect FEWER chats
+  // and less chatRelief for a comparable wanders count on the same seeds.
+  social: { towns: chatTowns, chats, chatRelief, wanders },
   // See the SWIM DOSE note above. `towns` = towns where at least one crab had a
   // dip; under --noswim every number here must be 0, and in an as-built arm
   // `dips` must not be, or the arm measured nothing.
@@ -183,6 +204,7 @@ else {
   console.log(`lifetime   median $${out.lifetime.median}  p10 $${out.lifetime.p10}  p90 $${out.lifetime.p90}  mean $${out.lifetime.mean}`);
   console.log(`arcade     built ${builtArcade}/${TOWNS}, played-in ${playedTowns.length}, games ${gamesPlayed} (tour ${gamesTour}/crab ${gamesCrab})`);
   console.log(`surf       paddled out in ${surfTowns}/${TOWNS} towns, ${surfSessions} sessions, ${surfRides} rides (${surfCrowded} shared the peak)`);
+  console.log(`social     chatted in ${chatTowns}/${TOWNS} towns, ${chats} chats, ${(chatRelief / 1048576).toFixed(1)} relief-frac, ${wanders} wanders`);
   console.log(`swim       dipped in ${swimTowns}/${TOWNS} towns, ${swimDips} dips, ${swimDone} finished`);
   console.log(`\n>> ${out.throughput.simDaysPerSec} lived sim-days/sec machine-wide  (${livedDays} days / ${out.throughput.wallSec}s, loadavg ${out.throughput.loadavg.join(" ")})`);
 }

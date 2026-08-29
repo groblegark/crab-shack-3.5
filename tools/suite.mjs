@@ -5155,6 +5155,68 @@ scenario("boredom's free cures are LIMITED, and neither pays for itself", () => 
   return true;
 });
 
+// THE SOCIAL DESTINATION (task kd-aLTKJsYnHn, ruling social-only on
+// kd-riXXp2Yvty). The two substrates - a bored crab drifting to a WANDER_SPOT,
+// and two crabs who pass within CHAT_PX falling into a chat - already existed
+// and did not know about each other: the spot pick was solo and blind, so two
+// bored crabs 400px apart reliably chose two different landmarks and never met.
+// wanderSpot now STEERS the pick toward a landmark where a chat-ready crab is
+// already standing. This gate proves the STEER and that it is a BIAS, not a
+// mandate; the ledger gate above (every boredom drop is a chat/ball/surf within
+// its ceiling) proves the steer added no cure. The two are complementary: this
+// one would still pass if the bias secretly cured boredom, and that one would
+// still pass if the bias did nothing - only together do they pin the feature.
+scenario("social destination: the wander pick STEERS toward company, and _failOff meet restores the blind draw", () => {
+  // A direct distribution test on wanderSpot. Fixture in the game realm: a test
+  // subject C and a chat-ready COMPANY crab O parked (wander) at THE ARCADE
+  // WINDOW (x 1578). C's post is chosen so exactly two landmarks lie within
+  // WANDER_PX - the arcade window and the pier rail - a clean two-way pick. Then
+  // call wanderSpot 600 times and count where C is sent. No srand reseed: 600
+  // draws smooth the seed, and the assertions are wide bands, not fingerprints.
+  const arm = (off) => {
+    const sim = createSim({ seed: 63 });
+    idleTown(sim, 3);
+    if (off) sim.G(`window._failOff = { meet: 1 };`);
+    return JSON.parse(sim.G(`(function () {
+      window._noRival = true;                 // no stakeout branch -> a clean two-way pick
+      refreshHatches();                        // patOff reads the once-per-frame snapshot; a
+                                               // direct wanderSpot call steps no frame, so sync it
+                                               // by hand exactly as the frame TOP would
+      const C = crabs[0], O = crabs[1];
+      // O: chat-ready (bored past CHAT_AT, free of any held resource, no other
+      // need pulling rank) and standing at the arcade window.
+      O.dayState = "working"; O.ksC = KS.wander; O.pendingOff = false;
+      O.p.job = "shack"; O.p.sick = null; O.hidden = false; O.carrying = null;
+      O.errandCust = null; O.cust = null; O.slot = -1; O.order = null;
+      O.napT = 0; O.chatCd = 0;
+      O.p.bored = qn(0.9); O.p.hunger = 0; O.p.thirst = 0; O.p.tired = 0; O.p.dirt = 0;
+      O.wander = { x: 1578, y: 150, label: "THE ARCADE WINDOW" };
+      const post = 1718;   // WANDER_PX=340 -> near = { arcade 1578 (140px), pier 1858 (140px) }
+      const near = WANDER_SPOTS.filter(s => Math.abs(s.x - post) <= WANDER_PX);
+      const tally = {};
+      for (let t = 0; t < 600; t++) {
+        const w = wanderSpot(C, post);
+        tally[w.label] = (tally[w.label] || 0) + 1;
+      }
+      return JSON.stringify({ nearN: near.length, arcade: tally["THE ARCADE WINDOW"] || 0, total: 600 });
+    })()`));
+  };
+  const on = arm(false), off = arm(true);
+  if (on.nearN !== 2) return "fixture drifted: expected 2 landmarks in WANDER_PX, got " + on.nearN;
+  // BIAS ON: the occupied landmark wins a clear majority. Weights are
+  // [1+MEET_BONUS, 1] = [5,1] with one companion, so ~5/6 = 83%. Assert a wide,
+  // non-flaky floor well under that.
+  if (!(on.arcade / on.total > 0.65))
+    return `bias ON did not steer toward company: arcade chosen ${on.arcade}/${on.total}`;
+  // BIAS OFF (_failOff meet): the blind uniform draw over two spots ~= 50%.
+  if (!(off.arcade / off.total > 0.35 && off.arcade / off.total < 0.65))
+    return `_failOff meet did not restore the blind draw: arcade ${off.arcade}/${off.total}`;
+  // ...and the steer is a real, large difference, not seed noise between arms.
+  if (!(on.arcade > off.arcade + 90))
+    return `the steer is within noise: on ${on.arcade} vs off ${off.arcade} of ${on.total}`;
+  return true;
+});
+
 
 // ---- THE WAGE IS A SETTING -----------------------------------------------
 // Per-business rates, per-crab deals, and what the town does about them.

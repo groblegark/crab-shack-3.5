@@ -6285,6 +6285,9 @@ function tickSleepDebt(c) {
 // cure. A crab with nobody to talk to - the lone shower attendant, the fisher
 // alone on the far rail - has no way out at all except the arcade. Boredom is
 // therefore also a LONELINESS need, which is the shape the design doc wanted.
+// THE SOCIAL DESTINATION (wanderSpot, below) works entirely WITHIN this ledger:
+// it biases WHERE a bored crab drifts so two of them actually MEET, but adds no
+// cure - a crab that arrives alone still gets nothing, and no CHAT_* rate moves.
 //
 // AND A CHATTING PAIR CANNOT KEEP ITSELF TOPPED UP. A worked shift adds +0.2
 // boredom. CHAT_CD lets a crab talk at most twice in a trading day, for
@@ -6564,6 +6567,13 @@ function boredYields(c) {
   return (c.p.hunger || 0) >= BORED_YIELD || (c.p.thirst || 0) >= BORED_YIELD
     || (c.p.tired || 0) >= BORED_YIELD;
 }
+// MEET_BONUS: how hard the SOCIAL DESTINATION bias pulls (task kd-aLTKJsYnHn).
+// A landmark where ONE chat-ready crab already stands (or is walking) is
+// (1 + MEET_BONUS)x as likely to be chosen as an empty one; more company, more
+// pull. It is a BIAS, not a mandate - an empty spot still carries weight 1, so a
+// crab can and does still wander off alone.
+const MEET_BONUS = 4;
+
 function wanderSpot(c, post) {
   // A RIVAL EYEING A SHOP GOES AND STANDS OUTSIDE IT. Not a new behaviour -
   // the same idle-hands trip every bored crab takes, aimed on purpose. This is
@@ -6574,7 +6584,50 @@ function wanderSpot(c, post) {
   }
   const near = WANDER_SPOTS.filter(s => Math.abs(s.x - post) <= WANDER_PX);
   if (!near.length) return null;
-  const s = near[(srand() * near.length) | 0];
+  // SOCIAL DESTINATION (kd-aLTKJsYnHn, ruling social-only on kd-riXXp2Yvty).
+  // The two substrates - a bored crab drifting to a WANDER_SPOT, and two crabs
+  // who pass within CHAT_PX falling into a chat - already exist and did not know
+  // about each other: the spot pick was SOLO and BLIND, so two bored crabs 400px
+  // apart reliably picked two different landmarks and never met. Here the pick
+  // STEERS toward a landmark where another CHAT-READY crab already stands or is
+  // heading - counted only when its wander target sits within CHAT_PX of the
+  // candidate (i.e. the SAME landmark, so they will actually fall into step when
+  // this crab arrives). This is a MEETING BIAS, never a third cure: it changes
+  // WHICH spot, not what happens there. A crab that arrives alone gets exactly
+  // nothing (a chat still needs two, at the unchanged CHAT_* rates), so the CURE
+  // LEDGER above holds as written - no free-fun venue, no ambient decay, no solo
+  // cure, and the CHAT_CD airbag (two chats a day) is untouched. Off via
+  // patOff("meet") (--failoff meet), the same narrow family as chat/wander.
+  //
+  // BYTE-IDENTICAL when nobody is out to meet: `weights` only allocates once a
+  // spot has company, so a town with no company (or the hatch off) falls to the
+  // exact old uniform draw below - two srand() calls either way, the first over
+  // `total` (which then equals near.length) instead of near.length. A town with
+  // nobody socialising is the old town, by construction.
+  let weights = null, total = 0;
+  if (!patOff("meet")) {
+    for (let i = 0; i < near.length; i++) {
+      let company = 0;
+      for (const o of allCrabs()) {
+        if (o === c || !o.wander) continue;
+        if (Math.abs(o.wander.x - near[i].x) > CHAT_PX || !chatReady(o)) continue;
+        company++;
+      }
+      if (company) {
+        if (!weights) { weights = near.map(() => 1); total = near.length; }
+        weights[i] += MEET_BONUS * company;
+        total += MEET_BONUS * company;
+      }
+    }
+  }
+  let s;
+  if (weights) {
+    let r = srand() * total;
+    for (let i = 0; i < near.length; i++) { r -= weights[i]; if (r < 0) { s = near[i]; break; } }
+    if (!s) s = near[near.length - 1];   // float-slack guard: srand() < 1 so this is unreachable
+  } else {
+    s = near[(srand() * near.length) | 0];
+  }
   return { x: s.x, y: clearSpotY(s.x, 150 + ((srand() * 3) | 0) * 6), label: s.label };
 }
 const WANDER_QUIPS = ["NOTHING DOING", "JUST STRETCHING MY LEGS",
