@@ -19207,16 +19207,22 @@ scenario("policies: the slot registry answers who decides, and refuses surfaces 
   const got = JSON.parse(sim.G(`JSON.stringify({
     crab: policyOf("crab", "vis_pick.candidate"),
     pig: policyOf("pig", "vis_pick.candidate"),
-    ghost: policyOf("crab", "own_settle.lever"),
+    owner: policyOf("crab", "own_settle.lever"),
+    ghost: policyOf("crab", "no_such.surface"),
     surf: Object.keys(NEURO_SURFACES) })`));
   if (!got.surf.includes("vis_pick.candidate")) return "the visitor surface is not registered";
   if (!got.crab || !got.crab.declared || got.crab.kind !== "brain")
     return "the crab's bundled brain did not resolve: " + JSON.stringify(got.crab);
   if (!got.pig || got.pig.declared || got.pig.kind !== "script" || got.pig.impl !== "visPick")
     return "an undeclared culture did not fall to the engine script: " + JSON.stringify(got.pig);
+  // the owner surface is registered (shadow-first scaffold) and, undeclared,
+  // falls to its engine default reference script - it does NOT resolve to a brain
+  if (!got.surf.includes("own_settle.lever")) return "the owner surface is not registered";
+  if (!got.owner || got.owner.declared || got.owner.kind !== "script" || got.owner.impl !== "ownerSettleLever")
+    return "the owner surface did not fall to its engine script: " + JSON.stringify(got.owner);
   if (got.ghost !== null) return "an unregistered surface resolved: " + JSON.stringify(got.ghost);
   // an artifact naming an unregistered surface is refused at the door, named
-  const msg = sim.G(`policyProblem({ "own_settle.lever": { kind: "table" } })`);
+  const msg = sim.G(`policyProblem({ "no_such.surface": { kind: "table" } })`);
   if (!msg || !msg.includes("UNKNOWN SURFACE")) return "an unregistered surface was not refused: " + msg;
   // registration clamps, loud
   for (const [bad, name] of [
@@ -19226,6 +19232,64 @@ scenario("policies: the slot registry answers who decides, and refuses surfaces 
     const m = sim.G(`(() => { try { ${bad}; return "TOOK"; } catch (e) { return e.message; } })()`);
     if (m === "TOOK" || !m.includes(name)) return "a bad surface was not refused: " + m;
   }
+  return true;
+});
+
+// THE OWNER SURFACE (own_settle.lever) - the shadow-first scaffold, slice A of
+// the owner mind (cs35-dream-replay.md §1.2). It ships the surface + a full
+// owner.* observable ledger + a distill-pure reference decider (ownerSettleLever)
+// that reports which lever each NPC owner pulled at settlement. NO brain, NO
+// shadow hook: it OBSERVES and SCORES, it never takes the wheel. The whole suite
+// staying green on both backends IS the proof the scaffold is inert.
+scenario("owner surface: class contract, observable ledger, and the reference decider are wired and enforced", () => {
+  const sim = createSim({ seed: 44 });
+  const want = ["hold", "price_up", "price_down", "open_later", "open_earlier",
+    "close_later", "close_earlier", "wage_up", "wage_down", "offer_prize", "retreat"];
+  // 1. the class contract, exact and in order - what a future artifact validates against
+  const classes = JSON.parse(sim.G(`JSON.stringify(NEURO_SURFACES["own_settle.lever"].classes)`));
+  if (JSON.stringify(classes) !== JSON.stringify(want))
+    return "the owner class contract drifted: " + JSON.stringify(classes);
+  // 2. the ledger -> decider wiring is deterministic, and priority holds (the
+  //    rivalry outranks the routine hours/wage tune when both move one owner)
+  const wired = sim.G(`(() => { const b = Object.keys(BIZ)[0]; ownLever = {};
+    ownLeverStamp(b, "wage_up", OWN_PRIO.wage);
+    return ownerSettleLever(b) + "|" + ownerSettleLever("__none__"); })()`);
+  if (wired !== "wage_up|hold") return "the reference decider did not reflect a stamp: " + wired;
+  const prio = sim.G(`(() => { const b = Object.keys(BIZ)[0]; ownLever = {};
+    ownLeverStamp(b, "close_later", OWN_PRIO.hours);
+    ownLeverStamp(b, "offer_prize", OWN_PRIO.rival);
+    ownLeverStamp(b, "wage_up", OWN_PRIO.hours);   // lower prio: must NOT overwrite the rival move
+    return ownerSettleLever(b); })()`);
+  if (prio !== "offer_prize") return "lever priority did not hold (rival must outrank hours): " + prio;
+  // 3. a valid owner brain FILE is accepted, and a wrong-order class list is
+  //    refused by name - the 11-class contract is enforced at the door
+  const rv = JSON.parse(sim.G(`NEURO_REGISTRY_VERSION`));
+  const brain = { kind: "brain", mode: "shadow", registryVersion: rv,
+    inputs: ["own.till.cents", "own.day"], classes: want.slice(),
+    arch: { in: 2, hidden: 1, out: 11 }, shifts: { R1: 6 },
+    w1: [[0, 0]], b1: [0], w2: want.map(() => [0]), b2: want.map(() => 0) };
+  const okMsg = sim.G(`policyProblem(${JSON.stringify({ "own_settle.lever": brain })})`);
+  if (okMsg !== null && okMsg !== "null") return "a valid owner brain file was refused: " + okMsg;
+  const badBrain = JSON.parse(JSON.stringify(brain));
+  badBrain.classes = [want[2], want[1], want[0], ...want.slice(3)];   // shuffle the head
+  const badMsg = sim.G(`policyProblem(${JSON.stringify({ "own_settle.lever": badBrain })})`);
+  if (!badMsg || !badMsg.includes("CLASSES MUST EQUAL")) return "a wrong-order owner brain was not refused: " + badMsg;
+  // 4. over a real run the reference decider only ever emits contract classes,
+  //    and every own.* observable reads an integer in [0, 32767] for a real biz
+  const sim2 = createSim({ seed: 44 });
+  sim2.runDays(15);
+  const res = JSON.parse(sim2.G(`JSON.stringify((() => {
+    const cls = NEURO_SURFACES["own_settle.lever"].classes, keys = Object.keys(BIZ);
+    const out = { badLever: [], obsBad: [] };
+    for (const b of keys) { const lv = ownerSettleLever(b); if (!cls.includes(lv)) out.badLever.push(b + "=" + lv); }
+    for (const name of Object.keys(NEURO_OBSERVABLES)) {
+      if (name.indexOf("own.") !== 0) continue;
+      for (const b of keys) { const v = NEURO_OBSERVABLES[name].read(b);
+        if (!Number.isInteger(v) || v < 0 || v > 32767) { out.obsBad.push(name + "@" + b + "=" + v); break; } }
+    }
+    return out; })())`));
+  if (res.badLever.length) return "the reference decider emitted an off-contract lever: " + res.badLever.join(", ");
+  if (res.obsBad.length) return "an owner observable read out of [0,32767]: " + res.obsBad.join(", ");
   return true;
 });
 

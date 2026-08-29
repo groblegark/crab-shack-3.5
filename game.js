@@ -2427,6 +2427,14 @@ function runHoursPolicy(b) {      // one NPC owner reads the day's signals at se
     close -= 60; line = "NOW CLOSES AT " + fmtHr(close);          // dead evenings: shut early
   }
   if (!line) return;
+  // OWNER-SURFACE STAMP: derive the lever from the NEW targets vs the still-old
+  // hours (setBizHours mutates h in place, so this must run before it). Exactly
+  // one of open/close moved (else-if chain), so a single comparison names it.
+  ownLeverStamp(b,
+    close > h.close ? "close_later" :
+    close < h.close ? "close_earlier" :
+    open > h.open ? "open_later" : "open_earlier",
+    OWN_PRIO.hours);
   setBizHours(b, open, close);
   st.hist = []; st.cd = 1;   // fresh eyes on the new schedule, and a day to breathe
   const who = OWNERS[bizOwner(b)].name;
@@ -2657,6 +2665,32 @@ const SALE_CFG = {
 let market = {};       // bizKey -> { price, day, why } - the live FOR SALE listings (persisted)
 let bizTake = {};      // bizKey -> the last 3 days' takings (persisted; the goodwill half of a price)
 let bizStrike = {};    // bizKey -> consecutive missed settlements (persisted)
+// THE OWNER-SURFACE LEVER LEDGER (own_settle.lever, cs35-dream-replay.md §1.2).
+// SHADOW-FIRST SCAFFOLD (slice A of the owner mind): the settlement scripts are
+// the reference teacher, and each one STAMPS the lever it actually pulled at its
+// own mutation site as it pulls it. ownerSettleLever reads this ledger back - so
+// the reference label IS what the reference script did, never a re-derivation
+// that could silently disagree with it (find the consumer before trusting a
+// derivation: kd-E2hXh2xhHA). Reset each settlement night, highest priority wins
+// when two scripts move the same owner (the rivalry outranks the routine hours/
+// wage tune). NOTHING in the sim reads ownLever - no brain is wired here and no
+// shadow hook fires yet (both are later slices) - so these stamps are inert by
+// construction: a green suite on both backends, fingerprints unmoved, IS the
+// proof of inertness. The guardrail is explicit and load-bearing (§1.2): owner
+// brains ship shadow-first and never wire into headless.mjs's autopilot without
+// Matt's ruling - this scaffold OBSERVES and SCORES, it never takes the wheel.
+let ownLever = {};                       // bizKey -> { lever, prio }  (this night)
+const OWN_PRIO = { hours: 1, wage: 2, rival: 3 };
+function ownLeverStamp(b, lever, prio) {
+  const cur = ownLever[b];
+  if (!cur || prio >= cur.prio) ownLever[b] = { lever, prio };
+}
+// The reference decider for own_settle.lever: the distill-pure shadow script
+// (rung 3). "hold" when no settlement script moved this owner tonight.
+function ownerSettleLever(b) {
+  const cur = ownLever[b];
+  return cur ? cur.lever : "hold";
+}
 function forSale(b) { return !!BIZ[b] && BIZ[b].owner === null; }
 function saleList() { return Object.keys(BIZ).filter(forSale); }
 // the BUY chip on a shuttered shopfront - the same "the sign is the owner's
@@ -3288,6 +3322,9 @@ function makeRivalOffer() {
   const b = RIVAL_CFG.PRIZE, q = rivalOfferPrice();
   rival.offer = { price: q.price, worth: q.worth, day };
   rival.stage = "offer"; rival.offerDay = day; rival.lastOffer = day;
+  // OWNER-SURFACE STAMP: the offer is the rival owner's judgement, keyed on her
+  // own shop (the balance sheet she reads), same as her compete/retreat moves.
+  ownLeverStamp(RIVAL_CFG.SHOP, "offer_prize", OWN_PRIO.rival);
   const who = rivalName();
   toast = { text: who + " OFFERS $" + fmt(q.price) + " FOR THE " + BIZ[b].short + " - TAP ITS SIGN", t: 9 };
   today.rival.push(who + " OFFERS $" + fmt(q.price) + " FOR THE " + BIZ[b].short
@@ -3387,6 +3424,7 @@ function runRivalCompete() {
   if (!o || bizOwner(shop) !== rivalOwnerId() || forSale(shop)) return false;
   if (day - rival.stepDay < RIVAL_CFG.STEP_DAYS) return false;
   rival.stepDay = day;
+  let lever = null;   // OWNER-SURFACE STAMP: the rival owner's move, keyed on her SHOP
   // A PRICE WAR COSTS THE ONE WHO STARTED IT. When her own till cannot carry
   // the fight she walks the last move BACK, in public - which is the player's
   // counter working, and the reason this can never become a death sentence.
@@ -3408,11 +3446,13 @@ function runRivalCompete() {
       line = "TRIMS THE " + BIZ[shop].short + " WAGE TO $" + $d(bizWage(shop));
     }
     if (line) {
+      lever = "retreat";   // all three walk-backs are the one design lever
       toast = { text: who + " " + line + " - SHE CAN'T CARRY THE FIGHT", t: 7 };
       today.rival.push(who + " " + line + " (BACKING OFF)");
       if (window._stats) (window._stats.rivalMoves = window._stats.rivalMoves || [])
         .push({ day, move: "retreat", line });
     }
+    if (lever) ownLeverStamp(shop, lever, OWN_PRIO.rival);
     return !!line;
   }
   // ...otherwise one lever, in order, cycling
@@ -3422,15 +3462,18 @@ function runRivalCompete() {
     let line = null;
     if (move === "price" && bizPriceIdx(shop) - RIVAL_CFG.CUT_IDX >= PRICE_IDX_MIN) {
       setBizPriceIdx(shop, bizPriceIdx(shop) - RIVAL_CFG.CUT_IDX);
+      lever = "price_down";
       line = "CUTS THE " + BIZ[shop].short + " PRICE TO " + bizPricePct(shop) + "%"
         + " (" + bizRecipes(shop).map(r0 => "$" + $d(menuPrice(shop, r0))).join("/") + ")";
     } else if (move === "hours") {
       const h = BIZ[shop].hours;
       if (h.close + 60 <= HOURS_MAX) {
         setBizHours(shop, h.open, h.close + 60);
+        lever = "close_later";
         line = "KEEPS THE " + BIZ[shop].short + " OPEN TO " + fmtClock(BIZ[shop].hours.close);
       } else if (h.open - 30 >= HOURS_MIN) {
         setBizHours(shop, h.open - 30, h.close);
+        lever = "open_earlier";
         line = "OPENS THE " + BIZ[shop].short + " AT " + fmtClock(BIZ[shop].hours.open);
       }
     } else if (move === "wage") {
@@ -3443,11 +3486,13 @@ function runRivalCompete() {
       // day are paid for out of margin, which is what the retreat rule reads
       if (want > bizWage(shop) && o.till >= want * staffN) {   // one account: the till
         setBizWage(shop, want);
+        lever = "wage_up";
         for (const j of jobBoard) if (j.biz === shop) j.wage = bizWage(shop);
         line = "POSTS $" + $d(bizWage(shop)) + " AT THE " + BIZ[shop].short;
       }
     }
     if (!line) continue;
+    ownLeverStamp(shop, lever, OWN_PRIO.rival);   // OWNER-SURFACE STAMP: lever set beside line
     toast = { text: who + " " + line, t: 8 };
     today.rival.push(who + " " + line);
     const c = rivalCrab();
@@ -5320,6 +5365,8 @@ function runWagePolicy(b) {
     line = "TRIMS THE WAGE TO $" + $d(bizWage(b));
   }
   if (!line) return;
+  // OWNER-SURFACE STAMP: rate was the old wage, bizWage(b) is the new one.
+  ownLeverStamp(b, bizWage(b) > rate ? "wage_up" : "wage_down", OWN_PRIO.wage);
   st.cd = 1;
   for (const j of jobBoard) if (j.biz === b) j.wage = bizWage(b);   // the posting is the advert: keep it honest
   const who = OWNERS[oid].name;
@@ -9738,6 +9785,40 @@ const NEURO_OBSERVABLES = {
   "citizen.poll.dist.px":    { units: "px<<3", read: (c) => { let m = 32767;
     for (let i = 0; i < POLL_PLACES.length; i++) { const d = Math.floor(Math.abs(c.x - POLL_PLACES[i].x) * 8); if (d < m) m = d; }
     return nclamp(m); } },
+  // THE OWNER BLOCK (own_settle.lever, cs35-dream-replay.md §1.2): readers take
+  // the BUSINESS KEY b - an owner's judgement reads her OWN books, not a guest's
+  // needs. Every value is an integer already in owner/biz state. Big-cents fields
+  // (till/credit/takings/rival valuation) scale >>5 so a shop's real balance fits
+  // [0,32767] without clamping away its range (per-field scaling is the registry
+  // idiom - cf. room.price.cents<<3, stop.appeal>>3). Two reconciliations with the
+  // §1.2 sketch, both faithful to shipped code (the doc has drifted): (1) the war
+  // chest was RETIRED (see THE RIVALRY), so `warchest.cents` is dropped and
+  // own.rival.val.cents - her smoothed valuation of the prize - carries "how badly
+  // she wants it"; (2) grievance is capped at WAGE_CFG.CAP=1.3 so the citizen
+  // block's `/64` scaling reads ~always-0 - own.staff.gripe.max scales *4096 to be
+  // a live signal instead. Adding names is additive; NEURO_REGISTRY_VERSION stays
+  // 1, and nothing reads these until a brain declares them (a later slice), so the
+  // block is inert on landing.
+  "own.till.cents":         { units: "cents>>5", read: (b) => { const o = OWNERS[bizOwner(b)]; return nclamp((o ? o.till | 0 : 0) >> 5); } },
+  "own.credit.cents":       { units: "cents>>5", read: (b) => { const o = OWNERS[bizOwner(b)]; return nclamp((o ? o.credit | 0 : 0) >> 5); } },
+  "own.takings.3day.cents": { units: "cents>>5", read: (b) => nclamp((bizTakeAvg(b) | 0) >> 5) },
+  "own.strike.days":        { units: "n<<10",   read: (b) => nclamp((bizStrike[b] | 0) * 1024) },
+  "own.hours.first":        { units: "n",       read: (b) => { const h = hoursPolicyState[b] && hoursPolicyState[b].hist; const e = h && h.length ? h[h.length - 1] : null; return nclamp(e ? e.f | 0 : 0); } },
+  "own.hours.last":         { units: "n",       read: (b) => { const h = hoursPolicyState[b] && hoursPolicyState[b].hist; const e = h && h.length ? h[h.length - 1] : null; return nclamp(e ? e.l | 0 : 0); } },
+  "own.hours.closeQ":       { units: "n",       read: (b) => { const h = hoursPolicyState[b] && hoursPolicyState[b].hist; const e = h && h.length ? h[h.length - 1] : null; return nclamp(e ? e.q | 0 : 0); } },
+  "own.hours.open.min":     { units: "min",     read: (b) => nclamp(BIZ[b] ? BIZ[b].hours.open | 0 : 0) },
+  "own.hours.close.min":    { units: "min",     read: (b) => nclamp(BIZ[b] ? BIZ[b].hours.close | 0 : 0) },
+  "own.hours.span.min":     { units: "min",     read: (b) => nclamp(BIZ[b] ? (BIZ[b].hours.close - BIZ[b].hours.open) | 0 : 0) },
+  "own.price.idx":          { units: "idx<<8",  read: (b) => nclamp(bizPriceIdx(b) * 256) },
+  "own.price.idx.prize":    { units: "idx<<8",  read: () => nclamp(bizPriceIdx(RIVAL_CFG.PRIZE) * 256) },
+  "own.wage.cents":         { units: "cents",   read: (b) => nclamp(bizWage(b) | 0) },
+  "own.wage.going.cents":   { units: "cents",   read: (b) => nclamp(Math.max(WAGE_STD * WAGE_CFG.KEEP, pierClaim(), townWage(b)) | 0) },
+  "own.post.stale.days":    { units: "n<<10",   read: (b) => { const p = jobBoard.find(j => j.biz === b); return nclamp(p ? Math.max(0, day - p.day) * 1024 : 0); } },
+  "own.staff.gripe.max":    { units: "frac*4096", read: (b) => { let m = 0; const cs = allCrabs(); for (let i = 0; i < cs.length; i++) { const k = cs[i]; if (k.p.job === b) { const g = wageGripe(k) || 0; if (g > m) m = g; } } return nclamp(Math.floor(m * 4096)); } },
+  "own.staff.tired.max.q20": { units: "Q20>>6", read: (b) => { let m = 0; const cs = allCrabs(); for (let i = 0; i < cs.length; i++) { const k = cs[i]; if (k.p.job === b) { const t = k.p.tired || 0; if (t > m) m = t; } } return nclamp(Math.floor(m / 64)); } },
+  "own.rival.stage":        { units: "stage<<12", read: () => nclamp(Math.max(0, RIVAL_STAGES.indexOf(rival.stage)) * 4096) },
+  "own.rival.val.cents":    { units: "cents>>5", read: () => nclamp((rival.val | 0) >> 5) },
+  "own.day":                { units: "day",     read: () => nclamp(day | 0) },
 };
 // Parameterized (derived) observables, name:stop — the derivation is the
 // registry's own code (trusted, versioned), the document only picks the stop.
@@ -9835,6 +9916,36 @@ registerSurface("vis_depart.stay", {
   classes: ["hold", "sooner", "longer"],
   script: "visDepartPick",   // the engine default reads needW; no brain ships yet
   doc: "when a visitor chooses to sail home",
+});
+// THE OWNER SURFACE (own_settle.lever, cs35-dream-replay.md §1.2). ONE think per
+// owner per settlement night: the brain picks the LEVER, the engine applies the
+// legal grid step and every clamp the player's own controls run through (price
+// by index step in [PRICE_IDX_MIN, MAX], hours on the 30/60-min grain, wage by
+// $1 never under the floor). A hostile or confused brain can only choose WHICH
+// legal move, never an illegal size - amounts and cooldowns stay engine-owned.
+//
+// The class list is the CONTRACT a future artifact validates against. The design
+// doc's prose says "Twelve classes" but ENUMERATES eleven (§1.2) - and by the
+// precedent this file already set for cit_errand ("the census is the authority",
+// above), the enumerated list wins over the count. So: eleven. price_up is a
+// legal owner move the reference SCRIPTS never emit (they only ever raise price
+// as part of a retreat, which maps to `retreat`); it is retained as a valid
+// contract member because a DREAMING owner (§1.2's whole point) must be able to
+// choose it and the engine can apply it legally. A class the teacher never picks
+// simply gets no training rows - that is a fact about the teacher for the corpus
+// slice to record, not a reason to narrow the owner's legal move set.
+//
+// SHADOW-FIRST, ruled and load-bearing (§1.2 guardrail): owner brains move the
+// economy by construction, so they ship shadow-first and NOTHING goes live here
+// without a fresh triple-16 matrix and Matt's ruling. This slice ships the
+// surface + its reference decider (ownerSettleLever, the distill-pure shadow
+// script) and NO artifact - the collector, the shadow-observe hook and any brain
+// are later slices of the epic.
+registerSurface("own_settle.lever", {
+  classes: ["hold", "price_up", "price_down", "open_later", "open_earlier",
+    "close_later", "close_earlier", "wage_up", "wage_down", "offer_prize", "retreat"],
+  script: "ownerSettleLever",   // the distill-pure reference: what the scripts did
+  doc: "which lever an NPC owner pulls at settlement",
 });
 // Which policy answers for a culture on a surface - the declared one, or the
 // registered engine default. Table/script/brain all resolve here; the brain
@@ -24423,6 +24534,7 @@ function simClock(dt, rawMs) {
     // draw the night's bill) is a STRIKE against that lease; SALE_CFG.STRIKES
     // in a row and the business CLOSES and goes up for sale (see the business
     // failure & succession block). The debt is no longer quietly written off.
+    ownLever = {};   // OWNER-SURFACE: fresh ledger for tonight's settlement scripts
     for (const b of Object.keys(BIZ)) {
       const oid = bizOwner(b);
       if (!oid || oid === "player") continue;
