@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-574b5af-auam",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "574b5af061896577532f944c18b18a83af59dfc0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 106709,
+  "verdict": "38/38 passed in slice 6/12 (106.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (2360ms)\n  PASS  save guard: an empty slot still receives the first town (21ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (2532ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1211ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1031ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (3320ms)\n  PASS  census: rows derive live state, and sort + filter actually move (692ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2155ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (27ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (970ms)\n  PASS  the title's credit block never lands on the science button (13ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (63103ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (767ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (1281ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (4057ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (1410ms)\n  PASS  departures: nobody on the boat knows the town's name (664ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (1798ms)\n  PASS  care-lane bar: a debt-caused illness is barred from the rest lanes, targeted and escapable (581ms)\n  PASS  the HALL tab's text is measured, in every state it has (3290ms)\n  PASS  the shack says where the money comes from, and only your shops do (449ms)\n  PASS  the music controls answer from outside the record box (15ms)\n  PASS  BACK hands the town the track you were auditioning (12ms)\n  PASS  a crab may stand in the cabana it has come to clean (11ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (12ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (12ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (7ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (12ms)\n  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (10ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (10ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (1433ms)\n  PASS  brains: a temperament bends a mind, and both doors check it (642ms)\n  PASS  the kernel and the reference agree, byte for byte (1941ms)\n  PASS  load: the new town's desk is clear of the last town's books (2876ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (954ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (19ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (6904ms)\n38/38 passed in slice 6/12 (106.6s)\n"
+}

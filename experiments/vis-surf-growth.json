@@ -1,0 +1,15 @@
+{
+  "name": "vis-surf-growth",
+  "note": "vis_surf.go surface (task kd-9yvywiin3O) growth A/B on the landing tree. My change adds a VISITOR surf state (VS.surfing) that drains the P3 SURF_VEC (hunger/thirst 2x, dirt 1.5x) on firing days - it pumps visitor demand, which feeds shack revenue and could reach the crab growth pillar. It does NOT touch crab behaviour at all. Run this SAME manifest on BOTH refs for an honest A/B delta (kd-RSS4Nkil3c: a delta needs no control re-take, only the same harness): --ref 574b5af (treatment = visitor surf present) and --ref 2246ff4 (control = trunk, visitor surf absent in code = the clean surf-off arm; crab surf is present in BOTH so it cancels). Default decay (CIT_DECAY_MUL=7, the landed U1 value) - no --citdecay override. baseline (buy nothing) is the 0/48 floor; growth (--buy chef,table) is the RULED U1 pillar (7-12/48 on this tree per CLAUDE.md) which this change must NOT erode. batch sets kernel=wasm realm=main.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "base-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "base-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "grow-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "grow-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "grow-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] }
+  ]
+}

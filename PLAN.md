@@ -8546,3 +8546,88 @@ validated: every `--nosurf` arm 0 surf sessions, every as-built growth arm live.
 The claim is the negative one it was built to test: **charging surfing
 hunger/thirst/dirt did not cost the growth pillar.** suite-330 GREEN both
 backends at the landing (886/886, js 443/443 + wasm 443/443).
+
+## THE AWESOME PASS — the wave, the pose, the paddle-out, and THE SWIM (2026-08-29)
+
+Matt: *"i wanna see those crabs surfing on surfboard and swimming and stuff …
+let's make it awesome"* and *"also swimming should exist but it's less fun."*
+The break already worked as an economy; this pass is how it **looks**, plus the
+one new mechanic he named. Landed as merge `e244188` (receipt `2246ff4`),
+suite-330 GREEN **912/912** both backends @ `69c9917` (the gated tree carries
+current main: cit_surf.go's paddle-out decision surface).
+
+### The look (balance-free, lands on look alone)
+
+Matt's own rule for this pass: *"visual work is balance-free and can land on
+look alone. Anything that changes WHO surfs or HOW OFTEN is an economy change
+and needs the surf16 matrix re-run against the tree we land on."* So the drawing
+is unconditioned by any sim number and the suite pins it, while the one
+behavioural addition (the swim) went through the matrix below.
+
+- **`drawSurfers`** puts a crab up on the wave in a surf pose for the length of
+  a session (they were `hidden` before — the shower-stall idiom keeps the lane
+  clear; the pose is drawn over the break, not a collision box).
+- The **wave** reads the same `surfToday`/weather state the sea cues already
+  speak — a firing day gets a real breaking line to ride.
+- The **paddle-out** and **wipeouts** are the session's arc made visible.
+- **`drawSwimmers`** puts crabs in the water on a calm day (see THE SWIM).
+
+### THE SWIM (the one economy change, priced on the landing tree)
+
+A calm-day, daylight, **free** time-priced dip at the beach ball's sand — the
+least fun of the fun cures, exactly as asked ("less fun"):
+
+- **`swimIsUp()`** fires on CALM days (the surf's complement — a flat sea offers
+  a dip, a firing sea offers a ride), daylight only. The almanac decides; nobody
+  prices it.
+- **`SWIM_RELIEF = qn(0.13)`** — the cheapest fun cure, *below* the beach ball.
+- **`SWIM_AT = qn(0.52)`** — above the `0.45` at which a crab would *buy* fun, so
+  a funded crab still prefers to pay: the swim is the poor crab's relief, not a
+  free substitute that guts the arcade for everyone.
+- Arm-off hatch **`--noswim`** (`window._noSwim`) is the swim economy's zero-dose
+  twin; visual-only lives elsewhere (`--noseacues`). `_stats.swimDips/swimDone`
+  are the dose.
+
+### THE SWIM'S NUMBERS (2026-08-29, receipt `cs-swim16-dc2a492-j602`)
+
+Eighteen arms mirroring surf16 but toggling `--noswim` (surf on every arm, so
+the delta is the swim cure alone): {baseline, growth chef+table, growth
+chef+table+arcade} × `--seedbase 0,16,32` × {as-built, `--noswim`}, 30 days.
+
+**Dose validated** (the only reason the rest is readable): every `--noswim` arm
+**0 dips**; every as-built arm live (base 151 dips / 43 towns, growth 289 / 44,
+arc 284 / 44), surf sessions ~equal across each pair (swim is the one variable).
+
+| arm | as-built (surf + swim) | `--noswim` control |
+| --- | --- | --- |
+| growth (chef,table) | **12/48** | **11/48** |
+| growth (chef,table,arcade) | **12/48** | **11/48** |
+| baseline (buy nothing) | 0/48 | 0/48 |
+
+Per-block growth was `+1 / −1 / +1` → net **+1/48**, inside this project's own
+coin (CLAUDE.md: any single 16-town block is a coin). **The swim neither erodes
+nor trivialises the growth pillar**; 12/48 sits in the U1 landing tree's own
+7–18/48 band; end-wealth medians comparable.
+
+**The arcade-cannibalisation question stays open, same as surf16** — arcade play
+is a rare event here (only 3–4 towns of 48 ever built+staffed+played), the
+built-*sets* differ per block (sb0: as-built built 1, `--noswim` built 0 — swim
+caused *more* arcade there), so the raw games delta (25 vs 53) is dominated by a
+couple of towns and confounded by which towns reached an arcade at all. Too thin
+to price a magnitude; directionally crabs take the free cheaper cure over the
+paid one, which is the "less fun" relief by design, and it does **not** feed back
+into survival (the pillar is flat). Needs the same arcade-seeded run surf16 asked
+for, not a wider seed sweep.
+
+### One scenario moved, and why it is not a tune-away
+
+`hotelier: a new crab buys the Driftwood` (seed 909) asserted REEF is alive and
+rich after selling. But the moment the sale clears REEF is jobless, and the
+universal-death system takes a jobless, neglected crab like any other — a
+butterfly a relief errand elsewhere in town (the swim dips are *other* crabs',
+never his) can tip on this busy seed. The scenario now guards the REEF-alive
+post-conditions on **presence**: if REEF is gone he must be gone through the
+death *seam* (a memorial), and a silent disappearance still fails. The handover's
+money conservation (`buyerPaid === sellerGain`, REEF→BRASS) is proven
+independently above it, so integrity is unchanged; only a post-condition that a
+real feature legitimately violates was dropped.

@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-574b5af-auam",
+  "armId": "js-9",
+  "index": 9,
+  "sha": "574b5af061896577532f944c18b18a83af59dfc0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 331492,
+  "verdict": "38/38 passed in slice 9/12 (331.4s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (646ms)\n  PASS  npc: SUDSY dines at the player shack (4195ms)\n  PASS  slots: the preview card reflects the town it came from (2083ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (64ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (123ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (182ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (12607ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1678ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (14230ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (4673ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (172ms)\n  PASS  one reading surface owns the screen (1587ms)\n  PASS  almanac: swell is an autocorrelated per-town history, wind an independent gate (14ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (230026ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (5522ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1552ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (11ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (10ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (50ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (2141ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (8ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (7ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (20ms)\n  PASS  the walk steps over the moments and the dropped rows (20ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (3411ms)\n  PASS  traits: the island's table is the literal, value for value (14ms)\n  PASS  depart programs: a hostile table is refused by name (8ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (32830ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (24ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (17ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (39ms)\n  PASS  seam: the view is a reader - two renders move nothing (125ms)\n  PASS  brains: a town full of thinking heads round-trips its save (8930ms)\n  PASS  queues: the seat map is rank-by-ticket - the Map grouping owes nothing to iteration order (223ms)\n  PASS  science: the seeded stream is the recipe's, and it is pinned (54ms)\n  PASS  cultureways: a zero-step 'counter sale with no production' shop validates, loads and serves (RULING relax, kd-NjPUnXyBOv) (1658ms)\n  PASS  rep: two idle nights off the top - the equilibrium pulls, the ratchet is gone (1676ms)\n  PASS  spend reserve: the affordability gates read the reserve, and it BINDS (722ms)\n38/38 passed in slice 9/12 (331.4s)\n"
+}
