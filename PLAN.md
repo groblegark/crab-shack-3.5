@@ -5152,6 +5152,110 @@ Two needs, two verbs, and you can tell which is which from the boardwalk.
 Shots: `idle-hands-pier-rail`, `microsleep-at-the-grill`, `asleep-on-the-sand`,
 `walkout-day-report` under `shots/`.
 
+## SLEEP DEBT, MADE DEADLY (shipped 2026-08-29, worktree) — kd-O4cnSe10cW
+
+**The ask (Matt, from play):** *"I have crabs working impossible hours, lack of
+sleep should eventually be deadly."* Resolved through decision kd-S9IU9fFDTw
+(option `sleepdebt` — the bedtime approach neither fixed the symptom nor paid for
+itself) and then decision kd-h28QBb1lvO, which Matt RULED for option `deadly` and
+made explicit that this is TWO changes on one tree: a ramp that gives exhaustion
+MEMORY, and a bar that stops illness from RESCUING the crab it is meant to punish.
+
+**The defect.** `illRisk` was MEMORYLESS: a crab pinned at exhaustion 0.99 rolled
+the same +0.05 on night 30 as on night 1, and exhaustion was the WEAKEST of the
+four illness terms (hunger is +0.10, twice as hard). A ceiling probe once pinned
+the whole crew at tired=1.0 for 30 days and the town still earned $9,713 — sleep
+deprivation was, in the limit, free.
+
+### Change 1 — the ramp: a per-NIGHT ledger, not an hours integral
+`p.sleepDebt` counts CONSECUTIVE settlements ended at tired >= 0.95, ticked once
+per crab at the settlement just before the roll reads it (`tickSleepDebt`).
+`debtRisk()` adds `DEBT_STEP` (0.035) per night past `DEBT_GRACE` (3), capped at
+`DEBT_CAP` (10); `DEBT_REPAY` (2) walks the ledger back down once they sleep. The
+extra hazard folds straight into `illRisk` (`risk += debtRisk(c)`):
+
+  nights  1-3    4      5      6      7      8      9     10+
+  risk    0.050  0.085  0.120  0.155  0.190  0.225  0.260  0.295
+
+At the cap that is x5.9 the old flat 0.05 term and finally the heaviest thing on
+the roll. It is a NIGHT ledger like `boredDays`, deliberately NOT an
+hours-over-the-line exposure integral — the shiftill receipt rejected the
+integral because it reads morning/evening x1.43 and resurfaces the shift
+unfairness `TIRED_NAP` fixed (thread record on kd-O4cnSe10cW).
+
+### Change 2 — the bar: a debt illness cannot be nursed out of no sleep
+The ramp ALONE makes the town SAFER, because illness is a REST: an ill crab is
+pulled off the rota into a care lane, their exhaustion drains, the debt repays,
+and they recover fresh (measured below: the ramp on its own DROPS CFR and total
+deaths). So the second change bars a debt-caused illness from every good care
+lane. `careLane()` returns a new `spent` lane ("WORKED TO THE BONE",
+cure 0.10 / die 0.24) for any crab whose illness was debt-caused, and `spent`
+arms on the NEGLECT death clock (day 4, `deathArmsAt`), not the day-7 linger.
+`k.p.sick.fromDebt` is stamped at ONSET from `debtRisk(k) > 0`, so no bed rescues
+a crab from weeks of no sleep. `spent` is a worse cure than NEGLECTED on purpose
+— but it is FORCED by `fromDebt` (careLane returns it FIRST, before any need
+check), so there is no perverse incentive to under-care a crab for better odds:
+you cannot choose this lane, exhaustion chooses it for you.
+
+### Arm-off hatches (two changes, two variables on one tree)
+- `window._noDebt` (`--nodebt`) — the whole ramp off = the pre-ramp control.
+- `window._noDebtLane` (`--nodebtlane`) — the BAR alone off, ramp still on = the
+  "ramp only" arm (`debtSick()` gates on it).
+So control / ramp-only / ramp+bar price the two changes independently (advice
+kd-JwPxQ7pSwn). `tools/sleepdebt.mjs --fed` additionally isolates sleep
+deprivation from neglect by feeding + housing the crew each settlement.
+
+### Measured on the LANDING TREE (4a23983, gate GREEN 900/900 both backends)
+Do NOT read the old 7/48 or 17-18/48 PLAN figures for this — they belong to other
+trees. Re-taken here (the whole point of the rule), 4a23983 = main + the
+surf-cost needs-rate merge folded in:
+
+**Growth** (survived/16 x seedbase {0,16,32} = 48 towns/hatch, `--buy chef,table`):
+
+  arm                        growth   baseline (buy nothing)
+  control  (--nodebt)         9/48        —
+  ramp     (--nodebtlane)     8/48        —
+  ramp+bar (shipped)          8/48        0/48
+
+The three arms' eviction histograms are near-identical: on the autopilot matrix
+the ramp fires on exactly ONE growth town (an sb16 town evicted day 10 instead of
+surviving to 30), and the BAR costs zero growth. This is the intended design and
+the matrix's own limit — headless never works a crew to the bone, so a normally
+run town never meets the ramp. The pillar is untouched; the change is a tax only
+on a player who overworks the crew.
+
+**Deadliness** (32 seeds, sweatshop 6-24 +OT; the second change's own measurement
+is the ramp -> ramp+bar step). Two independent A/Bs, one result:
+
+  arm         sweatshop deaths / CFR   --fed deaths / CFR   spent-lane deaths
+  control          59 / 21.5%              35 / 26.2%             —
+  ramp only        52 / 19.7%              29 / 19.1%             —
+  ramp + bar       61 / 22.7%              39 / 27.9%             13
+
+The ramp alone drops CFR and deaths (illness rescues — bed-lane illnesses rise
+9 -> 19 in the fed run). The bar creates the `spent` lane, which carries **13
+deaths in BOTH runs** and pushes CFR and total deaths back above control. That
+13-death spent lane, reproduced across a confounded sweatshop and a clean `--fed`
+isolation, is the second change doing exactly what it was ruled to do. (Raw
+totals are neglect-dominated because `--fed` feeds only the crew, not the
+townsfolk; the care-lane seam — the game's own attribution — is the isolated
+readout, and it is unambiguous.) Receipts under design/cs35-research/kube-runs/:
+cs-suite-330-4a23983-rtqs (gate), cs-sleepdebt-measure-4a23983-rwyk (growth +
+sweatshop), cs-sleepdebt-isolated-4a23983-rzwp (--fed).
+
+**Mutation demo** (the discipline this owed): armed a defect making the spent
+lane non-lethal (`spent.cure` 0.10 -> 0.95, routing untouched); the new mortality
+gate went RED naming the right thing — *"a debt-caused illness was taken only
+1/20 by the running engine - the spent lane is not lethal in play"* — then
+reverted. The gate's routing half still PASSED, confirming it catches a MORTALITY
+regression specifically, not a routing one.
+
+**Suite.** New gate `care-lane bar: a debt-caused illness is actually TAKEN by the
+running engine (lethal, not just routed)` counts the dead BY NAME — killCrab
+splices the roster, so an index count reads a death as a survival; the
+pre-existing day-three mortality gate had that exact blindness and was fixed in
+the same pass (bug kd-eIyghgnGnC).
+
 ## THE MAYOR, THE TOWN FUND AND ELECTIONS (shipped 2026-08-19, worktree)
 
 Matt's brief, verbatim: *"Sorry do we have some kind of communal food pot? We

@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-4a23983-rtqs",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "4a23983e26369c5509be9865fdeb2d8a7aaa0124",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 146321,
+  "verdict": "37/37 passed in slice 8/12 (146.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (5ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (720ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1874ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (1402ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (126ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5060ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (258ms)\n  PASS  roster: the refactor preserves every census ordering (1075ms)\n  PASS  sale: the player buys a failed business through the shopfront (3858ms)\n  PASS  idle hands: the boredom advance is reconciled at day's end (boredBilled, both models) (720ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (15ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (1176ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (19ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (4135ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (7009ms)\n  PASS  an election is held on the week, and every voter is accounted for (5135ms)\n  PASS  departures: three ways to be turned away are three different counters (245ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (790ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (2474ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1909ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (702ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (67536ms)\n  PASS  an absolute catalog url plays through a typed <source>, our own paths stay a plain src (27ms)\n  PASS  an audition still owns the speakers, and BACK does not restart the town (16ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (2379ms)\n  PASS  crab voice: two whole days with the table off are the same town (2893ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (1108ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (9ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (23018ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (23ms)\n  PASS  foodways: the validator names its refusals (17ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (1429ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (9ms)\n  PASS  stream: a save from before the cursor still lands the same way twice (7487ms)\n  PASS  personal space: a walker passes through the crowd, and the crowd holds (109ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (11ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (1421ms)\n37/37 passed in slice 8/12 (146.2s)\n"
+}
