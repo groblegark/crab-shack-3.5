@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-ce5e5d9-834i",
+  "armId": "wasm-3",
+  "index": 15,
+  "sha": "ce5e5d95e2d05bdb6516d7c897bbb0f5caf2f36e",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 90330,
+  "verdict": "38/38 passed in slice 3/12 (90.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (2600ms)\n  PASS  save/load roundtrip preserves state (1038ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1021ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (26165ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (2920ms)\n  PASS  tired: fatigue scales with the hours actually worked (1657ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (860ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (525ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (28ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (6116ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (8542ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (494ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (922ms)\n  PASS  surf: a crab rides on a firing day, blocks nothing while out, and comes back on the sand (1559ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1035ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (922ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1649ms)\n  PASS  departures: every character the card prints exists in the font (744ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2843ms)\n  PASS  sleep debt: an old save arrives with a clean slate, not a back-dated bill (780ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (708ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (730ms)\n  PASS  only one track is ever audible at once (15ms)\n  PASS  a refusal waits for a tap where a 404 skips on (11ms)\n  PASS  the cabana row leaves both travel lanes a real margin (16ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (13ms)\n  PASS  need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name (22ms)\n  PASS  civics: a people's voters score a platform on THEIR OWN declared stakes (6283ms)\n  PASS  civics calendar/relief: the scalars DRIVE the town, not just a readout (the behaviour gate) (14ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (15ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (5462ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (3248ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1109ms)\n  PASS  the title's ticker and motto turn on the title screen's own clock, and stay off the sign (68ms)\n  PASS  load: the same envelope lands the same way however often you land it (1054ms)\n  PASS  hooks: all four points fire with primitive ctx, and a faulty hook is unhooked, not fatal (948ms)\n  PASS  rep: a guest tells HER people, the pier overhears a quarter, and the sand finally talks (8ms)\n  PASS  the arcade's occupancy is the JS chain's alone, on both backends (8091ms)\n38/38 passed in slice 3/12 (90.2s)\n"
+}

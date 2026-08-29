@@ -136,7 +136,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   # set, minus version.js itself and the data: favicon). If this list and
   # index.html ever drift apart, this check quietly narrows — so it is asserted
   # by the suite scenario "the stamp names the bytes a player gets".
-  PLAYER_SERVED="index.html font.js ppu.js sprites.js crabs.js merge.js game.js cultureways.js tools/kernel/kernel-b64.js"
+  PLAYER_SERVED="index.html font.js ppu.js sprites.js crabs.js merge.js game.js cultureways.js news.js tools/kernel/kernel-b64.js"
 
   # Read the stamp out of the PUSHED tree, not the worktree: the worktree may be
   # dirty or on another branch, and it is the pushed bytes that reach a player.

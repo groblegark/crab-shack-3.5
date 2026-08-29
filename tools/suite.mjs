@@ -18310,6 +18310,125 @@ scenario("brains: citizen shadow is inert - the crew cannot tell they are being 
   return true;
 });
 
+scenario("surf: the paddle-out is its own surface - a firing day neither silences the crab brain nor books as 'none'", () => {
+  // THE COST cit_surf.go FIXES, measured before it existed and asserted to zero
+  // now (kd-wfRu3aGnrK). Surf used to ride the cit_errand ballot as a candidate
+  // whose class ("shack:fun") no citizen artifact carries. Two consequences,
+  // both MEASURED on a controlled set of paddle-out-eligible thinks, not asserted:
+  //   (1) citEngineOwned's "a ballot the brain has no word for belongs to the
+  //       script" rail fired on EVERY surf-eligible think - handing the whole
+  //       ballot back to the script and SILENCING the shipped LIVE crab brain
+  //       exactly on firing days.
+  //   (2) shadowCitObserve booked a paddle-out as class 0 = "none", so a crab
+  //       who surfed never entered s.acted - the ruled honest metric
+  //       (kd-acLf4tyS4N), quietly diluting the acted floor with non-events.
+  // cit_surf.go lifts the wave out of the ballot the BRAIN and its SHADOW rank,
+  // while the script's own argmax still sees the surf candidate (so the ballot
+  // order and the ball-suppression it causes stay byte-exact - the errand census
+  // fingerprint does not move). This scenario is the receipt AND the regression
+  // guard: on this tree both costs read ZERO, and the crab still paddles out.
+  //
+  // THE CRAFT: a surf-eligible think is RARE in autopilot play (measured ~1 per
+  // 112 town-days - a firing day AND an off-shift, bored, otherwise-content crab
+  // in daylight rarely coincide), so waiting for one is both sparse and slow.
+  // Instead - the "a crab rides" scenario's idiom - each town finds a firing day
+  // out of its OWN history, sets the clock to daylight, and forces every free
+  // crab bored-and-content; the two costs are then counted on that controlled set
+  // of eligible thinks. Deterministic, seconds, and a robust N.
+  //
+  // BEFORE (main @82697a9): the identical probe on the pre-fix tree reads
+  // silenced == surfBallot (every eligible think silenced the live brain) and
+  // bookedNone == surfPicks (every paddle-out booked "none"). See the receipt
+  // under design/cs35-research/kube-runs for the exact counts.
+  const SEEDS = [1337, 42, 777, 2024, 555, 909];
+  const CLOCKS = [600, 720, 840, 960, 1020];
+  // TREE-INDEPENDENT instrumentation: all four wrap points (the surf gather,
+  // pickErrand, citEngineOwned, shadowCitObserve) exist on both the broken and
+  // the fixed tree. The counts differ because the SEAM moved, not the probe.
+  const probe = `
+    window._m = { eligible: 0, surfBallot: 0, surfPicks: 0, silenced: 0, bookedNone: 0 };
+    { const sd = ERRANDS.find(function (e) { return e.id === "surf"; });
+      const g = sd.gather;
+      sd.gather = function (c, take, X) {
+        var took = false;
+        g(c, function (e) { if (e.surf) took = true; take(e); }, X);
+        if (took) window._m.surfBallot++;
+      }; }
+    // (1) LIVE: a think goes engine-owned SOLELY because a surf candidate is on
+    // the ballot. On main this fires every eligible think; on this tree the seam
+    // never hands citEngineOwned a surf candidate, so it can never fire.
+    { const eo = citEngineOwned;
+      citEngineOwned = function (c, cand, bp) {
+        var r = eo(c, cand, bp);
+        if (cand.some(function (e) { return e.surf; })) {
+          var wo = eo(c, cand.filter(function (e) { return !e.surf; }), bp);
+          if (r && !wo) window._m.silenced++;
+        }
+        return r;
+      }; }
+    // (2) SHADOW: a paddle-out the cit_errand shadow books. On main the shadow is
+    // handed the full-ballot argmax (surf can win); on this tree the seam skips
+    // the observe entirely when the wave won, so the surf pick never reaches it.
+    { const so = shadowCitObserve;
+      shadowCitObserve = function (c, cand, bp, best) {
+        if (best && best.surf) window._m.bookedNone++;
+        return so(c, cand, bp, best);
+      }; }
+  `;
+  // Craft eligible thinks on a firing day and count the costs. mode "live" leaves
+  // the bundle's LIVE crab brain in place (measures silenced); mode "shadow" puts
+  // the teacher back on the wheel (measures bookedNone).
+  const measure = (seed, mode) => {
+    const sim = createSim({ seed });
+    sim.runDays(3);
+    sim.G(probe);
+    if (mode === "shadow") sim.G(`BRAINS.crab["cit_errand.candidate"].mode = "shadow"`);
+    return JSON.parse(sim.G(`JSON.stringify((() => {
+      let d = -1;
+      for (let n = day + 1; n <= day + 400; n++) if (surfToday(n) === "FIRING") { d = n; break; }
+      if (d < 0) return window._m;   // this town's sea never fired within 400: contributes zero
+      const heldDay = day, heldT = tday, heldDt = dtT;
+      day = d; dtT = 1;
+      const setClock = (m) => { tday = m * 5; reclock(); };   // tday is the clock's one setter
+      for (const t of ${JSON.stringify(CLOCKS)}) {
+        setClock(t);
+        if (!surfIsUp()) continue;   // dark or the swell died: not a surfable hour
+        for (const k of allCrabs()) {
+          if (k.duty || k.p.sick) continue;
+          // force the crab bored-and-content and off its cooldowns - surfFree is
+          // still the roster's to grant, so not every crab here reaches the ballot
+          k.dsC = DS.home; k.p.bored = qn(0.95);
+          k.p.thirst = 0; k.p.hunger = 0; k.p.dirt = 0; k.p.tired = 0;
+          k.surfCd = 0; k.ballCd = 0; k.errandCd = 0; k.chainN = 0;
+          window._m.eligible++;
+          const pick = pickErrand(k);
+          if (pick && pick.surf) window._m.surfPicks++;
+        }
+      }
+      day = heldDay; tday = heldT; reclock(); dtT = heldDt;
+      return window._m;
+    })())`));
+  };
+  const sweep = (mode) => {
+    const t = { eligible: 0, surfBallot: 0, surfPicks: 0, silenced: 0, bookedNone: 0 };
+    for (const seed of SEEDS) { const o = measure(seed, mode); for (const k in t) t[k] += o[k]; }
+    return t;
+  };
+  const live = sweep("live"), shadow = sweep("shadow");
+  // NOT VACUOUS: the sea must actually fire and a crab must actually paddle out,
+  // or "0 silenced" is a fact about a dead feature, not a fix.
+  if (live.surfBallot < 6)
+    return `surf reached the ballot only ${live.surfBallot} times across ${SEEDS.length} towns (${live.eligible} eligible thinks) - too few to measure; pick busier seeds`;
+  if (live.surfPicks < 3)
+    return `only ${live.surfPicks} crabs paddled out (${live.surfBallot} on the ballot) - the surf path is too quiet to measure`;
+  // THE FIX, both costs to zero:
+  if (live.silenced !== 0)
+    return `COST: ${live.silenced} of ${live.surfBallot} surf-eligible thinks still silence the LIVE crab brain (engine-owned); the shadow booked ${shadow.bookedNone} of ${shadow.surfPicks} paddle-outs as "none". Surf is not out of the cit_errand ballot for the brain seam.`;
+  if (shadow.bookedNone !== 0)
+    return `COST: the cit_errand shadow still books ${shadow.bookedNone} of ${shadow.surfPicks} paddle-outs as "none" - surf is not out of the shadow's ballot.`;
+  return true;
+});
+
 scenario("brains: zero delta IS the backbone, on the citizen brain's own thinks", () => {
   // Dream-replay rung 0's foundation: classifyD with no delta must argmax
   // exactly what classify argmaxes (L = base*256 is monotone), on REAL
@@ -18830,6 +18949,168 @@ scenario("the title screen ages the build, and keeps ticking", () => {
   })())`));
   if (14 + wide[0] > wide[2] - wide[1] - 4)
     return `the longest age (${longest}, ${wide[0]}px) collides with the widest stamp`;
+  return true;
+});
+
+scenario("the news board: every announcement fits the column it prints in, and none is silently dropped", () => {
+  // Matt's ask was a home screen that tells you "feature announcements for
+  // users and balance and such". The failure mode of a copy list is not a
+  // crash - it is a release note the player never sees. newsProblem DROPS a
+  // bad entry rather than throwing (cultureProblem's contract, and the right
+  // one: a typo in an announcement must not take the title screen down), so
+  // the punishment for a 56th character is that your announcement is simply
+  // ABSENT, on the one surface whose entire job is to say there is more.
+  //
+  // BOTH HALVES OF THAT BIT FOR REAL while this was being written. One entry
+  // vanished at 55 characters against a hardcoded cap of 54 - eleven of twelve
+  // rendered and nothing said so. Then a headline was printed as "..WALL.."
+  // because the cap was written down as 44 when the column measures 41. The
+  // fix was to delete both numbers and make the validator call the SAME column
+  // expressions the draw calls, so this scenario drives the real newsProblem
+  // and the real fitSmall rather than a third copy of the arithmetic.
+  const sim = createSim({ seed: 5 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const raw = (typeof GAME_NEWS !== "undefined" && GAME_NEWS) || [];
+    const kept = newsAll();
+    const dropped = raw.map((e, i) => [i, e && e.d, e && e.t, newsProblem(e)]).filter(r => r[3]);
+    // WHAT THE SURFACES ACTUALLY PRINT. fitSmall returns its input untouched
+    // when it fits, so "elided" is exact, not a width estimate.
+    const elided = [];
+    for (const e of kept) {
+      if (fitSmall(e.t, newsHeadW()) !== e.t) elided.push(["board headline", e.t]);
+      for (const L of (e.b || [])) if (fitSmall(L, newsBodyW()) !== L) elided.push(["body line", L]);
+    }
+    // THE TICKER'S COLUMN IS THE NARROWER OF ITS TWO STATES. It gives up its
+    // right end to a badge, and the unread badge ("12 NEW") is wider than the
+    // read one ("MORE"), so the worst case is a full unread list.
+    const r = newsBarRect();
+    const badge = Math.max(smallTextWidth(kept.length + " NEW"), smallTextWidth("MORE"));
+    const tickW = (r.x + r.w - 4 - badge - 4) - (r.x + 21);
+    const tickerCut = kept.filter(e => fitSmall(e.t, tickW) !== e.t).map(e => e.t);
+    // PAGES COVER EVERY ENTRY EXACTLY ONCE, IN ORDER - the height packer is
+    // the one piece of this with an off-by-one to make, and a lost page is
+    // invisible: the board still looks full.
+    const pages = newsPageList();
+    const flat = [].concat.apply([], pages).map(e => newsMark(e));
+    const R = helpRects(), avail = (R.h - 13) - 19 - 2;
+    const overfull = pages.map((p, i) => [i, p.reduce((a, e) => a + newsEntryH(e), 0)])
+      .filter(pr => pr[1] > avail && pages[pr[0]].length > 1);
+    const charset = Object.keys(FONT_SMALL).join(""), bigset = Object.keys(FONT).join("");
+    const badChar = (s2, set) => {
+      for (const ch of String(s2)) if (ch !== " " && set.indexOf(ch) < 0) return ch;
+      return null;
+    };
+    const glyphless = [];
+    for (const e of kept) {
+      for (const s2 of [e.t].concat(e.b || [])) { const c = badChar(s2, charset); if (c) glyphless.push([s2, c]); }
+      if (!NEWS_KINDS[e.k]) glyphless.push([e.k, "kind"]);
+    }
+    if (badChar("WHAT'S NEW", bigset)) glyphless.push(["WHAT'S NEW", "header"]);
+    return { rawN: raw.length, keptN: kept.length, dropped, elided, tickW, tickerCut,
+      flat, marks: kept.map(newsMark), avail, overfull, glyphless, pages: pages.length,
+      dates: kept.map(e => e.d), kinds: kept.map(e => e.k) };
+  })())`));
+  if (got.rawN < 1) return "news.js shipped no announcements at all";
+  if (got.dropped.length)
+    return `${got.dropped.length} of ${got.rawN} announcements are DROPPED and will never be seen: ${JSON.stringify(got.dropped)}`;
+  if (got.keptN !== got.rawN) return `newsAll kept ${got.keptN} of ${got.rawN} with nothing reported as bad`;
+  if (got.elided.length) return `the board cuts text it was given: ${JSON.stringify(got.elided)}`;
+  if (got.tickerCut.length)
+    return `the ticker (${got.tickW}px with the widest badge) cuts: ${JSON.stringify(got.tickerCut)}`;
+  if (got.glyphless.length) return `copy needs glyphs the font does not have: ${JSON.stringify(got.glyphless)}`;
+  // every entry on exactly one page, in the board's own newest-first order
+  if (got.flat.join(" ") !== got.marks.join(" "))
+    return `the pages do not cover the list exactly once in order: ${got.flat.length} paged vs ${got.marks.length} entries`;
+  if (got.overfull.length)
+    return `a multi-entry page runs past the ${got.avail}px it has: ${JSON.stringify(got.overfull)}`;
+  // NEWEST FIRST is the board's promise ("LATEST <date>" is printed from
+  // entry 0), so the sort is worth pinning rather than trusting the file order.
+  for (let i = 1; i < got.dates.length; i++)
+    if (got.dates[i] > got.dates[i - 1]) return `the board is out of order: ${got.dates[i - 1]} sits above ${got.dates[i]}`;
+  // ...and the ask names both halves by name. A board of nothing but features
+  // would answer half of "feature announcements for users AND balance".
+  if (got.kinds.indexOf("FEATURE") < 0) return "no FEATURE announcement shipped";
+  if (got.kinds.indexOf("BALANCE") < 0) return "no BALANCE announcement shipped";
+  return true;
+});
+
+scenario("the title's ticker and motto turn on the title screen's own clock, and stay off the sign", () => {
+  // THE HALF OF THIS FEATURE THAT CANNOT BE SEEN IN A SCREENSHOT. Both the
+  // ticker and the motto rotate on viewT, and viewT is DERIVED (`viewT =
+  // T / TICK_HZ`, never accumulated) - so the whole feature rests on T
+  // advancing on a screen where the town's clock is deliberately stopped.
+  // It does: frame() runs `T += dtT` and simClock() BEFORE the
+  // `if (screen === "title")` return, and only tday is gated on play. That is
+  // a load-bearing three-line ordering in a 26,000-line file, so it gets a
+  // pin rather than a comment: a frozen ticker and a frozen motto both render
+  // perfectly, and would silently answer neither half of the ask.
+  const sim = createSim({ seed: 9 });
+  const clock = JSON.parse(sim.G(`JSON.stringify((() => {
+    screen = "title"; hasSave = false;
+    return { viewT, tday, day };
+  })())`));
+  sim.runUntil("false", { step: 50, maxSteps: 200 });     // 200 frames x 50ms = 10 real seconds
+  const after = JSON.parse(sim.G(`JSON.stringify({ viewT, tday, day, screen })`));
+  if (after.screen !== "title") return `the sim left the title screen (now ${after.screen})`;
+  const moved = after.viewT - clock.viewT;
+  if (moved < 9 || moved > 11)
+    return `10 seconds on the title moved viewT by ${moved}, want ~10 - the ticker and motto ride this clock`;
+  if (after.tday !== clock.tday || after.day !== clock.day)
+    return `the TOWN clock ran on the title screen (tday ${clock.tday}->${after.tday}, day ${clock.day}->${after.day})`;
+  // THE ROTATION ITSELF: walk viewT across the whole cycle and require every
+  // entry and every motto to come up, in order and exactly once per lap. A
+  // modulo that lost an entry (or stuck on one) is the same silent failure.
+  const cyc = JSON.parse(sim.G(`JSON.stringify((() => {
+    const V = viewT;
+    try {
+      const n = newsAll().length, m = mottoList().length;
+      const tick = [], mot = [];
+      for (let i = 0; i < n; i++) { viewT = i * NEWS_DWELL + NEWS_DWELL / 2; tick.push(newsTickIdx()); }
+      for (let i = 0; i < m; i++) { viewT = i * MOTTO_DWELL + MOTTO_DWELL / 2; mot.push(mottoNow()); }
+      // ...and it must WRAP rather than run off the end of the list
+      viewT = n * NEWS_DWELL + NEWS_DWELL / 2;
+      const wrapT = newsTickIdx();
+      viewT = m * MOTTO_DWELL + MOTTO_DWELL / 2;
+      const wrapM = mottoNow();
+      return { n, m, tick, mot, wrapT, wrapM, uniq: new Set(mot).size };
+    } finally { viewT = V; }
+  })())`));
+  if (cyc.n < 1) return "the ticker has nothing to turn";
+  if (cyc.m < 8) return `only ${cyc.m} mottos - a splash that repeats every few loads is not a splash`;
+  for (let i = 0; i < cyc.n; i++)
+    if (cyc.tick[i] !== i) return `dwell ${i} shows entry ${cyc.tick[i]}: the ticker does not visit every announcement`;
+  if (cyc.wrapT !== 0) return `the ticker did not wrap: after one lap it shows ${cyc.wrapT}, want 0`;
+  if (cyc.uniq !== cyc.m) return `the motto cycle repeats itself: ${cyc.uniq} distinct of ${cyc.m}`;
+  if (cyc.wrapM !== cyc.mot[0]) return "the motto cycle did not wrap to its first entry";
+  // GEOMETRY, from the box the REAL blit loop produced. tiltText returns the
+  // box it accumulated from the same gx/gy it drew at (the headless canvas
+  // swallows writes to ctx, so this is the only non-vacuous observation
+  // available), and drawTitle is what calls it. Checked for EVERY motto,
+  // because the constraint is a function of length: the stair's rise is
+  // capped and then spread, so a long one flattens and a short one climbs.
+  const box = JSON.parse(sim.G(`JSON.stringify((() => {
+    const V = viewT, B = mottoBase, T0 = tiltText;
+    const out = [];
+    try {
+      hasSave = true;
+      for (let i = 0; i < mottoList().length; i++) {
+        mottoBase = i; viewT = 0.25;                 // dwell 0, plus a little bob
+        let b = null;
+        tiltText = function () { return (b = T0.apply(null, arguments)); };
+        try { drawTitle(); } finally { tiltText = T0; }
+        out.push([mottoList()[i], b]);
+      }
+      return { out, W, cardTop: 26, screenH: H };
+    } finally { viewT = V; mottoBase = B; tiltText = T0; }
+  })())`));
+  for (const pair of box.out) {
+    const s = pair[0], b = pair[1];
+    if (!b) return `"${s}" drew no motto at all`;
+    if (b.x < 1) return `"${s}" starts at x${b.x}, off the left edge`;
+    if (b.x + b.w > box.W - 1) return `"${s}" reaches x${b.x + b.w} on a ${box.W}px screen`;
+    if (b.y < 0) return `"${s}" climbs to y${b.y}, off the top of the screen`;
+    if (b.y + b.h > box.cardTop) return `"${s}" reaches y${b.y + b.h} and lands on the logo card at y${box.cardTop}`;
+  }
   return true;
 });
 
