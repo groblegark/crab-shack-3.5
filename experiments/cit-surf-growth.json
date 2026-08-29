@@ -1,0 +1,15 @@
+{
+  "name": "cit-surf-growth",
+  "note": "cit_surf.go surface refactor (task kd-wfRu3aGnrK) growth re-take on the landing tree. My change lifts surf out of the cit_errand ballot into its own surface, so on a FIRING-DAY surf-eligible think the LIVE crab brain now STEERS the errand ballot instead of being silenced by the unmapped-class rail. That can move firing-day errand picks -> re-measure the RULED U1-decay growth pillar. Run this manifest on BOTH refs for an honest A/B delta (kd-RSS4Nkil3c): --ref <after-merge-SHA> and --ref <parent ef04602> (control = surf-in-ballot, brain silenced). Default decay (CIT_DECAY_MUL=7, the landed value) - no --citdecay override. baseline (buy nothing) is the 0/48 floor; growth (--buy chef,table) is the pillar. batch sets kernel=wasm realm=main.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "base-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "base-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "grow-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "grow-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "grow-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] }
+  ]
+}
