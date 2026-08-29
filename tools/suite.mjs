@@ -4505,12 +4505,19 @@ scenario("mortality: a cared-for crab is not taken on day three (the ladder stil
     const s2 = createSim({ seed: 500 + i });
     s2.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
     s2.G(setup);
+    // IDENTIFY THE FIXTURE BY NAME, not by roster index (bug kd-eIyghgnGnC):
+    // killCrab SPLICES `crabs`, so once the fixture dies `crabs[0]` is a
+    // DIFFERENT, LIVING crab and `!crabs[0]` reads false - a death would score
+    // as a survival and this gate (which exists to catch the ladder turning
+    // lethal) would be structurally blind to exactly that.
+    const name = s2.G("crabs[0].p.name");
+    const nm = JSON.stringify(name);
     s2.runUntil("lastRentDay === day", { maxSteps: 400000, onTick: (G) => {
-      G(`{ coins = 300000; const k = crabs[0];
+      G(`{ coins = 300000; const k = allCrabs().find(c => c.p.name === ${nm});
         if (k && k.p.sick) { k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1; } }`);
     } });
-    if (!s2.G("crabs[0]")) deaths++;
-    else if (!s2.G("crabs[0].p.sick")) cures++;
+    if (!s2.G(`allCrabs().some(c => c.p.name === ${nm})`)) deaths++;
+    else if (!s2.G(`allCrabs().find(c => c.p.name === ${nm}).p.sick`)) cures++;
   }
   if (deaths) return `${deaths}/24 cared-for crabs were taken on the third day of illness`;
   if (cures < 6) return `only ${cures}/24 cared-for crabs recovered - the improved lane stopped paying`;
@@ -10967,6 +10974,56 @@ scenario("care-lane bar: INERT on a town that sleeps - it only ever bars a crab 
     return "the care-lane bar moved an ordinary three-day town:\n        armed off " + fp(true)
       + "\n        armed on  " + fp(false)
       + "\n      it is only allowed to bar an illness the sleep-debt ledger caused";
+  return true;
+});
+
+scenario("care-lane bar: a debt-caused illness is actually TAKEN by the running engine (lethal, not just routed)", () => {
+  // The routing gate proves a debt illness LANDS in `spent`; the fixed "cared-
+  // for crab is not taken on day three" gate (now name-counted, kd-eIyghgnGnC)
+  // is the running control that a NURSED non-debt illness recovers. This one
+  // closes the loop: run real settlements and count the dead BY NAME to prove
+  // the engine actually KILLS a debt-caused illness that the player is doing
+  // everything right for.
+  //
+  // First, the cheap deterministic half of the contrast: the SAME flawless
+  // setup, and the ONLY difference is fromDebt - non-debt gets BED, debt is
+  // barred to SPENT.
+  const s0 = createSim({ seed: 700 });
+  s0.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+  s0.G(`{ const k = crabs[0]; k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+    k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1; k.p.sickPol = "grant"; }`);
+  s0.G(`crabs[0].p.sick = { days: 3, fromDebt: false };`);
+  if (s0.G(`careLane(crabs[0])`) !== "bed") return `non-debt fixture is not on BED REST (got ${s0.G("careLane(crabs[0])")})`;
+  s0.G(`crabs[0].p.sick = { days: 3, fromDebt: true };`);
+  if (s0.G(`careLane(crabs[0])`) !== "spent") return `debt fixture is not barred to SPENT (got ${s0.G("careLane(crabs[0])")})`;
+  // Now RUN the debt arm. days:6 so the first settlement increments to 7 and the
+  // `spent` die roll is already up its ramp (min(0.75, 0.24 + 0.12*(7-4)) =
+  // 0.60), so three settlements resolve nearly all of them (~0.84 taken) - a
+  // late-illness crab is the killing half of the arc, and starting it there
+  // keeps the boot to ~3 sim-days instead of a week. No nursing loop is needed:
+  // debtSick forces `spent` regardless of every other need, which is the whole
+  // point - a fed, watered, bedded crab still dies. coins set high once so a
+  // tiny fixture town cannot go broke and freeze the clock (no per-tick onTick -
+  // that made an earlier cut of this gate take 12 minutes; count by name,
+  // killCrab splices - bug kd-eIyghgnGnC).
+  let deaths = 0;
+  for (let i = 0; i < 20; i++) {
+    const s = createSim({ seed: 700 + i });
+    s.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+    s.G(`{ const k = crabs[0]; coins = 5000000;
+      k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+      k.p.sickPol = "grant"; k.p.sick = { days: 6, fromDebt: true }; }`);
+    const nm = JSON.stringify(s.G("crabs[0].p.name"));
+    const d0 = +s.G("day");
+    s.runUntil(`day >= ${d0 + 3}`, { maxSteps: 900000 });
+    if (!s.G(`allCrabs().some(c => c.p.name === ${nm})`)) deaths++;
+  }
+  // Expected ~84% taken (cure 0.10 vs a die roll of 0.60 -> 0.75 across three
+  // settlements), so a floor of 10/20 sits ~4sd below the mean - a floor, not a
+  // coin (advice kd-acLf4tyS4N / the thread agent's "31% coin dressed up as a
+  // verdict"). If `spent` ever stops killing (cure bumped, deathArmsAt broken)
+  // deaths collapse toward the BED control's ~0 and this trips loudly.
+  if (deaths < 10) return `a debt-caused illness was taken only ${deaths}/20 by the running engine - the spent lane is not lethal in play`;
   return true;
 });
 
