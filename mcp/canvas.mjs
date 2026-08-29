@@ -8,12 +8,14 @@
 // ("source-in", for tintArt's silhouettes) and imageSmoothingEnabled (moot
 // here - every blit is 1:1 and integer).
 //
-// Everything is axis-aligned, unscaled and integer, which is why this is
-// ~150 lines instead of a dependency. The transform is deliberately NOT a
-// general matrix: it is a translate plus an optional horizontal flip,
-// because that is the only transform in the codebase. If a future draw call
-// needs rotation, it should fail loudly here rather than render subtly wrong
-// - so unsupported scales throw.
+// Everything is axis-aligned and integer, which is why this is ~150 lines
+// instead of a dependency. The transform is deliberately NOT a general
+// matrix: it is a translate plus an optional horizontal flip, because that
+// is the only transform in the codebase. Magnification exists in exactly one
+// place (bigText's integer blow-up of the title logo) and is done by
+// nearest-neighbour in drawImage's five-arg form, not by the transform. If a
+// future draw call needs rotation, or a fractional scale, it should fail
+// loudly here rather than render subtly wrong - so those still throw.
 
 const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v | 0);
 
@@ -97,18 +99,37 @@ class Ctx {
     }
   }
 
-  drawImage(src, dx, dy) {
+  // drawImage(src, dx, dy) is the 1:1 blit every sprite uses. The five-arg
+  // form (dw, dh) exists for ONE call site - bigText, which pre-renders a
+  // line of 5x7 font to an offscreen canvas and draws it at an INTEGER
+  // magnification (the title logo is scale 2 and 3). Nearest-neighbour at an
+  // integer ratio is exactly what the browser does with
+  // imageSmoothingEnabled=false, so the soft canvas reproduces it pixel for
+  // pixel. A NON-integer ratio would not: it would need a resampling rule
+  // this file deliberately does not have, and a picture that is subtly
+  // wrong is worse than one that fails - so it throws, the same way scale()
+  // does. That is what let the title screen be photographed at all: before
+  // this, drawTitle's logo threw and no harness had ever seen the home
+  // screen.
+  drawImage(src, dx, dy, dw, dh) {
     const sw = src.width, sh = src.height, sd = src._data;
     if (!sd) return;
+    let kx = 1, ky = 1;
+    if (dw !== undefined) {
+      kx = dw / sw; ky = dh / sh;
+      if (!(kx > 0 && ky > 0) || kx !== (kx | 0) || ky !== (ky | 0))
+        throw new Error(`softcanvas: unsupported drawImage scale (${sw}x${sh} -> ${dw}x${dh})`);
+    }
     const { width: W, height: H } = this.canvas, d = this._d;
     const ox = (dx | 0) + this._tx, oy = (dy | 0) + this._ty;
-    for (let y = 0; y < sh; y++) {
-      const ty = oy + y;
+    for (let y = 0; y < sh * ky; y++) {
+      const ty = oy + y, sy = (y / ky) | 0;
       if (ty < 0 || ty >= H) continue;
-      for (let x = 0; x < sw; x++) {
+      for (let x = 0; x < sw * kx; x++) {
+        const sx = (x / kx) | 0;
         const tx = this._flip ? ox - 1 - x : ox + x;
         if (tx < 0 || tx >= W) continue;
-        const si = (y * sw + x) * 4;
+        const si = (sy * sw + sx) * 4;
         const sa = sd[si + 3];
         if (!sa) continue;                       // transparent: the mask
         const di = (ty * W + tx) * 4;

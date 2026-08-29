@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-b58cd83-bt2l",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "b58cd8397e5b24294eac5e890f408c39afa34c15",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 135936,
+  "verdict": "38/38 passed in slice 4/12 (135.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3345ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1448ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (32ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1454ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1673ms)\n  PASS  tired: the morning and evening shifts end the week level (74914ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (585ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (13336ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (108ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (75ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (28ms)\n  PASS  the beach ball is LIMITED fun (878ms)\n  PASS  a town saved mid-errand reloads and keeps running (885ms)\n  PASS  cycler: < crab > steps the selection AND the camera, and wraps (1474ms)\n  PASS  hotel: a full house is handled sanely - nobody wedges, nobody vanishes (2295ms)\n  PASS  a purse that raises nothing bolts the shelter and puts crabs on the street (6468ms)\n  PASS  a corrupt town hall in a save is clamped, not trusted (2255ms)\n  PASS  departures: nobody on the boat knows the town's name (1119ms)\n  PASS  a town with no rent roll still holds its election - the hat gets passed (2786ms)\n  PASS  care-lane bar: a debt-caused illness is barred from the rest lanes, targeted and escapable (580ms)\n  PASS  the HALL tab's text is measured, in every state it has (5371ms)\n  PASS  the shack says where the money comes from, and only your shops do (574ms)\n  PASS  the music controls answer from outside the record box (11ms)\n  PASS  BACK hands the town the track you were auditioning (10ms)\n  PASS  a crab may stand in the cabana it has come to clean (11ms)\n  PASS  bundled cultures: every shipped document is byte-equal to its source (11ms)\n  PASS  need-weight matrix: a declared axis BITES the glad card, both directions, both axes (12ms)\n  PASS  civics ballots: the document's dials are byte-equal to the WAGE_FLOOR/HEAD_CAP literals (7ms)\n  PASS  civics calendar/relief: a stranger's malformed calendar or relief is refused by name (11ms)\n  PASS  the body: a cultureway's physiology lands in the engine's own units, and only for its own folk (9ms)\n  PASS  pigs: fish is the taboo, and it is the WEIGHTS doing it (9ms)\n  PASS  cultureways: a minted pig round-trips and a minted crab stays byte-shaped (2050ms)\n  PASS  saves: a ver-3 envelope is the zero delta (1049ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1699ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (5728ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1728ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1165ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (640ms)\n38/38 passed in slice 4/12 (135.8s)\n"
+}

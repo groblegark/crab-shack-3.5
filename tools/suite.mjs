@@ -18997,6 +18997,168 @@ scenario("the title screen ages the build, and keeps ticking", () => {
   return true;
 });
 
+scenario("the news board: every announcement fits the column it prints in, and none is silently dropped", () => {
+  // Matt's ask was a home screen that tells you "feature announcements for
+  // users and balance and such". The failure mode of a copy list is not a
+  // crash - it is a release note the player never sees. newsProblem DROPS a
+  // bad entry rather than throwing (cultureProblem's contract, and the right
+  // one: a typo in an announcement must not take the title screen down), so
+  // the punishment for a 56th character is that your announcement is simply
+  // ABSENT, on the one surface whose entire job is to say there is more.
+  //
+  // BOTH HALVES OF THAT BIT FOR REAL while this was being written. One entry
+  // vanished at 55 characters against a hardcoded cap of 54 - eleven of twelve
+  // rendered and nothing said so. Then a headline was printed as "..WALL.."
+  // because the cap was written down as 44 when the column measures 41. The
+  // fix was to delete both numbers and make the validator call the SAME column
+  // expressions the draw calls, so this scenario drives the real newsProblem
+  // and the real fitSmall rather than a third copy of the arithmetic.
+  const sim = createSim({ seed: 5 });
+  const got = JSON.parse(sim.G(`JSON.stringify((() => {
+    const raw = (typeof GAME_NEWS !== "undefined" && GAME_NEWS) || [];
+    const kept = newsAll();
+    const dropped = raw.map((e, i) => [i, e && e.d, e && e.t, newsProblem(e)]).filter(r => r[3]);
+    // WHAT THE SURFACES ACTUALLY PRINT. fitSmall returns its input untouched
+    // when it fits, so "elided" is exact, not a width estimate.
+    const elided = [];
+    for (const e of kept) {
+      if (fitSmall(e.t, newsHeadW()) !== e.t) elided.push(["board headline", e.t]);
+      for (const L of (e.b || [])) if (fitSmall(L, newsBodyW()) !== L) elided.push(["body line", L]);
+    }
+    // THE TICKER'S COLUMN IS THE NARROWER OF ITS TWO STATES. It gives up its
+    // right end to a badge, and the unread badge ("12 NEW") is wider than the
+    // read one ("MORE"), so the worst case is a full unread list.
+    const r = newsBarRect();
+    const badge = Math.max(smallTextWidth(kept.length + " NEW"), smallTextWidth("MORE"));
+    const tickW = (r.x + r.w - 4 - badge - 4) - (r.x + 21);
+    const tickerCut = kept.filter(e => fitSmall(e.t, tickW) !== e.t).map(e => e.t);
+    // PAGES COVER EVERY ENTRY EXACTLY ONCE, IN ORDER - the height packer is
+    // the one piece of this with an off-by-one to make, and a lost page is
+    // invisible: the board still looks full.
+    const pages = newsPageList();
+    const flat = [].concat.apply([], pages).map(e => newsMark(e));
+    const R = helpRects(), avail = (R.h - 13) - 19 - 2;
+    const overfull = pages.map((p, i) => [i, p.reduce((a, e) => a + newsEntryH(e), 0)])
+      .filter(pr => pr[1] > avail && pages[pr[0]].length > 1);
+    const charset = Object.keys(FONT_SMALL).join(""), bigset = Object.keys(FONT).join("");
+    const badChar = (s2, set) => {
+      for (const ch of String(s2)) if (ch !== " " && set.indexOf(ch) < 0) return ch;
+      return null;
+    };
+    const glyphless = [];
+    for (const e of kept) {
+      for (const s2 of [e.t].concat(e.b || [])) { const c = badChar(s2, charset); if (c) glyphless.push([s2, c]); }
+      if (!NEWS_KINDS[e.k]) glyphless.push([e.k, "kind"]);
+    }
+    if (badChar("WHAT'S NEW", bigset)) glyphless.push(["WHAT'S NEW", "header"]);
+    return { rawN: raw.length, keptN: kept.length, dropped, elided, tickW, tickerCut,
+      flat, marks: kept.map(newsMark), avail, overfull, glyphless, pages: pages.length,
+      dates: kept.map(e => e.d), kinds: kept.map(e => e.k) };
+  })())`));
+  if (got.rawN < 1) return "news.js shipped no announcements at all";
+  if (got.dropped.length)
+    return `${got.dropped.length} of ${got.rawN} announcements are DROPPED and will never be seen: ${JSON.stringify(got.dropped)}`;
+  if (got.keptN !== got.rawN) return `newsAll kept ${got.keptN} of ${got.rawN} with nothing reported as bad`;
+  if (got.elided.length) return `the board cuts text it was given: ${JSON.stringify(got.elided)}`;
+  if (got.tickerCut.length)
+    return `the ticker (${got.tickW}px with the widest badge) cuts: ${JSON.stringify(got.tickerCut)}`;
+  if (got.glyphless.length) return `copy needs glyphs the font does not have: ${JSON.stringify(got.glyphless)}`;
+  // every entry on exactly one page, in the board's own newest-first order
+  if (got.flat.join(" ") !== got.marks.join(" "))
+    return `the pages do not cover the list exactly once in order: ${got.flat.length} paged vs ${got.marks.length} entries`;
+  if (got.overfull.length)
+    return `a multi-entry page runs past the ${got.avail}px it has: ${JSON.stringify(got.overfull)}`;
+  // NEWEST FIRST is the board's promise ("LATEST <date>" is printed from
+  // entry 0), so the sort is worth pinning rather than trusting the file order.
+  for (let i = 1; i < got.dates.length; i++)
+    if (got.dates[i] > got.dates[i - 1]) return `the board is out of order: ${got.dates[i - 1]} sits above ${got.dates[i]}`;
+  // ...and the ask names both halves by name. A board of nothing but features
+  // would answer half of "feature announcements for users AND balance".
+  if (got.kinds.indexOf("FEATURE") < 0) return "no FEATURE announcement shipped";
+  if (got.kinds.indexOf("BALANCE") < 0) return "no BALANCE announcement shipped";
+  return true;
+});
+
+scenario("the title's ticker and motto turn on the title screen's own clock, and stay off the sign", () => {
+  // THE HALF OF THIS FEATURE THAT CANNOT BE SEEN IN A SCREENSHOT. Both the
+  // ticker and the motto rotate on viewT, and viewT is DERIVED (`viewT =
+  // T / TICK_HZ`, never accumulated) - so the whole feature rests on T
+  // advancing on a screen where the town's clock is deliberately stopped.
+  // It does: frame() runs `T += dtT` and simClock() BEFORE the
+  // `if (screen === "title")` return, and only tday is gated on play. That is
+  // a load-bearing three-line ordering in a 26,000-line file, so it gets a
+  // pin rather than a comment: a frozen ticker and a frozen motto both render
+  // perfectly, and would silently answer neither half of the ask.
+  const sim = createSim({ seed: 9 });
+  const clock = JSON.parse(sim.G(`JSON.stringify((() => {
+    screen = "title"; hasSave = false;
+    return { viewT, tday, day };
+  })())`));
+  sim.runUntil("false", { step: 50, maxSteps: 200 });     // 200 frames x 50ms = 10 real seconds
+  const after = JSON.parse(sim.G(`JSON.stringify({ viewT, tday, day, screen })`));
+  if (after.screen !== "title") return `the sim left the title screen (now ${after.screen})`;
+  const moved = after.viewT - clock.viewT;
+  if (moved < 9 || moved > 11)
+    return `10 seconds on the title moved viewT by ${moved}, want ~10 - the ticker and motto ride this clock`;
+  if (after.tday !== clock.tday || after.day !== clock.day)
+    return `the TOWN clock ran on the title screen (tday ${clock.tday}->${after.tday}, day ${clock.day}->${after.day})`;
+  // THE ROTATION ITSELF: walk viewT across the whole cycle and require every
+  // entry and every motto to come up, in order and exactly once per lap. A
+  // modulo that lost an entry (or stuck on one) is the same silent failure.
+  const cyc = JSON.parse(sim.G(`JSON.stringify((() => {
+    const V = viewT;
+    try {
+      const n = newsAll().length, m = mottoList().length;
+      const tick = [], mot = [];
+      for (let i = 0; i < n; i++) { viewT = i * NEWS_DWELL + NEWS_DWELL / 2; tick.push(newsTickIdx()); }
+      for (let i = 0; i < m; i++) { viewT = i * MOTTO_DWELL + MOTTO_DWELL / 2; mot.push(mottoNow()); }
+      // ...and it must WRAP rather than run off the end of the list
+      viewT = n * NEWS_DWELL + NEWS_DWELL / 2;
+      const wrapT = newsTickIdx();
+      viewT = m * MOTTO_DWELL + MOTTO_DWELL / 2;
+      const wrapM = mottoNow();
+      return { n, m, tick, mot, wrapT, wrapM, uniq: new Set(mot).size };
+    } finally { viewT = V; }
+  })())`));
+  if (cyc.n < 1) return "the ticker has nothing to turn";
+  if (cyc.m < 8) return `only ${cyc.m} mottos - a splash that repeats every few loads is not a splash`;
+  for (let i = 0; i < cyc.n; i++)
+    if (cyc.tick[i] !== i) return `dwell ${i} shows entry ${cyc.tick[i]}: the ticker does not visit every announcement`;
+  if (cyc.wrapT !== 0) return `the ticker did not wrap: after one lap it shows ${cyc.wrapT}, want 0`;
+  if (cyc.uniq !== cyc.m) return `the motto cycle repeats itself: ${cyc.uniq} distinct of ${cyc.m}`;
+  if (cyc.wrapM !== cyc.mot[0]) return "the motto cycle did not wrap to its first entry";
+  // GEOMETRY, from the box the REAL blit loop produced. tiltText returns the
+  // box it accumulated from the same gx/gy it drew at (the headless canvas
+  // swallows writes to ctx, so this is the only non-vacuous observation
+  // available), and drawTitle is what calls it. Checked for EVERY motto,
+  // because the constraint is a function of length: the stair's rise is
+  // capped and then spread, so a long one flattens and a short one climbs.
+  const box = JSON.parse(sim.G(`JSON.stringify((() => {
+    const V = viewT, B = mottoBase, T0 = tiltText;
+    const out = [];
+    try {
+      hasSave = true;
+      for (let i = 0; i < mottoList().length; i++) {
+        mottoBase = i; viewT = 0.25;                 // dwell 0, plus a little bob
+        let b = null;
+        tiltText = function () { return (b = T0.apply(null, arguments)); };
+        try { drawTitle(); } finally { tiltText = T0; }
+        out.push([mottoList()[i], b]);
+      }
+      return { out, W, cardTop: 26, screenH: H };
+    } finally { viewT = V; mottoBase = B; tiltText = T0; }
+  })())`));
+  for (const pair of box.out) {
+    const s = pair[0], b = pair[1];
+    if (!b) return `"${s}" drew no motto at all`;
+    if (b.x < 1) return `"${s}" starts at x${b.x}, off the left edge`;
+    if (b.x + b.w > box.W - 1) return `"${s}" reaches x${b.x + b.w} on a ${box.W}px screen`;
+    if (b.y < 0) return `"${s}" climbs to y${b.y}, off the top of the screen`;
+    if (b.y + b.h > box.cardTop) return `"${s}" reaches y${b.y + b.h} and lands on the logo card at y${box.cardTop}`;
+  }
+  return true;
+});
+
 scenario("the kernel and the reference agree, byte for byte", () => {
   // THE WASM SPIKE's referee. The movement kernel (tools/kernel/kernel.c) is
   // a second backend for stepTo, visStep, and the collide pair loop; the JS

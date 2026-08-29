@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-b58cd83-bt2l",
+  "armId": "js-0",
+  "index": 0,
+  "sha": "b58cd8397e5b24294eac5e890f408c39afa34c15",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 244471,
+  "verdict": "38/38 passed in slice 0/12 (244.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (47242ms)\n  PASS  disease: sustained neglect breeds sickness (1329ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (712ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (3286ms)\n  PASS  credit: the town is warned before it goes under (50710ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (968ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (3055ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (55911ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (10ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (15751ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (8202ms)\n  PASS  tip sharing + the table cap roundtrip save/load (766ms)\n  PASS  no surface prints off the canvas (1640ms)\n  PASS  forecast: names the swell it can see, never the quality it cannot (11ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (133ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4809ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (5308ms)\n  PASS  departures: the card waits behind the day report, then pages itself (424ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (4678ms)\n  PASS  sleep debt: bad nights COMPOUND, and good nights REPAY (not erase) (7556ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (73ms)\n  PASS  a hire is something you can see happen (398ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1630ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (1ms)\n  PASS  the ticker sits in free HUD space at both canvas heights (54ms)\n  PASS  missing payday costs the crew, not the lease (7826ms)\n  PASS  crab-as-document: a hostile document is refused by name (14ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (9913ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (48ms)\n  PASS  toast: a message longer than the card CRAWLS, and every character reaches the screen (78ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (1892ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (465ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2771ms)\n  PASS  the title screen ages the build, and keeps ticking (10ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1986ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (9ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (160ms)\n  PASS  the arcade: the chore is named for the shop it happens in (4493ms)\n38/38 passed in slice 0/12 (244.3s)\n"
+}
