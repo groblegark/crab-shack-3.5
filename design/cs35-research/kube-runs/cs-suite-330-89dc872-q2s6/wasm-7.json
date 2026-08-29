@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-89dc872-q2s6",
+  "armId": "wasm-7",
+  "index": 19,
+  "sha": "89dc8728f3ea02416be91c908626ea932d368ceb",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 197071,
+  "verdict": "37/37 passed in slice 7/12 (196.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (3286ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1474ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1146ms)\n  PASS  boat: ownership and berth roundtrip through save/load (855ms)\n  PASS  the drop nudge: open sand nudges nothing (1547ms)\n  PASS  days off: wages skip exactly and the bill dips to match (1470ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (21ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (1050ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1085ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (999ms)\n  PASS  tips: the counter gets a token, the table gets the lot (18ms)\n  PASS  no card prints text on top of its own text (1088ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (3470ms)\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (156969ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (4546ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1184ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (8ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (11ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (48ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (552ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1293ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (14ms)\n  PASS  an iOS refusal latches instead of re-arming every frame (13ms)\n  PASS  a streamed town still reaches a same-origin track when the browser refuses release assets (35ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (5530ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (8ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (33ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (35ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (33ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (14ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (13ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1413ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1356ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (3623ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (1521ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (744ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (396ms)\n37/37 passed in slice 7/12 (196.9s)\n"
+}

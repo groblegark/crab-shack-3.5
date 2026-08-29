@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-89dc872-q2s6",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "89dc8728f3ea02416be91c908626ea932d368ceb",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 117437,
+  "verdict": "37/37 passed in slice 2/12 (117.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2668ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2154ms)\n  PASS  save/load: townsfolk keep wallets and houses (1598ms)\n  PASS  all crew dead: town survives, rehire recovers (1153ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (2015ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (795ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (22837ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (750ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4721ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (24349ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (5861ms)\n  PASS  ferry: the arming tap times out, and an old save never won (35ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (29ms)\n  PASS  surf: the sea rations it, the peak is capped, and a crowd takes the edge off (1832ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1140ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (1626ms)\n  PASS  the town hall survives a save and a reload, ledger and all (4790ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2401ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3160ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (992ms)\n  PASS  the help card fits the card, in the font the card is printed in (9ms)\n  PASS  the title screen credits the track that is actually queued (14ms)\n  PASS  a dead <source> reaches musFail through the child's own listener (13ms)\n  PASS  the now-playing ticker names what is audible and scrolls only when it must (12ms)\n  PASS  the house limit stops a hire and never fires anybody (7676ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (20ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (13124ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (13ms)\n  PASS  cultureways: a save without cultures changes nothing (1385ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (441ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (490ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2638ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (19ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (2427ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (353ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (46ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (3751ms)\n37/37 passed in slice 2/12 (117.3s)\n"
+}
