@@ -79,6 +79,17 @@ const NOPLAY = args.includes("--noplay");
 // still LOOKS like the weather (that is `window._noSeaCues`, a separate
 // hatch): --nosurf moves behaviour only.
 const NOSURF = args.includes("--nosurf");
+// ...and `--nodebt` for the SLEEP DEBT ramp, so a matrix that moved can be
+// asked whether THIS is what moved it. Arms off the accumulating hazard only;
+// the flat tired >= 0.95 term the roll always had stays exactly as it was, so
+// the control arm is the pre-ramp build and not a town with no fatigue in it.
+const NODEBT = args.includes("--nodebt");
+// ...and `--nodebtlane` for the SECOND change alone: the CARE-LANE BAR that
+// keeps a debt-caused illness out of the rest lanes (decision kd-h28QBb1lvO,
+// `deadly`). Arming this off leaves the ramp ON but lets illness rescue an
+// exhausted crab again - so the ramp and the bar can be priced as two
+// separate variables on one tree, not one lumped number (advice kd-JwPxQ7pSwn).
+const NODEBTLANE = args.includes("--nodebtlane");
 // `--bodymul '{"rates":{"hunger":25}}'` runs the ENGINE'S OWN people on a
 // body section (census C2's slice-1.5 sensitivity lever): the JSON crosses
 // the same buildPhys conversion a document does, lands on ENG_BODY and the
@@ -216,6 +227,8 @@ if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);
 if (NOSURF) G(`window._noSurf = true;`);
+if (NODEBT) G(`window._noDebt = true;`);
+if (NODEBTLANE) G(`window._noDebtLane = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
 if (NOANNEXE) G(`ROOM_CFG.EXTRA = 0; setHotelRooms(HOTEL_ROOMS_BASE);`);
 if (NODORM) G(`DORM_CFG.BASE = 99;`);

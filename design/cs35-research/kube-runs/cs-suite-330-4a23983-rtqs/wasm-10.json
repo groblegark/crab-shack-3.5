@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-4a23983-rtqs",
+  "armId": "wasm-10",
+  "index": 22,
+  "sha": "4a23983e26369c5509be9865fdeb2d8a7aaa0124",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "10/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 106081,
+  "verdict": "37/37 passed in slice 10/12 (105.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  homeless: eviction to shelter and back (1866ms)\n  PASS  housing: npcs sleep at the shelter, then move up (537ms)\n  PASS  queue hard cap holds for locals too (2358ms)\n  PASS  credit: rent shortfall draws the line instead of evicting (531ms)\n  PASS  tired: a workday accrues it; sleep drains it, bed beating cot (400ms)\n  PASS  hiring with no tourists books a morning-bus arrival who works day-of (39ms)\n  PASS  fish market: price + series roundtrip save/load (57ms)\n  PASS  labor policy: every new setting roundtrips save/load (1013ms)\n  PASS  ownership + the FOR SALE market roundtrip save/load (4314ms)\n  PASS  shortcut home: sleeping rough banks nothing - and the player can break it (1163ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (857ms)\n  PASS  a science run is silent and the mind panel banks at the fold (986ms)\n  PASS  almanac: mist is one ocean for the fleet, swell and wind are per-town (83ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2711ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (1822ms)\n  PASS  the mayor wears the hat, and nobody else ever does (954ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (301ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (491ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (64729ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (97ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (424ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (409ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (10ms)\n  PASS  a networkless town gives up after four tracks, not after a thousand (12ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (5525ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (14ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (7513ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (16ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (377ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (10ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (315ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2125ms)\n  PASS  the build stamp is well-formed and wired (1ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1193ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (10ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (23ms)\n  PASS  the arcade: the chore is named for the shop it happens in (2661ms)\n37/37 passed in slice 10/12 (105.9s)\n"
+}

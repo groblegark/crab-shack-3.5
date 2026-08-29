@@ -1,0 +1,12 @@
+{
+  "name": "sleepdebt-isolated",
+  "note": "The DE-CONFOUNDED deadliness demonstration for task kd-O4cnSe10cW / decision kd-h28QBb1lvO. The sweatshop A/B (sleepdebt-measure.json) works crabs to death by EVERY means at once -- 6-24 +OT starves and dirties them too -- so net deaths are neglect-saturated and the sleep-debt signal is buried (advice kd-1XqylH3kmJ: a probe must isolate effect from plumbing). --fed zeroes hunger/thirst/dirt at every settlement, keeps the crew housed, and grants sick days, so the ONLY lethal pathway that ramps is sleep debt -- Matt's ceiling-probe scenario (a well-run town whose crew is merely sleep-deprived) made lethal. Three arms, same 32 seeds, only the hatch varies: control (--nodebt, pre-ramp: a debt illness cannot exist, exhaustion illness rescues) / ramp (--nodebtlane, ramp on, bar off: debt illness lands in a good care lane and rescues) / ramp+bar (shipped: debt illness lands in `spent` and kills). Expect deaths ~0 -> ~0 -> N, all `spent`. SIMLIB_REALM=main + SIMLIB_KERNEL=wasm by env so the only variable across arms is the hatch.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "control-fed", "entry": "tools/sleepdebt.mjs", "args": ["--hours","6-24","--ot","--fed","--seeds","32","--crew","6","--days","30","--nodebt","--quiet"],     "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "ramp-fed",    "entry": "tools/sleepdebt.mjs", "args": ["--hours","6-24","--ot","--fed","--seeds","32","--crew","6","--days","30","--nodebtlane","--quiet"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "deadly-fed",  "entry": "tools/sleepdebt.mjs", "args": ["--hours","6-24","--ot","--fed","--seeds","32","--crew","6","--days","30","--quiet"],                "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } }
+  ]
+}

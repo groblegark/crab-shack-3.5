@@ -4796,8 +4796,29 @@ const CARE_LANES = {
   cared:   { cure: 0.40, die: 0.08, label: "CARED FOR" },
   cot:     { cure: 0.48, die: 0.06, label: "COT REST" },
   bed:     { cure: 0.55, die: 0.04, label: "BED REST" },
+  // WORKED TO THE BONE - the lane a debt-caused illness is barred INTO
+  // (decision kd-h28QBb1lvO, `deadly`). The care ladder reads hunger, thirst,
+  // dirt and rest, but NEVER exhaustion - so a crab whose illness the sleep-debt
+  // ledger caused is fed, watered, clean and tucked into their own bed and still
+  // gets the top lane's gentle odds, and the illness quietly RESCUES them: it
+  // pulls them off the rota, the rest drains their exhaustion, the debt repays,
+  // and they come back fresh. Measured (16 seeds, kd-O4cnSe10cW's thread):
+  // arming the ramp made the town SAFER, deaths 18 -> 14, because illness was a
+  // cure for the very thing being measured. This lane is the second change Matt
+  // ruled for: rest cures no crab who is ill FROM having had no rest, so a
+  // debt-caused illness lands here whatever else is right about their care -
+  // worse cure than NEGLECTED even, and armed on the neglect clock (day 4, not
+  // day 7), because the exhaustion the bed cannot touch is what is killing them.
+  spent:   { cure: 0.10, die: 0.24, label: "WORKED TO THE BONE" },
 };
+// A DEBT-CAUSED ILLNESS: the ledger was actively BILLING this crab (debt past
+// the grace) at the settlement they fell ill on - marked at onset from the same
+// debtRisk() the roll read, so toggling the bar off never needs the flag re-set.
+// window._noDebtLane arms the BAR alone off (the ramp stays on), so the ramp and
+// the bar price as two variables on one tree (advice kd-JwPxQ7pSwn).
+function debtSick(k) { return !window._noDebtLane && !!(k.p.sick && k.p.sick.fromDebt); }
 function careLane(k) {
+  if (debtSick(k)) return "spent";   // barred from every rest lane: no bed fixes weeks of no sleep
   if ((k.p.hunger || 0) >= qn(0.5) || (k.p.dirt || 0) >= qn(0.66)) return "neglect";
   if ((k.p.restT || 0) < REST_HOURS || (k.p.thirst || 0) >= qn(0.5) || !onSickDay(k)) return "cared";
   return k.p.homeless ? "cot" : "bed";
@@ -6112,7 +6133,115 @@ function illRisk(c) {
   if ((c.p.thirst || 0) >= qn(0.95)) risk += 0.12;   // dehydration: the scariest neglect
   if ((c.p.dirt || 0) >= qn(0.95)) risk += 0.06;
   if ((c.p.tired || 0) >= qn(0.95)) risk += 0.05;   // run ragged - exhaustion is worse than sand ever was
+  risk += debtRisk(c);   // ...and the same exhaustion, SERVED NIGHT AFTER NIGHT (see SLEEP DEBT)
   return risk;
+}
+
+// ===========================================================================
+// SLEEP DEBT - the one need that used to have no memory
+// ---------------------------------------------------------------------------
+// Matt, 2026-08-25, from play: "I have crabs working impossible hours, lack of
+// sleep should eventually be deadly."
+//
+// He was right, and the reason is one word: illRisk was MEMORYLESS. It reads
+// four needs at the INSTANT of the settlement and asks nothing about the
+// nights before it, so a crab pinned at tired >= 0.95 rolled the same +0.05 on
+// night 30 as on night 1. Exhaustion was also the WEAKEST of the four terms -
+// the roll punishes hunger at +0.10, twice as hard. PLAN records a ceiling
+// probe that pinned an entire crew at tired = 1.0 for thirty solid days and
+// the town still ended on $9,713. In the limit, sleep deprivation was FREE.
+//
+// MEASURED ON THIS TREE before the change (tools/sleepdebt.mjs, 8 seeds x 24d,
+// crew 6), an ordinary town against one worked into the ground:
+//     arm                  crew pinned%   rough%   crew deaths
+//     ordinary 8-20            3.2         0.8          0
+//     impossible 6-24 +OT     30.6        11.1          1
+// PINCHY served 97 pinned nights across that block and was still on the rota.
+// The town can work a crab into the ground; the ground did nothing.
+//
+// WHAT THIS IS. A per-crab ledger of CONSECUTIVE nights ended over the
+// exhaustion line, counted once each at the settlement. Debt past DEBT_GRACE
+// adds DEBT_STEP of risk per night, capped at DEBT_MAX. It gives exhaustion
+// MEMORY rather than raising the per-night constant - which matters, because
+// raising the constant taxes a well-run town for one bad Tuesday exactly as
+// hard as it taxes a sweatshop. This only ever bills the crab you keep doing
+// it to.
+//
+// WHY A NIGHT LEDGER AND NOT AN EXPOSURE INTEGRAL - and this one is load-
+// bearing, it is the trap this change was always going to walk into. "Hours
+// banked over the line" is the obvious implementation and it was ALREADY
+// MEASURED AND REJECTED for this roll (see illRisk's receipt above): it reads
+// M/E x1.43, because a morning crab finishes at 14:00 exhausted and stays
+// awake six hours while an evening crab finishes at 20:00 and goes to bed.
+// That is a real difference in a real day, and integrating over the day
+// SURFACES it - it would resurrect by the back door the exact shift
+// unfairness TIRED_NAP was added to fix. One night is one tick of the ledger
+// whoever you are and whenever your shift ended, so M and E stay level.
+// Baseline to hold: M/E prevalence x1.00, incidence x1.00 (tools/shiftill.mjs).
+//
+// AND IT IS ESCAPABLE, WHICH IS THE POINT. The counter RESETS on any single
+// night that ends under the line - one day off, one shorter shift, one rest
+// order, and the ledger is clear. It is a debt, not a scar: the game already
+// warns by name the night before a death roll arms (GRAVELY ILL), and this
+// gives the player a second, earlier warning they can act on. The shape is
+// deliberately the same one boredom already uses - boredDays -> WALKOUT_DAYS
+// -> an unauthorised day off - so the town has ONE idea about what a need
+// doing this to you for days on end means, in two places.
+//
+// WHAT IT DELIBERATELY DOES NOT DO. It does not move bedtime, suppress an
+// errand, or send anybody home. The investigation that preceded this
+// (kd-S9IU9fFDTw) measured a crab bedtime and it neither fixed the reported
+// symptom nor paid for itself - because the late-evening errand tour is LOAD-
+// BEARING: crabs are out at 23:00 because that is WHEN THEY EAT, and the roll
+// punishes hunger twice as hard as exhaustion, so sending them to bed unfed
+// starved the town (growth escape 6/32 against an 11/32 control). This ramp
+// acts ONLY on the hazard of accumulated debt and touches no crab's routine.
+const DEBT_AT = 0.95;      // the night counts as under-slept: the roll's own exhaustion line, reused on purpose
+const DEBT_GRACE = 3;      // ...and this many in a row are FREE. A hard week is not a death sentence
+const DEBT_STEP = 0.035;   // per night past the grace, on top of the flat +0.05 the fourth night still pays
+const DEBT_CAP = 10;       // nights at which the ramp stops climbing
+// A GOOD NIGHT REPAYS; IT DOES NOT ERASE. This is the load-bearing choice in
+// the whole feature and it was MEASURED, not assumed. The first cut reset the
+// ledger to zero on any night under the line, and that version SELF-LIMITED at
+// about five nights because of two ceilings this town already had:
+//
+//   1. THE WEEKLY ROTA DAY OFF. Every crab has one (OFF_BASE per business), so
+//      a crab essentially cannot serve more than ~6 consecutive over-line
+//      nights while the rota holds. A cap of 10 was unreachable BY
+//      CONSTRUCTION - the top rungs of the ladder were decoration.
+//   2. THE RAMP CURED WHAT IT WAS MEASURING. Traced on one crab: debt reaches
+//      5, the extra hazard fires, they fall ill, illness sends them HOME TO
+//      REST, resting drains exhaustion to ~0, and the ledger zeroes. The ramp
+//      worked and then erased its own evidence.
+//
+// So a hard reset asks "are they on a bad RUN right now" when the ask was
+// "have they been GROUND DOWN over weeks". DEBT_REPAY subtracts instead: one
+// good night pays off two bad ones, so a rota day off or a bout of illness
+// BLUNTS the debt without clearing it, and a crab worked hard for a month
+// carries more than one worked hard for a week. That is what makes "eventually"
+// mean something, and it is why the cap is reachable at all.
+const DEBT_REPAY = 2;      // nights of debt cleared by ONE night under the line
+// the ladder a ground-down crab walks, as risk from exhaustion alone:
+//   nights  1-3    4      5      6      7      8      9     10+
+//   risk    0.050  0.085  0.120  0.155  0.190  0.225  0.260  0.295
+// At the cap that is x5.9 the old flat term and finally the heaviest thing on
+// the roll - which is the ask. Reaching it takes weeks of the player ignoring
+// a warning that arrives by name, and ONE rested week walks it back down.
+function debtNights(c) { return Math.min(DEBT_CAP, c.p.sleepDebt || 0); }
+function debtRisk(c) {
+  if (window._noDebt) return 0;   // arm-off hatch for attribution (--nodebt)
+  return DEBT_STEP * Math.max(0, debtNights(c) - DEBT_GRACE);
+}
+// ...and the ledger tick itself, called once per crab at the settlement.
+// Reads the SAME instant the roll does, so a crab is never billed for a night
+// the roll did not also see them over the line. Clamped at DEBT_CAP on the way
+// UP too: without that, a month of abuse would bank debt the ramp never bills
+// and then take a fortnight of good nights to show any mercy at all.
+function tickSleepDebt(c) {
+  const d = c.p.sleepDebt || 0;
+  c.p.sleepDebt = (c.p.tired || 0) >= qn(DEBT_AT)
+    ? Math.min(DEBT_CAP, d + 1)
+    : Math.max(0, d - DEBT_REPAY);
 }
 
 // ===========================================================================
@@ -7334,6 +7463,10 @@ function newCrab(persona) {
   if (persona.boredDays == null) persona.boredDays = 0;
   if (persona.walkout == null) persona.walkout = 0;
   if (persona.rough == null) persona.rough = false;
+  // ...and the SLEEP DEBT ledger: consecutive settlements ended over the
+  // exhaustion line. An old save lands on 0 - a clean slate, not a back-dated
+  // bill for nights it was never counting.
+  if (persona.sleepDebt == null) persona.sleepDebt = 0;
   const c = Object.setPrototypeOf({
     p: persona,
     si: poolAlloc(),
@@ -13835,9 +13968,9 @@ function abortErrand(c) {
 // shower attendant her own stalls back. It is also what keeps the care ladder
 // worth climbing now that everyone can die - a fed, watered, clean crab in
 // their own bed is not dying on day three, ever.
-const DEATH_DAY = 4;     // ...neglected
-const LINGER_DAY = 7;    // ...cared for (any lane above NEGLECT)
-function deathArmsAt(lane) { return lane === "neglect" ? DEATH_DAY : LINGER_DAY; }
+const DEATH_DAY = 4;     // ...neglected, or WORKED TO THE BONE: the tide is allowed in on the third day either way
+const LINGER_DAY = 7;    // ...cared for (any lane above NEGLECT that a bed can actually help)
+function deathArmsAt(lane) { return lane === "neglect" || lane === "spent" ? DEATH_DAY : LINGER_DAY; }
 // One removal path for crew and townsfolk alike. Releases everything the crab
 // held, files the memorial, and settles what their death does to the town.
 function killCrab(k) {
@@ -21485,6 +21618,13 @@ function drawDossier() {
     row("TODAY", "AT A LOOSE END - " + p.boredDays + " NIGHT" + (p.boredDays > 1 ? "S" : "") + " OF IT", [110, 120, 180]);
   if (p.rough || p.roughLast >= day - 1)
     row("LAST NIGHT", p.rough ? "ASLEEP ROUGH - BANKING NOTHING" : "SLEPT ROUGH - NO REST BANKED", [150, 110, 200]);
+  // THE SLEEP DEBT LEDGER, on the record it bills. Shown from the first night
+  // so the player can watch it build toward the grace rather than meeting it
+  // at the toast, and it says what it COSTS once it is actually charging.
+  if ((p.sleepDebt || 0) >= 1)
+    row("SLEEP", (p.sleepDebt || 0) + " NIGHT" + (p.sleepDebt > 1 ? "S" : "") + " OVER THE LINE"
+      + (debtRisk(c) > 0 ? " - ILLNESS +" + Math.round(debtRisk(c) * 100) + "%" : " - GRACE"),
+      debtRisk(c) > 0 ? [200, 90, 90] : [150, 130, 90]);
   // HEALTH doubles as the SICK DAY control: grant the rest, or require the shift
   if (p.sick) {
     const granted = onSickDay(c);
@@ -24602,6 +24742,13 @@ function simClock(dt, rawMs) {
     {
       const everyone = allCrabs();
       const sickNow = everyone.filter(k => k.p.sick);
+      // SLEEP DEBT ticks FIRST, for everyone, and before the roll reads it -
+      // so a crab is billed on the same instant's exhaustion the roll judges
+      // them on, and the fourth consecutive night is the fourth tick. Its own
+      // pass rather than inside the roll below, because that one `continue`s
+      // past the sick: an ill crab still has a ledger (resting at home clears
+      // it, which is the cure working) and it must not silently freeze.
+      for (const k of everyone) tickSleepDebt(k);
       for (const k of everyone) {
         if (k.p.sick) continue;
         // ONE INSTANT SAMPLE of the four needs, and it is the fairest of the
@@ -24627,7 +24774,14 @@ function simClock(dt, rawMs) {
                  dirt: +((k.p.dirt || 0) / Q20).toFixed(3), tired: +((k.p.tired || 0) / Q20).toFixed(3) },
         });
         if (risk > 0 && srand() < Math.min(0.5, risk)) {
-          k.p.sick = { days: 0 }; today.sick.push(k.p.name);
+          // WAS THE SLEEP DEBT WHAT DID THIS? The ledger was BILLING this crab
+          // (debtRisk past the grace) at the very settlement the roll read - so
+          // this illness is the debt cashing in, and the care ladder bars it
+          // from the rest lanes it cannot honestly use (see CARE_LANES.spent,
+          // decision kd-h28QBb1lvO). debtRisk() is 0 when the ramp is armed off
+          // (--nodebt), so a control town never marks a fromDebt illness and the
+          // bar is inert there. Sticky for the illness's whole duration.
+          k.p.sick = { days: 0, fromDebt: debtRisk(k) > 0 }; today.sick.push(k.p.name);
           logFellIll(k);   // DIARY
           if (window._stats) {
             const why = [];
@@ -24712,6 +24866,21 @@ function simClock(dt, rawMs) {
       if (k.p.roughLast && k.p.roughLast >= day - 1) {
         today.moved.push(k.p.name + " SLEPT ROUGH - NO REST BANKED");
         k.p.roughLast = 0;
+      }
+      // SLEEP DEBT, SAID OUT LOUD. The ramp is only fair if the player can see
+      // it coming, so the night the grace runs out is announced BY NAME - the
+      // same courtesy the death roll already gets (GRAVELY ILL) and the same
+      // one boredom gets before a walk-out. One toast, on the night it starts
+      // to bill, because that is the night a day off is still cheap; after
+      // that the diary and the dossier carry it without nagging.
+      const dn = k.p.sleepDebt || 0;
+      if (dn >= DEBT_GRACE) {
+        if (dn === DEBT_GRACE) {
+          crabLog(k, "peril", "DEAD ON THEIR FEET - " + dn + " NIGHTS NO REST", 0);   // DIARY
+          toast = { text: k.p.name + " IS RUNNING ON EMPTY - THEY NEED A NIGHT OFF", t: 8 };
+          popText("DEAD ON MY FEET", k.x - 16, FLOOR_Y - 34, [190, 160, 230]);
+        }
+        today.moved.push(k.p.name + " - " + dn + " NIGHTS WITHOUT REST");
       }
       if (walkoutToday(k)) today.moved.push(k.p.name + " NEVER CAME IN - NO WAGE");
       // (the boredom advance is NOT cleared here - see BORED_ADV_MAX. This block

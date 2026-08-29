@@ -1,0 +1,28 @@
+{
+  "name": "sleepdebt-measure",
+  "note": "The two-change measurement decision kd-h28QBb1lvO RULED for (`deadly`), on the tree it lands on (task kd-O4cnSe10cW). Change 1 = the sleep-debt ramp (--nodebt arms it off = the pre-ramp control). Change 2 = the care-lane bar that stops illness rescuing an exhausted crab (--nodebtlane arms JUST the bar off = ramp only). So three arms price the two changes as two variables on ONE tree (advice kd-JwPxQ7pSwn): control (--nodebt) / ramp only (--nodebtlane) / ramp+bar (neither). GROWTH (12 arms, batch.mjs, survived/16): the pillar re-taken on THIS tree - control vs ramp vs ramp+bar x seedbase {0,16,32} = 48 towns/hatch, plus the shipped build's baseline floor (buy nothing, must stay ~0/48). DEADLINESS (3 arms, sleepdebt.mjs, 32 seeds, sweatshop 6-24 +OT): deaths and the care-lane mix must climb control -> ramp -> ramp+bar, and the `spent` (WORKED TO THE BONE) lane must carry the new deaths. batch sets SIMLIB_KERNEL=wasm + SIMLIB_REALM=main itself; the sleepdebt arms set the same by env so all three A/B arms share one kernel and the only variable is the hatch.",
+  "resources": { "requests": { "cpu": "7", "memory": "2Gi" }, "limits": { "cpu": "8", "memory": "4Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "control-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--nodebt","--json"] },
+    { "id": "control-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--nodebt","--json"] },
+    { "id": "control-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--nodebt","--json"] },
+
+    { "id": "ramp-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--nodebtlane","--json"] },
+    { "id": "ramp-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--nodebtlane","--json"] },
+    { "id": "ramp-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--nodebtlane","--json"] },
+
+    { "id": "deadly-growth-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "deadly-growth-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "deadly-growth-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] },
+
+    { "id": "deadly-baseline-sb0",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "deadly-baseline-sb16", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "deadly-baseline-sb32", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+
+    { "id": "control-sweatshop", "entry": "tools/sleepdebt.mjs", "args": ["--hours","6-24","--ot","--seeds","32","--crew","6","--days","30","--nodebt","--quiet"],     "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "ramp-sweatshop",    "entry": "tools/sleepdebt.mjs", "args": ["--hours","6-24","--ot","--seeds","32","--crew","6","--days","30","--nodebtlane","--quiet"], "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } },
+    { "id": "deadly-sweatshop",  "entry": "tools/sleepdebt.mjs", "args": ["--hours","6-24","--ot","--seeds","32","--crew","6","--days","30","--quiet"],                "env": { "SIMLIB_REALM": "main", "SIMLIB_KERNEL": "wasm" } }
+  ]
+}

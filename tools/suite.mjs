@@ -4505,12 +4505,19 @@ scenario("mortality: a cared-for crab is not taken on day three (the ladder stil
     const s2 = createSim({ seed: 500 + i });
     s2.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
     s2.G(setup);
+    // IDENTIFY THE FIXTURE BY NAME, not by roster index (bug kd-eIyghgnGnC):
+    // killCrab SPLICES `crabs`, so once the fixture dies `crabs[0]` is a
+    // DIFFERENT, LIVING crab and `!crabs[0]` reads false - a death would score
+    // as a survival and this gate (which exists to catch the ladder turning
+    // lethal) would be structurally blind to exactly that.
+    const name = s2.G("crabs[0].p.name");
+    const nm = JSON.stringify(name);
     s2.runUntil("lastRentDay === day", { maxSteps: 400000, onTick: (G) => {
-      G(`{ coins = 300000; const k = crabs[0];
+      G(`{ coins = 300000; const k = allCrabs().find(c => c.p.name === ${nm});
         if (k && k.p.sick) { k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1; } }`);
     } });
-    if (!s2.G("crabs[0]")) deaths++;
-    else if (!s2.G("crabs[0].p.sick")) cures++;
+    if (!s2.G(`allCrabs().some(c => c.p.name === ${nm})`)) deaths++;
+    else if (!s2.G(`allCrabs().find(c => c.p.name === ${nm}).p.sick`)) cures++;
   }
   if (deaths) return `${deaths}/24 cared-for crabs were taken on the third day of illness`;
   if (cures < 6) return `only ${cures}/24 cared-for crabs recovered - the improved lane stopped paying`;
@@ -10704,6 +10711,319 @@ scenario("sickness: the roll-log seam is inert (a measured town is the same town
   const off = fp(false), on = fp(true);
   if (on.rolls < 10) return `the armed town only logged ${on.rolls} rolls - nothing was compared`;
   if (off.s !== on.s) return "arming the roll log moved the town:\n        off " + off.s + "\n        on  " + on.s;
+  return true;
+});
+
+// ===========================================================================
+// SLEEP DEBT - the ramp that gave exhaustion a memory
+// ---------------------------------------------------------------------------
+// Matt, 2026-08-25: "I have crabs working impossible hours, lack of sleep
+// should eventually be deadly." It was not: illRisk read one instant and asked
+// nothing about the nights before it, so a crab pinned at the top of the bar
+// rolled the same +0.05 on night 30 as on night 1. These four gates pin the
+// ramp that fixed it - and the third is the one that matters most, because the
+// obvious implementation of this feature is a MEASURED REGRESSION (see the
+// shift block above: banking hours over the line reads M/E x1.43).
+// ===========================================================================
+
+scenario("sleep debt: bad nights COMPOUND, and good nights REPAY (not erase)", () => {
+  // THE MECHANISM, with no statistics in it. Hold one crab over the exhaustion
+  // line across successive settlements and the ledger must climb, the grace
+  // must actually be free, and the risk must rise MONOTONICALLY past it -
+  // that is the whole of "eventually deadly". Then let them rest and the debt
+  // must come DOWN BY DEGREES rather than vanishing.
+  //
+  // The repayment half is the measured one (see DEBT_REPAY): a hard reset made
+  // the ramp self-limiting at ~5 nights, because the town has a mandatory
+  // weekly day off AND because the ramp's own consequence - illness - sends a
+  // crab home to rest and would zero the very ledger that caused it. A crab
+  // must not be able to launder a fortnight of abuse through one good night.
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil("day >= 2 && tmin >= 7 * 60", { maxSteps: 200000 });
+  // read the tuning off the GAME, so retuning the ramp cannot silently
+  // invalidate the gate that guards it
+  const GRACE = +sim.G("DEBT_GRACE"), SPAN = GRACE + 4;
+  const DEBT_CAP_GUESS = 20;   // repayment rounds to walk the ledger back to zero
+  // hold the crab at the ceiling AND the town in the black - a week of this is
+  // not a way to run a business, and a bankrupt town stops the clock on us
+  const pin = (G) => { G(`{ const c = crabs[0]; c.p.tired = Q20; }`); G("if (coins < 5000) coins = 20000;"); };
+  const seen = [];
+  for (let n = 1; n <= SPAN; n++) {
+    pin(sim.G.bind(sim));
+    if (!sim.runUntil("lastRentDay === day", { maxSteps: 200000, tickEvery: 4, onTick: pin }))
+      return `could not reach settlement ${n}`;
+    seen.push({ n, debt: +sim.G("crabs[0].p.sleepDebt"), risk: +sim.G("debtRisk(crabs[0])") });
+    if (!sim.runUntil("lastRentDay !== day", { maxSteps: 200000, tickEvery: 4, onTick: pin }))
+      return `could not leave settlement ${n}`;
+  }
+  const show = seen.map(r => `${r.debt}:${r.risk.toFixed(3)}`).join(" ");
+  // the ledger counts every night it was held over the line
+  for (const r of seen) if (r.debt !== r.n)
+    return `the ledger did not count night ${r.n} (read ${r.debt}) - ${show}`;
+  // the grace is genuinely free...
+  for (const r of seen) if (r.n <= GRACE && r.risk !== 0)
+    return `night ${r.n} was billed inside the grace of ${GRACE} (+${r.risk.toFixed(3)}) - ${show}`;
+  // ...and past it, every extra night costs strictly more than the last
+  const past = seen.filter(r => r.n > GRACE);
+  if (past.length < 2) return `not enough nights past the grace to test the ramp - ${show}`;
+  for (let i = 1; i < past.length; i++) if (!(past[i].risk > past[i - 1].risk))
+    return `the ramp stopped climbing at night ${past[i].n} - ${show}`;
+  // and the last night must be worth MORE than the flat +0.05 exhaustion term
+  // it rides on top of, or "eventually deadly" is a rounding error
+  if (!(past[past.length - 1].risk > 0.05))
+    return `after ${SPAN} nights the extra hazard is only +${past[past.length - 1].risk.toFixed(3)}`
+      + `, no bigger than the flat term - ${show}`;
+  // A GOOD NIGHT REPAYS BY DEGREES. One rested settlement must reduce the
+  // ledger - and must NOT zero it, or a fortnight of abuse launders itself.
+  const owed = +sim.G("crabs[0].p.sleepDebt");
+  const REPAY = +sim.G("DEBT_REPAY");
+  if (!(owed > REPAY)) return `fixture: only ${owed} nights owed, cannot tell repayment from a reset`;
+  const rest = `{ const c = crabs[0]; c.p.tired = qn(0.2); }`;
+  sim.G(rest);
+  if (!sim.runUntil("lastRentDay === day",
+    { maxSteps: 200000, tickEvery: 4, onTick: (G) => G(rest) })) return "could not reach the rested settlement";
+  const after = +sim.G("crabs[0].p.sleepDebt");
+  if (after >= owed) return `a night under the line did not repay anything (${owed} -> ${after})`;
+  if (after === 0)
+    return `one good night ERASED ${owed} nights of debt - that is the self-limiting version. `
+      + "A rest has to repay by degrees (DEBT_REPAY), or illness (which rests them) cancels the "
+      + "very ledger that caused it and the ramp never reaches its own cap.";
+  if (after !== owed - REPAY) return `expected ${owed} - ${REPAY} = ${owed - REPAY}, read ${after}`;
+  // ...and enough good nights DO clear it: a debt, not a scar.
+  // ...and enough rested nights DO clear it: a debt, not a scar. Drive whole
+  // days (runDays is absolute) with the crab held rested, and watch the ledger
+  // walk down. The town is kept solvent so it does not end under us.
+  // The fixture holds one crab at the ceiling for a week, which is not a way to
+  // run a business: the town goes bankrupt underneath the probe and the clock
+  // stops. Keep it solvent - we are measuring the ledger, not the landlord.
+  let rounds = 0;
+  const solvent = (G) => { G(rest); G("if (coins < 5000) coins = 20000;"); };
+  while (+sim.G("crabs[0].p.sleepDebt") > 0 && rounds++ < DEBT_CAP_GUESS) {
+    const target = +sim.G("day") + 1;
+    solvent(sim.G.bind(sim));
+    if (!sim.runUntil(`day >= ${target} && lastRentDay === day`,
+      { maxSteps: 400000, tickEvery: 4, onTick: solvent }))
+      return `could not reach settlement ${target} on repayment round ${rounds}`
+        + ` (gameOver ${sim.G("gameOver")}, crabs ${sim.G("crabs.length")})`;
+  }
+  if (+sim.G("crabs[0].p.sleepDebt") !== 0)
+    return `a rested crab never got back to zero after ${rounds} rested nights `
+      + `(still ${sim.G("crabs[0].p.sleepDebt")}) - the debt has to be escapable or the player has no lever`;
+  if (+sim.G("debtRisk(crabs[0])") !== 0) return "the ledger cleared but the hazard did not";
+  return true;
+});
+
+scenario("sleep debt: it is INERT on a town that sleeps - a hard Tuesday is not a death sentence", () => {
+  // THE OTHER HALF OF THE CLAIM, and the reason this is a ledger rather than a
+  // bigger constant. Raising the flat exhaustion term would tax a well-run
+  // town for one bad night exactly as hard as it taxes a sweatshop. This must
+  // only ever bill the crab you keep doing it to - so an ordinary town has to
+  // come out UNTOUCHED, byte-for-byte, against the same town with the ramp
+  // armed off. Three days, one fingerprint.
+  const fp = (off) => {
+    const sim = createSim({ seed: 1337 });
+    if (off) sim.G("window._noDebt = true;");
+    sim.runDays(3);
+    return sim.G(`JSON.stringify({ coins: Math.round(coins * 1000), rep: Math.round(rep * 1000),
+      crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), Math.round(c.p.wallet * 100),
+        Math.round((c.p.tired || 0) * 1000), !!c.p.sick, c.p.sleepDebt || 0].join("|")),
+      inf: window._stats.infections || 0 })`);
+  };
+  if (fp(true) !== fp(false))
+    return "the sleep-debt ramp moved an ordinary three-day town:\n        armed off " + fp(true)
+      + "\n        armed on  " + fp(false)
+      + "\n      it is only allowed to bill a crab held over the line past the grace";
+  return true;
+});
+
+scenario("sleep debt: the ledger counts NIGHTS, not hours awake (the M/E trap)", () => {
+  // THE TRAP, pinned. "Hours banked over the exhaustion line" is the obvious
+  // way to build this feature and it is a MEASURED REGRESSION: the shift block
+  // above rejected it at M/E x1.43, because a morning crab finishes at 14:00
+  // exhausted and stays awake six hours while an evening crab finishes at
+  // 20:00 and goes to bed. Integrating over the day SURFACES that difference,
+  // which would resurrect by the back door the exact unfairness TIRED_NAP was
+  // added to fix.
+  //
+  // So this gate asserts the SHAPE directly rather than sampling illness: two
+  // crabs equally over the line at the settlement must take the SAME tick,
+  // however differently their days ran. It is cheap, it is deterministic, and
+  // it fails loudly for anyone who "improves" the counter into an integral.
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil("day >= 2 && tmin >= 7 * 60", { maxSteps: 200000 });
+  if (sim.G("crabs[0].p.shift") !== "M" || sim.G("crabs[1].p.shift") !== "E")
+    return "fixture drift: crabs[0]/crabs[1] are not the M and E crab";
+  // the morning crab has been over the line since mid-afternoon; the evening
+  // crab crosses it only at the very end of their shift. Same night, same tick.
+  const early = `{ if (tmin >= 14 * 60) crabs[0].p.tired = Q20; }`;
+  const late = `{ if (tmin >= 19.5 * 60) crabs[1].p.tired = Q20; }`;
+  const hold = (G) => { G(early); G(late); };
+  if (!sim.runUntil("lastRentDay === day", { maxSteps: 200000, tickEvery: 4, onTick: hold }))
+    return "could not reach the settlement";
+  const m = +sim.G("crabs[0].p.sleepDebt"), e = +sim.G("crabs[1].p.sleepDebt");
+  if (m !== 1 || e !== 1)
+    return `the two shifts did not take the same tick (M ${m}, E ${e}) - the ledger is reading `
+      + "TIME OVER THE LINE rather than NIGHTS, which measured M/E x1.43. Re-read illRisk.";
+  return true;
+});
+
+scenario("sleep debt: an old save arrives with a clean slate, not a back-dated bill", () => {
+  // A save written before the ramp existed has no ledger on it. It must land
+  // on zero - never undefined arithmetic, and never a debt for nights nobody
+  // was counting. Strip the field the way an old save would and reload.
+  const store = new Map();
+  const a = createSim({ seed: 31, storage: store, fresh: false });
+  a.runDays(2);
+  a.G("crabs[0].p.sleepDebt = 7; save();");
+  // strip the field from the written slot, exactly as a save from before the
+  // ramp would have it, then boot a town over that slot
+  let stripped = 0;
+  for (const [k, v] of store) {
+    if (typeof v !== "string" || !v.includes("sleepDebt")) continue;
+    const j = JSON.parse(v);
+    const walk = (o) => {
+      if (!o || typeof o !== "object") return;
+      if (Array.isArray(o)) return o.forEach(walk);
+      if ("sleepDebt" in o) { delete o.sleepDebt; stripped++; }
+      for (const key of Object.keys(o)) walk(o[key]);
+    };
+    walk(j);
+    store.set(k, JSON.stringify(j));
+  }
+  if (!stripped) return "no sleepDebt field was found in the save at all - it is not being persisted";
+  const b = createSim({ seed: 32, storage: store, fresh: false });
+  const rows = JSON.parse(b.G("JSON.stringify(allCrabs().map(c => [c.p.name, c.p.sleepDebt]))"));
+  if (!rows.length) return "the restored town has no crabs in it";
+  for (const [name, d] of rows) {
+    if (d == null) return `${name} came back from an old save with sleepDebt ${d} - `
+      + "the default is missing, and debtRisk would read NaN";
+    if (d !== 0) return `${name} came back from an old save already ${d} nights in debt`;
+  }
+  if (+b.G("debtRisk(allCrabs()[0])") !== 0) return "a clean-slate crab is still being billed";
+  return true;
+});
+
+// ===========================================================================
+// THE CARE-LANE BAR - the second change, the one that makes it DEADLY
+// ---------------------------------------------------------------------------
+// Matt ruled `deadly` (decision kd-h28QBb1lvO), not `consequential`: "Also bar
+// debt-caused illness from the good care lanes so illness stops rescuing." The
+// ramp alone made the town SAFER (16 seeds, deaths 18 -> 14) because illness
+// RESCUES an exhausted crab - it pulls them off the rota, rest drains the
+// exhaustion, the debt repays, they come back fresh. These two gates pin the
+// bar that ends the rescue: a debt-caused illness lands in CARE_LANES.spent
+// however well it is otherwise nursed, because no bed cures weeks of no sleep.
+// ===========================================================================
+
+scenario("care-lane bar: a debt-caused illness is barred from the rest lanes, targeted and escapable", () => {
+  const sim = createSim({ seed: 1337 });
+  sim.runUntil("day >= 2 && tmin >= 7 * 60", { maxSteps: 200000 });
+  // set ONE crab up as perfectly cared-for as the ladder can read: fed, watered,
+  // clean, a full day's rest banked, on a granted sick day, in their own bed.
+  // Everything the care ladder rewards - so the ONLY thing that can send them to
+  // a bad lane is the bar itself.
+  sim.G(`{ const c = crabs[0];
+    c.p.homeless = false; c.p.hunger = 0; c.p.thirst = 0; c.p.dirt = 0;
+    c.p.restT = REST_HOURS; c.p.sickPol = "grant"; }`);
+  // a NORMAL illness, no debt behind it, must STILL get the top lane: a crab who
+  // caught a cold in their own bed is not touched by this change.
+  sim.G(`crabs[0].p.sick = { days: 1, fromDebt: false };`);
+  if (sim.G(`careLane(crabs[0])`) !== "bed")
+    return `a well-cared NON-debt illness did not get BED REST (got ${sim.G("careLane(crabs[0])")}) - the bar hits the wrong crab`;
+  // now make the same illness debt-caused. Same perfect care, and it must be
+  // BARRED into the spent lane anyway - rest cures no crab ill FROM no rest.
+  sim.G(`crabs[0].p.sick = { days: 1, fromDebt: true };`);
+  if (sim.G(`careLane(crabs[0])`) !== "spent")
+    return `a debt-caused illness was NOT barred from the rest lanes (got ${sim.G("careLane(crabs[0])")})`;
+  // ...and the spent lane must be genuinely worse than the bed it replaced, and
+  // armed on the NEGLECT clock (day 4), not the linger clock (day 7): a bed that
+  // cannot touch what ails you is not a week's grace.
+  const bed = JSON.parse(sim.G(`JSON.stringify(CARE_LANES.bed)`));
+  const spent = JSON.parse(sim.G(`JSON.stringify(CARE_LANES.spent)`));
+  if (!(spent.cure < bed.cure && spent.die > bed.die))
+    return `the spent lane is not worse than BED REST (spent ${JSON.stringify(spent)}, bed ${JSON.stringify(bed)})`;
+  if (+sim.G(`deathArmsAt("spent")`) !== +sim.G("DEATH_DAY"))
+    return `the spent lane does not arm on the neglect clock (arms day ${sim.G('deathArmsAt("spent")')}, DEATH_DAY ${sim.G("DEATH_DAY")})`;
+  if (!(+sim.G(`deathArmsAt("spent")`) < +sim.G(`deathArmsAt("bed")`)))
+    return "the spent lane lingers as long as a cared-for one - it is not terminal";
+  // THE BAR ARMS OFF CLEANLY, for attribution (advice kd-JwPxQ7pSwn): with
+  // window._noDebtLane the ramp still bills but illness rescues again, so the
+  // ramp and the bar price as two separate variables on one tree.
+  sim.G(`window._noDebtLane = true;`);
+  if (sim.G(`careLane(crabs[0])`) !== "bed")
+    return `--nodebtlane did not restore the rest lane (got ${sim.G("careLane(crabs[0])")}) - the two changes cannot be attributed apart`;
+  return true;
+});
+
+scenario("care-lane bar: INERT on a town that sleeps - it only ever bars a crab in real debt", () => {
+  // The bar fires only on an illness the ledger caused (fromDebt), and an
+  // ordinary town never gets a crab past the grace - so arming the bar off must
+  // change NOTHING on a well-run three-day town, byte for byte. This is the
+  // growth-safety guarantee in gate form: the deadliness is billed to the
+  // sweatshop, never to the player who lets their crew sleep.
+  const fp = (off) => {
+    const sim = createSim({ seed: 1337 });
+    if (off) sim.G("window._noDebtLane = true;");
+    sim.runDays(3);
+    return sim.G(`JSON.stringify({ coins: Math.round(coins * 1000), rep: Math.round(rep * 1000),
+      crabs: allCrabs().map(c => [c.p.name, Math.round(c.x), Math.round(c.p.wallet * 100),
+        Math.round((c.p.tired || 0) * 1000), !!c.p.sick, c.p.sleepDebt || 0].join("|")),
+      inf: window._stats.infections || 0 })`);
+  };
+  if (fp(true) !== fp(false))
+    return "the care-lane bar moved an ordinary three-day town:\n        armed off " + fp(true)
+      + "\n        armed on  " + fp(false)
+      + "\n      it is only allowed to bar an illness the sleep-debt ledger caused";
+  return true;
+});
+
+scenario("care-lane bar: a debt-caused illness is actually TAKEN by the running engine (lethal, not just routed)", () => {
+  // The routing gate proves a debt illness LANDS in `spent`; the fixed "cared-
+  // for crab is not taken on day three" gate (now name-counted, kd-eIyghgnGnC)
+  // is the running control that a NURSED non-debt illness recovers. This one
+  // closes the loop: run real settlements and count the dead BY NAME to prove
+  // the engine actually KILLS a debt-caused illness that the player is doing
+  // everything right for.
+  //
+  // First, the cheap deterministic half of the contrast: the SAME flawless
+  // setup, and the ONLY difference is fromDebt - non-debt gets BED, debt is
+  // barred to SPENT.
+  const s0 = createSim({ seed: 700 });
+  s0.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+  s0.G(`{ const k = crabs[0]; k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+    k.p.hunger = 0; k.p.thirst = 0; k.p.dirt = 0; k.p.restT = REST_HOURS + 1; k.p.sickPol = "grant"; }`);
+  s0.G(`crabs[0].p.sick = { days: 3, fromDebt: false };`);
+  if (s0.G(`careLane(crabs[0])`) !== "bed") return `non-debt fixture is not on BED REST (got ${s0.G("careLane(crabs[0])")})`;
+  s0.G(`crabs[0].p.sick = { days: 3, fromDebt: true };`);
+  if (s0.G(`careLane(crabs[0])`) !== "spent") return `debt fixture is not barred to SPENT (got ${s0.G("careLane(crabs[0])")})`;
+  // Now RUN the debt arm. days:6 so the first settlement increments to 7 and the
+  // `spent` die roll is already up its ramp (min(0.75, 0.24 + 0.12*(7-4)) =
+  // 0.60), so three settlements resolve nearly all of them (~0.84 taken) - a
+  // late-illness crab is the killing half of the arc, and starting it there
+  // keeps the boot to ~3 sim-days instead of a week. No nursing loop is needed:
+  // debtSick forces `spent` regardless of every other need, which is the whole
+  // point - a fed, watered, bedded crab still dies. coins set high once so a
+  // tiny fixture town cannot go broke and freeze the clock (no per-tick onTick -
+  // that made an earlier cut of this gate take 12 minutes; count by name,
+  // killCrab splices - bug kd-eIyghgnGnC).
+  let deaths = 0;
+  for (let i = 0; i < 20; i++) {
+    const s = createSim({ seed: 700 + i });
+    s.runUntil("day >= 2 && tmin >= 12 * 60", { maxSteps: 300000 });
+    s.G(`{ const k = crabs[0]; coins = 5000000;
+      k.p.homeless = false; k.p.house = 3; k.p.boat = null;
+      k.p.sickPol = "grant"; k.p.sick = { days: 6, fromDebt: true }; }`);
+    const nm = JSON.stringify(s.G("crabs[0].p.name"));
+    const d0 = +s.G("day");
+    s.runUntil(`day >= ${d0 + 3}`, { maxSteps: 900000 });
+    if (!s.G(`allCrabs().some(c => c.p.name === ${nm})`)) deaths++;
+  }
+  // Expected ~84% taken (cure 0.10 vs a die roll of 0.60 -> 0.75 across three
+  // settlements), so a floor of 10/20 sits ~4sd below the mean - a floor, not a
+  // coin (advice kd-acLf4tyS4N / the thread agent's "31% coin dressed up as a
+  // verdict"). If `spent` ever stops killing (cure bumped, deathArmsAt broken)
+  // deaths collapse toward the BED control's ~0 and this trips loudly.
+  if (deaths < 10) return `a debt-caused illness was taken only ${deaths}/20 by the running engine - the spent lane is not lethal in play`;
   return true;
 });
 

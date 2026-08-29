@@ -1,0 +1,32 @@
+{
+  "release": "cs-sleepdebt-isolated-4a23983-rzwp",
+  "armId": "deadly-fed",
+  "index": 2,
+  "sha": "4a23983e26369c5509be9865fdeb2d8a7aaa0124",
+  "entry": "tools/sleepdebt.mjs",
+  "args": [
+    "--hours",
+    "6-24",
+    "--ot",
+    "--fed",
+    "--seeds",
+    "32",
+    "--crew",
+    "6",
+    "--days",
+    "30",
+    "--quiet"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 503196,
+  "verdict": null,
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "\n== SLEEP DEBT   6-24 +OT, crew 6   (8549 crab-nights, 32 seeds x 30d)\nwho        nights   tired  woke  pinned%  rough%   home%   died\nCREW         4202   0.404 0.119     8.7     2.4    92.1      3\nTOWNSFOLK    4347   0.482 0.207     9.7     2.2    69.0     36\nEVERYONE     8549   0.444 0.164     9.2     2.3    80.4     39\n\nLONGEST UNBROKEN RUN PINNED AT tired >= 0.95: 8 nights\ndeaths (all causes, all seeds): 39\n\nSLEEP DEBT LEDGER: 223 of 8549 crab-nights billed (2.6%)   mean extra risk when billing 0.0738   worst ledger 10 nights\n  ledger depth: 1n x474  2n x261  3n x165  4n x107  5n x54  6n x28  7n x14  8n x10  9n x5  10n x5\n  illness causes (game's own tags): {\"exhaustion\":81,\"thirst\":27,\"contagion\":15,\"dirt\":38,\"hunger\":36}\n  illnesses: 147  died 41  (well 106)  CFR 27.9%\n  care lanes (all illnesses): {\"cared\":60,\"neglect\":55,\"spent\":26,\"bed\":6}\n  care lanes (the deaths):    {\"neglect\":27,\"spent\":13,\"cared\":1}\nmost pinned nights served: KELP 149, DRIFT 113, SALTY 86, PINCHY 58, CLAWDIA 41, PEARL 29\n"
+}
