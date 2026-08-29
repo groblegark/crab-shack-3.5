@@ -1,0 +1,116 @@
+{
+  "release": "cs-social-meet-ccedd94-4383",
+  "armId": "base-sb32-asbuilt",
+  "index": 2,
+  "sha": "ccedd9460f4cbd44088c0433bce5b20a276907dc",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "32",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 43088,
+  "verdict": "{\"towns\":16,\"seedbase\":32,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"6\":1,\"7\":2,\"10\":1,\"11\":5,\"12\":1,\"13\":2,\"14\":1,\"16\":1,\"17\":1,\"23\":1},\"median\":11,\"min\":6,\"max\":23},\"lifetime\":{\"median\":3142,\"p10\":1763,\"p90\":4875,\"mean\":3318},\"throughput\":{\"livedSimDays\":193,\"wallSec\":43.03,\"simDaysPerSec\":4.5,\"loadavg\":[8.1,3.3,1.2]},\"rep\":{\"list\":[42,42,47,51,52,54,54,57,58,58,58,58,58,59,62,63],\"median\":58},\"arcade\":{\"built\":0,\"playedIn\":0,\"games\":0,\"gamesTour\":0,\"gamesCrab\":0},\"surf\":{\"towns\":7,\"sessions\":16,\"rides\":16,\"crowded\":2},\"social\":{\"towns\":15,\"chats\":316,\"chatRelief\":19692395,\"wanders\":275},\"swim\":{\"towns\":13,\"dips\":44,\"done\":44}}",
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 32,
+    "jobs": 7,
+    "cores": 8,
+    "workload": "--days 30 --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 0,
+    "evicted": 16,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "6": 1,
+        "7": 2,
+        "10": 1,
+        "11": 5,
+        "12": 1,
+        "13": 2,
+        "14": 1,
+        "16": 1,
+        "17": 1,
+        "23": 1
+      },
+      "median": 11,
+      "min": 6,
+      "max": 23
+    },
+    "lifetime": {
+      "median": 3142,
+      "p10": 1763,
+      "p90": 4875,
+      "mean": 3318
+    },
+    "throughput": {
+      "livedSimDays": 193,
+      "wallSec": 43.03,
+      "simDaysPerSec": 4.5,
+      "loadavg": [
+        8.1,
+        3.3,
+        1.2
+      ]
+    },
+    "rep": {
+      "list": [
+        42,
+        42,
+        47,
+        51,
+        52,
+        54,
+        54,
+        57,
+        58,
+        58,
+        58,
+        58,
+        58,
+        59,
+        62,
+        63
+      ],
+      "median": 58
+    },
+    "arcade": {
+      "built": 0,
+      "playedIn": 0,
+      "games": 0,
+      "gamesTour": 0,
+      "gamesCrab": 0
+    },
+    "surf": {
+      "towns": 7,
+      "sessions": 16,
+      "rides": 16,
+      "crowded": 2
+    },
+    "social": {
+      "towns": 15,
+      "chats": 316,
+      "chatRelief": 19692395,
+      "wanders": 275
+    },
+    "swim": {
+      "towns": 13,
+      "dips": 44,
+      "done": 44
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":32,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":0,\"evicted\":16,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"6\":1,\"7\":2,\"10\":1,\"11\":5,\"12\":1,\"13\":2,\"14\":1,\"16\":1,\"17\":1,\"23\":1},\"median\":11,\"min\":6,\"max\":23},\"lifetime\":{\"median\":3142,\"p10\":1763,\"p90\":4875,\"mean\":3318},\"throughput\":{\"livedSimDays\":193,\"wallSec\":43.03,\"simDaysPerSec\":4.5,\"loadavg\":[8.1,3.3,1.2]},\"rep\":{\"list\":[42,42,47,51,52,54,54,57,58,58,58,58,58,59,62,63],\"median\":58},\"arcade\":{\"built\":0,\"playedIn\":0,\"games\":0,\"gamesTour\":0,\"gamesCrab\":0},\"surf\":{\"towns\":7,\"sessions\":16,\"rides\":16,\"crowded\":2},\"social\":{\"towns\":15,\"chats\":316,\"chatRelief\":19692395,\"wanders\":275},\"swim\":{\"towns\":13,\"dips\":44,\"done\":44}}\n"
+}

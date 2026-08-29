@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-ccedd94-40yl",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "ccedd9460f4cbd44088c0433bce5b20a276907dc",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 57241,
+  "verdict": "38/38 passed in slice 6/12 (57.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (2160ms)\n  PASS  save guard: an empty slot still receives the first town (18ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (2266ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1081ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (977ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (3050ms)\n  PASS  census: rows derive live state, and sort + filter actually move (705ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (1996ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (26ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (14001ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (1195ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (517ms)\n  PASS  swim: a crab has a dip on a calm day and comes back visible on the sand (1401ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (946ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (713ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1245ms)\n  PASS  departures: every character the card prints exists in the font (697ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (2599ms)\n  PASS  sleep debt: an old save arrives with a clean slate, not a back-dated bill (679ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (603ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (658ms)\n  PASS  only one track is ever audible at once (13ms)\n  PASS  a refusal waits for a tap where a 404 skips on (12ms)\n  PASS  the cabana row leaves both travel lanes a real margin (12ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (9ms)\n  PASS  need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name (10ms)\n  PASS  civics: a people's voters score a platform on THEIR OWN declared stakes (6440ms)\n  PASS  civics calendar/relief: the scalars DRIVE the town, not just a readout (the behaviour gate) (9ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (38ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (5555ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (3451ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1193ms)\n  PASS  the title's ticker and motto turn on the title screen's own clock, and stay off the sign (81ms)\n  PASS  load: the same envelope lands the same way however often you land it (1462ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (60ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (12ms)\n  PASS  the arcade floor survives a save and reload (1244ms)\n38/38 passed in slice 6/12 (57.1s)\n"
+}
