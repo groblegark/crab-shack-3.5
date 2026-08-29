@@ -16240,6 +16240,52 @@ function shadowCitObserve(c, cand, bp, best) {
   // TEACHER ACTED ON - measured by mutation, not assumed.
   if (actual !== 0) { s.acted++; if (cls === actual) s.actedAgree++; }
 }
+// -------------------------------------------------- the owner mind (shadow)
+// The owner surface's assembler: the "actor" is the BUSINESS KEY b, and the
+// owner.* readers all read (b) - so this mirrors neuroVectorCit, passing 0 for
+// the room-reserve slot the citizen readers also ignore.
+function neuroVectorOwn(b, readers, out) {
+  for (let i = 0; i < readers.length; i++) out[i] = readers[i](b, 0);
+  return out;
+}
+// An owner's culture is the culture of the crab who holds the lease (a settler
+// pig runs a pig's document); a base NPC owner (SUDSY, REEF) has no live crab
+// yet, so it rides the crab default. brainOf's idiom, keyed on the biz.
+function ownerCultureOf(b) {
+  const oc = ownerCrabOf(bizOwner(b));
+  return (oc && oc.p && oc.p.culture) || "crab";
+}
+function ownerBrainOf(b) {
+  const br = BRAINS[ownerCultureOf(b)];
+  return (br && br["own_settle.lever"]) || null;
+}
+// SHADOW-FIRST, by construction dormant until a cultureway declares an
+// own_settle.lever brain in mode "shadow" (slice A ships NONE, so ownerBrainOf
+// is null for every biz and the caller never reaches here). When it does fire:
+// assemble the owner.* vector, run the brain BESIDE ownerSettleLever - the
+// reference decider the settlement scripts already stamped tonight - and move
+// only a harness tally. The brain never decides; the scripts already ran and
+// their levers are applied. The guardrail (design/cs35-dream-replay.md 1.2):
+// an owner brain moves the economy, so it ships shadow-first and nothing goes
+// live without a fresh matrix and Matt's ruling - here it only WATCHES.
+function shadowOwnerObserve(b, bp) {
+  neuroVectorOwn(b, bp.readers, bp.f);
+  const cls = bp.classify(bp.f);
+  const lever = ownerSettleLever(b);
+  const actual = bp.classIdx[lever] != null ? bp.classIdx[lever] : 0;
+  const all = window._shadowStats = window._shadowStats || {};
+  const cul = all[ownerCultureOf(b)] = all[ownerCultureOf(b)] || {};
+  const s = cul["own_settle.lever"] = cul["own_settle.lever"] || { n: 0, agree: 0, acted: 0, actedAgree: 0, ring: [] };
+  s.n++;
+  if (cls === actual) s.agree++;
+  else if (s.ring.length < 16) s.ring.push({ t: T, want: bp.classes[cls], got: bp.classes[actual] });
+  // the acted tally, same rare-event floor as the citizen surface: this
+  // surface's prior is heavily "hold" (cooldowns gate; most owners sit most
+  // nights), so a lobotomized constant-hold brain would beat a plain agreement
+  // floor. The honest floor is agreement ON THE NIGHTS A LEVER MOVED (actual
+  // !== 0, i.e. not "hold") - advice kd-acLf4tyS4N.
+  if (actual !== 0) { s.acted++; if (cls === actual) s.actedAgree++; }
+}
 // THE COMPILED SCORER's marshal + drain (kernel phase 4). Fills the per-think
 // planes with the same facts the reference reads - the taste row is the
 // Layer-0 cultureway hook table crossing the boundary as pure data - calls
@@ -24562,6 +24608,22 @@ function simClock(dt, rawMs) {
     // ...and the peer owner who wants a shop that is NOT for sale reads her
     // own books, one move a night (see THE RIVALRY)
     runRivalAmbition();
+    // OWNER SURFACE (own_settle.lever), shadow-first: the night's levers are
+    // all stamped now (hours+wage in the loop above, rival by the two calls
+    // just above), so this is the faithful "ONE think per owner per settlement
+    // night" - assemble each NPC owner's vector and, IF her culture declares a
+    // shadow brain, run it beside ownerSettleLever and tally. Ships dormant:
+    // no cultureway declares own_settle.lever, so ownerBrainOf is null for all
+    // and this loop moves nothing (the frozen fingerprints ARE the receipt).
+    // The scripts above already DECIDED and applied; the brain only watches.
+    for (const b of Object.keys(BIZ)) {
+      const oid = bizOwner(b);
+      if (!oid || oid === "player") continue;
+      const o = OWNERS[oid];
+      if (!o || o.gone) continue;
+      const bp = ownerBrainOf(b);
+      if (bp && bp.mode === "shadow") shadowOwnerObserve(b, bp);
+    }
     // ...and the one who came for the hotel and got it reads hers (THE HOTELIER)
     runHotelier();
     // ...and both ACCOMMODATION ladders: the Driftwood's owner reads the guests

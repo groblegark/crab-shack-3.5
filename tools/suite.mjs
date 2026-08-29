@@ -19238,9 +19238,11 @@ scenario("policies: the slot registry answers who decides, and refuses surfaces 
 // THE OWNER SURFACE (own_settle.lever) - the shadow-first scaffold, slice A of
 // the owner mind (cs35-dream-replay.md §1.2). It ships the surface + a full
 // owner.* observable ledger + a distill-pure reference decider (ownerSettleLever)
-// that reports which lever each NPC owner pulled at settlement. NO brain, NO
-// shadow hook: it OBSERVES and SCORES, it never takes the wheel. The whole suite
-// staying green on both backends IS the proof the scaffold is inert.
+// that reports which lever each NPC owner pulled at settlement + a DORMANT-BUT-
+// WIRED shadow-observe hook at the settlement dispatch. It ships NO brain, so
+// the hook never fires in production - it OBSERVES and SCORES, it never takes
+// the wheel. Item 5 proves both halves: the hook is silent with no brain, and
+// it FIRES + tallies (and stays byte-neutral) once a shadow brain is declared.
 scenario("owner surface: class contract, observable ledger, and the reference decider are wired and enforced", () => {
   const sim = createSim({ seed: 44 });
   const want = ["hold", "price_up", "price_down", "open_later", "open_earlier",
@@ -19290,6 +19292,43 @@ scenario("owner surface: class contract, observable ledger, and the reference de
     return out; })())`));
   if (res.badLever.length) return "the reference decider emitted an off-contract lever: " + res.badLever.join(", ");
   if (res.obsBad.length) return "an owner observable read out of [0,32767]: " + res.obsBad.join(", ");
+  // 5. THE DORMANT-BUT-WIRED SHADOW HOOK. Slice A ships no owner brain, so the
+  //    hook at the settlement dispatch must be SILENT; but wired, so it FIRES
+  //    the moment a cultureway declares one - and byte-neutral either way.
+  const inject = `(() => {
+    const w = NEURO_SURFACES["own_settle.lever"].classes;
+    const p = { kind: "brain", mode: "shadow", registryVersion: NEURO_REGISTRY_VERSION,
+      inputs: ["own.till.cents", "own.day"], classes: w.slice(),
+      arch: { in: 2, hidden: 1, out: w.length }, shifts: { R1: 6 },
+      w1: [[0, 0]], b1: [0], w2: w.map(() => [0]), b2: w.map(() => 0) };
+    (BRAINS.crab = BRAINS.crab || {})["own_settle.lever"] = buildBrain("own_settle.lever", p);
+  })()`;
+  // 5a. DORMANT: no brain declared -> nothing tallies into _shadowStats.
+  const simDormant = createSim({ seed: 44 });
+  simDormant.runDays(15);
+  const dormant = JSON.parse(simDormant.G(`JSON.stringify((window._shadowStats && window._shadowStats.crab || {})["own_settle.lever"] || null)`));
+  if (dormant) return "the owner hook fired with NO brain declared - it is not dormant: " + JSON.stringify(dormant);
+  // 5b. WIRED: declare a shadow owner brain -> the hook fires and tallies.
+  const simWired = createSim({ seed: 44 });
+  simWired.G(inject);
+  simWired.runDays(15);
+  const wiredStat = JSON.parse(simWired.G(`JSON.stringify((window._shadowStats && window._shadowStats.crab || {})["own_settle.lever"] || null)`));
+  if (!wiredStat || !(wiredStat.n > 0))
+    return "the owner hook did not fire when a shadow brain WAS declared - it is not wired: " + JSON.stringify(wiredStat);
+  // 5c. INERT: the armed shadow hook moves NOTHING - a shadow-armed town and a
+  //     brainless town are bit-identical (coins/rep/tills/positions). This is
+  //     what lets slice B arm the hook without a fingerprint re-pin.
+  const fpOwn = (stage) => {
+    const sim = createSim({ seed: 909 });
+    sim.G(stage);
+    sim.runDays(4);
+    return sim.G(`JSON.stringify({ coins, rep, tills: Object.keys(OWNERS).map(o => OWNERS[o].till),
+      pos: allCrabs().map(c => [c.x | 0, c.wy | 0]) })`);
+  };
+  const armed = fpOwn(inject);
+  const unwatched = fpOwn(`delete (BRAINS.crab || {})["own_settle.lever"]`);
+  if (armed !== unwatched)
+    return "the armed owner shadow hook moved the town: " + armed.slice(0, 120) + " vs " + unwatched.slice(0, 120);
   return true;
 });
 
