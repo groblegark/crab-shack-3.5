@@ -18448,6 +18448,125 @@ scenario("brains: citizen shadow is inert - the crew cannot tell they are being 
   return true;
 });
 
+scenario("surf: the paddle-out is its own surface - a firing day neither silences the crab brain nor books as 'none'", () => {
+  // THE COST cit_surf.go FIXES, measured before it existed and asserted to zero
+  // now (kd-wfRu3aGnrK). Surf used to ride the cit_errand ballot as a candidate
+  // whose class ("shack:fun") no citizen artifact carries. Two consequences,
+  // both MEASURED on a controlled set of paddle-out-eligible thinks, not asserted:
+  //   (1) citEngineOwned's "a ballot the brain has no word for belongs to the
+  //       script" rail fired on EVERY surf-eligible think - handing the whole
+  //       ballot back to the script and SILENCING the shipped LIVE crab brain
+  //       exactly on firing days.
+  //   (2) shadowCitObserve booked a paddle-out as class 0 = "none", so a crab
+  //       who surfed never entered s.acted - the ruled honest metric
+  //       (kd-acLf4tyS4N), quietly diluting the acted floor with non-events.
+  // cit_surf.go lifts the wave out of the ballot the BRAIN and its SHADOW rank,
+  // while the script's own argmax still sees the surf candidate (so the ballot
+  // order and the ball-suppression it causes stay byte-exact - the errand census
+  // fingerprint does not move). This scenario is the receipt AND the regression
+  // guard: on this tree both costs read ZERO, and the crab still paddles out.
+  //
+  // THE CRAFT: a surf-eligible think is RARE in autopilot play (measured ~1 per
+  // 112 town-days - a firing day AND an off-shift, bored, otherwise-content crab
+  // in daylight rarely coincide), so waiting for one is both sparse and slow.
+  // Instead - the "a crab rides" scenario's idiom - each town finds a firing day
+  // out of its OWN history, sets the clock to daylight, and forces every free
+  // crab bored-and-content; the two costs are then counted on that controlled set
+  // of eligible thinks. Deterministic, seconds, and a robust N.
+  //
+  // BEFORE (main @82697a9): the identical probe on the pre-fix tree reads
+  // silenced == surfBallot (every eligible think silenced the live brain) and
+  // bookedNone == surfPicks (every paddle-out booked "none"). See the receipt
+  // under design/cs35-research/kube-runs for the exact counts.
+  const SEEDS = [1337, 42, 777, 2024, 555, 909];
+  const CLOCKS = [600, 720, 840, 960, 1020];
+  // TREE-INDEPENDENT instrumentation: all four wrap points (the surf gather,
+  // pickErrand, citEngineOwned, shadowCitObserve) exist on both the broken and
+  // the fixed tree. The counts differ because the SEAM moved, not the probe.
+  const probe = `
+    window._m = { eligible: 0, surfBallot: 0, surfPicks: 0, silenced: 0, bookedNone: 0 };
+    { const sd = ERRANDS.find(function (e) { return e.id === "surf"; });
+      const g = sd.gather;
+      sd.gather = function (c, take, X) {
+        var took = false;
+        g(c, function (e) { if (e.surf) took = true; take(e); }, X);
+        if (took) window._m.surfBallot++;
+      }; }
+    // (1) LIVE: a think goes engine-owned SOLELY because a surf candidate is on
+    // the ballot. On main this fires every eligible think; on this tree the seam
+    // never hands citEngineOwned a surf candidate, so it can never fire.
+    { const eo = citEngineOwned;
+      citEngineOwned = function (c, cand, bp) {
+        var r = eo(c, cand, bp);
+        if (cand.some(function (e) { return e.surf; })) {
+          var wo = eo(c, cand.filter(function (e) { return !e.surf; }), bp);
+          if (r && !wo) window._m.silenced++;
+        }
+        return r;
+      }; }
+    // (2) SHADOW: a paddle-out the cit_errand shadow books. On main the shadow is
+    // handed the full-ballot argmax (surf can win); on this tree the seam skips
+    // the observe entirely when the wave won, so the surf pick never reaches it.
+    { const so = shadowCitObserve;
+      shadowCitObserve = function (c, cand, bp, best) {
+        if (best && best.surf) window._m.bookedNone++;
+        return so(c, cand, bp, best);
+      }; }
+  `;
+  // Craft eligible thinks on a firing day and count the costs. mode "live" leaves
+  // the bundle's LIVE crab brain in place (measures silenced); mode "shadow" puts
+  // the teacher back on the wheel (measures bookedNone).
+  const measure = (seed, mode) => {
+    const sim = createSim({ seed });
+    sim.runDays(3);
+    sim.G(probe);
+    if (mode === "shadow") sim.G(`BRAINS.crab["cit_errand.candidate"].mode = "shadow"`);
+    return JSON.parse(sim.G(`JSON.stringify((() => {
+      let d = -1;
+      for (let n = day + 1; n <= day + 400; n++) if (surfToday(n) === "FIRING") { d = n; break; }
+      if (d < 0) return window._m;   // this town's sea never fired within 400: contributes zero
+      const heldDay = day, heldT = tday, heldDt = dtT;
+      day = d; dtT = 1;
+      const setClock = (m) => { tday = m * 5; reclock(); };   // tday is the clock's one setter
+      for (const t of ${JSON.stringify(CLOCKS)}) {
+        setClock(t);
+        if (!surfIsUp()) continue;   // dark or the swell died: not a surfable hour
+        for (const k of allCrabs()) {
+          if (k.duty || k.p.sick) continue;
+          // force the crab bored-and-content and off its cooldowns - surfFree is
+          // still the roster's to grant, so not every crab here reaches the ballot
+          k.dsC = DS.home; k.p.bored = qn(0.95);
+          k.p.thirst = 0; k.p.hunger = 0; k.p.dirt = 0; k.p.tired = 0;
+          k.surfCd = 0; k.ballCd = 0; k.errandCd = 0; k.chainN = 0;
+          window._m.eligible++;
+          const pick = pickErrand(k);
+          if (pick && pick.surf) window._m.surfPicks++;
+        }
+      }
+      day = heldDay; tday = heldT; reclock(); dtT = heldDt;
+      return window._m;
+    })())`));
+  };
+  const sweep = (mode) => {
+    const t = { eligible: 0, surfBallot: 0, surfPicks: 0, silenced: 0, bookedNone: 0 };
+    for (const seed of SEEDS) { const o = measure(seed, mode); for (const k in t) t[k] += o[k]; }
+    return t;
+  };
+  const live = sweep("live"), shadow = sweep("shadow");
+  // NOT VACUOUS: the sea must actually fire and a crab must actually paddle out,
+  // or "0 silenced" is a fact about a dead feature, not a fix.
+  if (live.surfBallot < 6)
+    return `surf reached the ballot only ${live.surfBallot} times across ${SEEDS.length} towns (${live.eligible} eligible thinks) - too few to measure; pick busier seeds`;
+  if (live.surfPicks < 3)
+    return `only ${live.surfPicks} crabs paddled out (${live.surfBallot} on the ballot) - the surf path is too quiet to measure`;
+  // THE FIX, both costs to zero:
+  if (live.silenced !== 0)
+    return `COST: ${live.silenced} of ${live.surfBallot} surf-eligible thinks still silence the LIVE crab brain (engine-owned); the shadow booked ${shadow.bookedNone} of ${shadow.surfPicks} paddle-outs as "none". Surf is not out of the cit_errand ballot for the brain seam.`;
+  if (shadow.bookedNone !== 0)
+    return `COST: the cit_errand shadow still books ${shadow.bookedNone} of ${shadow.surfPicks} paddle-outs as "none" - surf is not out of the shadow's ballot.`;
+  return true;
+});
+
 scenario("brains: zero delta IS the backbone, on the citizen brain's own thinks", () => {
   // Dream-replay rung 0's foundation: classifyD with no delta must argmax
   // exactly what classify argmaxes (L = base*256 is monotone), on REAL

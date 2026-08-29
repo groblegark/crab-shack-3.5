@@ -10313,6 +10313,34 @@ registerSurface("vis_depart.stay", {
   script: "visDepartPick",   // the engine default reads needW; no brain ships yet
   doc: "when a visitor chooses to sail home",
 });
+// THE SURF DECISION, A SURFACE OF ITS OWN (kd-wfRu3aGnrK, mirroring vis_depart
+// above). The wave is still GATHERED as an errand candidate - so pickErrand's
+// script argmax and the ball's "no fun candidate already on the ballot"
+// suppression stay byte-exact, and the errand census fingerprint does not move -
+// but "does this crab paddle out?" is NOT one of cit_errand.candidate's classes.
+// Its tag ("shack:fun") is outside that artifact's pinned vocabulary, and while
+// it rode that ballot it did two measured harms, both of which this surface ends:
+//   1. citEngineOwned's "a ballot the brain has no word for belongs to the
+//      script" rail fired on EVERY surf-eligible think - handing the whole ballot
+//      back to the script and SILENCING the shipped LIVE crab brain on firing days.
+//   2. shadowCitObserve booked the paddle-out as class 0 = "none", so a crab who
+//      surfed never entered s.acted - the ruled honest metric (kd-acLf4tyS4N),
+//      quietly diluting the acted floor with a non-errand event.
+// So surf declares its OWN surface: two classes (sit on the sand / paddle out),
+// an engine-default SCRIPT (citSurfEligible - the gate the surf errand gathers
+// on), and NO trained artifact. A firing day is a rare event, so per kd-zQB8oRGDeQ
+// it ships as the stated heuristic rather than a confidently-wrong brain.
+// pickErrand lifts the wave out of the ballot the cit_errand brain and its shadow
+// rank, and reconciles the eligible wave against the brain's chosen errand by the
+// script's own exact-rational score (surfWins). Exit condition: a bored,
+// off-shift crab on a firing day in daylight, past its cooldown, carrying no need
+// the shore must settle first. A future surf-culture whose crabs paddle out
+// differently declares a "cit_surf.go" brain here, reading the same observables.
+registerSurface("cit_surf.go", {
+  classes: ["stay", "go"],
+  script: "citSurfEligible",   // the engine default is the eligibility gate; no brain ships yet
+  doc: "whether a resident paddles out on a firing day",
+});
 // Which policy answers for a culture on a surface - the declared one, or the
 // registered engine default. Table/script/brain all resolve here; the brain
 // path keeps its own fast lane (brainOf) and this accessor never replaces it,
@@ -13424,7 +13452,12 @@ registerErrand({ id: "meal.counter", need: "food", kind: "biz", gather: (c, take
 // last and is NOT suppressed: it has a flat appeal of 100 against this entry's
 // 88, so a near, open, affordable arcade still wins, which is the shelter
 // pot's lesson kept. See THE SURF BREAK for the three limits and the geometry.
-registerErrand({ id: "surf", need: "fun", kind: "post", gather: (c, take, X) => {
+// cit_surf.go's engine-default SCRIPT (registerSurface above): is the wave the
+// thing this crab does with this free thought? The eligibility gate the surf
+// errand used to inline, lifted out so the surface names a real predicate
+// (policyOf reads the name) and a future surf-culture brain replaces exactly
+// this test. A pure read, no draws - the errand census stays byte-exact.
+function citSurfEligible(c, X) {
   // NOBODY SURFS PARCHED, and the bars are the ball's - each need at the exact
   // point the crab would have gone and dealt with it, which is what stopped
   // SUDSY spending a third of her life on the dehydration line.
@@ -13446,10 +13479,17 @@ registerErrand({ id: "surf", need: "fun", kind: "post", gather: (c, take, X) => 
   // shared the peak at all; the old cap of 3 rarely even bound), so the
   // zero-relief zone is unreachable in normal play and a decision-time push has
   // nothing to push against. The relief curve is the whole mechanism. (kd-uYvJOxQcV8)
-  if (surfIsUp() && (c.p.bored || 0) >= SURF_AT - nudgeRelax(c, "fun") && (c.surfCd || 0) <= 0
-      && !boredYields(c) && !surfYields && surfFree && !c.p.sick
-      && !X.cand.some(e2 => e2.need === "fun"))
-    take({ surf: true, need: "fun", ap100: 88 });
+  return surfIsUp() && (c.p.bored || 0) >= SURF_AT - nudgeRelax(c, "fun") && (c.surfCd || 0) <= 0
+    && !boredYields(c) && !surfYields && surfFree && !c.p.sick
+    && !X.cand.some(e2 => e2.need === "fun");
+}
+registerErrand({ id: "surf", need: "fun", kind: "post", gather: (c, take, X) => {
+  // The paddle-out decision is cit_surf.go's now, but the wave still rides the
+  // errand ballot as a candidate: the script argmax scores it against the
+  // errands (a firing day IS the better thing when nothing on land outranks it),
+  // and its mere presence is what makes the ball stand aside. pickErrand lifts
+  // it back out for the cit_errand BRAIN and its shadow. (kd-wfRu3aGnrK)
+  if (citSurfEligible(c, X)) take({ surf: true, need: "fun", ap100: 88 });
 } });
 registerErrand({ id: "ball", need: "fun", kind: "post", gather: (c, take, X) => {
   // ...and the bar to JOIN one is lower than the bar to start one. A crab who
@@ -13674,8 +13714,19 @@ function pickErrand(c) {
   // nearest table - the two-post idiom stays geometry's). Shadow: the script
   // decides, the brain watches, only a harness tally moves.
   const bp = citBrainOf(c);
+  // SURF IS ITS OWN SURFACE (cit_surf.go). The wave stays in `cand` for the
+  // script argmax below - so the ballot the script sees, and the ball-
+  // suppression it drives, are byte-exact - but it is lifted out of the ballot
+  // the cit_errand brain and its shadow rank, whose vocabulary has no word for
+  // "shack:fun". Left in, it silenced the live brain on every firing day
+  // (citEngineOwned's unmapped-class rail) and booked the paddle-out as "none"
+  // in the shadow tally. `errBallot` is that surf-free ballot; the eligible wave
+  // rejoins the brain's pick at surfWins, scored by the script's own comparator.
+  const surfCand = cand.find(e => e.surf) || null;
+  const errBallot = surfCand ? cand.filter(e => !e.surf) : cand;
   if (bp && bp.mode === "live") {
-    if (!citEngineOwned(c, cand, bp)) return brainCitPick(c, cand, bp);
+    if (!citEngineOwned(c, errBallot, bp))
+      return surfWins(c, surfCand, brainCitPick(c, errBallot, bp));
     brainTvEngine(c);   // the rail fired: the script's pick, marked as the engine's
   }
   let best = null, bestN = 0, bestD = 1;   // the chaining pick: best urgency per unit of detour
@@ -13688,7 +13739,12 @@ function pickErrand(c) {
     const s = errandScore(c, e);
     if (ratGt(s.n, s.d, bestN, bestD)) { bestN = s.n; bestD = s.d; best = e; }
   }
-  if (bp && bp.mode === "shadow") shadowCitObserve(c, cand, bp, best);
+  // The shadow observes the cit_errand teacher's action - the best ERRAND. A
+  // paddle-out is cit_surf.go's decision, not a cit_errand "none": a think the
+  // wave won is simply not this surface's to book (booking it diluted the acted
+  // floor with a non-errand event, kd-acLf4tyS4N). When surf did NOT win, the
+  // errand best over `errBallot` equals `best`, so this observes it unchanged.
+  if (bp && bp.mode === "shadow" && !(best && best.surf)) shadowCitObserve(c, errBallot, bp, best);
   return best;
 }
 // THE TRAY ASSEMBLER (feature B: one ticket, N plates). pickErrand chose the
@@ -16720,6 +16776,21 @@ function brainCitPick(c, cand, bp) {
   }
   brainTvCapture(c, bp, best ? bp.classIdx[citErrandClass(best)] : 0);
   return best;
+}
+// cit_surf.go rejoins cit_errand at the seam: the eligible wave (a candidate the
+// surf errand put on the ballot) competes against the brain's chosen errand by
+// the SCRIPT's own exact-rational score - the same comparator the argmax uses,
+// and the same clamp (a candidate the morning-detour rule refuses, n<0, is no
+// candidate for the wave either) - so a firing day still pulls a bored,
+// off-shift crab out when nothing on land outranks the wave, and the live brain
+// is no longer silenced to make that happen. Draw-free; errandScore is pure.
+function surfWins(c, surfCand, errPick) {
+  if (!surfCand) return errPick;             // no wave on the ballot: the brain's pick stands
+  const s = errandScore(c, surfCand);
+  if (s.n < 0) return errPick;               // the wave itself is clamped out this think
+  if (!errPick) return surfCand;             // the brain wanted nothing the day could offer
+  const b = errandScore(c, errPick);
+  return ratGt(s.n, s.d, b.n, b.d) ? surfCand : errPick;
 }
 // SHADOW: same inertness contract as shadowObserve - reads declared
 // observables, writes a harness tally and spectator telemetry, zero draws.

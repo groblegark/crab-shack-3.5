@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-ce5e5d9-834i",
+  "armId": "js-5",
+  "index": 5,
+  "sha": "ce5e5d95e2d05bdb6516d7c897bbb0f5caf2f36e",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 121723,
+  "verdict": "38/38 passed in slice 5/12 (121.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (18980ms)\n  PASS  save guard: a town born from a rejected save does not bury it (1507ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (50ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1640ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (1343ms)\n  PASS  days off: everyone rests their weekday and plays customer (7879ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (772ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1739ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (3591ms)\n  PASS  idle hands: boredom per day stays bounded - the trickle-lump plus a day's off-duty drain (4007ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (19464ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (2017ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (729ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (15471ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1877ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (1127ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (12ms)\n  PASS  departures: a stay survives a save and a reload (3126ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (4320ms)\n  PASS  care-lane bar: INERT on a town that sleeps - it only ever bars a crab in real debt (3644ms)\n  PASS  the shop tooltip promises what the button actually does (442ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (9ms)\n  PASS  every track in the playlist is a file that exists (9ms)\n  PASS  the record box scrolls without the drag thumb (8ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (3088ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (12ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (30ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (38ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (9622ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (18ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (10ms)\n  PASS  space: every position rides the Q8 grain, all day (1582ms)\n  PASS  saves: a ver-3 envelope is the zero delta (1521ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (2076ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (5550ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (2056ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1562ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (687ms)\n38/38 passed in slice 5/12 (121.6s)\n"
+}

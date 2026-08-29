@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-ce5e5d9-834i",
+  "armId": "wasm-1",
+  "index": 13,
+  "sha": "ce5e5d95e2d05bdb6516d7c897bbb0f5caf2f36e",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "1/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 166904,
+  "verdict": "38/38 passed in slice 1/12 (166.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  growth strategy holds the measured floor (escape promise OPEN - see PLAN) (43855ms)\n  PASS  disease: care cures, neglect can kill (29938ms)\n  PASS  job board: unpaid staff quit back to the pier (356ms)\n  PASS  crew never staff npc-owned shops (366ms)\n  PASS  credit: balance, flags and NPC lines roundtrip save/load (707ms)\n  PASS  hours: always-open does not out-earn a normal day (anti-exploit gate) (46457ms)\n  PASS  hours: shortened hours really close the shop (537ms)\n  PASS  sick days: GRANT keeps them home unpaid, REQUIRE puts them to work paid (1226ms)\n  PASS  routes: a full town walks less per crab-day (no systematic backtracking) (2943ms)\n  PASS  mortality: sustained neglect kills a crew crab AND a townsfolk crab (5173ms)\n  PASS  wage: the setting changes tonight's payroll EXACTLY, and every surface agrees (888ms)\n  PASS  ferry: she costs exactly her price, and buying her is the win (13ms)\n  PASS  the lease card: every term fits on the card it is printed on (12ms)\n  PASS  the sea: the weather is legible off the water, and never printed on the town (747ms)\n  PASS  visitors: the wallet is real money, and it runs out (365ms)\n  PASS  the town fund moves money and never mints it (13967ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (679ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (8ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (2712ms)\n  PASS  sleep debt: it is INERT on a town that sleeps - a hard Tuesday is not a death sentence (2907ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (459ms)\n  PASS  the hire card runs on the wall clock, not the game clock (614ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (276ms)\n  PASS  the whole session plays through one audio element (10ms)\n  PASS  the shipped catalog builds a rotation of every track, with its moments intact (34ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (2786ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (76ms)\n  PASS  civics stakes: a hostile table is refused by name (19ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (16ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (410ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (461ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (330ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (2243ms)\n  PASS  the title screen ages the build, and keeps ticking (24ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (1506ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (9ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (42ms)\n  PASS  the arcade: the chore is named for the shop it happens in (3613ms)\n38/38 passed in slice 1/12 (166.8s)\n"
+}
