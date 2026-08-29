@@ -1,0 +1,32 @@
+{
+  "name": "swim16",
+  "note": "THE SWIM, priced by its OWN --noswim hatch (kd-KX2DpL6lrq). Eighteen arms: {baseline, growth chef+table, growth chef+table+arcade} x seedbase {0,16,32} x {as-built, noswim}. as-built = the shipped tree with BOTH surf and swim on (a calm day in daylight offers a free, time-priced dip at the beach ball's sand, cheaper than the ball - SWIM_RELIEF=qn(0.13), the least fun of the fun cures, Matt: 'swimming should exist but it's less fun'); noswim = the SAME TREE with surf STILL ON but swimIsUp() forced false, so the sea never offers a dip and no crab swims. One variable - the delta is the swim cure, not the surf and not whatever else moved on main. INSTRUMENT VALIDATION is not a null arm here (the dip needs no purchase, so noswim is never a no-op): it is stats.swimDips, which MUST be 0 in every noswim arm and >0 in the as-built growth arms. If an as-built arm reads 0 dips the whole matrix is a null result and the arm never fired. THE TWO NUMBERS TO READ, both on the tree we are landing on (CLAUDE.md: measure against the tree you are landing on): (1) THE PILLAR - growth-asbuilt survived over 48, against growth-noswim survived over 48 as the control RE-TAKEN on this base. Swim is a NEW free cure below the ball, so the worry is it makes growth too easy or that it merely reshuffles which cure fires; name whichever way it moves. (2) THE ARCADE'S TAKINGS, the shelter-pot question - in the chef,table,arcade arms, arcade.games as-built vs noswim over the towns that built one. A second free cure standing beside a paid one can take the takings; SWIM_AT=0.52 sits above the 0.45 where a crab would BUY fun so a funded crab still prefers to pay, and this arm is what says whether that was enough. Expect a SMALL negative on arcade games and a small positive-or-flat on survival. Name it; do not tune it away. 30 days, --json receipts, batch sets kernel=wasm realm=main.",
+  "resources": {
+    "requests": { "cpu": "7", "memory": "2Gi" },
+    "limits": { "cpu": "8", "memory": "4Gi" }
+  },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [ { "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" } ],
+  "arms": [
+    { "id": "base-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--json"] },
+    { "id": "base-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--json"] },
+    { "id": "base-sb0-noswim",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--noswim","--json"] },
+    { "id": "base-sb16-noswim",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--noswim","--json"] },
+    { "id": "base-sb32-noswim",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--noswim","--json"] },
+
+    { "id": "growth-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--json"] },
+    { "id": "growth-sb0-noswim",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table","--noswim","--json"] },
+    { "id": "growth-sb16-noswim",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table","--noswim","--json"] },
+    { "id": "growth-sb32-noswim",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table","--noswim","--json"] },
+
+    { "id": "arc-sb0-asbuilt",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "arc-sb16-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "arc-sb32-asbuilt", "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table,arcade","--json"] },
+    { "id": "arc-sb0-noswim",   "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","0", "--days","30","--jobs","7","--buy","chef,table,arcade","--noswim","--json"] },
+    { "id": "arc-sb16-noswim",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","16","--days","30","--jobs","7","--buy","chef,table,arcade","--noswim","--json"] },
+    { "id": "arc-sb32-noswim",  "entry": "tools/batch.mjs", "args": ["--towns","16","--seedbase","32","--days","30","--jobs","7","--buy","chef,table,arcade","--noswim","--json"] }
+  ]
+}
