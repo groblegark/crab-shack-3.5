@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-51e8781-3k3h",
+  "armId": "js-6",
+  "index": 6,
+  "sha": "51e8781b56aaecdca5d6b3e2699e544da20ea5cb",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 152297,
+  "verdict": "37/37 passed in slice 6/12 (152.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (3875ms)\n  PASS  save guard: an empty slot still receives the first town (17ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (3966ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1698ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (2049ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (5235ms)\n  PASS  census: rows derive live state, and sort + filter actually move (743ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2910ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (27ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (1209ms)\n  PASS  the title's credit block never lands on the science button (23ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (76340ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (15602ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (12597ms)\n  PASS  the fund is struck to the bill and does not hoard (956ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (10ms)\n  PASS  departures: a display card moves nothing in the town (1501ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (3503ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (758ms)\n  PASS  the hire card runs on the wall clock, not the game clock (1072ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (532ms)\n  PASS  the whole session plays through one audio element (20ms)\n  PASS  the shipped catalog builds a rotation of every track, with its moments intact (34ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (3562ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (73ms)\n  PASS  civics stakes: a hostile table is refused by name (27ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (12ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (755ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (790ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (641ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3340ms)\n  PASS  the kernel and the reference agree, byte for byte (1963ms)\n  PASS  load: the new town's desk is clear of the last town's books (4879ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (25ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1066ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (383ms)\n37/37 passed in slice 6/12 (152.2s)\n"
+}

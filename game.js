@@ -306,11 +306,14 @@ const BIZ = {
     source: "booth", out: "prize", queueX: 1804,
     park: 1590, rack: 1604,
     // ONE STEP, AT THE BOOTH. The showers prove the engine runs a zero-step
-    // recipe (SUDS is `steps: []` with the occupancy on the recipe), but the
-    // cultureway validator REFUSES an empty `steps` - so a zero-step arcade
-    // would be a shape the engine's own literals use and a document may never
-    // declare, which is exactly the drift the hostile-file posture exists to
-    // prevent. A token sale is a real step at a real station instead.
+    // recipe (SUDS is `steps: []` with the occupancy on the recipe). The
+    // cultureway validator once REFUSED an empty `steps` - so a zero-step arcade
+    // was a shape the engine's own literals used and a document could not
+    // declare, exactly the drift the hostile-file posture exists to prevent.
+    // RULING `relax` (decision kd-NjPUnXyBOv) closed that gap: a document MAY now
+    // declare a counter sale with no production. The arcade still sells a token
+    // at a real station - its play is the STALL occupancy, not a bare counter -
+    // so this recipe is unchanged.
     recipes: [
       { id: "clawgame", icon: "plush", pay: 13, raw: "token", playT: 6, machine: "claw",
         steps: [["booth", 0.6, "token"]] },
@@ -5600,6 +5603,18 @@ function stationCap(bizKey, kind) {
   if (bizKey === "shack" && kind === "grill") return 1 + UPS.grill.lvl;
   if (bizKey === "shack" && kind === "board") return 1 + UPS.board.lvl;
   if (bizKey === "juicebar" && kind === "juicer") return 2;
+  // A DECLARED SHOP GETS THE CAPACITY IT WAS DEALT. businessProblem validates
+  // z.stations[s] in 1..4 (the "HAS A BAD STATION CAPACITY" refusal), then
+  // placeBusiness draws that many posts and sizes busy[biz][kind] to match, so
+  // the honest cap is that station's own post count. Reading it here closes the
+  // gap where an author who declared `bar: 4` got four counter posts on the
+  // floor and one worker's worth of throughput, with no refusal (kd-JhZE08kkEG).
+  // BYTE-INERT on the engine's own shops: every station reachable through
+  // tryAcquire on the shack/juicebar/arcade/hotel/showers literals is a
+  // length-1 post list except the three caps guarded above, so this returns the
+  // same 1 they returned before.
+  const b = BIZ[bizKey];
+  if (b && b.stations && b.stations[kind]) return b.stations[kind].length;
   return 1;
 }
 // RETUNED AT THE MERGE. Busing is a real labour cost and it stacked on the
@@ -9738,7 +9753,37 @@ function recipeRowProblem(r, stations, f, label) {
   if (typeof r.icon !== "string" || !r.icon.length || r.icon.length > 24) return label + " HAS A BAD ICON";
   if (!ITEMS[r.icon] && !(f && f.items && f.items[r.icon] && f.items[r.icon].art))
     return label + " HAS NO PICTURE";
-  if (!Array.isArray(r.steps) || !r.steps.length || r.steps.length > 6) return label + " HAS BAD STEPS";
+  // ZERO STEPS = "A COUNTER SALE WITH NO PRODUCTION" — the engine's own name for
+  // the shape its SUDS SHOWERS literals ship in production (rinse/soak, both
+  // `steps: []`). A document may now declare it too: RULING `relax`, decision
+  // kd-NjPUnXyBOv (Matt, 2026-08-29), bug kd-R5J508vuh1. The Array.isArray guard
+  // and the >6 ceiling STAY; only the "at least one step" clause is dropped.
+  //
+  // HOSTILE-FILE ARGUMENT (a ruling requirement, written down, not assumed).
+  // Q: what can a document do with a zero-step recipe that it could not already
+  // do with a one-step one?  A: nothing — a zero-step row is a strict SUBSET of a
+  // one-step row's power, so relaxing this does not widen the trust boundary:
+  //  • The till is still debited. The source leg (stepIdx −1) runs BEFORE any
+  //    step branch — ownerFunds guard + debitBiz(ingredientCost(raw)) +
+  //    consumeIngredient (KS.walk / KS.waitCash). Zero and one step take that leg
+  //    identically, so there is no free-item path and no till bypass.
+  //  • The pantry/price rules still bite. raw/raw2, icon and picture (validated
+  //    just above) and pay 1..200 are ahead of this line and untouched by it.
+  //    serve() credits `pay` AFTER the debit, so margin = pay − ingredientCost,
+  //    bounded exactly as a one-step row's; a zero-step row cannot mint money or
+  //    beat the price cap.
+  //  • stations/stationCap still validate (businessProblem). A zero-step recipe
+  //    names NO station, so it adds nothing to the busy table and never calls
+  //    tryAcquire — it holds strictly FEWER runtime resources than a one-step
+  //    row, never more. No occupancy loop can hang: the "all steps done" guard
+  //    (stepIdx >= steps.length) is true the instant the source grab ends, so the
+  //    order always completes source → out → serve.
+  //  • It opens no new axis. The step-time bound (0.5..30s) already lets a
+  //    document author a ~2.9x throughput range; zero-step lands at the fast end
+  //    of a range documents can already span, it does not create one. Measured
+  //    (decision kd-NjPUnXyBOv): +4% serves at identical $/serve vs the tightest
+  //    legal one-step — under the seed noise — with no new failure mode.
+  if (!Array.isArray(r.steps) || r.steps.length > 6) return label + " HAS BAD STEPS";
   for (const st of r.steps) {
     if (!Array.isArray(st) || st.length < 3) return label + " HAS A BAD STEP";
     if (typeof st[0] !== "string" || !stations[st[0]]) return label + " WANTS A STATION " + String(st[0]).toUpperCase() + " DOESN'T HAVE";
@@ -13370,8 +13415,28 @@ function startSelfCook(c, e) {
   c.cookBiz = e.biz || "shack"; c.cookNeed = e.need || "food";
   const s0 = sourceSpot(c.cookBiz, c); setT(c, s0.x, s0.y);   // same rule for a staff meal
 }
+// THE STAFF-MEAL WORK STATION. A simplified single-station cook: the crab rings
+// itself up at the source, stands at ONE station, and eats. The engine's two
+// production shops each have a canonical hot line the meal cooks at - shack at
+// the grill, juicebar at the juicer - and that pairing is load-bearing on the
+// matrix, NOT just "naming two shops": the shack's cheapest recipe (JUICE, the
+// default pick when the crab is not flush) finishes at the BOARD, so deriving
+// purely from the recipe would silently move a reachable staff meal off the
+// grill and change slot contention. A DECLARED shop has no station the engine
+// can name, so it derives one from the recipe it is cooking - the finishing
+// step's station, or NONE for a zero-step counter sale (kd-NjPUnXyBOv), which
+// cooks nothing. (kd-JhZE08kkEG: the old `sb === "juicebar" ? "juicer" :
+// "grill"` resolved to "grill" for every other shop, and tryAcquire then read
+// busy[sb].grill on a table with no grill key - a TypeError, not a named
+// refusal. It never fires today; cookBiz is always shack or juicebar.)
+function cookStation(sb, r) {
+  if (sb === "shack") return "grill";
+  if (sb === "juicebar") return "juicer";
+  const steps = r && r.steps;
+  return steps && steps.length ? steps[steps.length - 1][0] : null;
+}
 function updateSelfCook(c, dt) {
-  const sb = c.cookBiz || "shack", wk = sb === "juicebar" ? "juicer" : "grill";
+  const sb = c.cookBiz || "shack", wk = cookStation(sb, c.cookRecipe);
   if (c.cookStep === 0) {                      // to the source bin: ring yourself up first
     if (routedStep(c, crabMoveQ8(c), dt)) {
       const r = c.cookRecipe;
@@ -13390,11 +13455,15 @@ function updateSelfCook(c, dt) {
   } else if (c.cookStep === 1) {               // grab
     c.workT -= dtT;
     if (c.workT <= 0) {
-      const g = tryAcquire(sb, wk);
-      if (g >= 0) {
-        c.slotKind = wk; c.slot = g;
-        const sp = stationSpot(sb, wk, g); setT(c, sp.x, sp.y);
-        c.workBiz = sb; c.cookStep = 2;
+      if (!wk) {                               // zero-step counter sale: no station to work, straight to eating
+        c.workBiz = sb; c.cookStep = 3; c.workT = (c.cookNeed === "drink" ? 1.5 : 3) * SEC;
+      } else {
+        const g = tryAcquire(sb, wk);
+        if (g >= 0) {
+          c.slotKind = wk; c.slot = g;
+          const sp = stationSpot(sb, wk, g); setT(c, sp.x, sp.y);
+          c.workBiz = sb; c.cookStep = 2;
+        }
       }
     }
   } else if (c.cookStep === 2) {               // to the grill (or the juicer)

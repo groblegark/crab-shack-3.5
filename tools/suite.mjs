@@ -19592,6 +19592,103 @@ scenario("placement: a settled owner opens a declared shop on the east lot, and 
   return true;
 });
 
+scenario("cultureways: a zero-step 'counter sale with no production' shop validates, loads and serves (RULING relax, kd-NjPUnXyBOv)", () => {
+  // Bug kd-R5J508vuh1 / decision kd-NjPUnXyBOv. The engine SHIPS zero-step
+  // recipes in production (SUDS SHOWERS rinse/soak, `steps: []`), but the
+  // cultureway validator refused an empty `steps` - and because
+  // recipeRowProblem's refusal string aborts the WHOLE culture load (both
+  // businessProblem call sites `return p`), a document declaring a
+  // showers/arcade-shaped shop did not load AT ALL - not one skipped recipe, a
+  // rejected document. RULING `relax` allows steps.length === 0 with a named
+  // meaning ("a counter sale with no production"), KEEPING the Array.isArray
+  // guard and the >6 ceiling. This pins all three halves of the ruling: the
+  // zero-step doc now validates, the guard/ceiling the ruling kept still bite,
+  // and a placed zero-step shop takes real, conserved money at its counter.
+  const boarDoc = (steps) => {
+    const d = JSON.parse(JSON.stringify(PIG_FIXTURE));
+    d.meta.id = "boar"; delete d.foodways; delete d.policies;
+    // a showers/arcade-shaped shop: STALLS for the occupancy furniture and a
+    // zero-step recipe (raw bought at the source, served at the pass, no
+    // production station in between). Stations fruitbin/bar + raw fruit are the
+    // placement fixture's known-good pantry; only `steps` moves across the arms.
+    d.businesses = { boarbath: { name: "BOAR BATH", short: "BBATH", sign: "BOAR BATH",
+      kind: "shopfront", rent: 20, wage: 22, stalls: 2, stations: { fruitbin: 1, bar: 1 },
+      source: "fruitbin", out: "bar",
+      recipes: [{ id: "dip", icon: "juice", pay: 6, raw: "fruit", steps }] } };
+    return d;
+  };
+  // (1) VALIDATION through the real oracle (cultureProblem -> businessProblem ->
+  // recipeRowProblem, the exact line the ruling changed). Zero steps now passes;
+  // the guard the ruling KEPT still refuses a non-array and a >6-step menu, by
+  // the same "HAS BAD STEPS" message - and, being a cultureProblem non-null,
+  // the same whole-document rejection.
+  const sim = createSim({ seed: 31 });
+  const zero = sim.G(`cultureProblem(${JSON.stringify(boarDoc([]))}, "boar")`);
+  if (zero) return "a zero-step declared shop was refused (ruling relax not applied): " + zero;
+  const notArr = sim.G(`cultureProblem(${JSON.stringify(boarDoc("nope"))}, "boar")`);
+  if (!notArr || !notArr.includes("HAS BAD STEPS")) return "a non-array steps was not refused (Array.isArray guard lost): " + notArr;
+  const seven = Array.from({ length: 7 }, () => ["bar", 1, "juice"]);
+  const over = sim.G(`cultureProblem(${JSON.stringify(boarDoc(seven))}, "boar")`);
+  if (!over || !over.includes("HAS BAD STEPS")) return "a 7-step menu was not refused (>6 ceiling lost): " + over;
+  // (2) LOAD: the zero-step culture installs and its shop builds PENDING,
+  // steps intact, not leaked into the town's own catalog.
+  sim.G("installCultures(" + JSON.stringify({ boar: boarDoc([]) }) + ", false)");
+  if (sim.G("!CULTURES.boar")) return "the zero-step culture did not install: " + sim.G("toast && toast.text");
+  const built = JSON.parse(sim.G(`JSON.stringify((() => {
+    const z = CULTURES.boar && CULTURES.boar.businesses && CULTURES.boar.businesses.boarbath;
+    return { z: !!z, steps: z && z.recipes[0].steps.length, pending: z && z.pending, inBIZ: !!BIZ.boarbath };
+  })())`));
+  if (!built.z || built.steps !== 0) return "the zero-step shop did not build: " + JSON.stringify(built);
+  if (!built.pending || built.inBIZ) return "a PENDING zero-step shop leaked into the town's own catalog";
+  // (3) SERVE: place the shop with a settled boar owner and point the town at
+  // its counter. The zero-step serve pipeline must take real, conserved money -
+  // source leg buys+debits the raw, 0 steps => the all-steps-done guard is true
+  // at once => walk to the pass => serve, exactly as the SUDS literals do.
+  const store = new Map();
+  const a = createSim({ seed: 77, storage: store, fresh: false });
+  a.runDays(1); a.G("save()");
+  const env = JSON.parse(store.get(SLOT1));
+  const fx = boarDoc([]); fx.settlers = { apron: true };
+  env.cultures = { boar: fx };
+  env.visitors = [
+    { n: "RASHER", cu: "boar", c: 3, a: "strawhat", x: 900, y: 150, s: "roam",
+      w: 60, p: 80, sp: 0, ni: 2, nh: 0, rn: 0, un: 0, ar: 1, lt: 5000, b: 0,
+      hu: qn(0.2), th: qn(0.2), di: qn(0.2), bo: qn(0.2), ti: qn(0.2), log: [], st: {} }];
+  store.set(SLOT1, JSON.stringify(env));
+  const b = createSim({ seed: 78, storage: store, fresh: false });
+  const placed = JSON.parse(b.G(`JSON.stringify((() => {
+    hireCrew();
+    const pig = crabs.find(c => c.p.name === "RASHER");
+    if (!pig) return { fail: "RASHER never settled" };
+    pig.p.wallet = 20000;
+    const why = placeBusiness("boar", "boarbath", "eastlot", pig);
+    if (why) return { fail: "the zero-step shop was refused placement: " + why };
+    return { ok: true, job: pig.p.job, busyKeys: Object.keys(busy.boarbath || {}).length };
+  })())`));
+  if (placed.fail) return placed.fail;
+  if (placed.job !== "boarbath") return "the owner is not on her own counter";
+  // the hostile-file trace, made a receipt: a zero-step recipe names no station,
+  // so its busy table is empty and tryAcquire is never called for it.
+  if (placed.busyKeys !== 0) return "a zero-step shop built a non-empty busy table (should hold no station): " + placed.busyKeys;
+  const trade = JSON.parse(b.G(`JSON.stringify((() => {
+    dataErrand({ id: "t.bath", need: "drink", biz: "boarbath", at: 0, ap100: 200 });
+    window._t0 = coins + crabs.reduce((s, c) => s + c.p.wallet, 0)
+      + Object.keys(OWNERS).reduce((s, o) => s + (OWNERS[o].till || 0), 0) + townFund.bal;
+    return { ok: true };
+  })())`));
+  if (!trade.ok) return "the stage did not set";
+  b.runUntil("day >= 3 && tmin > 15 * 60", { maxSteps: 900000 });
+  const after = JSON.parse(b.G(`JSON.stringify((() => {
+    ERRANDS.pop();
+    const total1 = coins + crabs.reduce((s, c) => s + c.p.wallet, 0)
+      + Object.keys(OWNERS).reduce((s, o) => s + (OWNERS[o].till || 0), 0) + townFund.bal;
+    return { take: bizDayBook("boarbath").take, till: OWNERS.own_boarbath.till, drift: total1 - window._t0 };
+  })())`));
+  if (!(after.take > 0)) return "the zero-step counter took nothing by day-3 afternoon";
+  if (typeof after.till !== "number" || Number.isNaN(after.drift)) return "the books went soft on a zero-step serve";
+  return true;
+});
+
 // ---- DECLARATIVE CARDS (phase D): a culture's dossier card binds labels to
 // registered observables; the accessor resolves live values (data must bite),
 // an unknown observable is refused by name, and an undeclared guest gets null.
