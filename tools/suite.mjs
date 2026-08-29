@@ -8937,21 +8937,24 @@ scenario("the player can stand for office and win, and then the levy is theirs",
   // player stands on it against the owners who would rather it stayed cold.
   //
   // RE-STAGED 1337 -> 909 (PERSONAL SPACE) -> 7 (THE CITIZEN MIND) -> 5
-  // (VISITOR-STATS). The claim is "an attentive player CAN win", and it is
-  // seed-generic - the seed only decides the MARGIN, and this fixture wants a
-  // margin, not a tie the incumbent breaks. On the visitor-stats landing tree
-  // the doubled economy re-shuffled turnout and seed 7 fell to a 3-3 DEAD HEAT
-  // (PINCHY:3 SUDSY:3 REEF:1) that declarePoll's tie-break hands to the
+  // (VISITOR-STATS) -> 11 (THE HOTEL TAP). The claim is "an attentive player
+  // CAN win", and it is seed-generic - the seed only decides the MARGIN, and
+  // this fixture wants a margin, not a tie the incumbent breaks. Twice now a
+  // landing has re-shuffled turnout and dropped the staged seed onto a tie:
+  // on visitor-stats seed 7 fell to a 3-3 DEAD HEAT (PINCHY:3 SUDSY:3 REEF:1);
+  // on THIS tree the third water tap (THE HOTEL TAP, WATER_TAPS x:2190) re-rolled
+  // the taps-town errand-draw stream and seed 5 fell to a 2-1-2 TIE
+  // (PINCHY:2 DRIFT:1 SUDSY:2) that declarePoll's tie-break hands to the
   // incumbent SUDSY - the player carried exactly as many votes and still lost,
-  // which is the staged-coincidence trap this project keeps re-learning: 7 was
+  // which is the staged-coincidence trap this project keeps re-learning: 5 was
   // never a rule, it was a tally that happened to clear the incumbent. The
   // recipe still wins the room wherever the shelter bloc is a plurality - swept
-  // this tree, it takes 5 (PINCHY:4 SUDSY:1), 21 (3-2-1), 31 (2-1), 42 (2-1),
-  // 63 (2-1) and 1337 (3-2-2), and loses only the near-ties (7, 11, 909,
-  // 4242). Seed 5 is chosen for the CLEAREST margin - a 4-1 shelter-bloc
-  // majority, no tie-break in the result at all - which is the same "5-1 tally,
-  // shelter-bloc mechanics" demonstration 7 gave before the economy moved.
-  const sim = createSim({ seed: 5 });
+  // this tree, seed 11 takes it 4-1 (PINCHY:4 SUDSY:1) while 21 (PINCHY:3 SUDSY:2)
+  // and 42 (PINCHY:2 DRIFT:1 SUDSY:1) win by one, and 5, 31, 63 and 1337 are the
+  // ties. Seed 11 is chosen for the CLEAREST margin - a 4-1 shelter-bloc majority,
+  // no tie-break in the result at all - the same demonstration 5 gave before the
+  // tap moved the stream.
+  const sim = createSim({ seed: 11 });
   sim.runDays(3);
   sim.G(`(() => {
     for (const c of allCrabs()) if (!c.p.owner) { c.p.homeless = true; c.p.house = null; c.p.fisher = false; }
