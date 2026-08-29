@@ -6633,6 +6633,23 @@ const SURF_LINEUP = 3;            // how many fit on the peak
 const SURF_MIN = qn(0.30);        // a barely-clean day...
 const SURF_MAX = qn(0.62);        // ...and a perfect one
 const SURF_CROWD = qn(0.12);      // what each other crab in the water costs you
+// THE PRICE OF A WAVE, declared as a P3 activity vector over the five needs in
+// TWENTIETHS (20 = the plain clock, so a need left at 20 is byte-identical to
+// declaring nothing; crabTick reads it through vmul). Matt's ask: surfing "cause
+// fun but cause lots of hunger and thirst and make crabs less clean" -
+//   hunger/thirst 40 = 2x  : up HARD (a shift out in the swell is work)
+//   dirt          30 = 1.5x : up      (salt and sand, less clean)
+//   bored          0        : PAUSED  - the ride is the anti-boredom itself; the
+//                                       fun relief is the lump in updateSurf, not
+//                                       a per-frame trickle to fight here.
+//   tired          0        : HONEST  - surfing charges NO fatigue. crabTick's
+//     loop never touches tired anyway (tired has its own accrual/recovery model),
+//     and startSurfStop deliberately DECLINES TIRED_ERRAND: hanging chore-fatigue
+//     on an optional leisure session tilted the shift-fairness gap past its gate
+//     (the ball's measured lesson). 0 states that refusal as data, not silence.
+// Starting dose - the cluster matrix prices it against the --nosurf twin; if the
+// taps crit gate reds, that is a real finding about the dose to RAISE, not soften.
+const SURF_VEC = { hunger: 40, thirst: 40, dirt: 30, bored: 0, tired: 0 };
 const SURF_LINES = ["OUTSIDE!", "MY WAVE", "SET COMING", "CLEAN OUT HERE", "ONE MORE"];
 // THE SEA IS OPEN when it is firing and you can see. Everything else about the
 // break reads through this one predicate, so there is one place to be wrong.
@@ -6646,7 +6663,10 @@ function startSurfStop(c) {
   c.dsC = DS.atSurf; c.surfT = 0;
   // NO TIRED_ERRAND, for the ball's measured reason: that charge models a
   // chore, and hanging it on an optional session tilts the morning/evening
-  // fatigue gap past what the shift-fairness scenario allows.
+  // fatigue gap past what the shift-fairness scenario allows. This is the same
+  // refusal SURF_VEC.tired = 0 declares to crabTick - stated in both places
+  // because the two clocks (continuous crabTick vs discrete actTired) are
+  // separate, and surfing must be silent to BOTH.
   setT(c, SURF_X + (surfers().length ? 20 : -8), SURF_Y);
 }
 function updateSurf(c, dt) {
@@ -13355,7 +13375,7 @@ function updateSelfCook(c, dt) {
 function startErrand(c, e) {
   c.dsC = DS.toErrand; c.errandBiz = e.biz; c.errand = e;
   c.rethinkT = VIS_RETHINK;   // interruptible commitment: the walk reconsiders on the slow clock
-  c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.errand);   // errand legwork tires, a little
+  actTired(c, 20);   // errand legwork tires, a little (P3: the body's errand rate at 1x, discrete)
   // WALK TO THE BACK OF THE LINE. Aiming at the counter meant a local coming
   // from the east walked THROUGH everybody already queued, reached the window,
   // and only then slid back out to their own place - which is the one thing
@@ -13376,7 +13396,7 @@ function startTapStop(c, e) {
   // enters the state, so they never count themselves.
   const slot = e.vote ? POLL_PLACES[e.poll].x + 4 + VOTE_DX * Math.min(4, pollVoters(e.poll).length) : null;
   c.dsC = DS.atTap; c.tapStop = e; c.tapT = 0;
-  c.p.tired = Math.min(Q20, (c.p.tired || 0) + bodyOf(c).T.errand);
+  actTired(c, 20);   // same errand legwork charge as startErrand, one writing of it (P3)
   if (slot != null) setT(c, slot, VOTE_Y);
   else setT(c, e.soup ? SOUP_X : WATER_TAPS[e.tap].x + 6, 163);
 }
@@ -15091,6 +15111,39 @@ function bodyOf(k) {
   const cul = id && id !== "crab" ? CULTURES[id] : null;
   return (cul && cul.phys) || ENG_BODY;
 }
+// ---- P3, THE ACTIVITY VECTOR ----------------------------------------------
+// The sand's nine words, finished. An ACTIVITY scales the BODY's per-frame
+// decay by a rate-multiplier vector in TWENTIETHS (20 = 1x, 0 = this need
+// pauses, 30 = 1.5x, 40 = 2x). The body owns the RATE, the activity owns the
+// MULTIPLIER, the engine multiplies - one seam for every continuous need clock
+// there is: the tourist's (visTick), the citizen's (crabTick), the sand, the
+// surf. `mul` folds the caller's own scale into the same divide - a plain 20
+// for a tourist, the citizen fraction (citDecayMul) for a crab - so both the
+// species scale and the activity vector ride one round. `add` is the rounding
+// bias over the DOUBLED twentieths (/400): 200 is round-half-up (the citizen
+// clock's documented idiom, never the VIS_RATE comment's 1.19% flooring sin),
+// 0 is the floor the SAND has always used and its COMPILED twin (vis_tick in
+// kernel.wasm) still uses - so the sand stays byte-for-byte across both
+// backends until a kernel rebuild unifies the rounding. 20/20 at add=200 is
+// BYTE-FOR-BYTE the plain clocks: idiv(A*20*20 + 200, 400) == idiv(A + 10, 20),
+// and A*400+200 over 400 floors back to A, so every non-declaring path is
+// unchanged to the bit (proven, and the suite is the arbiter).
+function actNeed(cur, rate, mul, vec20, add) {
+  return Math.min(Q20, cur + idiv(rate * dtT * mul * vec20 + (add != null ? add : 200), 400));
+}
+const vmul = (V, n) => (V && V[n] != null) ? V[n] : 20;   // an activity's mul for need n; 20 == declared nothing
+// THE DISCRETE HALF. TIRED is NOT on the continuous clock (U1: it keeps its own
+// accrual + recovery model), so an activity's tired cost is a LUMP charged
+// once, not a per-frame drain. An errand declares tired:20 (one T.errand); the
+// ball and the surf declare tired:0 and so never call this - "declines to
+// charge TIRED_ERRAND" is now a value, not a special-case comment. The ball's
+// receipt is why: a leisure activity charging chore-fatigue pushed the morning/
+// evening shift-fairness gap -0.007 -> 0.054, past the 0.04 the scenario allows
+// - and surfing is LONGER than the ball, so it declares tired:0 too. Byte-for-
+// byte the old `+= T.errand` at vec=20 (T.errand is integer, idiv(T*20+10,20)==T).
+function actTired(c, vec20) {
+  c.p.tired = Math.min(Q20, (c.p.tired || 0) + idiv(bodyOf(c).T.errand * vec20 + 10, 20));
+}
 // Deal the kernel's body rows: row 0 is the crab table, rewritten on every
 // fill; declaring cultures take rows 1.. in SORTED id order - deterministic
 // whatever order bundled and save documents installed in. Past the table's
@@ -16365,7 +16418,7 @@ function visTick(k, dt) {
   if (k.stC === VS.onSand) {
     // THE SAND BANKS NOTHING (sleepRough's rule, verbatim): exhaustion
     // prevents its own cure, and a night out here is a night of it.
-    k.dirt = Math.min(Q20, k.dirt + ((bodyOf(k).R.dirt * dtT * 3) >> 1));   // 1.5x, exactly 3/2 - the multiplier is the sand's, the rate is the body's
+    k.dirt = actNeed(k.dirt || 0, bodyOf(k).R.dirt, 20, 30, 0);   // P3: the SAND's vector - dirt 30 (1.5x), floored to match its kernel.wasm twin; sleep pauses the rest
     if (tmin >= WAKE_HOUR && tmin < 12 * 60) {
       k.stC = VS.roam; k.rough = false; k.roughFlag = false; k.target = null;
       visLog(k, "peril", vline(k, "wokesand", "WOKE UP ON THE SAND - NOT A GREAT NIGHT"));
@@ -16374,7 +16427,7 @@ function visTick(k, dt) {
   }
   const BR = bodyOf(k).R;   // the decay clock runs at the guest's own rates (census C2)
   for (const n of ["hunger", "thirst", "dirt", "bored", "tired"])
-    k[n] = Math.min(Q20, (k[n] || 0) + BR[n] * dtT);
+    k[n] = actNeed(k[n] || 0, BR[n], 20, 20);   // P3: a roaming tourist declares no activity - the plain clock, byte-for-byte
 }
 // U1 - THE UNIFICATION: give the CITIZEN the visitor's continuous need decay.
 // Until now a crab who idled all day got hungry exactly once, at dusk (the nine
@@ -16481,13 +16534,25 @@ function crabAsleep(c) {
 function crabOnDuty(c) {
   return c.dsC === DS.working || c.dsC === DS.toWork || c.dsC === DS.toHome;
 }
+// WHAT SCALES THE CRAB'S CLOCK RIGHT NOW. Out in the water, surfing does
+// (SURF_VEC, P3): hunger/thirst up hard, dirt up, bored paused (the ride IS the
+// anti-boredom; the fun cure is the relief lump in updateSurf). Anything else
+// runs the body straight - null is identity, and crabTick stays byte-for-byte
+// the pre-surf clock whenever this returns null. The elevated drain is charged
+// the whole session because crabTick runs for every crab BEFORE the dsC
+// dispatch (a surfer is DS.atSurf, hidden, and neither asleep nor on-duty, so
+// the clock is live) - a yanked-off-a-wave rider (setDirected) drops surfT to 0
+// and the vector goes with it, so a partial session pays only for its minutes.
+function actVecOf(c) {
+  return (c.dsC === DS.atSurf && c.surfT > 0) ? SURF_VEC : null;
+}
 function crabTick(c, dt) {
   if (!crabDecayOn() || crabAsleep(c)) return;
   if (crabOnDuty(c) && !window._citNoWorkPause) return;   // on duty = occupied, no relief path (calibrated)
   const BR = bodyOf(c).R;   // a crab's own culture body, or the engine's by identity
-  const m = citDecayMul();
+  const m = citDecayMul(), V = actVecOf(c);   // the activity that owns this frame's multipliers (P3)
   for (const n of ["hunger", "thirst", "dirt", "bored"])
-    c.p[n] = Math.min(Q20, (c.p[n] || 0) + idiv(BR[n] * dtT * m + 10, 20));   // round-half-up /20
+    c.p[n] = actNeed(c.p[n] || 0, BR[n], m, vmul(V, n));   // body rate x citizen fraction x activity mul; vmul==20 is the plain clock
 }
 function updateVisitor(k, dt) {
   if (k.stC === VS.ashore) {
