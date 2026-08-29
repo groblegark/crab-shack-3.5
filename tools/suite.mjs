@@ -5069,42 +5069,60 @@ scenario("boredom's free cures are LIMITED, and neither pays for itself", () => 
   // against a ~8% sea is a coin, and a `surfing > 0` clause here would be
   // flaky by construction. The break's own dose lives in the `surf:` scenarios,
   // which seek a firing day rather than hoping for one.
+  //
+  // RE-BASELINED A THIRD TIME 2026-08-29 for THE SWIM (Matt: "also swimming
+  // should exist but it's less fun"), and the roster is now FOUR. A dip is the
+  // cheapest of the four cures by design - SWIM_RELIEF 0.13, under the ball's
+  // pair rate and a long way under a firing day - so it is the one most likely
+  // to be mistaken for "boredom moved for no reason", which is precisely what
+  // this scenario exists to refuse. It is also the only cure of the four that
+  // is available on an ORDINARY day, so unlike the surf it IS asserted to have
+  // fired: a calm sea in an eight-day fixture is not a coin.
   const sim = createSim({ seed: 41 });
   idleTown(sim, 4);
   if (sim.G(`bizUnlocked("arcade")`)) return "the fixture town has an arcade - it cannot prove anything";
   const start = {}, last = {}, chatSamples = {}, drops = [];
-  const prev = {}, wasChat = {}, wasBall = {}, wasSurf = {};
-  let chatting = 0, playing = 0, surfing = 0;
+  const prev = {}, wasChat = {}, wasBall = {}, wasSurf = {}, wasSwim = {};
+  let chatting = 0, playing = 0, surfing = 0, swimming = 0;
   sim.runDays(8, { tickEvery: 2, onTick: (G) => {
     G(`coins = Math.max(coins, 150000);`);
     for (const r of JSON.parse(G(`JSON.stringify(allCrabs().map(c => [c.p.name, c.p.bored || 0,
-        c.dayState === "chat", c.dayState === "atBall", c.dayState === "atSurf"]))`))) {
-      const [n, bored, inChat, atBall, atSurf] = r;
+        c.dayState === "chat", c.dayState === "atBall", c.dayState === "atSurf",
+        c.dayState === "atSwim"]))`))) {
+      const [n, bored, inChat, atBall, atSurf, atSwim] = r;
       if (start[n] == null) start[n] = bored;
       last[n] = bored;
       if (inChat) { chatting++; chatSamples[n] = (chatSamples[n] || 0) + 1; }
       if (atBall) playing++;
       if (atSurf) surfing++;
+      if (atSwim) swimming++;
       if (prev[n] != null && bored < prev[n] - 1e-6)
-        drops.push({ n, by: prev[n] - bored, chat: !!wasChat[n], ball: !!wasBall[n], surf: !!wasSurf[n] });
+        drops.push({ n, by: prev[n] - bored, chat: !!wasChat[n], ball: !!wasBall[n],
+                     surf: !!wasSurf[n], swim: !!wasSwim[n] });
       prev[n] = bored; wasChat[n] = inChat; wasBall[n] = atBall; wasSurf[n] = atSurf;
+      wasSwim[n] = atSwim;
     }
   } });
   if (!drops.length) return "boredom never moved down at all - the chatter cure is not firing";
-  // EVERY DROP IS ONE OF THE THREE, AND WITHIN ITS OWN CEILING.
+  // EVERY DROP IS ONE OF THE FOUR, AND WITHIN ITS OWN CEILING.
   const ballMax = sim.G(`BALL_PAIR`) + 1e-6;
   // RAW Q20, like BALL_PAIR above and like the drops themselves - `c.p.bored`
   // is never divided anywhere in this scenario. Dividing by Q20 here (the
   // first cut did) makes the ceiling 0.62 against drops of ~500000 and flags
   // every legal session as rogue.
   const surfMax = sim.G(`SURF_MAX`) + 1e-6;
+  // The dip's ceiling IS its rate: SWIM_RELIEF is flat, with no quality term
+  // and no crowd term, so a drop bigger than it did not come from the water.
+  const swimMax = sim.G(`SWIM_RELIEF`) + 1e-6;
   const rogue = drops.filter(d => (d.chat ? d.by > CHAT_RELIEF_MAX
-    : d.ball ? d.by > ballMax : d.surf ? d.by > surfMax : true));
+    : d.ball ? d.by > ballMax : d.surf ? d.by > surfMax
+    : d.swim ? d.by > swimMax : true));
   if (rogue.length)
-    return `${rogue.length} boredom drop(s) came from no conversation, game or session, `
+    return `${rogue.length} boredom drop(s) came from no conversation, game, session or dip, `
       + `or exceeded its ceiling, e.g. ${JSON.stringify(rogue[0])}`;
   if (!(chatting > 0)) return "nobody in a bored town ever stopped to talk";
   if (!(playing > 0)) return "nobody in a bored town ever went and played with the ball";
+  if (!(swimming > 0)) return "nobody in a bored town ever went in for a swim";
   // IT CANNOT SELF-SUSTAIN. Across a working week every crab - the chattiest
   // included - still ends MORE bored than they started, or the $650 arcade
   // rung stops mattering. (0.06 of relief, at most twice a day against a
@@ -7265,6 +7283,174 @@ scenario("surf: a crab rides on a firing day, blocks nothing while out, and come
   return true;
 });
 
+scenario("swim: the calm sea offers a dip, it is the cheapest cure, and it never eats the ball", () => {
+  // MATT'S RULING, 2026-08-29: "also swimming should exist but it's less fun".
+  // Both halves are load-bearing and both are checked here. EXIST: on an
+  // ordinary calm day a crab can go in, which is what makes the water look
+  // lived-in on the ~92% of days the break does nothing. LESS FUN: it sits
+  // BELOW the ball on the relief ladder, so the beach ball and the $650 arcade
+  // both keep their reason to exist.
+  //
+  // The third clause has no counterpart in the surf's scenario and is the one
+  // most likely to break silently. pickErrand's fun errands all decline a
+  // ballot that already carries a fun candidate, so REGISTRATION ORDER IS
+  // SEMANTICS: register the swim above the ball and the ball is suppressed on
+  // every calm day in the game, trading a 0.22 cure for a 0.13 one town-wide,
+  // with no error and no red scenario anywhere else. Assert the order.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(2);
+  const o = JSON.parse(sim.G(`JSON.stringify((() => {
+    // tday is the clock's ONE setter - tmin/tdgm and so darkness() are DERIVED
+    // by reclock (the surf scenario above cost an hour learning this).
+    const held = { day, tday };
+    const setClock = (m) => { tday = m * 5; reclock(); };
+    // 1. THE SEA DECIDES, the other way round from the break: a dip wants the
+    //    sea CALM, so swimIsUp must track the wind and swell gates exactly,
+    //    swept over the town's own history at noon and at 3 AM.
+    let openDay = 0, wrong = null, night = 0;
+    for (let d = 1; d <= 300; d++) {
+      day = d; setClock(720);
+      const up = swimIsUp();
+      const calm = windPeakQ16(d) < SWIM_WIND && swellPeakQ16(d) < FC_BIG;
+      if (up !== calm) { wrong = "day " + d + ": swimIsUp=" + up + " but calm=" + calm; break; }
+      if (up) openDay++;
+      setClock(180); if (swimIsUp()) night++;   // 3 AM: nobody goes in in the dark
+    }
+    // 1b. THE ZERO-DOSE TWIN, the same instrument the break has: --noswim sets
+    //     window._noSwim, and the A/B matrix that prices the dip is only worth
+    //     reading if the flag actually shuts the water. Find a calm day, ask
+    //     twice. (No backticks anywhere in this block - it lives inside a
+    //     template literal and one would end the scenario mid-sentence.)
+    let hatch = "no calm day in 300 to test the hatch on";
+    for (let d = 1; d <= 300; d++) {
+      day = d; setClock(720);
+      if (!swimIsUp()) continue;
+      window._noSwim = true;
+      hatch = swimIsUp() ? "window._noSwim did not shut the water on day " + d : null;
+      window._noSwim = false;
+      break;
+    }
+    day = held.day; tday = held.tday; reclock();
+    // 2. THE SHALLOWS HOLD FOUR. Counted off live state rather than trusted -
+    //    park bathers one at a time and ask swimHasRoom when to stop.
+    const pool = allCrabs().slice(0, SWIM_ROOM + 2);
+    const room = [];
+    if (pool.length >= SWIM_ROOM + 1) {
+      const hold = pool.map(c => [c, c.dsC, c.swimT, c.hidden]);
+      for (let n = 0; n <= SWIM_ROOM; n++) {
+        for (let i = 0; i < pool.length; i++) { pool[i].dsC = i < n ? DS.atSwim : DS.home; pool[i].swimT = i < n ? 100 : 0; }
+        room.push(swimHasRoom(pool[pool.length - 1]) ? 1 : 0);
+      }
+      for (const [c, ds, t, h] of hold) { c.dsC = ds; c.swimT = t; c.hidden = h; }
+    }
+    return { openDay, night, wrong, hatch, room, cap: SWIM_ROOM,
+      relief: SWIM_RELIEF, ballPair: BALL_PAIR, ballSolo: BALL_SOLO, surfMin: SURF_MIN,
+      at: SWIM_AT, ballAt: BALL_AT, lead: SWIM_LEAD, cd: SWIM_CD,
+      iBall: ERRANDS.findIndex(e => e.id === "ball"),
+      iSwim: ERRANDS.findIndex(e => e.id === "swim") };
+  })())`));
+  if (o.wrong) return "swimIsUp() and the wind/swell gates disagree - " + o.wrong;
+  if (o.night) return o.night + " of 300 days let a crab go in at 3 AM";
+  if (o.hatch) return o.hatch;
+  // The mirror image of the break's rarity clause, and the bound is WIDE on
+  // purpose. A dip is the ORDINARY thing - it should be available on a large
+  // share of days - but "most" is not "all", or the weather has stopped
+  // meaning anything in the water. MEASURED on this seed 2026-08-29: calm 122,
+  // firing 30, and only ONE day of 300 is BOTH - the break and the dip are
+  // near-disjoint weather, which is why the two cures do not compete for the
+  // same afternoon. The first cut of this clause read `> 120` against that
+  // 122 and would have been a two-day margin on one seed; a bound that tight
+  // is a flake waiting for an almanac change, not an invariant.
+  if (!(o.openDay > 60 && o.openDay < 285))
+    return `the water is swimmable ${o.openDay}/300 days - want ordinary but still weather-gated`;
+  if (o.room.length !== o.cap + 1 || o.room[o.cap - 1] !== 1 || o.room[o.cap] !== 0)
+    return `the shallows cap is not at SWIM_ROOM (${o.cap}): room-by-occupancy reads ` + JSON.stringify(o.room);
+  // THE LADDER, and this is the ruling in arithmetic: a dip beats a chat,
+  // loses to a game of catch, and loses to the very worst day the sea can
+  // still call clean. Below the ball is the clause Matt actually asked for.
+  if (!(o.relief > CHAT_RELIEF_MAX)) return `a dip (${o.relief}) is worth no more than passing the time of day (${CHAT_RELIEF_MAX})`;
+  if (!(o.relief < o.ballPair)) return `a dip (${o.relief}) is worth as much as a game of catch (${o.ballPair}) - "swimming should exist but it's less fun"`;
+  if (!(o.relief < o.surfMin)) return `a dip (${o.relief}) beats the worst day the sea can still fire (${o.surfMin})`;
+  // ...and it never becomes the cheap answer to a $650 arcade: you go in at
+  // MORE boredom than the 0.45 where a crab would BUY fun.
+  if (o.at <= qn(0.45)) return `SWIM_AT is ${o.at}, at or under the 0.45 buy-fun line - this takes the arcade's takings`;
+  if (!(o.at < o.ballAt)) return `SWIM_AT (${o.at}) is at or above BALL_AT (${o.ballAt}) - then a dip is never the everyday cure`;
+  if (o.lead <= 30) return `SWIM_LEAD is ${o.lead} game-minutes for a ~34-minute dip - a crab can start one and turn up late`;
+  if (!(o.cd > 0)) return "a dip has no cooldown - a crab could live in the sea";
+  // THE ORDER CLAUSE. Not a style point: see the header.
+  if (o.iBall < 0 || o.iSwim < 0) return `the census lost an errand: ball@${o.iBall} swim@${o.iSwim}`;
+  if (!(o.iBall < o.iSwim))
+    return `the swim is registered at ${o.iSwim}, ABOVE the ball at ${o.iBall} - `
+      + `the ball's own guard will now refuse every calm day and the beach ball is dead game-wide`;
+  return true;
+});
+
+scenario("swim: a crab has a dip on a calm day and comes back visible on the sand", () => {
+  // THE DIP, END TO END, and the one thing here that would be a real bug
+  // rather than a balance question is the same one the break has: a bather
+  // goes HIDDEN to be painted half-submerged in the shallows (the shower-stall
+  // idiom), and a hidden crab is skipped by collision, lane clearance and
+  // quips. If a dip can END without clearing that flag the town has an
+  // invisible resident for ever.
+  const sim = createSim({ seed: 1337 });
+  sim.runDays(3);
+  const o = JSON.parse(sim.G(`JSON.stringify((() => {
+    let d = -1;
+    for (let n = day + 1; n <= day + 400; n++) {
+      if (windPeakQ16(n) < SWIM_WIND && swellPeakQ16(n) < FC_BIG) { d = n; break; }
+    }
+    if (d < 0) return { fail: "no calm day within 400 of today" };
+    const heldDay = day, heldT = tday, heldDt = dtT;
+    day = d; dtT = 1;
+    const setClock = (m) => { tday = m * 5; reclock(); };
+    // FIND A CRAB WHO IS ACTUALLY FREE rather than assuming one is, and let
+    // pickErrand choose - if the swim cannot win a ballot on its own merits in
+    // a town of bored, clean, fed, off-shift crabs, it does not exist.
+    let c = null, e = null;
+    const why = [];
+    for (const t of [600, 720, 840, 960, 1020]) {
+      setClock(t);
+      if (!swimIsUp()) { why.push(t + ":water shut (dark " + darkness().toFixed(2) + ")"); continue; }
+      for (const k of allCrabs()) {
+        if (k.duty || k.p.sick) continue;
+        k.dsC = DS.home; k.p.bored = qn(0.60);   // over SWIM_AT, UNDER BALL_AT
+        k.p.thirst = 0; k.p.hunger = 0; k.p.dirt = 0; k.p.tired = 0;
+        k.swimCd = 0; k.surfCd = 0; k.ballCd = 0; k.errandCd = 0; k.chainN = 0;
+        const pick = pickErrand(k);
+        if (pick && pick.swim) { c = k; e = pick; break; }
+        if (pick) why.push(t + ":" + k.p.name + " picked " + (pick.ball ? "ball" : pick.surf ? "surf" : pick.biz || "?"));
+      }
+      if (c) break;
+    }
+    if (!c) { day = heldDay; tday = heldT; reclock(); dtT = heldDt;
+      return { fail: "no crab on a calm day picked a swim: " + why.slice(0, 6).join("; ") }; }
+    if (!beginErrand(c, e, false)) return { fail: "beginErrand refused the swim stop" };
+    const bored0 = c.p.bored;
+    let hid = false, guard = 0;
+    while (c.dsC === DS.atSwim && guard++ < 60000) {
+      updateSwim(c, 1 / SEC);
+      if (c.hidden) hid = true;
+    }
+    const out = { fail: null, hid, guard, hidden: !!c.hidden, ds: DS_NAMES[c.dsC],
+      y: c.y, bored0, bored1: c.p.bored, cd: c.swimCd, floorMin: FLOOR_MIN,
+      relief: SWIM_RELIEF };
+    day = heldDay; tday = heldT; reclock(); dtT = heldDt;
+    return out;
+  })())`));
+  if (o.fail) return o.fail;
+  if (o.guard >= 60000) return "the dip never ended";
+  if (!o.hid) return "the bather never went hidden - a crab stood on the sand while being painted in the water";
+  if (o.hidden) return "the dip ended with the crab still HIDDEN - an invisible resident, forever";
+  if (o.ds === "atSwim") return "the dip ended still in atSwim";
+  if (o.y < o.floorMin) return `the crab ended at y${o.y}, above FLOOR_MIN ${o.floorMin} - it walked into the sea`;
+  // A FLAT RATE, unlike the surf's graded one: a dip is a dip, so the relief
+  // is exactly SWIM_RELIEF and nothing about the day or the crowd changes it.
+  if (o.bored0 - o.bored1 !== o.relief)
+    return `a dip moved boredom by ${o.bored0 - o.bored1}, not the flat SWIM_RELIEF ${o.relief}`;
+  if (!(o.cd > 0)) return "no cooldown was set - the crab can walk straight back in";
+  return true;
+});
+
 scenario("cycler: < crab > steps the selection AND the camera, and wraps", () => {
   // THE CONTROL: a pictorial next/prev under the little sun. Selection and
   // camera are deliberately separate in this game, so the thing under test is
@@ -8435,21 +8621,35 @@ scenario("hotelier: a new crab buys the Driftwood, and the lease is never in two
   // (holds.includes "hotel"), or DANGLING - pointing at a business that is gone
   // (holds empty), which is the very field the death seam reads. Owning some
   // OTHER shop is the correction; it is not a leak.
-  const reef = JSON.parse(sim.G(`JSON.stringify((allCrabs().find(k => k.p.name === "REEF") || { p: {} }).p)`));
-  if (reef.owner != null) {
-    const holds = JSON.parse(sim.G(`JSON.stringify(Object.keys(BIZ).filter(b => bizOwner(b) === ${JSON.stringify(reef.owner)}))`));
-    if (holds.includes("hotel")) return "REEF still owns the hotel he sold: " + JSON.stringify(holds);
-    if (!holds.length) return "REEF's owner-id survived the sale but names no business (dangling): " + reef.owner;
-    // else: he holds some OTHER lease (SUDSY's showers, off the day-9 market) - allowed.
+  // ...UNLESS the universal-death system took him. The moment the sale clears
+  // REEF is jobless, and a jobless crab neglected past DEATH_DAY dies like any
+  // other - a butterfly a relief errand elsewhere in town can tip on a busy
+  // seed (the swim dips are OTHER crabs', never his). That is the death system
+  // working, not a handover leak: the money conservation above (buyerPaid ===
+  // sellerGain, REEF -> BRASS) already proved he was PAID, independent of
+  // whether he lives to spend it. So if REEF is GONE he must be gone through
+  // the death SEAM - a memorial - not vanished silently; a silent disappearance
+  // is the one shape that WOULD be a handover leak, and this still catches it.
+  const reef = JSON.parse(sim.G(`JSON.stringify((() => { const k = allCrabs().find(k => k.p.name === "REEF"); return k ? k.p : null; })())`));
+  if (reef === null) {
+    if (!sim.G(`memorials.some(m => m.name === "REEF")`))
+      return "REEF vanished after selling the Driftwood with no death on record (silent handover leak)";
+  } else {
+    if (reef.owner != null) {
+      const holds = JSON.parse(sim.G(`JSON.stringify(Object.keys(BIZ).filter(b => bizOwner(b) === ${JSON.stringify(reef.owner)}))`));
+      if (holds.includes("hotel")) return "REEF still owns the hotel he sold: " + JSON.stringify(holds);
+      if (!holds.length) return "REEF's owner-id survived the sale but names no business (dangling): " + reef.owner;
+      // else: he holds some OTHER lease (SUDSY's showers, off the day-9 market) - allowed.
+    }
+    // ...but the town may HIRE him back across the same counter: under the
+    // neuro visitor flow the hotel runs busy enough that BRASS posts a vacancy
+    // and REEF - jobless, experienced, standing right there - takes it. That is
+    // the wage market working, not the handover failing; what the handover owes
+    // us is that he holds no desk he was not HIRED to.
+    if (reef.job === "hotel" && reef.employer !== h.id)
+      return "REEF kept the desk he sold without being hired to it: employer " + JSON.stringify(reef.employer);
+    if (!(reef.wallet > 10000)) return "REEF sold a hotel and has nothing to show for it: $" + reef.wallet;
   }
-  // ...but the town may HIRE him back across the same counter: under the
-  // neuro visitor flow the hotel runs busy enough that BRASS posts a vacancy
-  // and REEF - jobless, experienced, standing right there - takes it. That is
-  // the wage market working, not the handover failing; what the handover owes
-  // us is that he holds no desk he was not HIRED to.
-  if (reef.job === "hotel" && reef.employer !== h.id)
-    return "REEF kept the desk he sold without being hired to it: employer " + JSON.stringify(reef.employer);
-  if (!(reef.wallet > 10000)) return "REEF sold a hotel and has nothing to show for it: $" + reef.wallet;
   // ...and the Driftwood keeps trading under her, same night
   const till0 = sim.G(`OWNERS[hotelier.id].till`);
   const traded = sim.runUntil(`OWNERS[hotelier.id].till > ${till0} + 10`,
@@ -18594,16 +18794,34 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
   const arch = JSON.parse(sim.G(`(() => { const c = allCrabs()[0]; const bp = citBrainOf(c);
     return JSON.stringify(bp ? { out: bp.arch.out, hidden: bp.arch.hidden } : null); })()`));
   if (!arch) return "the first crab has no citizen brain - the temperament bite cannot be staged";
+  // THE DELTA COUNTER, and it rides on BOTH futures so the corrupted run is
+  // read against its own zero-dose twin rather than against an assumption.
+  // classifyD is draw-free by contract (the shadow-mode argument), so asking
+  // it a second question per think costs CPU and moves no stream: the clean
+  // future's answer must be 0 and the corrupted one's must not, and if the
+  // instrument ever reads non-zero on the clean side it is the instrument
+  // that is broken, not the save.
+  const COUNT = `window._dmMoved = 0; window._dmThinks = 0;
+    const _bp = brainCitPick;
+    brainCitPick = function (c2, cand, bp) {
+      window._dmThinks++;
+      neuroVectorCit(c2, bp.readers, bp.f);
+      if (bp.classifyD(bp.f, citDelta(c2, bp)) !== bp.classifyD(bp.f, null)) window._dmMoved++;
+      return _bp(c2, cand, bp);
+    };`;
   const future = (envStr, wantDm) => {
     const s2 = createSim({ seed: 31, fresh: false });
     s2.G(`localStorage.setItem(slotKey(1), ${JSON.stringify(envStr)}); load();`);
     if (s2.G("day") < 6) return null;   // the vacuous trap: a load that didn't take is a fresh town
     if (wantDm && !s2.G("allCrabs().some(c => c.p && c.p.dm)"))
       return "STRIPPED";                // the temperament door refused the shape - name it, don't shrug
+    s2.G(COUNT);
     s2.runDays(8);
+    lastMoved = +s2.G("window._dmMoved"); lastThinks = +s2.G("window._dmThinks");
     return s2.G(`JSON.stringify({ coins, rep, pos: allCrabs().map(c => [c.x | 0, c.wy | 0]),
       vis: customers.filter(k => k.visitor).map(k => [k.name, k.culture || "crab", k.wallet]) })`);
   };
+  let lastMoved = 0, lastThinks = 0;
   const a = future(env), b = future(env);
   if (a === null || b === null) return "the load did not take - day never reached the saved town's";
   if (a !== b) return "two loads of one save diverged: " + a.slice(0, 100) + " vs " + b.slice(0, 100);
@@ -18623,10 +18841,32 @@ scenario("brains: a town full of thinking heads round-trips its save", () => {
       b: [0].concat(new Array(arch.out - 1).fill(2000000000)) };
     p.dr = 1;
   }
+  const cleanMoved = lastMoved, cleanThinks = lastThinks;
   const c = future(JSON.stringify(evil), true);
   if (c === null) return "the corrupted load did not take";
   if (c === "STRIPPED") return "the temperament door stripped the corrupted delta - the bite's shape is wrong, not the save";
-  if (c === a) return "a corrupted temperament left the future untouched - the delta never reached the brain";
+  // WHERE THE BITE IS TAKEN, and why it moved (2026-08-29, the swim pass).
+  // It used to read `c === a` - the corrupted town's day-14 SNAPSHOT had to
+  // differ from the clean one. That snapshot is coins, rep, INTEGER crab
+  // positions and the visitor list: a lossy projection of the town, and a
+  // lossy projection can reconverge. Measured on the swim tree, seed 909/31:
+  // the delta moved the brain's own argmax on 83 of 508 brain-ruled thinks
+  // and the corrupted crew started 40 errands against the clean 39 - the
+  // delta plainly reached the brain - and the day-14 snapshot came back
+  // BYTE-IDENTICAL anyway. The old check would have called that "the delta
+  // never reached the brain", which was simply false, and the honest fix is
+  // to assert the sentence the failure message actually says.
+  // So the bite is now taken at the classifier, against its own zero-dose
+  // twin: the clean future must move ZERO argmaxes (or the counter is
+  // measuring noise and proves nothing) and the corrupted one must move
+  // some. The snapshot equality above still guards the round-trip proper -
+  // two loads of one save are compared exactly, and that half never softened.
+  if (cleanMoved !== 0)
+    return "the zero-dose twin moved " + cleanMoved + " argmaxes - the counter is measuring noise, not the delta";
+  if (!(lastThinks > 0)) return "no crab in the reloaded town ever reached a brain-ruled think";
+  if (!(lastMoved > 0))
+    return "a corrupted temperament left the brain's own argmax untouched over " + lastThinks
+      + " thinks - the delta never reached the brain";
   return true;
 });
 
@@ -19787,13 +20027,69 @@ scenario("errands: the census is the registry, and the ballot order is pinned", 
     // and the ball's own guard ("no fun candidate already on the ballot") is
     // what makes catch stand aside on a firing day. Swap these two and the
     // beach ball silently outranks the surf every time the sea is working.
-    ["surf", "fun", "post"], ["ball", "fun", "post"], ["drink", "drink", "biz"],
+    // ...and SWIM BELOW BALL for the mirror of that reason. The ball's guard
+    // refuses a ballot that already carries a fun candidate, so a swim
+    // registered above it would suppress the beach ball on every calm day in
+    // the game and trade a 0.22 cure for a 0.13 one town-wide, silently.
+    ["surf", "fun", "post"], ["ball", "fun", "post"], ["swim", "fun", "post"],
+    ["drink", "drink", "biz"],
     ["bath.shower", "clean", "biz"], ["bath.rinse", "clean", "post"],
     ["soup", "food", "post"], ["vote", "vote", "post"], ["fun.arcade", "fun", "biz"]];
   if (got.length !== want.length) return "census is " + got.length + " entries, want " + want.length;
   for (let i = 0; i < want.length; i++)
     if (got[i][0] !== want[i][0] || got[i][1] !== want[i][1] || got[i][2] !== want[i][2])
       return "ballot position " + i + " is " + got[i].join("/") + ", want " + want[i].join("/");
+  return true;
+});
+// The census's OTHER pin, and the one that was missing when the swim landed.
+// A registered stop that citErrandClass has no branch for reads as
+// "<biz|shack>:<need>", and if that string is not one of the citizen
+// surface's pinned classes then citEngineOwned hands the WHOLE BALLOT to the
+// script - every thinking crab in town, not just the new stop. It is not a
+// crash and no fingerprint moves; the only witness is the brains round-trip
+// scenario going quiet 30 seconds in, which is how the surf shipped with it.
+// So: every non-biz take() shape the census can produce, checked against the
+// live vocabulary by name.
+scenario("errands: every stop has a word the brain knows, save the two script-owned fun stops", () => {
+  // The census hands the WHOLE ballot to the script the moment any candidate
+  // carries a class the cit_errand.candidate artifact was not trained on, so a
+  // NEW stop that quietly lacks a class silently bypasses the trained brain for
+  // every crab who ever sees it. This asserts the two halves of the actual
+  // design (see citErrandClass): the many stops that MUST map to a known class,
+  // and the exactly two - surf and swim - that MUST fall through to the script
+  // ON PURPOSE. Both read the FUTURE, neither has ever been in a training run,
+  // and filing either under an existing class (ball:fun) ranks it by a net that
+  // never saw one - measured wrong. Giving them their own class is a RETRAINING
+  // event, not a line of code, so until that happens the script is the RIGHT
+  // decider and this test guards BOTH directions: a must-know stop losing its
+  // word, and a script-owned stop unexpectedly gaining one.
+  const sim = createSim({ seed: 31 });
+  const r = JSON.parse(sim.G(`JSON.stringify((() => {
+    const known = NEURO_SURFACES["cit_errand.candidate"].classes;
+    const mustKnow = [
+      ["ball",     { ball: true, need: "fun" }],
+      ["soup",     { soup: true, need: "food" }],
+      ["vote",     { vote: true, need: "vote", poll: 0 }],
+      ["tap.drink",{ tap: 0, need: "drink" }],
+      ["tap.clean",{ tap: 0, need: "clean" }],
+      ["selfcook.food",  { selfCook: true, need: "food" }],
+      ["selfcook.drink", { selfCook: true, need: "drink" }],
+      ["counter",  { biz: "shack", need: "food" }],
+      ["arcade",   { biz: "arcade", need: "fun" }]];
+    const script = [["surf", { surf: true, need: "fun" }], ["swim", { swim: true, need: "fun" }]];
+    return {
+      missing: mustKnow.filter(([, e]) => known.indexOf(citErrandClass(e)) < 0)
+                       .map(([id, e]) => id + " -> " + citErrandClass(e)),
+      leaked: script.filter(([, e]) => known.indexOf(citErrandClass(e)) >= 0)
+                    .map(([id, e]) => id + " -> " + citErrandClass(e)),
+    };
+  })())`));
+  if (r.missing.length)
+    return "a stop the census offers has no class on the citizen surface: " + r.missing.join(", ")
+      + " (a stop the brain has no word for hands the WHOLE ballot to the script)";
+  if (r.leaked.length)
+    return "a script-owned fun stop unexpectedly gained a class: " + r.leaked.join(", ")
+      + " - a class is a retraining event, not a line of code (see citErrandClass)";
   return true;
 });
 scenario("errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name", () => {
@@ -19833,7 +20129,7 @@ scenario("errands: a data errand joins the ballot, wins when it should, and its 
       return "a bad errand was not refused by name: " + bad + " -> " + msg;
   }
   const n = sim.G("ERRANDS.length");
-  if (n !== 10) return "a refused errand left the census at " + n;
+  if (n !== 11) return "a refused errand left the census at " + n;
   return true;
 });
 

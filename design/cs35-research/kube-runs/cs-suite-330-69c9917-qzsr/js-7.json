@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-69c9917-qzsr",
+  "armId": "js-7",
+  "index": 7,
+  "sha": "69c9917c4de70cb2a0916f825b198378845085a0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 87149,
+  "verdict": "38/38 passed in slice 7/12 (87.0s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (5702ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (2160ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1819ms)\n  PASS  boat: ownership and berth roundtrip through save/load (2015ms)\n  PASS  the drop nudge: open sand nudges nothing (2501ms)\n  PASS  days off: wages skip exactly and the bill dips to match (2330ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (51ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (1686ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1435ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (1416ms)\n  PASS  tips: the counter gets a token, the table gets the lot (20ms)\n  PASS  no card prints text on top of its own text (2146ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (6500ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (16884ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1522ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (1081ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (13ms)\n  PASS  departures: a stay survives a save and a reload (2776ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (4435ms)\n  PASS  care-lane bar: INERT on a town that sleeps - it only ever bars a crab in real debt (3603ms)\n  PASS  the shop tooltip promises what the button actually does (812ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (18ms)\n  PASS  every track in the playlist is a file that exists (34ms)\n  PASS  the record box scrolls without the drag thumb (17ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (3696ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (20ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (36ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (11ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (10794ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (24ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (18ms)\n  PASS  space: every position rides the Q8 grain, all day (1653ms)\n  PASS  saves: a ver-3 envelope is the zero delta (1537ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (2344ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (5663ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (10ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (13ms)\n  PASS  spend reserve: a housed crab keeps tonight's rent back, by temperament (222ms)\n38/38 passed in slice 7/12 (87.0s)\n"
+}

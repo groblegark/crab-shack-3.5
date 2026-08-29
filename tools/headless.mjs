@@ -81,6 +81,10 @@ const NOPLAY = args.includes("--noplay");
 // still LOOKS like the weather (that is `window._noSeaCues`, a separate
 // hatch): --nosurf moves behaviour only.
 const NOSURF = args.includes("--nosurf");
+// --noswim is the swim economy's zero-dose twin: it arms off the DS.atSwim
+// relief errand (window._noSwim) so the matrix can price the swim cure by
+// difference. Visual only lives elsewhere (--noseacues); this moves behaviour.
+const NOSWIM = args.includes("--noswim");
 // ...and `--nodebt` for the SLEEP DEBT ramp, so a matrix that moved can be
 // asked whether THIS is what moved it. Arms off the accumulating hazard only;
 // the flat tired >= 0.95 term the roll always had stays exactly as it was, so
@@ -229,6 +233,7 @@ if (NOFLOOR) G(`window._noFloor = true;`);
 if (NOCAP) G(`window._noCap = true;`);
 if (NOPLAY) G(`window._noPlay = true;`);
 if (NOSURF) G(`window._noSurf = true;`);
+if (NOSWIM) G(`window._noSwim = true;`);
 if (NODEBT) G(`window._noDebt = true;`);
 if (NODEBTLANE) G(`window._noDebtLane = true;`);
 if (BODYMUL) G(`window._bodymul = ${BODYMUL}; fillBodyRows();`);   // re-deal: ENG_BODY + the kernel's row 0, before the first step
