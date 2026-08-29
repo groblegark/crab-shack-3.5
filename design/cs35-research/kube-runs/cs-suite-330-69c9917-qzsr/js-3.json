@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-69c9917-qzsr",
+  "armId": "js-3",
+  "index": 3,
+  "sha": "69c9917c4de70cb2a0916f825b198378845085a0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "3/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 133599,
+  "verdict": "38/38 passed in slice 3/12 (133.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  errands: crabs keep themselves fed (3708ms)\n  PASS  save/load roundtrip preserves state (1562ms)\n  PASS  old save (homeX era) migrates; corrupt save rejected clean (1416ms)\n  PASS  needs bite: needy crew serve measurably fewer dishes (40552ms)\n  PASS  thirst: a parched town breeds sickness, attributed to thirst (4864ms)\n  PASS  tired: fatigue scales with the hours actually worked (2147ms)\n  PASS  hours: a sun-skip across a SUDSY hours change doesn't wedge (1266ms)\n  PASS  overtime: the marker and the tags render, and clear when OT ends (573ms)\n  PASS  routes: both travel lanes are clear of every solid (tripwire) (12ms)\n  PASS  mortality: a dead townsfolk crab leaves the town in a sane state (8506ms)\n  PASS  wage: an underpaid NPC quits the shop - and a better payer poaches them (13030ms)\n  PASS  ferry: the win saves, and a reloaded town shows the same ending (795ms)\n  PASS  a sick day is not a shift: an ill crab can leave the house (1645ms)\n  PASS  surf: a crab rides on a firing day, blocks nothing while out, and comes back on the sand (2542ms)\n  PASS  visitors: the wallet is real money, and it runs out (853ms)\n  PASS  the town fund moves money and never mints it (21572ms)\n  PASS  the hall's rate dial reads in its unit, never as a step index (1400ms)\n  PASS  departures: left alone, the card turns its own pages and then goes away (8ms)\n  PASS  the polls have a CLOSING TIME, and a crab who misses it loses their vote (4592ms)\n  PASS  sleep debt: it is INERT on a town that sleeps - a hard Tuesday is not a death sentence (4117ms)\n  PASS  hotel: a PEER owner builds off turned-away guests, and never out of tomorrow's payroll (704ms)\n  PASS  the hire card runs on the wall clock, not the game clock (972ms)\n  PASS  a big crew never runs under the MANAGE and TOWN chips (471ms)\n  PASS  the whole session plays through one audio element (11ms)\n  PASS  the shipped catalog builds a rotation of every track, with its moments intact (33ms)\n  PASS  the wage loan clears the back pay, mints nothing, and calls off the refusal (4030ms)\n  PASS  crab-art founders: a founder with no shell is refused by name at BOTH the runtime belt and the BUILD (62ms)\n  PASS  civics stakes: a hostile table is refused by name (13ms)\n  PASS  the tariff: a posted duty raises the pier ceiling to import parity, and a repeal re-parities in one clearing (12ms)\n  PASS  cultureways: broken art is refused with a message and the town still loads (489ms)\n  PASS  cultureways: a pig ashore draws, sleeps sideways, keeps her hat off in bed (632ms)\n  PASS  settlers: a culture that declares the apron settles on hire, and keeps herself (857ms)\n  PASS  brains: citizen shadow is inert - the crew cannot tell they are being watched (3866ms)\n  PASS  the title screen ages the build, and keeps ticking (11ms)\n  PASS  stream: a persona is minted from the TOWN's stream, not the host's (2226ms)\n  PASS  errands: the census is the registry, and the ballot order is pinned (9ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (44ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (3882ms)\n38/38 passed in slice 3/12 (133.5s)\n"
+}

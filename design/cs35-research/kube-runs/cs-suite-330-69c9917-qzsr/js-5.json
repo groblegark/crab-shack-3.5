@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-69c9917-qzsr",
+  "armId": "js-5",
+  "index": 5,
+  "sha": "69c9917c4de70cb2a0916f825b198378845085a0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "5/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 111173,
+  "verdict": "38/38 passed in slice 5/12 (110.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no wallet inflation: crew finances hold a bounded band (18392ms)\n  PASS  save guard: a town born from a rejected save does not bury it (1498ms)\n  PASS  pre-cents settle: COINS and FUND win the leftover cents by sentinel order, and round-trips clean (46ms)\n  PASS  T1 trade ledger: flows counted, nothing new charged (1571ms)\n  PASS  the drop nudge: put down by the bar, a half-thirsty crab takes the hint (1153ms)\n  PASS  days off: everyone rests their weekday and plays customer (7664ms)\n  PASS  hours + meal policy + cpu policy state roundtrip save/load (555ms)\n  PASS  npc shops run the same policy: SUDSY takes a sick day, placard up, no panic posting (1398ms)\n  PASS  failure: three missed leases close a peer's shop and lay off its staff (3333ms)\n  PASS  idle hands: boredom per day stays bounded - the trickle-lump plus a day's off-duty drain (3802ms)\n  PASS  cpu wage: a peer owner's wage policy converges and never thrashes (24086ms)\n  PASS  the nav strip: one table draws it, hit-tests it and jumps the camera (2150ms)\n  PASS  the ferry is ONE boat: the day boat and the win are the same hull (747ms)\n  PASS  swim: a crab has a dip on a calm day and comes back visible on the sand (2134ms)\n  PASS  hotel: it lets rooms, takes the money, and the player can buy it (1325ms)\n  PASS  an empty fund means a cold pot, and a cold pot feeds nobody (1132ms)\n  PASS  an old save with no town hall opens with an office, not a hole (1743ms)\n  PASS  departures: every character the card prints exists in the font (965ms)\n  PASS  the count is BY HAND: the result appears one paper at a time (4292ms)\n  PASS  sleep debt: an old save arrives with a clean slate, not a back-dated bill (1227ms)\n  PASS  accommodation: the shelter's bill is what the town votes on (1563ms)\n  PASS  dayOpen survives a reload, so a returning town is not reported as rich (1605ms)\n  PASS  only one track is ever audible at once (14ms)\n  PASS  a refusal waits for a tap where a 404 skips on (12ms)\n  PASS  the cabana row leaves both travel lanes a real margin (11ms)\n  PASS  crab voice: every tabled line is the literal, byte for byte (13ms)\n  PASS  need-weight matrix: a declared axis is REFUSED WHEN MALFORMED, by name (14ms)\n  PASS  civics: a people's voters score a platform on THEIR OWN declared stakes (9682ms)\n  PASS  civics calendar/relief: the scalars DRIVE the town, not just a readout (the behaviour gate) (17ms)\n  PASS  management: a cultureway's working norms land in the engine's own units, and only for its own folk (15ms)\n  PASS  pigs: they actually get off the boat in a town that earned it (8896ms)\n  PASS  cultureways: the arrival gate holds shut below rep 80 and opens above (4886ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (1610ms)\n  PASS  the title's ticker and motto turn on the title screen's own clock, and stay off the sign (71ms)\n  PASS  load: the same envelope lands the same way however often you land it (1673ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (64ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (11ms)\n  PASS  the arcade floor survives a save and reload (1529ms)\n38/38 passed in slice 5/12 (110.9s)\n"
+}

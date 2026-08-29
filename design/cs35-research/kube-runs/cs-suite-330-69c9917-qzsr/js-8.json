@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-69c9917-qzsr",
+  "armId": "js-8",
+  "index": 8,
+  "sha": "69c9917c4de70cb2a0916f825b198378845085a0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "8/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 132982,
+  "verdict": "38/38 passed in slice 8/12 (132.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  the quantizer: whole ticks at every frame rate, and a stall runs SLOW (4ms)\n  PASS  npc: crew shower errand (dirt scrubbed, fee to SUDSY) (772ms)\n  PASS  slots: a foreign or broken import is refused, the live town untouched (1953ms)\n  PASS  showers are dirt-only: dirt serviced end-to-end (1499ms)\n  PASS  orders: redirect walks the crab there, then the schedule reclaims them (141ms)\n  PASS  fishers feed themselves: breaks + the beach roast (5295ms)\n  PASS  fish market: at the ceiling a fisher skips the arcade; at the floor he goes (285ms)\n  PASS  roster: the refactor preserves every census ordering (1097ms)\n  PASS  sale: the player buys a failed business through the shopfront (4362ms)\n  PASS  idle hands: the boredom advance is reconciled at day's end (boredBilled, both models) (634ms)\n  PASS  tips: the sharing slider pays the crab's wallet and the till, exactly (13ms)\n  PASS  the roster outgrows the panel and every crab stays a tap away (1248ms)\n  PASS  mist: clear at noon, thick most evenings, and a clear night is news (12ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (19548ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (13038ms)\n  PASS  the fund is struck to the bill and does not hoard (1092ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (12ms)\n  PASS  departures: a display card moves nothing in the town (1649ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (4038ms)\n  PASS  care-lane bar: a debt-caused illness is actually TAKEN by the running engine (lethal, not just routed) (51934ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (11ms)\n  PASS  a standing offer can be answered from the card that announces it (16ms)\n  PASS  bundled playlist: an empty or malformed bundle is refused, a valid one is obeyed (369ms)\n  PASS  the box does not stop the music, and a finished track walks to the next row (23ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (2241ms)\n  PASS  idle quips: the island's table is the literal, key for key (14ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (90ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (10ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (3039ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3996ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (8ms)\n  PASS  seam: a headless day never enters the view (1116ms)\n  PASS  brains: the door refuses what the caps forbid, and says which (11ms)\n  PASS  queues: tickets are unique and total - the C port never consults sort stability (173ms)\n  PASS  science: one recipe lives the same town twice (8660ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (2416ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1338ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (717ms)\n38/38 passed in slice 8/12 (132.9s)\n"
+}
