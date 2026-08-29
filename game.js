@@ -7413,7 +7413,15 @@ const CS_NAMES = ["", "walkToStop", "waitBus", "onBus", "walkFromPark",
 const VS_NAMES = ["", "ashore", "arriving", "waiting", "toSeat", "seatedWaiting",
   "dining", "toStall", "waitStall", "outStall", "toTable", "showering", "toBiz",
   "toPier", "toRoom", "inRoom", "onSand", "roam", "leaving",
-  "toMachine", "waitMachine", "playing"];
+  "toMachine", "waitMachine", "playing", "surfing"];
+  // "surfing" is APPENDED at index 22 (kd-9yvywiin3O, mirroring cit_surf.go one
+  // machine over): a visitor decision state of its very own, dispatched by
+  // updateVisitor and drained by visTick in pure JS. It is deliberately OUT of
+  // KCUST_STATES (the kernel counter machine, whose occupancy exit hard-codes a
+  // shower scrub - a surf state inside it would clean the surfer on the wasm
+  // backend only) and OUT of VIS_SAVE_STATES (a save mid-ride restores as roam,
+  // the transient event dropped). NEVER insert or reorder ahead of it: abi_check
+  // pins toBiz=12 / inRoom=15 / onSand=16 / roam=17 BY VALUE across the ABI.
 const DS = {}, KS = {}, CS = {}, VS = {};
 DS_NAMES.forEach((n, i) => DS[n] = i); KS_NAMES.forEach((n, i) => KS[n] = i);
 CS_NAMES.forEach((n, i) => CS[n] = i); VS_NAMES.forEach((n, i) => VS[n] = i);
@@ -10340,6 +10348,22 @@ registerSurface("cit_surf.go", {
   classes: ["stay", "go"],
   script: "citSurfEligible",   // the engine default is the eligibility gate; no brain ships yet
   doc: "whether a resident paddles out on a firing day",
+});
+// THE VISITOR'S WAVE, ITS OWN SURFACE (kd-9yvywiin3O), the exact mirror of
+// cit_surf.go for the tourist who is where all the traffic is. A visitor surfs
+// through a SEPARATE decision surface, NOT an 8th class on vis_pick.candidate:
+// that ballot's brain (a shipped 7-class gullway scorer) has no word for a rare
+// weather event, and a surf class would hard-fail it - the same argument
+// vis_depart.stay makes one surface up. Two classes (sit on the sand / paddle
+// out), engine-default SCRIPT (visSurfEligible), NO trained artifact (a firing
+// day is rare, so per kd-zQB8oRGDeQ it ships as the stated heuristic, not a
+// confidently-wrong brain). It is consulted on the roam think next to
+// visDepartThink, and it applies the P3 SURF_VEC in visTick (hunger/thirst 2x,
+// dirt 1.5x) so the wave pumps demand - lots of hunger and thirst, less clean.
+registerSurface("vis_surf.go", {
+  classes: ["stay", "go"],
+  script: "visSurfEligible",   // the engine default is the eligibility gate; no brain ships yet
+  doc: "whether a visiting tourist paddles out on a firing day",
 });
 // Which policy answers for a culture on a surface - the declared one, or the
 // registered engine default. Table/script/brain all resolve here; the brain
@@ -15544,10 +15568,14 @@ function ferryBatch() {
   return Math.max(1, Math.min(FERRY_MAX, idiv(nMilli + 500, 1000)));
 }
 // ---- THE VISITOR -----------------------------------------------------------
-const VIS_STATES = { ashore: 1, roam: 1, toBiz: 1, toRoom: 1, inRoom: 1, onSand: 1, toPier: 1 };
+const VIS_STATES = { ashore: 1, roam: 1, toBiz: 1, toRoom: 1, inRoom: 1, onSand: 1, toPier: 1, surfing: 1 };
 // WHICH OF THOSE A SAVE MAY CARRY. `toBiz` is deliberately absent: it is the
 // only state whose whole meaning lives in fields the envelope does not store
 // (biz/recipe/target), so restoring it hands updateVisitor an errand to nowhere.
+// `surfing` is absent for the same shape of reason and by the same intent: a
+// paddle-out is a transient event carried in surfT/surfCd, not durable stay
+// state, so a save mid-ride restores as `roam` (line above: unknown save-state
+// -> "roam") and the guest simply re-decides the wave on their next free think.
 const VIS_SAVE_STATES = { ashore: 1, roam: 1, toRoom: 1, inRoom: 1, onSand: 1, toPier: 1 };
 const VIS_SPEED = 42;            // a stroll: a shade under a walking crab's 40 x trait
 // A VISITOR WAITS LONGER THAN A PASSER-BY. The old anonymous tourist had 50;
@@ -16207,6 +16235,85 @@ function visDepartThink(k) {
   const cls = visDepartPick(k);
   if (cls !== "hold") visDepartAct(k, cls);
 }
+// THE GUESTS ON THE PEAK RIGHT NOW - the paddled-out set (surfT > 0), the honest
+// crowd for the relief share. Kept SEPARATE from the crab surfers() on purpose:
+// a first landing must leave crab surf byte-identical, so a visitor's ride is
+// diluted only by other VISITORS out on the same wave. Unifying the two crowds
+// is a real, later change (it would move the crab's relief curve and must be
+// measured as its own thing), noted here so the seam is visible.
+function visSurfers() { return visitorsInTown().filter(k => k.stC === VS.surfing && k.surfT > 0); }
+// vis_surf.go's engine-default SCRIPT: does this guest paddle out on this free
+// thought? The tourist twin of citSurfEligible, reading the visitor's own needs
+// (flat fields, not c.p.*) and the ferry timetable in place of a work shift. A
+// pure read, no draws - so it can be consulted on the roam think without forking
+// the RNG stream between backends. A future surf-culture brain replaces exactly
+// this predicate (policyOf reads the name).
+function visSurfEligible(k) {
+  // NOBODY SURFS PARCHED, the crab's own bars read off the guest: a real need on
+  // the shore outranks a wave, so surf never steals a guest from the food, juice
+  // or shower spend it exists to CREATE - it pumps that demand, it does not skip it.
+  const yields = (k.thirst || 0) >= qn(0.45) || (k.hunger || 0) >= qn(0.50)
+    || (k.dirt || 0) >= qn(0.66) || (k.tired || 0) >= SURF_YIELD;
+  // ...AND NOT WITH A BOAT TO CATCH. A session is ~68 game-minutes; a guest whose
+  // sailing is inside SURF_LEAD stays ashore so a wave never costs them the ferry
+  // (the crab's shift-lead rule, read against leaveT - the absolute sail minute).
+  const boatFar = (k.leaveT - gnow()) > SURF_LEAD;
+  // ...AND NOT INSTEAD OF A BED. Past ROOM_HOUR the desk-closing hour is absolute
+  // for an overnighter who still needs a key (visScoreOne gives the room 99*Q20
+  // then); before it, or for a guest who wants no room, the wave is free to win.
+  const bedFirst = wantsRoom(k) && tmin >= ROOM_HOUR;
+  return surfIsUp() && (k.bored || 0) >= SURF_AT && (k.surfCd || 0) <= 0
+    && !yields && boatFar && !bedFirst;
+}
+// THE SEAM, mirroring visDepartThink one surface up: consulted on the roam think,
+// it starts the ride when the gate opens. Returns true when it took the think, so
+// the caller stops before spending it on an errand - the wave OUTRANKS the errand
+// it preempts, which by construction is only ever the arcade (a real land need
+// would have tripped `yields` and made surf ineligible). A future vis_surf.go
+// brain routes through this one function, exactly as brainDepartPick would.
+function visSurfThink(k) {
+  if (!visSurfEligible(k)) return false;
+  startVisSurf(k);
+  return true;
+}
+// PADDLE OUT. Aim the guest at the break's own sand (SURF_X, the ball's measured
+// lane), spread a step east if someone is already out so a lineup reads as a
+// lineup. surfT stays 0 until they reach the water (updateVisSurf arms it).
+function startVisSurf(k) {
+  k.stC = VS.surfing; k.surfT = 0;
+  k.target = SURF_X + (visSurfers().length ? 20 : -8);
+}
+// THE RIDE, the visitor twin of updateSurf: walk down, sit the session, take the
+// fun relief the sea was worth less what the crowd took, then stroll back to the
+// promenade. Movement is visStep (the visitor stepper), the need is k.bored (flat),
+// and there is NO tired charge - SURF_VEC.tired = 0 says so to visTick, and a
+// leisure session must not tilt fatigue, exactly as the crab's session refuses it.
+function updateVisSurf(k, dt) {
+  if (k.surfT <= 0) {                                   // still walking down to the water
+    if (visStep(k, k.target == null ? SURF_X : k.target, SURF_Y, dt)) {
+      k.surfT = SURF_SECS + ((srand() * 5 * SEC) | 0);
+      k.hidden = true;                                  // paddled out; hidden at the waterline (visSeparate skips them, drawCustomer skips them)
+      popText("PADDLING OUT", k.x - 20, FLOOR_Y - 30, [150, 220, 255]);
+    }
+    return;
+  }
+  k.surfT -= dtT;
+  if (k.surfT > 0) return;
+  k.hidden = false;
+  // WHAT THE DAY WAS WORTH, the crab's exact share maths (surfShareQ20): the sea's
+  // quality less the FC_CLEAN floor, floor-divided, diluted across the paddled-out
+  // set + self. Integer throughout - the same Q16*Q20 magnitudes updateSurf uses.
+  const others = visSurfers().filter(j => j !== k && j.surfT > 0).length;
+  const grade = Math.max(0, surfQualityQ16(day) - FC_CLEAN);
+  const earned = SURF_MIN + idiv(Math.min(grade, 65536 - FC_CLEAN) * (SURF_MAX - SURF_MIN), 65536 - FC_CLEAN);
+  const relief = surfShareQ20(earned, others + 1);
+  k.bored = Math.max(0, (k.bored || 0) - relief);
+  const good = relief >= SURF_MIN;
+  popText(good ? "CAUGHT A FEW" : "TOO CROWDED", k.x - 16, FLOOR_Y - 30, good ? [150, 235, 255] : [255, 210, 140]);
+  visLog(k, "life", vline(k, "surfed", others ? "SURFED THE PEAK WITH " + others + " OTHER" + (others > 1 ? "S" : "") : "HAD THE PEAK TO THEMSELVES"));
+  k.surfT = 0; k.surfCd = SURF_CD;
+  k.stC = VS.roam; k.target = null; k.thinkT = 0;       // back to the promenade, re-decide next frame
+}
 // WHO IS GOING HOME ON THIS ONE - and, just as importantly, WHEN THEY SET OFF.
 // `minsLeft` is how long until she sails; a guest leaves when the walk needs
 // them to and not a minute before. A flat call was tried first and it read
@@ -16216,7 +16323,7 @@ function visDepartThink(k) {
 function ferryDepartCall(sailAbs, minsLeft) {
   for (const k of visitorsInTown()) {
     if (k.stC === VS.toPier || k.leaveT > sailAbs) continue;
-    if (!VIS_STATES[k.state] || k.stC === VS.toBiz) continue;   // finish what you're queueing for
+    if (!VIS_STATES[k.state] || k.stC === VS.toBiz || k.stC === VS.surfing) continue;   // finish what you're queueing for - and let a wave finish (vis_surf.go returns them to roam, where the next call takes them)
     if (minsLeft != null && minsLeft > visWalkMins(k)) continue;
     visLeave(k);
   }
@@ -16950,6 +17057,21 @@ function visTick(k, dt) {
     k.thinkT -= dtT;
     if (k.thinkT <= 0) { k.thinkT = VIS_RETHINK; visRethink(k); }
   }
+  // P3 - THE SURF VECTOR, drained in pure JS BEFORE the kernel offload so both
+  // backends move a surfing guest byte-for-byte. vis_tick plain-drains any state
+  // it does not know, and VS.surfing is DELIBERATELY out of KCUST_STATES, so the
+  // reference must own this drain and the compiled body must never see the state.
+  // hunger/thirst 2x, dirt 1.5x, bored/tired paused (vmul reads 0 as paused) -
+  // the ride IS the anti-boredom (its fun relief is the lump in updateVisSurf),
+  // and the elevated hunger/thirst/dirt is the whole point of the surface: a wave
+  // costs a guest their lunch and their drink, which is the demand it exists to
+  // pump. crabTick applies the identical vector to a surfing crab (actVecOf).
+  if (k.stC === VS.surfing) {
+    const BR = bodyOf(k).R;
+    for (const n of ["hunger", "thirst", "dirt", "bored", "tired"])
+      k[n] = actNeed(k[n] || 0, BR[n], 20, vmul(SURF_VEC, n));
+    return;
+  }
   if (KERN) {   // the compiled body; the JS below stays the reference
     const r = KERN.exports.vis_tick(k.si, dtT, tmin, _ktMist, _ktDrain, bodyOf(k).ROW);
     // the object side drains IN PLACE, exactly where the reference did it:
@@ -17121,6 +17243,7 @@ function updateVisitor(k, dt) {
     if (visStep(k, FERRY.shore - 18, FLOOR_Y, dt)) { k.stC = VS.roam; k.target = null; k.y = FLOOR_Y; }
     return;
   }
+  if (k.stC === VS.surfing) { updateVisSurf(k, dt); return; }   // vis_surf.go: the wave has its own mover
   if (k.stC === VS.toPier) {
     if (k.leg === 0) {
       if (visStep(k, FERRY.shore, FLOOR_Y, dt)) { k.leg = 1; }
@@ -17213,6 +17336,11 @@ function updateVisitor(k, dt) {
     // with nothing left to buy is exactly the one who chooses to stay on - and
     // it is draw-free, so both backends make the identical (zero) draws here.
     visDepartThink(k);
+    // ...and, its own surface (vis_surf.go), the wave: on a firing day a bored
+    // guest carrying nothing more pressing paddles out. It outranks the errand it
+    // preempts (only ever the arcade - a real land need makes surf ineligible),
+    // and it is draw-free when it declines, so a non-firing day is byte-identical.
+    if (visSurfThink(k)) return;
     if (e) { visGo(k, e); return; }
   }
   // nothing to buy: stroll the promenade. Imperfection is charming; standing
@@ -20212,6 +20340,7 @@ function drawCustomer(k) {
       const arts = cul ? cul.arts[k.color] : CRAB_ARTS[k.color];
       if (k.stC === VS.showering) return;   // behind the curtain (stall draws the bather)
       if (k.stC === VS.inRoom) return;      // upstairs with the lamp on (the door draws them)
+      if (k.stC === VS.surfing && k.surfT > 0) return;   // out past the break, hidden at the waterline (vis_surf.go); the walk down still draws
       // a crab shuffling up the line is WALKING, and legs sell it. Without this
       // the whole line slid up the boardwalk on its belly when the front left.
       const moving = (k.stC !== VS.waiting && k.stC !== VS.onSand) || (k.stC === VS.waiting && k.qWalk);
