@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-6557ab1-t78x",
+  "armId": "js-2",
+  "index": 2,
+  "sha": "6557ab121a9f7e3f2d0577ed3bef2fd611b51b25",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "2/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 102391,
+  "verdict": "38/38 passed in slice 2/12 (102.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 4,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  dining: tables are BUSED BY STAFF, and the room keeps turning (2325ms)\n  PASS  showers: guests occupy stalls, staff turn them over (2083ms)\n  PASS  save/load: townsfolk keep wallets and houses (1555ms)\n  PASS  all crew dead: town survives, rehire recovers (990ms)\n  PASS  thirst: drink errand serviced end-to-end at a staffed juice bar (1751ms)\n  PASS  hours: the emergency lever survives - long hours PLUS overtime trade longer (1004ms)\n  PASS  cpu hours: SUDSY's policy converges and never thrashes (15975ms)\n  PASS  overtime: pays exactly 1.5x the hourly rate and accelerates the needs cost (766ms)\n  PASS  routes: furniture avoidance keeps warps + unsticks near zero (4296ms)\n  PASS  mortality: a cared-for crab is not taken on day three (the ladder still pays) (27104ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (5346ms)\n  PASS  ferry: the arming tap times out, and an old save never won (45ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (21ms)\n  PASS  surf: the sea rations it, the peak gently decays to zero at twelve, and a crowd takes the edge off (1600ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (1120ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (1493ms)\n  PASS  the town hall survives a save and a reload, ledger and all (4637ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (2502ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (3066ms)\n  PASS  sleep debt: the ledger counts NIGHTS, not hours awake (the M/E trap) (961ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (755ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1436ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (9ms)\n  PASS  an iOS refusal latches instead of re-arming every frame (10ms)\n  PASS  a streamed town still reaches a same-origin track when the browser refuses release assets (29ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (7463ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (15ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (37ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (14ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (18ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (24ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (18ms)\n  PASS  brains: zero delta IS the backbone, on the citizen brain's own thinks (2317ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1888ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (5562ms)\n  PASS  placement: a settled owner opens a declared shop on the east lot, and the town buys (2198ms)\n  PASS  rep: the word abroad survives a save and a scrubbed timeline cannot carry it (loader-reset) (1212ms)\n  PASS  spend reserve: the morning is for spending, the afternoon is for the rent (646ms)\n38/38 passed in slice 2/12 (102.3s)\n"
+}

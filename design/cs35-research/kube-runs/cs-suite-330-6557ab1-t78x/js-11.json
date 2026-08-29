@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-6557ab1-t78x",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "6557ab121a9f7e3f2d0577ed3bef2fd611b51b25",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 162387,
+  "verdict": "37/37 passed in slice 11/12 (162.3s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (2036ms)\n  PASS  sick crabs can still wash (mobility + cure path) (693ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (366ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1142ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (28ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (20ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (5911ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (1387ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (35797ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (8333ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (43609ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1424ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (3130ms)\n  PASS  rivalry: prices, ambition and a standing offer roundtrip save/load (1260ms)\n  PASS  hotelier: she roundtrips save/load with her lease, her board and her ledger (6566ms)\n  PASS  the HALL tab draws, and nothing lands under anything else (1085ms)\n  PASS  departures: the money band prints the manifest's own dollars (346ms)\n  PASS  a PRE-FERRY save still gets a crowd: the one branch seedVisitors keeps (391ms)\n  PASS  sickness: the roll-log seam is inert (a measured town is the same town) (3357ms)\n  PASS  hotel: the annexe is real rooms - a guest sleeps in a cabana, and the lanes stay clear (161ms)\n  PASS  the help card teaches the machine and does not spoil the ending (8ms)\n  PASS  nothing paints over an open card except another card (981ms)\n  PASS  the shipmap stamps shipped rows onto the catalog (8ms)\n  PASS  mute and MUSIC OFF still reach a track playing behind an open box (8ms)\n  PASS  a house limit is a competition policy, and the town reads it that way (11727ms)\n  PASS  crab-as-document: the crab diary never reaches the code literal (1365ms)\n  PASS  civics receipt: voteReason is byte-equal to the lambda receipt on every voter, every platform (12412ms)\n  PASS  the tariff: an imported crate pays its duty off the till that bought it, the pier's own fish pays none (18ms)\n  PASS  cultureways: an unknown culture id degrades to crab, and the town runs (1476ms)\n  PASS  manner: a wide-berth guest parts the crowd to HER radius, and crab pairs keep theirs (71ms)\n  PASS  cultureways: a settling pig is counted, and the card speaks her register (822ms)\n  PASS  brains: a live brain spends the script's own draws, no more (3452ms)\n  PASS  the stamp gate watches every file a player is served (1ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (11364ms)\n  PASS  errands: a data errand joins the ballot, wins when it should, and its clamps refuse by name (50ms)\n  PASS  rep: gains saturate at the top and losses never do - the ladder is held, not ratcheted (11ms)\n  PASS  the arcade floor survives a save and reload (1481ms)\n37/37 passed in slice 11/12 (162.3s)\n"
+}
