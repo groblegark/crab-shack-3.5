@@ -17938,6 +17938,7 @@ cv.addEventListener("click", (ev) => {
   // over the view chip would also cycle the page out from under you.
   if (hallSwiped) return;
   if (helpView) { tapHelp(evPos(ev)); return; }
+  if (newsView) { tapNews(evPos(ev)); return; }           // ...and so does the news board, under it
   if (saveView) { handleSaveClick(evPos(ev)); return; }   // the towns card swallows every click
   if (screen === "sci") { sciTap(evPos(ev)); return; }
   if (screen === "title") {
@@ -17946,6 +17947,16 @@ cv.addEventListener("click", (ev) => {
     {
       const r = titleHelpRect();
       if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h) { toggleHelp(); return; }
+    }
+    // THE WHOLE TICKER IS THE BUTTON. It is 10 rows tall, which is under a
+    // finger's worth on a phone, so the tap target is grown upward into the
+    // card's dead border rather than downward into HOW TO PLAY - stealing rows
+    // from a button that is already there would be a worse bug than a small
+    // target. Guarded on there being news at all: no news.js, no bar, no
+    // invisible button where the sky used to be.
+    if (newsAll().length) {
+      const r = newsBarRect();
+      if (p.x >= r.x && p.x < r.x + r.w && p.y >= r.y - 4 && p.y < r.y + r.h) { openNews(); return; }
     }
     if (p.x >= bx && p.x < bx + 100) {
       if (hasSave && p.y >= 118 && p.y < 134) { screen = "play"; startMusicTapped(); sfx.ding(); return; }
@@ -18499,11 +18510,15 @@ addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft") { helpFlip(-1); return; }
     if (e.key === "ArrowRight") { helpFlip(1); return; }
   }
+  if (newsView) {   // ...and the news board owns them the same way
+    if (e.key === "ArrowLeft") { newsFlip(-1); return; }
+    if (e.key === "ArrowRight") { newsFlip(1); return; }
+  }
   if (e.key === "[" && cyclerLive()) { cycleSel(-1); sfx.ding(); return; }
   if (e.key === "]" && cyclerLive()) { cycleSel(1); sfx.ding(); return; }
   if (e.key === "ArrowLeft") { camX = clampCam(camX - 24); followIdx = -1; followNpc = null; followCust = null; }
   if (e.key === "ArrowRight") { camX = clampCam(camX + 24); followIdx = -1; followNpc = null; followCust = null; }
-  if (e.key === "Escape") { if (musicView) { musClose(); return; } if (helpView) { closeHelp(); return; } if (saveView) { closeSaveView(); return; } if (dossier) { dossier = null; return; } if (manage) { manage = null; return; } sel = null; followIdx = -1; followNpc = null; followCust = null; }
+  if (e.key === "Escape") { if (musicView) { musClose(); return; } if (helpView) { closeHelp(); return; } if (newsView) { closeNews(); return; } if (saveView) { closeSaveView(); return; } if (dossier) { dossier = null; return; } if (manage) { manage = null; return; } sel = null; followIdx = -1; followNpc = null; followCust = null; }
 });
 
 // ---------------------------------------------------------------- drawing
@@ -20985,10 +21000,306 @@ function buildAgeText() {
     : sec + "S";
   return "PUBLISHED " + body + " AGO";
 }
+// ===========================================================================
+// THE NEWS BOARD AND THE MOTTO - what the home screen grew
+// ===========================================================================
+// Matt, 2026-08-29: "crab shack Home Screen deserves a visible changelog with
+// feature announcements for users and balance and such; a little
+// Minecraftesque rotating motto would be cool too."
+//
+// Two different jobs, and they are deliberately not the same widget. The
+// CHANGELOG is information a returning player wants and has to be able to
+// trust: it is dated, kinded, exhaustive and it sits still long enough to
+// read. The MOTTO is a joke: it is never load-bearing, it says nothing about
+// the game, and it exists so the sign is different the second time you see it.
+// Putting them in one rotating line would have made the news look like a gag
+// and the gag look like an announcement.
+//
+// WHAT THE COPY IS: news.js, hand-written, validated here (newsProblem) the
+// way an imported cultureway is - a bad entry drops out and the rest of the
+// board still draws. A typo in a release note is not allowed to be the reason
+// somebody cannot reach CONTINUE.
+const NEWS_KEY = "cs35.news.v1";
+const NEWS_DWELL = 4.5;        // seconds one headline holds the ticker
+// The kinds, and the three colours the board is allowed to speak in. FEATURE
+// is the green "there is more game than there was"; BALANCE is the amber "the
+// game you knew has moved under you", which is the one a returning player most
+// needs to be told; FIX is the cool blue "something that was broken is not".
+const NEWS_KINDS = {
+  FEATURE: { tag: "NEW", chip: [72, 148, 92], ink: [235, 255, 235] },
+  BALANCE: { tag: "BAL", chip: [176, 124, 56], ink: [255, 244, 216] },
+  FIX:     { tag: "FIX", chip: [86, 116, 168], ink: [232, 240, 255] },
+};
+let newsView = false, newsPage = 0, newsSeen = "";
+// THE CAPS ARE THE COLUMNS, MEASURED - not two numbers that agree with the
+// draw on the day they were written. The board and the ticker both draw
+// through fitSmall, so an over-long line cannot overflow the card, but it CAN
+// be quietly elided to "...", and a release note nobody can finish reading is
+// worse than one that was never written. Writing `<= 44` here would have made
+// that a two-place invariant with nothing holding it: the first draft did
+// exactly that and shipped a headline the board cut off at "WALL..", because
+// 44 characters was a guess and the column is 41.
+//
+// So the cap IS the column expression, called by both the validator and the
+// draw. The headline column is the board's, not the ticker's, because the
+// board's is the narrower of the two (it gives up a date column the ticker
+// does not have) - fit the tighter one and both are safe.
+function newsHeadW() { const R = helpRects(); return R.w - 8 - smallTextWidth("0000-00-00") - 4 - 29; }
+function newsBodyW() { const R = helpRects(); return R.w - 24; }
+// A BAD ENTRY IS DROPPED, NEVER THROWN - same contract cultureProblem has.
+function newsProblem(e) {
+  if (!e || typeof e !== "object") return "NOT AN ENTRY";
+  if (typeof e.d !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(e.d)) return "A BAD DATE";
+  if (!NEWS_KINDS[e.k]) return "A BAD KIND";
+  if (typeof e.t !== "string" || !e.t.length || smallTextWidth(e.t) > newsHeadW()) return "A BAD HEADLINE";
+  const b = e.b === undefined ? [] : e.b;
+  if (!Array.isArray(b) || b.length > 3) return "A BAD BODY";
+  for (const L of b) if (typeof L !== "string" || smallTextWidth(L) > newsBodyW()) return "A BAD BODY LINE";
+  return null;
+}
+let _newsList = null;
+// NEWEST FIRST, and the sort is the authority - not the order somebody typed
+// them in. Array#sort is stable, so entries landing on the same day keep the
+// order the file gives them, which is the only sensible tie-break for a day
+// that landed four things.
+function newsAll() {
+  if (_newsList) return _newsList;
+  const raw = (typeof GAME_NEWS !== "undefined" && Array.isArray(GAME_NEWS)) ? GAME_NEWS : [];
+  _newsList = raw.filter(e => !newsProblem(e)).slice()
+    .sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+  return _newsList;
+}
+// THE READ MARK IS AN ENTRY, NOT A DATE. Storing the newest date read would
+// mark a whole day's landings read the moment you opened the board on the
+// first of them - and a day that lands four things is the normal case here.
+// Storing the identity of the newest entry you have seen makes "how many are
+// new" exact, and makes it survive entries being added out of order.
+function newsMark(e) { return e ? e.d + "|" + e.t : ""; }
+function newsUnseen() {
+  const L = newsAll();
+  if (!L.length) return 0;
+  const i = L.findIndex(e => newsMark(e) === newsSeen);
+  return i < 0 ? L.length : i;             // never seen anything: it is all new
+}
+function newsLoad() { try { newsSeen = localStorage.getItem(NEWS_KEY) || ""; } catch (e) { newsSeen = ""; } }
+// PAGES ARE PACKED BY HEIGHT, NOT COUNTED. A fixed three-per-page is sized for
+// the worst entry (a headline and three body lines) and therefore leaves a
+// third of the card empty on the common one, which reads as "that is all there
+// is" on a board whose whole job is to say there is more. So a page takes
+// entries until the next one would not fit, and a run of one-liners fills it.
+function newsEntryH(e) { return 10 + (e.b || []).length * 7 + 6; }
+let _newsPages = null;
+function newsPageList() {
+  if (_newsPages) return _newsPages;
+  const R = helpRects(), avail = (R.h - 13) - 19 - 2;    // header bottom to footer top
+  const out = [];
+  let cur = [], used = 0;
+  for (const e of newsAll()) {
+    const h = newsEntryH(e);
+    if (cur.length && used + h > avail) { out.push(cur); cur = []; used = 0; }
+    cur.push(e); used += h;
+  }
+  if (cur.length) out.push(cur);
+  return (_newsPages = out.length ? out : [[]]);
+}
+function newsSaveMark() { try { localStorage.setItem(NEWS_KEY, newsSeen); } catch (e) {} }
+// ITS OWN STORE, beside the music judgements and for the same reason: what you
+// have read is a property of YOU, not of a town. It must not evaporate with a
+// save slot, and opening the board must not mint a phantom town on the shelf
+// the way calling save() from the title screen would.
+function openNews() {
+  newsView = true; newsPage = 0;
+  const L = newsAll();
+  if (L.length) { newsSeen = newsMark(L[0]); newsSaveMark(); }
+  sfx.ding();
+}
+function closeNews() { if (!newsView) return; newsView = false; sfx.ding(); }
+function newsPages() { return newsPageList().length; }
+function newsFlip(d) { newsPage = (newsPage + d + newsPages()) % newsPages(); sfx.ding(); }
+
+// ---- the ticker, under the sign -------------------------------------------
+// WHY IT LIVES IN THE GAP UNDER THE LOGO CARD. It is the only full-width band
+// on the title screen: the menu ladder is a 100px column down the middle and
+// the panel below it is already three lines of credits deep. Full width is
+// what buys the headline 50 characters, which is what lets an entry be a
+// sentence instead of an abbreviation. It costs the layout nothing - the band
+// was 8 rows of sky between the card and HOW TO PLAY - and it overlaps the
+// card's bottom BORDER by two rows on purpose, so it reads as hanging off the
+// sign rather than floating between two things.
+function newsBarRect() { return { x: 6, y: 86, w: W - 12, h: 10 }; }
+// THE TICKER'S CLOCK IS viewT, and that it ticks HERE is a fact worth writing
+// down, because the title screen is a screen where most things are frozen.
+// frame() does `T += dtT` and `simClock()` -> `reclock()` -> `viewT = T/TICK_HZ`
+// BEFORE the `if (screen === "title") { titleFrame(dt); return; }` branch, and
+// only `tday` is gated on screen === "play". So on the title, viewT advances at
+// about 1.0 a real second (ffMode 0, FF_SPEED 1) while the town's clock stands
+// still - which is exactly the clock the attract-mode camera pan (viewT * 9),
+// the clouds and the gulls already ride. Buying it means no new timer, no
+// per-frame accumulator to get out of step with the pan, and a harness can put
+// the ticker on any entry it likes by assigning viewT.
+function newsTickIdx() {
+  const n = newsAll().length;
+  return n ? Math.floor(Math.max(0, viewT) / NEWS_DWELL) % n : 0;
+}
+function drawNewsBar() {
+  const L = newsAll();
+  if (!L.length) return;                       // no news.js, no bar - and the title is unchanged
+  const r = newsBarRect(), e = L[newsTickIdx()], K = NEWS_KINDS[e.k];
+  rect(ctx, r.x, r.y, r.w, r.h, [26, 18, 32]);
+  rect(ctx, r.x + 1, r.y + 1, 17, r.h - 2, K.chip);
+  smallText(ctx, K.tag, r.x + 1 + ((17 - smallTextWidth(K.tag)) >> 1), r.y + 3, K.ink);
+  // The unseen count blinks; the ticker text does not. One moving thing on a
+  // menu is a nudge, two is a fairground.
+  const un = newsUnseen();
+  let right = r.x + r.w - 4;
+  if (un > 0) {
+    const b = un + " NEW";
+    right -= smallTextWidth(b) + 4;
+    if ((viewT % 1.2) < 0.75) smallText(ctx, b, r.x + r.w - 4 - smallTextWidth(b), r.y + 3, [255, 232, 120]);
+  } else {
+    right -= smallTextWidth("MORE") + 4;
+    smallText(ctx, "MORE", r.x + r.w - 4 - smallTextWidth("MORE"), r.y + 3, [140, 130, 140]);
+  }
+  const tx = r.x + 21;
+  smallText(ctx, fitSmall(e.t, Math.max(8, right - tx)), tx, r.y + 3, [226, 218, 232]);
+}
+
+// ---- the motto ------------------------------------------------------------
+// A TILT WITHOUT A ROTATION, and this is the whole trick. Minecraft's splash
+// is a rotated, subpixel-pulsing label; this game is a toy SNES PPU whose
+// entire drawing surface is axis-aligned integer blits (mcp/canvas.mjs throws
+// on anything else, deliberately). ctx.rotate would have rendered in a browser
+// and taken every headless picture of the title with it - and a canvas-rotated
+// 5x7 bitmap font resamples into mush anyway.
+//
+// So the tilt is done the way a pixel artist would: the baseline STEPS. One
+// row up per character is a clean 1:6 stair - 9.5 degrees - which reads as a
+// jaunty angle at this scale and is still made of whole pixels. Long mottos
+// flatten (the rise is capped, then spread over however many characters there
+// are) rather than climbing off the top of the screen, which is why the list
+// can hold a 12-character joke and a 25-character one without a length rule
+// that only one of them obeys.
+const MOTTO_DWELL = 6.5;       // seconds a motto holds - longer than the ticker's, it is a joke not a fact
+const MOTTO_RISE = 12;         // the most rows a motto may climb, left end to right
+// THE BAND IS 26 ROWS (y0 to the logo card at y26) and the stair spends
+// `rise + 8` of them: the glyph is 7 tall, the shadow adds one, and the climb
+// adds the rest. At rise 16 that is 24 rows before the bob, which fit the band
+// on paper and did not in fact - a 25-character motto put its LEFT end at y29,
+// under a card that is drawn after it and therefore clipped the first letter's
+// bottom rows clean off. It looked fine in a screenshot, which is exactly why
+// the suite measures the box the blit loop actually produced. 12 + 8 + 1 of bob
+// leaves the whole list inside y2..y24, with the tilt still plainly a tilt.
+let mottoBase = 0;             // set at boot: two loads should not open on the same joke
+function mottoList() {
+  return (typeof GAME_MOTTOS !== "undefined" && Array.isArray(GAME_MOTTOS)) ? GAME_MOTTOS : [];
+}
+function mottoNow() {
+  const L = mottoList();
+  if (!L.length) return "";
+  return L[(mottoBase + Math.floor(Math.max(0, viewT) / MOTTO_DWELL)) % L.length];
+}
+// Draws about (cx, cy): the stair is symmetric round the middle character, so
+// a motto stays centred under the sign however long it is and however steeply
+// it climbs.
+// It RETURNS the box it drew, accumulated from the same gx/gy the blits used.
+// That is not test scaffolding bolted on: it is the only honest way anything
+// can ask where a stair ended up, because the answer is a loop's business and
+// not a formula's. The headless canvas stub swallows writes to ctx, so a
+// scenario cannot spy on the blits themselves - without this it would have to
+// RE-DERIVE the stair arithmetic and then compare it to itself, which is the
+// vacuous pin the credit-block scenario had to be rewritten to stop being.
+function tiltText(s, cx, cy, color, shadow, rise) {
+  s = String(s).toUpperCase();
+  const n = s.length;
+  if (!n) return null;
+  const step = n > 1 ? Math.min(1, rise / (n - 1)) : 0;
+  const x0 = Math.round(cx - textWidth(s) / 2), y0 = Math.round(cy + (step * (n - 1)) / 2);
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const ch = s[i];
+    if (ch === " ") continue;
+    const gx = x0 + i * 6, gy = y0 - Math.round(i * step);
+    if (shadow) ctx.drawImage(glyph(ch, shadow), gx + 1, gy + 1);
+    ctx.drawImage(glyph(ch, color), gx, gy);
+    // the shadow is a pixel down-right of the glyph, so the inked box is 6x8
+    if (gx < x1) x1 = gx;
+    if (gy < y1) y1 = gy;
+    if (gx + 6 > x2) x2 = gx + 6;
+    if (gy + 8 > y2) y2 = gy + 8;
+  }
+  return x1 === Infinity ? null : { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+// THE BAND ABOVE THE SIGN is the only place a tilted line fits: it needs
+// vertical room (16 rows of climb plus the glyph) and there is nowhere else on
+// this screen with 26 free rows. It also puts the motto where Minecraft's is
+// relative to the logo - just off the top corner, at an angle, in yellow.
+// The bob is the pulse's pixel-art cousin: an integer wobble, because a
+// fractional scale on a bitmap font shimmers.
+function drawMotto() {
+  const s = mottoNow();
+  if (!s) return null;
+  const bob = Math.round(Math.sin(viewT * 2.4) * 1.4);
+  return tiltText(s, 110, 9 + bob, [255, 236, 88], [72, 44, 24], MOTTO_RISE);
+}
+
+// ---- the board ------------------------------------------------------------
+// ONE CARD SHAPE, TWO READERS. The board is the help card's twin down to the
+// footer chips, so the two cannot drift into two different-looking cards over
+// one screen - and a player who has opened one already knows how to leave
+// this one.
+function newsRects() { return helpRects(); }
+function drawNewsBoard() {
+  if (!newsView) return;
+  const R = newsRects(), { x, y } = R, w2 = R.w, h2 = R.h;
+  ctx.fillStyle = "rgba(16,12,30,0.72)";
+  ctx.fillRect(0, 0, W, H);
+  rect(ctx, x - 2, y - 2, w2 + 4, h2 + 4, [30, 20, 36]);
+  rect(ctx, x, y, w2, h2, [255, 250, 235]);
+  rect(ctx, x, y, w2, 14, [58, 42, 38]);
+  text(ctx, "WHAT'S NEW", x + 6, y + 4, [255, 240, 210]);
+  const L = newsAll();
+  if (L.length) {
+    const t2 = "LATEST " + L[0].d;
+    smallText(ctx, t2, x + w2 - smallTextWidth(t2) - 6, y + 5, [190, 140, 80]);
+  }
+  let ly = y + 19;
+  for (const e of (newsPageList()[newsPage] || [])) {
+    const K = NEWS_KINDS[e.k];
+    rect(ctx, x + 8, ly - 1, 17, 8, K.chip);
+    smallText(ctx, K.tag, x + 8 + ((17 - smallTextWidth(K.tag)) >> 1), ly + 1, K.ink);
+    smallText(ctx, e.d, x + w2 - smallTextWidth(e.d) - 8, ly + 1, [160, 150, 158]);
+    smallText(ctx, fitSmall(e.t, newsHeadW()), x + 29, ly + 1, [40, 30, 40]);
+    ly += 10;
+    for (const line of (e.b || [])) { smallText(ctx, fitSmall(line, newsBodyW()), x + 14, ly, [104, 94, 106]); ly += 7; }
+    ly += 6;
+  }
+  const chip = (r, label) => {
+    rect(ctx, r.x, r.y, r.w, r.h, [30, 20, 36]);
+    rect(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, [190, 140, 80]);
+    smallText(ctx, label, r.x + ((r.w - smallTextWidth(label)) >> 1), r.y + 3, [40, 24, 16]);
+  };
+  chip(R.prev, "<"); chip(R.next, ">"); chip(R.done, "DONE");
+  const pTxt = (newsPage + 1) + " / " + newsPages();
+  smallText(ctx, pTxt, R.next.x + R.next.w + 8, R.next.y + 3, [140, 130, 130]);
+}
+// The help card's two gestures, and for the same reason: nothing here has to
+// be learned twice.
+function tapNews(p) {
+  if (!newsView) return false;
+  const R = newsRects();
+  const hit = (r) => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
+  if (hit(R.prev)) { newsFlip(-1); return true; }
+  if (hit(R.next)) { newsFlip(1); return true; }
+  if (hit(R.done)) { closeNews(); return true; }
+  const onCard = p.x >= R.x - 2 && p.x < R.x + R.w + 2 && p.y >= R.y - 2 && p.y < R.y + R.h + 2;
+  if (onCard) newsFlip(1); else closeNews();
+  return true;
+}
 function drawTitle() {
   ctx.fillStyle = "rgba(16,20,50,0.35)";
   ctx.fillRect(0, 0, W, H);
   rect(ctx, 0, PANEL_Y, W, H - PANEL_Y, [58, 42, 38]);
+  drawMotto();          // the band above the sign is the only place a tilt fits
   // logo card
   const lw = 168;
   rect(ctx, W / 2 - lw / 2 - 2, 26, lw + 4, 62, [30, 20, 36]);
@@ -21000,6 +21311,7 @@ function drawTitle() {
   blit(ctx, CRAB_ARTS[1].a, W / 2 + 44, 58, true);
   blit(ctx, ACCESSORIES.flower.art, W / 2 + 44, 55);
   smallText(ctx, "A WHOLE IDLE BEACH ECONOMY", W / 2 - 64, 76, [110, 90, 80]);
+  drawNewsBar();        // ...and the 8 rows under the card are the only full-width band
   // HOW TO PLAY, above the menu rather than below it, because below it is full:
   // CONTINUE / NEW GAME / SAVED TOWNS run from y118 to y161 and the saved-town
   // count sits under those. This is the only free band on the card, and it is
@@ -25096,6 +25408,7 @@ function titleFrame(dt) {
     drawNight();
     drawTitle();
     drawSaveScreen();
+    drawNewsBoard();
     drawHelp();   // HOW TO PLAY is readable before the first day, which is the point
     if (musicView) drawMusic(ctx);   // the box opens from the title too
 }
@@ -26360,6 +26673,13 @@ if (LAB) {
 // the normal case and not an error).
 musLoad();
 musLoadCatalog();
+newsLoad();
+// THE OPENING JOKE IS NOT ALWAYS THE SAME ONE. Off the wall clock rather than
+// the game's RNG on purpose: the title screen's wander runs on the VIEW stream
+// and the motto must not draw from any stream at all, or picking a joke would
+// be a sim event. A sandbox with no clock gets 0, which is a perfectly good
+// motto - and a harness that wants a named one just assigns this.
+mottoBase = Math.abs(Math.floor(nowMs() / 1000)) % 9973;
 requestAnimationFrame(frame);
 
 // console cheat for tinkering: cheat(500)
