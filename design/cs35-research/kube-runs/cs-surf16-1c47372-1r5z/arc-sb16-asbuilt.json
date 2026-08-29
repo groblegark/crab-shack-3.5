@@ -1,0 +1,107 @@
+{
+  "release": "cs-surf16-1c47372-1r5z",
+  "armId": "arc-sb16-asbuilt",
+  "index": 13,
+  "sha": "1c47372c01a5d4349a018341d3492dfd4a43c587",
+  "entry": "tools/batch.mjs",
+  "args": [
+    "--towns",
+    "16",
+    "--seedbase",
+    "16",
+    "--days",
+    "30",
+    "--jobs",
+    "7",
+    "--buy",
+    "chef,table,arcade",
+    "--json"
+  ],
+  "env": {},
+  "exitCode": 0,
+  "wallMs": 63359,
+  "verdict": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --buy chef,table,arcade --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":1,\"evicted\":15,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"9\":1,\"10\":1,\"11\":2,\"13\":2,\"15\":3,\"17\":2,\"20\":1,\"24\":1,\"28\":1,\"29\":1},\"median\":15,\"min\":9,\"max\":29},\"lifetime\":{\"median\":4373,\"p10\":2987,\"p90\":10649,\"mean\":5696},\"throughput\":{\"livedSimDays\":278,\"wallSec\":63.31,\"simDaysPerSec\":4.4,\"loadavg\":[7.7,4.7,2]},\"rep\":{\"list\":[2,50,54,55,55,56,56,56,56,57,58,58,59,61,66,67],\"median\":56},\"arcade\":{\"built\":0,\"playedIn\":0,\"games\":0,\"gamesTour\":0,\"gamesCrab\":0},\"surf\":{\"towns\":6,\"sessions\":24,\"rides\":23,\"crowded\":3}}",
+  "failures": [],
+  "cores": 8,
+  "hostCores": 8,
+  "jsonTail": {
+    "towns": 16,
+    "seedbase": 16,
+    "jobs": 7,
+    "cores": 8,
+    "workload": "--days 30 --buy chef,table,arcade --quiet",
+    "kernel": true,
+    "realm": "main",
+    "survived": 1,
+    "evicted": 15,
+    "workersDied": 0,
+    "evictionDays": {
+      "histogram": {
+        "9": 1,
+        "10": 1,
+        "11": 2,
+        "13": 2,
+        "15": 3,
+        "17": 2,
+        "20": 1,
+        "24": 1,
+        "28": 1,
+        "29": 1
+      },
+      "median": 15,
+      "min": 9,
+      "max": 29
+    },
+    "lifetime": {
+      "median": 4373,
+      "p10": 2987,
+      "p90": 10649,
+      "mean": 5696
+    },
+    "throughput": {
+      "livedSimDays": 278,
+      "wallSec": 63.31,
+      "simDaysPerSec": 4.4,
+      "loadavg": [
+        7.7,
+        4.7,
+        2
+      ]
+    },
+    "rep": {
+      "list": [
+        2,
+        50,
+        54,
+        55,
+        55,
+        56,
+        56,
+        56,
+        56,
+        57,
+        58,
+        58,
+        59,
+        61,
+        66,
+        67
+      ],
+      "median": 56
+    },
+    "arcade": {
+      "built": 0,
+      "playedIn": 0,
+      "games": 0,
+      "gamesTour": 0,
+      "gamesCrab": 0
+    },
+    "surf": {
+      "towns": 6,
+      "sessions": 24,
+      "rides": 23,
+      "crowded": 3
+    }
+  },
+  "stdoutTail": "{\"towns\":16,\"seedbase\":16,\"jobs\":7,\"cores\":8,\"workload\":\"--days 30 --buy chef,table,arcade --quiet\",\"kernel\":true,\"realm\":\"main\",\"survived\":1,\"evicted\":15,\"workersDied\":0,\"evictionDays\":{\"histogram\":{\"9\":1,\"10\":1,\"11\":2,\"13\":2,\"15\":3,\"17\":2,\"20\":1,\"24\":1,\"28\":1,\"29\":1},\"median\":15,\"min\":9,\"max\":29},\"lifetime\":{\"median\":4373,\"p10\":2987,\"p90\":10649,\"mean\":5696},\"throughput\":{\"livedSimDays\":278,\"wallSec\":63.31,\"simDaysPerSec\":4.4,\"loadavg\":[7.7,4.7,2]},\"rep\":{\"list\":[2,50,54,55,55,56,56,56,56,57,58,58,59,61,66,67],\"median\":56},\"arcade\":{\"built\":0,\"playedIn\":0,\"games\":0,\"gamesTour\":0,\"gamesCrab\":0},\"surf\":{\"towns\":6,\"sessions\":24,\"rides\":23,\"crowded\":3}}\n"
+}

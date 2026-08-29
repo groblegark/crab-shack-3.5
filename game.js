@@ -6716,11 +6716,13 @@ function updateBall(c, dt) {
 //      rationed by weather rather than by a cooldown we invented. That is why
 //      this may be a much stronger cure than a game of catch without becoming
 //      the answer to boredom: eleven days in twelve there is no answer here.
-//   2. THE PEAK HOLDS THREE, AND A CROWD RUINS IT. The lineup caps at
-//      SURF_LINEUP, and every other crab out there costs you SURF_CROWD of
-//      what you came for. Three crabs on a marginal day get less each than a
-//      solo crab knocking the beach ball about, which is both the honest
-//      surfing complaint and the "limited" word doing real work.
+//   2. THE PEAK GENTLY DECAYS, AND A CROWD CAN RUIN IT. There is NO hard cap.
+//      Relief is your SHARE of the day's quality over the lineup - full when
+//      you have it to yourself, decaying to ZERO at LINEUP_MAX (the RULED
+//      gentle decay, kd-1JwKffV61F=C, kept "crowding only" by kd-trKLfcDh5b).
+//      The town's TOTAL welfare peaks at n=6 and collapses past it: the town
+//      can ruin a good day by everyone having the same good idea, which is the
+//      "limited" word doing real work - now as a decision, not a refusal.
 //   3. IT COSTS THE DAY, and more of it than the ball does: ~68 game-minutes
 //      against the ball's ~48, because you have to paddle out and wait. TIME,
 //      never money - THE SELF-HEALING RULE, same as every free cure here.
@@ -6759,10 +6761,21 @@ const SURF_YIELD = qn(0.60);      // any real need outranks a wave
 const SURF_LEAD = 150;            // game-minutes of clear air before a shift: a session is ~68
 const SURF_SECS = 17 * SEC;       // real seconds out there - paddle out, sit, catch a few
 const SURF_CD = 240 * GMIN;       // game minutes: the swell usually runs out first
-const SURF_LINEUP = 3;            // how many fit on the peak
+const LINEUP_MAX = 12;            // the peak's asymptote: relief decays to ZERO here. NOT a hard cap
 const SURF_MIN = qn(0.30);        // a barely-clean day...
 const SURF_MAX = qn(0.62);        // ...and a perfect one
-const SURF_CROWD = qn(0.12);      // what each other crab in the water costs you
+// THE RULED GENTLE DECAY (kd-1JwKffV61F=C, kd-3nXl4esdgR section 5), kept
+// "crowding only" by kd-trKLfcDh5b. A crab's relief is its SHARE of the day's
+// quality over the lineup: the full day alone, decaying linearly to zero at
+// LINEUP_MAX. n counts the surfer THEMSELVES, so n >= 1 and, exactly,
+// surfShareQ20(baseQ20, 1) === baseQ20 - the load-bearing self-count identity.
+// idiv (line 38), NEVER >>: these are Q20 magnitudes; idiv is exact in doubles
+// and the max intermediate (baseQ20 x 11) is 0.54% of int32, safe for the wasm
+// leg. This REPLACES the old hard cap of 3 + linear SURF_CROWD penalty: with a
+// cap the fourth crab was refused before deciding, so the ruled failure mode -
+// the town ruining a good day by everyone having the same idea - could not occur.
+const surfShareQ20 = (baseQ20, n) =>
+  n >= LINEUP_MAX ? 0 : idiv(baseQ20 * (LINEUP_MAX - n), LINEUP_MAX - 1);
 // THE PRICE OF A WAVE, declared as a P3 activity vector over the five needs in
 // TWENTIETHS (20 = the plain clock, so a need left at 20 is byte-identical to
 // declaring nothing; crabTick reads it through vmul). Matt's ask: surfing "cause
@@ -6788,7 +6801,6 @@ const SURF_LINES = ["OUTSIDE!", "MY WAVE", "SET COMING", "CLEAN OUT HERE", "ONE 
 // the SAME tree. Distinct from `_noSeaCues`, which is the water's LOOK only.
 function surfIsUp() { return !window._noSurf && surfToday(day) === "FIRING" && darkness() < 0.55; }
 function surfers() { return allCrabs().filter(k => k.dsC === DS.atSurf); }
-function surfHasRoom(c) { return surfers().filter(k => k !== c).length < SURF_LINEUP; }
 function startSurfStop(c) {
   c.dsC = DS.atSurf; c.surfT = 0;
   // NO TIRED_ERRAND, for the ball's measured reason: that charge models a
@@ -6815,10 +6827,18 @@ function updateSurf(c, dt) {
   // WHAT THE DAY WAS WORTH: the sea's own quality, less what the crowd took.
   // Integer throughout and floor-divided - the same Q16*Q20 magnitudes that
   // overflow a signed >>16 in swellPeakQ16, so idiv (exact in doubles) not >>.
+  // n IS THE PADDLED-OUT SET (surfT > 0) - the crabs who ACTUALLY shared this
+  // ride - NOT the committed set (dsC === atSurf, which also counts crabs still
+  // walking down who never touched the water while this ride happened). With the
+  // hard cap gone this is the break's ONLY crowd count, so the choice is now
+  // load-bearing (it used to disagree harmlessly with surfHasRoom's committed
+  // set); paddled-out is the honest measure of "how crowded was the peak I rode"
+  // - a crab whose walk overlaps mine but who paddles out as I leave never
+  // crowded my wave. n counts SELF, so it is others + 1 and is always >= 1.
   const others = surfers().filter(k => k !== c && k.surfT > 0).length;
   const grade = Math.max(0, surfQualityQ16(day) - FC_CLEAN);
   const earned = SURF_MIN + idiv(Math.min(grade, 65536 - FC_CLEAN) * (SURF_MAX - SURF_MIN), 65536 - FC_CLEAN);
-  const relief = Math.max(0, earned - others * SURF_CROWD);
+  const relief = surfShareQ20(earned, others + 1);
   c.p.bored = Math.max(0, (c.p.bored || 0) - relief);
   const good = relief >= SURF_MIN;
   crabLog(c, "need", others ? "SURFED THE PEAK WITH " + others + " OTHER" + (others > 1 ? "S" : "")
@@ -13157,8 +13177,18 @@ registerErrand({ id: "surf", need: "fun", kind: "post", gather: (c, take, X) => 
   // measures exactly that.
   const surfFree = !c.duty && c.dsC !== DS.working
     && (awayToday(c) || tmin >= effShift(c).end || tmin + SURF_LEAD < leaveGmin(c));
+  // NO surfHasRoom gate: the hard cap is gone (kd-trKLfcDh5b=B, "crowding
+  // only"), so a crowded lineup is now a DECISION priced by the gentle-decay
+  // relief curve, never a refusal. And NO occupancy modulation of ap100 (the
+  // plan's P5 push, DELIBERATELY skipped): the ruling moved the break to the
+  // ball's own sand at SURF_X=1206, a SHORT walk, so a crowded session is a
+  // cheap mistake - not the 505-gmin punishment the far-east plan sized P5 for
+  // - and MEASURED @0a46a58 the lineup is naturally sparse (7 of 44 rides
+  // shared the peak at all; the old cap of 3 rarely even bound), so the
+  // zero-relief zone is unreachable in normal play and a decision-time push has
+  // nothing to push against. The relief curve is the whole mechanism. (kd-uYvJOxQcV8)
   if (surfIsUp() && (c.p.bored || 0) >= SURF_AT - nudgeRelax(c, "fun") && (c.surfCd || 0) <= 0
-      && !boredYields(c) && !surfYields && surfFree && !c.p.sick && surfHasRoom(c)
+      && !boredYields(c) && !surfYields && surfFree && !c.p.sick
       && !X.cand.some(e2 => e2.need === "fun"))
     take({ surf: true, need: "fun", ap100: 88 });
 } });

@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-1c47372-zssj",
+  "armId": "js-9",
+  "index": 9,
+  "sha": "1c47372c01a5d4349a018341d3492dfd4a43c587",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 111962,
+  "verdict": "37/37 passed in slice 9/12 (111.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (481ms)\n  PASS  npc: SUDSY dines at the player shack (3334ms)\n  PASS  slots: the preview card reflects the town it came from (1789ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (35ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (115ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (91ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (11083ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1261ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (16301ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (3703ms)\n  PASS  tables: a vacated table goes dirty, blocks the room, gets bused, comes back (80ms)\n  PASS  one reading surface owns the screen (886ms)\n  PASS  almanac: swell is an autocorrelated per-town history, wind an independent gate (8ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (8781ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (6211ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (20197ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2432ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1509ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (2429ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (882ms)\n  PASS  the help card fits the card, in the font the card is printed in (9ms)\n  PASS  the title screen credits the track that is actually queued (15ms)\n  PASS  a dead <source> reaches musFail through the child's own listener (12ms)\n  PASS  the now-playing ticker names what is audible and scrolls only when it must (12ms)\n  PASS  the house limit stops a hire and never fires anybody (7350ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (12ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (12648ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (11ms)\n  PASS  cultureways: a save without cultures changes nothing (1053ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (458ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (541ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2685ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (8ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (2024ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (224ms)\n  PASS  the card's meters speak Q20: a half-hungry visitor reads half (31ms)\n  PASS  the arcade: a crab pays for a game and actually plays it (3153ms)\n37/37 passed in slice 9/12 (111.9s)\n"
+}

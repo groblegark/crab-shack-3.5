@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-1c47372-zssj",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "1c47372c01a5d4349a018341d3492dfd4a43c587",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 137708,
+  "verdict": "37/37 passed in slice 6/12 (137.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (2404ms)\n  PASS  save guard: an empty slot still receives the first town (22ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (2663ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1242ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1084ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (3130ms)\n  PASS  census: rows derive live state, and sort + filter actually move (652ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2119ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (25ms)\n  PASS  wage: every rate and deal roundtrips save/load, including a change of boss (839ms)\n  PASS  the title's credit block never lands on the science button (13ms)\n  PASS  ferry: nobody wins by accident - the fare is out of a playing town's reach (51248ms)\n  PASS  rivalry: the offer is a real number, and it can be ACCEPTED or REFUSED (12073ms)\n  PASS  visitors: the reserved local slot still feeds the neighbours (8289ms)\n  PASS  the fund is struck to the bill and does not hoard (982ms)\n  PASS  departures: the quote's mutation arms - drop the fact, lose the line (14ms)\n  PASS  departures: a display card moves nothing in the town (1080ms)\n  PASS  polling day draws in every state, on the canvas and never over itself (2759ms)\n  PASS  care-lane bar: a debt-caused illness is actually TAKEN by the running engine (lethal, not just routed) (29969ms)\n  PASS  the tooltip's nightly cost is the live setting, not a printed number (9ms)\n  PASS  a standing offer can be answered from the card that announces it (14ms)\n  PASS  bundled playlist: an empty or malformed bundle is refused, a valid one is obeyed (350ms)\n  PASS  the box does not stop the music, and a finished track walks to the next row (20ms)\n  PASS  a platform that WINS actually reaches the office, floor and all (1208ms)\n  PASS  idle quips: the island's table is the literal, key for key (10ms)\n  PASS  depart programs: the transcription and the lambdas agree on every staged stay (82ms)\n  PASS  civics ballots: a tampered dial is refused by name and falls back to the literal (11ms)\n  PASS  civics eligibility: a people's own franchise decides its electorate (the dispatch) (1891ms)\n  PASS  the body: a declared physiology runs the same town on both backends, and all-20s is nobody at all (3613ms)\n  PASS  foodways: nothing is conjured - slop is fish and fruit, both counted (8ms)\n  PASS  seam: a headless day never enters the view (605ms)\n  PASS  brains: a town full of thinking heads round-trips its save (5494ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (82ms)\n  PASS  science: a scrub lands on the day the run recorded (3403ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (22ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (177ms)\n37/37 passed in slice 6/12 (137.6s)\n"
+}
