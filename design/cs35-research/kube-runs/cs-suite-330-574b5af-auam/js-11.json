@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-574b5af-auam",
+  "armId": "js-11",
+  "index": 11,
+  "sha": "574b5af061896577532f944c18b18a83af59dfc0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "11/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 178632,
+  "verdict": "38/38 passed in slice 11/12 (178.5s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  mid-shift job toggle is safe (1765ms)\n  PASS  sick crabs can still wash (mobility + cure path) (671ms)\n  PASS  queues: arrival order, even spacing, a smooth step-up and no jitter (393ms)\n  PASS  credit: exhausted line + missed payment = bankrupt game over (1200ms)\n  PASS  tired: save migration seeds it from old sandy, strands nothing (16ms)\n  PASS  all 9 lots stand: empties render vacant, hiring never conjures a house (16ms)\n  PASS  fish market: floor-price week - the roast keeps a broke fisher alive (6295ms)\n  PASS  routes: a meal ON THE WAY to work, not a lap of the promenade (2137ms)\n  PASS  taps: nobody in a full town is left parched for a week (crew AND townsfolk) (34808ms)\n  PASS  boredom's free cures are LIMITED, and neither pays for itself (7205ms)\n  PASS  tables: more tables really do seat more guests (the cap earns its keep) (44746ms)\n  PASS  the rota pages at seven and the twelfth crab keeps her controls (1055ms)\n  PASS  almanac: the new channels consume ZERO randomness, like the mist (2390ms)\n  PASS  rivalry: the player can buy HER shop - the ownership layer stays symmetric (9698ms)\n  PASS  hotelier: one price on the hotel's sign, and it goes UP the day she signs (6055ms)\n  PASS  the player can stand for office and win, and then the levy is theirs (22180ms)\n  PASS  departures: the stay ledger is what actually happened, not a tally of the town (2667ms)\n  PASS  the lease card holds the clock: no boat lands while Pincherton talks (1530ms)\n  PASS  sickness: the 20:00 roll reads an evening crab before their day has finished (2297ms)\n  PASS  shelter: the PURSE decides whether the town can grow it, and it says which one (999ms)\n  PASS  the help card fits the card, in the font the card is printed in (10ms)\n  PASS  the title screen credits the track that is actually queued (16ms)\n  PASS  a dead <source> reaches musFail through the child's own listener (13ms)\n  PASS  the now-playing ticker names what is audible and scrolls only when it must (11ms)\n  PASS  the house limit stops a hire and never fires anybody (7459ms)\n  PASS  crab-as-document: the names and shells are the document's, byte for byte (8ms)\n  PASS  civics stakes: the transcription and the lambda agree on every platform, every voter (13048ms)\n  PASS  civics purses: a tampered grid is refused by name and falls back, and a distinct grid reaches purseRate (11ms)\n  PASS  cultureways: a save without cultures changes nothing (1029ms)\n  PASS  rhythm: an institution keeps its owner's day - anchored clock-ins, the owner-culture sign, and native shops untouched (411ms)\n  PASS  cultureways: the hat picks the voice, and the chain falls back (410ms)\n  PASS  brains: the shipped crab artifact agrees with the scorer it distilled (2346ms)\n  PASS  layer 1: hostile programs are refused by name, before anything runs (9ms)\n  PASS  the sim stream's cursor is shared: JS and kernel draws are one sequence (124ms)\n  PASS  science: a scrub lands on the day the run recorded (5228ms)\n  PASS  E5 urgency ramp: a declared curve raises an errand's urgency, host-capped below survival, refusing by name (18ms)\n  PASS  rethink: a sub-quarter improvement does not turn her - commitment holds at 4:5 (217ms)\n  PASS  spend reserve: an old trait table without thrift still loads, at the identity (7ms)\n38/38 passed in slice 11/12 (178.5s)\n"
+}

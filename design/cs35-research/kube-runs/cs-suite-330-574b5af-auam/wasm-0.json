@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-574b5af-auam",
+  "armId": "wasm-0",
+  "index": 12,
+  "sha": "574b5af061896577532f944c18b18a83af59dfc0",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 223153,
+  "verdict": "38/38 passed in slice 0/12 (223.1s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (36677ms)\n  PASS  disease: sustained neglect breeds sickness (644ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (543ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (5966ms)\n  PASS  credit: the town is warned before it goes under (34428ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (549ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (1555ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (34968ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (13ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (9638ms)\n  PASS  wage: the shipped defaults are behaviour-identical (nobody grumbles, nobody moves) (5257ms)\n  PASS  tip sharing + the table cap roundtrip save/load (548ms)\n  PASS  no surface prints off the canvas (1037ms)\n  PASS  forecast: names the swell it can see, never the quality it cannot (15ms)\n  PASS  rivalry: THE LEASE IS THE RIVAL - a new owner next door inherits the ambition (2062ms)\n  PASS  visitors: a repriced board is checked against the wallet (nothing is minted) (1500ms)\n  PASS  the mayor wears the hat, and nobody else ever does (648ms)\n  PASS  departures: the manifest is the day's own boat-load, and the money adds up (245ms)\n  PASS  a loaded save keeps its guests: the empty start is a NEW-GAME rule (469ms)\n  PASS  sickness: shift kind does not predict the roll across the roster (61188ms)\n  PASS  shelter: the BED+ chip is the mayor's, and it sits on the notice without covering it (49ms)\n  PASS  the help card is reachable from play, and from a town with nothing left (259ms)\n  PASS  the beach ball is drawn where you can see it, not behind a building (244ms)\n  PASS  a shipped catalog row plays same-origin with no archive hop (8ms)\n  PASS  a networkless town gives up after four tracks, not after a thousand (9ms)\n  PASS  the house limit runs backwards, and the tie-break knows it (5778ms)\n  PASS  crab-as-document: SUDSY keeps her teal shell and the next hire keeps her name (8ms)\n  PASS  civics stakes: a coefficient defect is caught (the mutation the sweep can see) (8225ms)\n  PASS  civics purses: an EXTENDED purse grid's top rung is reachable, never silently dropped (bug kd-ASOmSqbQUr) (19ms)\n  PASS  cultureways: a pig visitor record loads, clamps and round-trips (421ms)\n  PASS  manner: a cultureway's gait and stay land in the engine's own units, and only for its own folk (11ms)\n  PASS  cultureways: the strawhat purse is the lighter purse (355ms)\n  PASS  brains: shadow is inert - the town cannot tell it is being watched (2186ms)\n  PASS  gulls: the roost ships, and the gate holds until word spreads (6ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (7392ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (50ms)\n  PASS  E5 taste-drift: a declared update rule drifts a taste weight over lived stays, host-clamped, refusing by name (15ms)\n  PASS  rethink: she steps out of the line for a better plan, and no quit is stamped (62ms)\n38/38 passed in slice 0/12 (223.1s)\n"
+}
