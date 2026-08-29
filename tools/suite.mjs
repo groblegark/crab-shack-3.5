@@ -7038,7 +7038,7 @@ scenario("the sea: the weather is legible off the water, and never printed on th
   return true;
 });
 
-scenario("surf: the sea rations it, the peak is capped, and a crowd takes the edge off", () => {
+scenario("surf: the sea rations it, the peak gently decays to zero at twelve, and a crowd takes the edge off", () => {
   // THE CURE MATT ASKED FOR ("fun cure, of course!"), and the three limits it
   // is built on - each checked against a live town rather than by reading the
   // constants back. What matters is that the SEA is the rationer: no cooldown
@@ -7080,28 +7080,28 @@ scenario("surf: the sea rations it, the peak is capped, and a crowd takes the ed
       break;
     }
     day = held.day; tday = held.tday; reclock();
-    // 2. THE PEAK HOLDS THREE. surfHasRoom must shut at SURF_LINEUP, counted
-    //    off live state rather than trusted - park a lineup and ask.
-    const pool = allCrabs().slice(0, SURF_LINEUP + 2);
-    const room = [];
-    if (pool.length >= SURF_LINEUP + 1) {
-      const hold = pool.map(c => [c, c.dsC, c.surfT, c.hidden]);
-      for (let n = 0; n <= SURF_LINEUP; n++) {
-        for (let i = 0; i < pool.length; i++) { pool[i].dsC = i < n ? DS.atSurf : DS.home; pool[i].surfT = i < n ? 100 : 0; }
-        room.push(surfHasRoom(pool[pool.length - 1]) ? 1 : 0);
-      }
-      for (const [c, ds, t, h] of hold) { c.dsC = ds; c.surfT = t; c.hidden = h; }
-    }
-    // 3. A CROWD TAKES THE EDGE OFF, and a perfect day beats a marginal one.
-    //    The relief arithmetic, evaluated the way updateSurf evaluates it.
-    const worth = (qQ16, others) => {
+    // 2. THE DECAY TABLE. The lineup no longer HOLDS a number - relief is a
+    //    crab's SHARE of the day, gently decaying to zero at LINEUP_MAX (RULING
+    //    kd-1JwKffV61F=C). Pin the ruled shape integer-exactly off surfShareQ20,
+    //    on a full-Q20 day so the share table IS the ruling's own fractions: a crab
+    //    alone gets the whole day, the town's total welfare peaks at 6, and the
+    //    twelfth crab gets nothing (the town ruining a good day by everyone
+    //    having the same idea). n counts the surfer themselves, so it runs 1..MAX.
+    const share = [], townTotal = [];
+    for (let n = 1; n <= LINEUP_MAX; n++) { const s = surfShareQ20(Q20, n); share.push(s); townTotal.push(s * n); }
+    let peakN = 1;
+    for (let n = 2; n <= LINEUP_MAX; n++) if (townTotal[n - 1] > townTotal[peakN - 1]) peakN = n;
+    // 3. THE PAYOFF LADDER for one crab: quality and crowd, evaluated exactly
+    //    the way updateSurf evaluates it - now through the decay curve. n counts
+    //    the surfer themselves, so a solo day is n=1 and a near-full peak n=MAX-1.
+    const worth = (qQ16, n) => {
       const grade = Math.max(0, qQ16 - FC_CLEAN);
       const earned = SURF_MIN + idiv(Math.min(grade, 65536 - FC_CLEAN) * (SURF_MAX - SURF_MIN), 65536 - FC_CLEAN);
-      return Math.max(0, earned - others * SURF_CROWD);
+      return surfShareQ20(earned, n);
     };
-    return { openDay, night, wrong, hatch, room, lineup: SURF_LINEUP,
-      solo: worth(65536, 0), packed: worth(65536, SURF_LINEUP - 1),
-      marginal: worth(FC_CLEAN, 0), marginalPacked: worth(FC_CLEAN, SURF_LINEUP - 1),
+    return { openDay, night, wrong, hatch, share, townTotal, peakN, lineupMax: LINEUP_MAX,
+      solo: worth(65536, 1), packed: worth(65536, 6), crowded: worth(65536, LINEUP_MAX - 1),
+      marginal: worth(FC_CLEAN, 1),
       ball: BALL_PAIR, ballSolo: BALL_SOLO, at: SURF_AT, cd: SURF_CD, lead: SURF_LEAD };
   })())`));
   if (o.wrong) return "surfIsUp() and surfToday() disagree - " + o.wrong;
@@ -7109,16 +7109,28 @@ scenario("surf: the sea rations it, the peak is capped, and a crowd takes the ed
   if (o.hatch) return o.hatch;
   if (!(o.openDay > 5 && o.openDay < 90))
     return `the sea is open ${o.openDay}/300 days - want rare (it is the best fun in town) but real`;
-  if (o.room.length !== o.lineup + 1 || o.room[o.lineup - 1] !== 1 || o.room[o.lineup] !== 0)
-    return `the lineup cap is not at SURF_LINEUP (${o.lineup}): room-by-occupancy reads ` + JSON.stringify(o.room);
-  // the payoff ladder, top to bottom: a perfect solo day is the best fun that
-  // is not the arcade; a marginal day in a crowd is worse than knocking the
-  // beach ball about alone, which is the "limited" word doing real work.
+  // THE DECAY TABLE is the ruling's content (kd-1JwKffV61F=C): a crab alone
+  // gets the whole day, relief strictly decays as the lineup fills, the town's
+  // total welfare peaks at the social optimum of 6, and the twelfth crab gets
+  // nothing - so the town CAN ruin a good day by everyone having the same idea.
+  if (o.share[0] !== Q20)
+    return `a solo surfer does not get the whole day: surfShareQ20(Q20,1)=${o.share[0]} != ${Q20} (n must count self)`;
+  if (o.share[o.lineupMax - 1] !== 0)
+    return `relief does not collapse to zero at LINEUP_MAX (${o.lineupMax}): share reads ` + JSON.stringify(o.share);
+  for (let i = 1; i < o.lineupMax; i++)
+    if (!(o.share[i] < o.share[i - 1]))
+      return `relief is not strictly decreasing at n=${i + 1}: ` + JSON.stringify(o.share);
+  if (o.peakN !== 6)
+    return `the town's total welfare peaks at n=${o.peakN}, not the social optimum of 6: ` + JSON.stringify(o.townTotal);
+  // the payoff ladder for one crab: a perfect solo day is the best fun that is
+  // not the arcade; any crowd costs something; and a NEARLY-FULL peak, even on a
+  // perfect day, is worse than knocking the ball about alone - the crowd doing
+  // real work at the extreme, which is the "limited" word the ruling restored.
   if (!(o.solo > o.marginal)) return `a perfect day (${o.solo}) is worth no more than a marginal one (${o.marginal})`;
-  if (!(o.solo > o.packed)) return `a crowded peak (${o.packed}) costs nothing against an empty one (${o.solo})`;
+  if (!(o.solo > o.packed)) return `a crowd at the optimum (${o.packed}) costs nothing against a solo peak (${o.solo})`;
   if (!(o.solo > o.ball)) return `a perfect wave (${o.solo}) beats no game of catch (${o.ball}) - then why walk down`;
-  if (!(o.marginalPacked < o.ballSolo))
-    return `a marginal day shared three ways (${o.marginalPacked}) still beats knocking the ball about alone (${o.ballSolo}) - the crowd is not limiting anything`;
+  if (!(o.crowded < o.ballSolo))
+    return `a near-full peak on a perfect day (${o.crowded}) still beats knocking the ball about alone (${o.ballSolo}) - the crowd is not limiting anything`;
   // ...and it never becomes the cheap answer: you go at MORE boredom than the
   // 0.45 where a crab would BUY fun, so anyone who would have paid still pays.
   if (o.at <= qn(0.45)) return `SURF_AT is ${o.at}, at or under the 0.45 buy-fun line - this takes the arcade's takings`;

@@ -8362,9 +8362,18 @@ Four things ration it, and they are all the sea, never a price:
 - **`SURF_AT = qn(0.50)`** — above the 0.45 at which a crab would *buy* fun, so
   the arcade keeps its customers. `ap100: 88` sits under the arcade's flat 100,
   so a near, open, affordable arcade still wins the argmax outright.
-- **A crowd takes the edge off.** `SURF_LINEUP = 3` in the water, and each
-  other rider costs `SURF_CROWD = qn(0.12)` of your relief. Three crabs on a
-  marginal day get less each than one crab alone with the beach ball.
+- **A crowd gently takes the edge off — no hard cap.** Relief is your SHARE of
+  the day over the lineup: `surfShareQ20(earned, n) = idiv(earned*(LINEUP_MAX−n),
+  LINEUP_MAX−1)`, `LINEUP_MAX = 12`, `n` counting yourself. Full alone, decaying
+  to ZERO at twelve; the town's TOTAL welfare peaks at n=6 and collapses past it
+  — the town can ruin a good day by everyone having the same good idea. This is
+  the RULED gentle decay (ruling `kd-1JwKffV61F` = C, kept "crowding only" by
+  `kd-trKLfcDh5b`); it **replaced** a shipped hard cap of 3 + linear `SURF_CROWD`
+  penalty (Matt's B) on 2026-08-29 (`kd-uYvJOxQcV8`). The break sits at
+  `SURF_X = 1206` (the ball's own sand, a short walk), so there is deliberately
+  **no decision-time occupancy push** on `ap100: 88`: measured @0a46a58 the
+  lineup is naturally sparse (7 of 44 rides shared the peak at all), the zero
+  zone is unreachable in normal play, and the relief curve is the whole mechanism.
 - **`SURF_LEAD = 150` game-minutes** of clear air before a shift. Nobody paddles
   out with two hours of work in front of them.
 

@@ -123,7 +123,7 @@ const gamesCrab = results.reduce((s, r) => s + (statOf(r).gamesPlayedCrab || 0),
 // this matrix shipped without it and could not tell the two apart.
 // `sessions` = crabs who paddled out; `rides` = sessions that finished (a
 // town evicted mid-session logs one of the first and none of the second);
-// `crowded` = rides that shared the peak, the number SURF_CROWD is priced on.
+// `crowded` = rides that shared the peak, the rides the gentle-decay curve prices.
 // Must be 0 in every --nosurf arm; must be >0 in an as-built arm, or say so.
 const surfSessions = results.reduce((s, r) => s + (statOf(r).surfSessions || 0), 0);
 const surfRides = results.reduce((s, r) => s + (statOf(r).surfRides || 0), 0);
