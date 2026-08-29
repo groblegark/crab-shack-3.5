@@ -171,6 +171,11 @@ const out = {
   // crab paddled out; under --nosurf every number here must be 0, and in an
   // as-built arm `sessions` must not be, or the arm measured nothing.
   surf: { towns: surfTowns, sessions: surfSessions, rides: surfRides, crowded: surfCrowded },
+  // See the SOCIAL DESTINATION DOSE note above. `towns` = towns where at least
+  // one chat happened; `chats`/`chatRelief`/`wanders` are the whole-matrix totals.
+  // Under --failoff meet the bias is off (blind wander draw): expect FEWER chats
+  // and less chatRelief for a comparable wanders count on the same seeds.
+  social: { towns: chatTowns, chats, chatRelief, wanders },
 };
 
 if (JSON_OUT) console.log(JSON.stringify(out));
@@ -187,5 +192,6 @@ else {
   console.log(`lifetime   median $${out.lifetime.median}  p10 $${out.lifetime.p10}  p90 $${out.lifetime.p90}  mean $${out.lifetime.mean}`);
   console.log(`arcade     built ${builtArcade}/${TOWNS}, played-in ${playedTowns.length}, games ${gamesPlayed} (tour ${gamesTour}/crab ${gamesCrab})`);
   console.log(`surf       paddled out in ${surfTowns}/${TOWNS} towns, ${surfSessions} sessions, ${surfRides} rides (${surfCrowded} shared the peak)`);
+  console.log(`social     chatted in ${chatTowns}/${TOWNS} towns, ${chats} chats, ${(chatRelief / 1048576).toFixed(1)} relief-frac, ${wanders} wanders`);
   console.log(`\n>> ${out.throughput.simDaysPerSec} lived sim-days/sec machine-wide  (${livedDays} days / ${out.throughput.wallSec}s, loadavg ${out.throughput.loadavg.join(" ")})`);
 }
