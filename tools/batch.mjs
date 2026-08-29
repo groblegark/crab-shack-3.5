@@ -130,6 +130,22 @@ const surfRides = results.reduce((s, r) => s + (statOf(r).surfRides || 0), 0);
 const surfCrowded = results.reduce((s, r) => s + (statOf(r).surfCrowded || 0), 0);
 const surfTowns = results.filter((r) => (statOf(r).surfSessions || 0) > 0).length;
 
+// SOCIAL DESTINATION DOSE (kd-aLTKJsYnHn). The meeting bias steers WHERE bored
+// crabs wander so two of them actually MEET; its effect shows up as CHATS and
+// the boredom RELIEF they bank, carried there by WANDERS. Same _stats the worker
+// already returns, no sim cost - exactly like the arcade/surf dose above. The
+// before/after control is `--failoff meet` (the bias off): expect FEWER chats
+// and less chatRelief for a comparable wander count on the same seeds, since the
+// wander pick is then blind and two bored crabs seldom land on the same landmark.
+// chatRelief is RAW Q20 (CHAT_RELIEF = 0.06 = 62914 per chat); divide by 1048576
+// for the fraction. wanders is the whole town's wander count, bias-independent by
+// construction (the bias changes WHICH spot, never WHETHER a crab wanders), so it
+// is the denominator that turns a chat count into a meetings-per-wander rate.
+const chats = results.reduce((s, r) => s + (statOf(r).chats || 0), 0);
+const chatRelief = results.reduce((s, r) => s + (statOf(r).chatRelief || 0), 0);
+const wanders = results.reduce((s, r) => s + (statOf(r).wanders || 0), 0);
+const chatTowns = results.filter((r) => (statOf(r).chats || 0) > 0).length;
+
 const out = {
   towns: TOWNS, seedbase: SEEDBASE, jobs: JOBS, cores: usableCores(),
   workload: passthrough.join(" "),
