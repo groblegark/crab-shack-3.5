@@ -31,6 +31,9 @@
 // Order in this file does not matter - the board sorts by date - but keeping
 // it newest-first means the diff for a new entry is always at the top.
 const GAME_NEWS = [
+  { d: "2026-08-29", k: "FEATURE", t: "A TAP AT THE FAR END OF THE BEACH",
+    b: ["THE HOTEL HAS ITS OWN WATER NOW. NOBODY OUT EAST HAS TO",
+        "WALK THE WHOLE PROMENADE FOR A DRINK ANY MORE."] },
   { d: "2026-08-29", k: "BALANCE", t: "A PACKED SHACK SLOWS, IT NEVER WALLS OFF",
     b: ["THE HARD LIMIT OF THREE AT A TABLE IS GONE. CROWDING",
         "NOW EASES OFF ALONG A CURVE, SO A FOURTH CRAB IS A",
