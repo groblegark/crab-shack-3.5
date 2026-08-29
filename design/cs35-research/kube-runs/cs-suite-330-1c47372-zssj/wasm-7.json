@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-1c47372-zssj",
+  "armId": "wasm-7",
+  "index": 19,
+  "sha": "1c47372c01a5d4349a018341d3492dfd4a43c587",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "7/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 223825,
+  "verdict": "37/37 passed in slice 7/12 (223.7s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (full town) (3454ms)\n  PASS  npc: SUDSY runs her showers, player books untouched (1572ms)\n  PASS  slots: two towns stay independent, switching never crosses them (1245ms)\n  PASS  boat: ownership and berth roundtrip through save/load (1115ms)\n  PASS  the drop nudge: open sand nudges nothing (1781ms)\n  PASS  days off: wages skip exactly and the bill dips to match (1627ms)\n  PASS  fish market: a glut sags the price to the floor and pay falls with it (37ms)\n  PASS  visitors book: the guest roster sorts, filters and pages on its own terms (1226ms)\n  PASS  sale: a saved-up crab buys the failed shop and it TRADES AGAIN (1114ms)\n  PASS  idle hands: the WALK-OUT costs the wage, and coverage stays honest (946ms)\n  PASS  tips: the counter gets a token, the table gets the lot (11ms)\n  PASS  no card prints text on top of its own text (1212ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (4199ms)\n      WATCH  rivalry cheap->mid under K (noise band): dear 331, level 398, cut 421\n  PASS  rivalry: after a refusal she competes with the PLAYER'S OWN levers, and can be countered (159423ms)\n  PASS  hotelier: a new crab buys the Driftwood, and the lease is never in two hands (4294ms)\n  PASS  votes are self-interest: the same ballot splits the town by circumstance (1253ms)\n  PASS  departures: the mood on the card is the mood of the rule that spoke (10ms)\n  PASS  a new town opens EMPTY: nobody ashore, nobody mid-walk (11ms)\n  PASS  the clock cannot be stopped: there is no pause, and no speed of zero (37ms)\n  PASS  shelter: the beds are finite, and the crab with no cot sleeps on the step (1724ms)\n  PASS  a shop button reads before it buys, and hover is what makes it one tap (8ms)\n  PASS  EYEING only blames her wallet when her wallet is the problem (8ms)\n  PASS  a kept catalog track reaches the CDN, and a dead track does not kill the rotation (13ms)\n  PASS  the walk steps over the moments and the dropped rows (45ms)\n  PASS  the town splits on a wage floor along the seam it actually falls on (2723ms)\n  PASS  traits: the island's table is the literal, value for value (14ms)\n  PASS  depart programs: a hostile table is refused by name (15ms)\n  PASS  civics ballots: the election is byte-equal to the pre-slice engine, and a bent dial moves it (26707ms)\n  PASS  civics eligibility: a hostile franchise is refused by name at the door (24ms)\n  PASS  rhythm: a culture's day builds in game-minutes, inherits field by field, and crabs keep the sun they had (18ms)\n  PASS  foodways: the lesson is EARNED - the card teaches, the till pays, the save remembers (118ms)\n  PASS  seam: the view is a reader - two renders move nothing (101ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (10ms)\n  PASS  stream: a saved town's future does not depend on what you did after saving (7518ms)\n  PASS  personal space: a pile of standing loafers parts, and rests (45ms)\n  PASS  E5 acceptance: a declared update rule moves a culture-pair meter over lived stays, host-capped, refusing by name (11ms)\n  PASS  rethink: the DIRE door - a crab walking to dinner turns for the tap when thirst turns desperate (54ms)\n37/37 passed in slice 7/12 (223.7s)\n"
+}
