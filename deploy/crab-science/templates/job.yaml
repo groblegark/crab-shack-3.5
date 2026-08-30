@@ -53,10 +53,27 @@ spec:
           command: ["/bin/sh", "-ec"]
           args:
             - |
+              # Auth via GIT_ASKPASS: git calls this ONLY when the server
+              # demands a credential (a PRIVATE repo). For the public tree
+              # GIT_TOKEN is unset and never read, so the clone is unchanged.
+              # The token stays out of the URL, .git/config, `ps`, and any
+              # failed-clone log line - the URL git prints on error is clean.
+              umask 077
+              printf '%s\n' '#!/bin/sh' 'case "$1" in Username*) printf x-access-token;; *) printf %s "$GIT_TOKEN";; esac' > /tmp/askpass
+              chmod 700 /tmp/askpass
+              export GIT_ASKPASS=/tmp/askpass GIT_TERMINAL_PROMPT=0
               git clone --no-checkout --filter=blob:none {{ .Values.repo }} /work
               cd /work
               git checkout --detach {{ .Values.gitRef }}
               echo "science tree: $(git rev-parse HEAD)"
+          {{- if .Values.gitCredentialSecret }}
+          env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.gitCredentialSecret }}
+                  key: token
+          {{- end }}
           volumeMounts:
             - { name: work, mountPath: /work }
       containers:
