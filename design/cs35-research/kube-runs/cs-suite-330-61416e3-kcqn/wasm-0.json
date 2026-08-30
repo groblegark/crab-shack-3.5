@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-61416e3-kcqn",
+  "armId": "wasm-0",
+  "index": 12,
+  "sha": "61416e3db55a2591653328eb0571c162ba0d6e2c",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "0/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 208884,
+  "verdict": "39/39 passed in slice 0/12 (208.8s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  baseline loses by default (all but the odd lucky town) (37734ms)\n  PASS  disease: sustained neglect breeds sickness (652ms)\n  PASS  job board: a flush SUDSY hires a fisher; payroll flows (335ms)\n  PASS  death cleanup: slots freed, orders unclaimed, follow survives (5463ms)\n  PASS  credit: the town is warned before it goes under (36649ms)\n  PASS  hours: a working day has a length - long hours buy no free labour (562ms)\n  PASS  hours: defaults are behavior-identical (frozen day-2 fingerprint) (1695ms)\n  PASS  sick days: bed rest beats a cot, and both beat the old cared bar (36069ms)\n  PASS  routes: the detour term is load-bearing - near beats slightly-better far (12ms)\n  PASS  taps: free and always reachable, and the juice bar still sells (9195ms)\n  PASS  social destination: the wander pick STEERS toward company, and _failOff meet restores the blind draw (50ms)\n  PASS  tables can never wedge: both abort paths free them, and a soak stays clean (886ms)\n  PASS  a science run is silent and the mind panel banks at the fold (815ms)\n  PASS  almanac: mist is one ocean for the fleet, swell and wind are per-town (69ms)\n  PASS  rivalry: if the juice bar FAILS she is first in the queue (2253ms)\n  PASS  hotelier: her board moves with the house, her wage moves the whole town (3624ms)\n  PASS  an election is held on the week, and every voter is accounted for (3138ms)\n  PASS  departures: three ways to be turned away are three different counters (96ms)\n  PASS  the first ferry still lands, on time, and day one keeps all four sailings (275ms)\n  PASS  a crab who is not mayor cannot move the town's policy one step (1090ms)\n  PASS  shelter: a bed is RENT, not a purchase - the bill goes up for good, and it is remitted (1165ms)\n  PASS  the shop tooltip is drawn, and dies behind every reading surface (289ms)\n  PASS  a rival never bids money she does not hold, and accepting always works (44500ms)\n  PASS  an absolute catalog url plays through a typed <source>, our own paths stay a plain src (12ms)\n  PASS  an audition still owns the speakers, and BACK does not restart the town (12ms)\n  PASS  the wage floor roundtrips a save on the policy, the platform and the box (1092ms)\n  PASS  crab voice: two whole days with the table off are the same town (1153ms)\n  PASS  depart programs: real traffic tells the same story, and the debts are paid (572ms)\n  PASS  civics purses: the document's rate grids are byte-equal to the PURSES literals (8ms)\n  PASS  civics dogfood: the SHIPPED pig votes its own politics, and a pig coefficient bites (13924ms)\n  PASS  rhythm: an insane day is refused by name, at install, on the values as inherited (27ms)\n  PASS  foodways: the validator names its refusals (49ms)\n  PASS  rng: the sim stream's draw count per day is pinned (seed 1337) (837ms)\n  PASS  layer 1: the golden programs answer to the pin, and the pin is the law (13ms)\n  PASS  menus carry no pay ties - the cheap pick never consults sort stability (12ms)\n  PASS  science: the seed is the town - a different one lives differently (3912ms)\n  PASS  cards: a declared card reads live values off the registry, and an unknown observable is refused by name (12ms)\n  PASS  rethink: a parched guest bound for the hotel turns for the counter, and her held room opens (58ms)\n  PASS  spend reserve: a hoarding thrift saturates at one night's roof (481ms)\n39/39 passed in slice 0/12 (208.8s)\n"
+}
