@@ -3,6 +3,43 @@
 **Read PLAN.md first.** It is the project brain: systems map, verified balance
 numbers, backlog, and conventions. Don't duplicate it — update it there.
 
+## THIS TREE IS FROZEN TO MAINTENANCE (CS4-01a, Matt, 2026-08-30)
+CS4 is a **greenfield** project; 3.5 is the tree it learns from, not the tree it
+grows out of. This repo is therefore **maintenance-only**: bug fixes and receipts
+land, features and balance changes do not.
+
+**The line is between LANDING and RUNNING, and it is not the obvious one:**
+
+> **Maintenance is what may LAND. Instrumentation is what may RUN.**
+
+3.5 is the only executable thing the project owns, and CS4's calibration is
+unmeasured by its own doctrine — so CS4 spikes are *expected* to run against this
+tree. Running a gate, a matrix, or a training arm here is inside the freeze; a
+spike produces **a receipt, not a merge**. Merging the arm is not maintenance.
+
+This note lives here rather than in a bead deliberately: the agent who would
+otherwise land a balance change reads `CLAUDE.md` at boot and will never open a
+doc bead.
+
+## DELIVERY IS FABLE-CLASS FOR NOW (CS4-46, Matt, 2026-08-30)
+**Implementation and final sign-off are performed by Fable-class agents** for the
+near term — the whole delivery path, not just the authored art of CS4-43.
+
+The sign-off half is the load-bearing one. CS4 deliberately *weakens* its own
+automated instrument: this tree's gate is two independent implementations
+agreeing (a check on the **spec**), and CS4 replaces it with golden fingerprints
+(a check on the **diff**) — where a wrong day-1 fingerprint is wrong forever AND
+green forever. A golden day must therefore be recorded from a **reviewed** run,
+and `backbone_allowed` left a pre-declared battery as the only blast-radius
+barrier.
+
+> Until the corpus is seeded and the battery is declared, **the reviewer IS the
+> gate.**
+
+*"Near term"* has an expiry condition so it does not rot into folklore: **it lifts
+when the gate is a gate again** — golden corpus seeded from reviewed runs, and the
+battery declared ahead of the runs it judges.
+
 ## KUBE POLICY (Matt, 2026-08-23; extended to ALL gates 2026-08-26 — ABSOLUTE)
 **EVERY gate runs on the cluster. No exceptions, Mac or pod.**
 
