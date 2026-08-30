@@ -6377,15 +6377,47 @@ const WANDER_CD = 20 * SEC;   // real seconds back at the post before the next o
 // Landmarks worth drifting to. Absolute x's, so the same table serves every
 // shop; each crab takes whichever ones lie within WANDER_PX of their post, and
 // the nearest-is-likeliest weighting keeps them roughly in their own quarter.
+//
+// ...AND ONE OF THEM IS NOT ALWAYS THERE. Six of these seven are permanent town
+// furniture - the taps, the board, the sand, the wall, the rail. The ARCADE is a
+// $650 shop rung: `bizUnlocked("arcade")` is false until it is bought, and
+// drawWorld only draws a business that is unlocked, so before that purchase
+// there is NO BUILDING at 1620-1800 - it is the EMPTY LOT the shop tooltip
+// names. The table said "THE ARCADE WINDOW" regardless, so the very first bored
+// crab in a new save (the shack spans 1220-1560 and WANDER_PX is 340, so every
+// shack post reaches 1578) stood on bare sand under a status line that named a
+// building the player had never seen. Matt caught it from a deployed build.
+//
+// THE LIE WAS THE LABEL, NOT THE LANDMARK, and that is why `needs`/`alt` rather
+// than a filter. The x is a legitimate patch of promenade either way, and a crab
+// staring at the lot where the arcade ISN'T is the cure ledger read out loud -
+// the same register as the I'D KILL FOR AN ARCADE quip. Filtering the spot out
+// instead would shrink `near` for exactly the posts that need it most: a crab on
+// the shack's pass (1560) keeps only the pier rail, and one mid-shack keeps only
+// a tide line - and a post that falls to ZERO gets `wanderSpot` -> null, which
+// is the day-1 freeze WANDER_AT and the BORED_IDLE trickle exist to prevent. It
+// would also move both srand() draws, making a cosmetic fix a balance change
+// owing a matrix. `needs`/`alt` touches no draw and no Q20 field: sim-inert by
+// construction, on a tree that is frozen to maintenance.
 const WANDER_SPOTS = [
   { x: 640,  label: "THE TOWN TAP" },        // beside the notice board
   { x: 716,  label: "THE NOTICE BOARD" },    // reading postings they'd never take
   { x: 908,  label: "THE TIDE LINE" },       // the sand between the bar and the showers
   { x: 1145, label: "THE SEA WALL" },
   { x: 1180, label: "THE TIDE LINE" },       // the gap between the showers and the shack
-  { x: 1578, label: "THE ARCADE WINDOW" },   // nose to the glass, no token in pocket
+  { x: 1578, label: "THE ARCADE WINDOW",     // nose to the glass, no token in pocket...
+    needs: "arcade", alt: "THE EMPTY LOT" }, // ...and the bare lot before there is any glass
   { x: 1858, label: "THE PIER RAIL" },       // watching the fishers cast (clear of FISHING_SPOTS)
 ];
+// RESOLVED LIVE, at the moment the status line is READ rather than when the spot
+// was picked. A wander lasts WANDER_DWELL + up to 10s, which is comfortably long
+// enough for the player to buy the arcade while a crab is stood in front of it -
+// and a label frozen at pick time would then leave that crab watching AN EMPTY
+// LOT with the machines lit up behind it. The whole point of the fix is that the
+// status line agrees with the world, so it has to agree with it CONTINUOUSLY.
+// The rival stakeout builds its own label (`eyeing`) and carries no `needs`, so
+// it falls through unchanged.
+function wanderLabel(w) { return w.needs && !bizUnlocked(w.needs) ? w.alt : w.label; }
 // RULE 3 from the design doc: BOREDOM YIELDS TO EVERYBODY. Boredom is the need
 // of a crab whose life is otherwise fine. A crab who is starving, parched or
 // dead on their feet has no business wandering off to watch the sea, and this
@@ -6628,7 +6660,11 @@ function wanderSpot(c, post) {
   } else {
     s = near[(srand() * near.length) | 0];
   }
-  return { x: s.x, y: clearSpotY(s.x, 150 + ((srand() * 3) | 0) * 6), label: s.label };
+  // `needs`/`alt` ride along so wanderLabel can re-resolve on every read - the
+  // pick is a snapshot, the label is not. Both are undefined for the six
+  // permanent landmarks, which is exactly the old object plus two absent keys.
+  return { x: s.x, y: clearSpotY(s.x, 150 + ((srand() * 3) | 0) * 6),
+           label: s.label, needs: s.needs, alt: s.alt };
 }
 const WANDER_QUIPS = ["NOTHING DOING", "JUST STRETCHING MY LEGS",
   "WONDER IF THEY'RE BITING", "BACK IN A TICK"];
@@ -17917,8 +17953,11 @@ function crabStatus(c) {
   if (c.dsC === DS.working) {
     // IDLE HANDS: still clocked in, just not standing where you left them
     // the rival's stakeout reads as what it is, not as a stroll
-    if (c.wanderT > 0 && c.wander) return (c.wander.eyeing ? "SIZING UP " : "WATCHING ") + c.wander.label;
-    if (c.wander) return (c.wander.eyeing ? "WALKING OVER TO " : "WANDERED OFF TO ") + c.wander.label;
+    // ...through wanderLabel, so a landmark that is not built yet is named for
+    // what is actually standing there (WANDER_SPOTS: the arcade window is an
+    // empty lot until the $650 rung is bought)
+    if (c.wanderT > 0 && c.wander) return (c.wander.eyeing ? "SIZING UP " : "WATCHING ") + wanderLabel(c.wander);
+    if (c.wander) return (c.wander.eyeing ? "WALKING OVER TO " : "WANDERED OFF TO ") + wanderLabel(c.wander);
     if (c.ksC === KS.work && c.slotKind === "board") return "CHOPPING";
     if (c.ksC === KS.work && c.slotKind === "grill") return "GRILLING";
     if (c.ksC === KS.toStallClean || c.ksC === KS.cleaningStall) return "SCRUBBING A STALL";

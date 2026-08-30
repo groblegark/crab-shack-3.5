@@ -1,0 +1,22 @@
+{
+  "release": "cs-suite-330-61416e3-kcqn",
+  "armId": "js-4",
+  "index": 4,
+  "sha": "61416e3db55a2591653328eb0571c162ba0d6e2c",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "4/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main"
+  },
+  "exitCode": 0,
+  "wallMs": 154267,
+  "verdict": "38/38 passed in slice 4/12 (154.2s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  staff meals: closing crew cooks their own dinner, at retail (3429ms)\n  PASS  save guard: a lab session never buries the slot it booted over (1821ms)\n  PASS  slots: a legacy single-key save migrates into slot 1, losing nothing (29ms)\n  PASS  stalls can never wedge: abort frees them, and a soak stays clean (1831ms)\n  PASS  juicebar economics: ledger flows, register income, staff retail (1728ms)\n  PASS  tired: the morning and evening shifts end the week level (78162ms)\n  PASS  staff meals: AT COST and FREE charge exactly what they say (512ms)\n  PASS  auto-manage: grants a sick day and calls OT for the gap, without wedging (11766ms)\n  PASS  fishing experience: tiers accrue, save, and pay out on the water (56ms)\n  PASS  idle hands: a bored crab leaves its post - and an order brings it back (61ms)\n  PASS  wage: underpaying loses you staff - grumble, warning, then feet (4840ms)\n  PASS  ferry: the arming tap times out, and an old save never won (36ms)\n  PASS  ferry: the office is shut, and she is nameless, until the arcade is fitted (9ms)\n  PASS  surf: the sea rations it, the peak gently decays to zero at twelve, and a crowd takes the edge off (1299ms)\n  PASS  ferry: a batch lands, walks down the pier, and reaches the town (43ms)\n  PASS  measurement: a bored walkout and a pay walkout share one counter (4166ms)\n  PASS  the hall's lists scroll: every row of every one of them is reachable (5015ms)\n  PASS  departures: the card waits behind the day report, then pages itself (350ms)\n  PASS  voting is an ACTION: crabs walk to a table, and nothing is counted until the count (4199ms)\n  PASS  sleep debt: bad nights COMPOUND, and good nights REPAY (not erase) (7707ms)\n  PASS  hotel: a room is CAPITAL - it costs the owner's till and the landlord takes his cut (90ms)\n  PASS  a hire is something you can see happen (525ms)\n  PASS  a shop's takings show on its owner's card the moment they land (1871ms)\n  PASS  music/shipmap.json ships a same-origin path for every entry (0ms)\n  PASS  the ticker sits in free HUD space at both canvas heights (57ms)\n  PASS  missing payday costs the crew, not the lease (7844ms)\n  PASS  crab-as-document: a hostile document is refused by name (18ms)\n  PASS  civics receipt: a stranger culture's bent stake gives a DIFFERENT sentence (the ruling the receipt honors) (9040ms)\n  PASS  the tariff: capped by fundNeed, silent at rate 0 or under another purse, and the books roundtrip (50ms)\n  PASS  toast: a message longer than the card CRAWLS, and every character reaches the screen (109ms)\n  PASS  the biz catalog: a declared shop and a priced import build pending, and change no town byte (2164ms)\n  PASS  cultureways: the apron is refused - an UNDECLARING culture is never converted (398ms)\n  PASS  brains: the citizen brain agrees with the errand scorer it distilled (2163ms)\n  PASS  the stamp gate watches every file a player is served (1ms)\n  PASS  stream: the view's own stream is the session's, and a save does not touch it (1609ms)\n  PASS  personal space: leavers line the pier, and the line never costs the boat (185ms)\n  PASS  E5 byte-neutral: the shipped bundle declares no ramp, drift or acceptance, so nothing fires (8ms)\n  PASS  rethink: two town days of switches stay countable - inertia is the default (974ms)\n38/38 passed in slice 4/12 (154.2s)\n"
+}

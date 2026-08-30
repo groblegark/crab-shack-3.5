@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-61416e3-kcqn",
+  "armId": "wasm-9",
+  "index": 21,
+  "sha": "61416e3db55a2591653328eb0571c162ba0d6e2c",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "9/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 73644,
+  "verdict": "38/38 passed in slice 9/12 (73.6s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  fast-forward (6x dt) stays stable (519ms)\n  PASS  npc: SUDSY dines at the player shack (2972ms)\n  PASS  slots: the preview card reflects the town it came from (1626ms)\n  PASS  laundromat removal: old save migrates, refund fires exactly once (36ms)\n  PASS  orders: a walker gets past a stationary pin (route around, or sidestep) (59ms)\n  PASS  hiring converts a visiting tourist (identity kept, entity gone, homeless, works today) (91ms)\n  PASS  fish market: 15 days settle into a band, never a daily sawtooth (8092ms)\n  PASS  roster: the book chip swaps register and resets sort, filter and page (1328ms)\n  PASS  closure soak: a town with no shower house runs for weeks without wedging (11369ms)\n  PASS  microsleep: the nod holds the station slot, then gives it back (3781ms)\n  PASS  tips: the counter gets a token, the table gets the lot (18ms)\n  PASS  no card prints text on top of its own text (1261ms)\n  PASS  horizon + mist are pure draw: the sim does not know they exist (3835ms)\n  PASS  rivalry: her interest builds from HER OWN books, and it is visible long before the offer (10495ms)\n  PASS  hotel: a guest asleep in their room holds ONE state, and the card holds still (1372ms)\n  PASS  the levy bills the player's own till, by name, in the ledger (983ms)\n  PASS  departures: every quote is DERIVED - one changed fact, one changed line (15ms)\n  PASS  departures: a stay survives a save and a reload (2193ms)\n  PASS  the ballot box roundtrips save/load, and a reload conjures no paper and no second vote (3542ms)\n  PASS  care-lane bar: INERT on a town that sleeps - it only ever bars a crab in real debt (3032ms)\n  PASS  the shop tooltip promises what the button actually does (500ms)\n  PASS  no fixed sentence on a card is trimmed to a pair of dots (18ms)\n  PASS  every track in the playlist is a file that exists (12ms)\n  PASS  the record box scrolls without the drag thumb (8ms)\n  PASS  the wage floor lifts a packet, never cuts one, and never moves a posted rate (2170ms)\n  PASS  the pigway worked example stays a valid document the MCP can serve (21ms)\n  PASS  need-weight matrix: the program twin and the lambda agree at NON-identity, on both consumers' arithmetic (34ms)\n  PASS  civics ballots: the adopted ladder preserves every save's index meaning (ruling 4) (10ms)\n  PASS  civics eligibility: the franchise predicates are byte-equal to the engine's inlined gates (7127ms)\n  PASS  the body: the clamps refuse a hostile physiology, each by name (21ms)\n  PASS  foodways: the slop opens a pig's purse, and the WEIGHTS open it (19ms)\n  PASS  space: every position rides the Q8 grain, all day (941ms)\n  PASS  saves: a ver-3 envelope is the zero delta (973ms)\n  PASS  the sim's numbers are integers - the tripwire the no-float receipt lacked (1280ms)\n  PASS  load: the furniture forgets its guests, and the BIT is where it forgets (3543ms)\n  PASS  policies: the slot registry answers who decides, and refuses surfaces that were never registered (12ms)\n  PASS  rep: the gate hears a people's OWN word - hearsay boards the first pig, bad news beats crab enthusiasm (11ms)\n  PASS  spend reserve: a housed crab keeps tonight's rent back, by temperament (233ms)\n38/38 passed in slice 9/12 (73.6s)\n"
+}

@@ -1,0 +1,23 @@
+{
+  "release": "cs-suite-330-61416e3-kcqn",
+  "armId": "wasm-6",
+  "index": 18,
+  "sha": "61416e3db55a2591653328eb0571c162ba0d6e2c",
+  "entry": "tools/suite.mjs",
+  "args": [
+    "--slice",
+    "6/12"
+  ],
+  "env": {
+    "SIMLIB_REALM": "main",
+    "SIMLIB_KERNEL": "wasm"
+  },
+  "exitCode": 0,
+  "wallMs": 61987,
+  "verdict": "38/38 passed in slice 6/12 (61.9s)",
+  "failures": [],
+  "cores": 2,
+  "hostCores": 8,
+  "jsonTail": null,
+  "stdoutTail": "  PASS  no crab freezes mid-walk (baseline) (2904ms)\n  PASS  save guard: an empty slot still receives the first town (21ms)\n  PASS  game.js carries no NUL byte (a binary-classified file blinds grep) (1ms)\n  PASS  boat: flush fisher climbs the ladder; catch rate rises (3482ms)\n  PASS  the drop nudge is an incentive: a crab who is not thirsty walks away (1357ms)\n  PASS  days off: cover shifts + stagger keep every shop lit (1224ms)\n  PASS  fish market: scarcity walks the price to the ceiling; the world supplies there (3811ms)\n  PASS  census: rows derive live state, and sort + filter actually move (469ms)\n  PASS  failure: an owner who leaves the town leaves a business, not an orphan (2020ms)\n  PASS  idle hands: a crab can be restless on DAY ONE (the bar is under one lump) (61ms)\n  PASS  wage: overpaying wins a hire the standard rate could not - the fisher weighs the water (51ms)\n  PASS  the beach ball is LIMITED fun (521ms)\n  PASS  a town saved mid-errand reloads and keeps running (574ms)\n  PASS  swim: the calm sea offers a dip, it is the cheapest cure, and it never eats the ball (862ms)\n  PASS  visitors: a guest stays the night and leaves on a later ferry (and roundtrips save/load) (589ms)\n  PASS  a bowl is bought from the shack at a price, and the shack buys the fish (781ms)\n  PASS  the town hall survives a save and a reload, ledger and all (3124ms)\n  PASS  departures: the card prints inside the canvas and never on top of itself (1573ms)\n  PASS  ballots are PAPER: bought off the ferry, on the ledger, and they run out (2193ms)\n  PASS  sleep debt: the ledger counts NIGHTS, not hours awake (the M/E trap) (611ms)\n  PASS  accommodation: beds, cabanas, the bills they carry and a guest asleep in one all roundtrip (514ms)\n  PASS  TODAY is history: the panel answers is-my-money-going-up without forecasting (1309ms)\n  PASS  the playlist is energy-matched, and the event tracks stay out of the rotation (20ms)\n  PASS  an iOS refusal latches instead of re-arming every frame (10ms)\n  PASS  a streamed town still reaches a same-origin track when the browser refuses release assets (32ms)\n  PASS  back pay is paid before tonight's wages, and the bank has a limit (5857ms)\n  PASS  depart weights: a culture's thumb re-orders the card, and the clamps refuse a bad one (20ms)\n  PASS  civics: a stranger's document declares its own stakes, or is refused by name at the door (27ms)\n  PASS  civics calendar/relief: the scalars are byte-equal to the engine constants (9ms)\n  PASS  appeal: a cultureway's nudge terms land in the engine's own units, and only for its own folk (8ms)\n  PASS  pigs: word reaches the mainland, and only then does a pig sail (15ms)\n  PASS  settlers: the walk-in manifest draws nothing until a share is declared, then mints the people (9ms)\n  PASS  surf: the paddle-out is its own surface - a firing day neither silences the crab brain nor books as 'none' (14793ms)\n  PASS  the news board: every announcement fits the column it prints in, and none is silently dropped (26ms)\n  PASS  load: a town loaded onto a lived-in world is the town loaded clean (9238ms)\n  PASS  errands: every stop has a word the brain knows, save the two script-owned fun stops (20ms)\n  PASS  the boat lands a citizen's body: arrival needs sit in the hire band (49ms)\n  PASS  the arcade: the chore is named for the shop it happens in (3711ms)\n38/38 passed in slice 6/12 (61.9s)\n"
+}
