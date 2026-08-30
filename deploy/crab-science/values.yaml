@@ -16,6 +16,15 @@ repo: https://github.com/groblegark/crab-shack-3.5.git
 # reproducible after the branch moves. kube.mjs sets this.
 gitRef: 0000000000000000000000000000000000000000
 
+# Clone credential for a PRIVATE repo. Names a Secret in THIS namespace with
+# a `token` key (a GitHub PAT / fine-grained token with read access to
+# .Values.repo); the clone init container feeds it to git through GIT_ASKPASS,
+# so the token never lands in the URL, .git/config, process args, or a
+# failed-clone log line. Empty (the default) => anonymous clone, which is what
+# the PUBLIC 3.5 tree wants and is byte-for-byte unchanged. CS4's values set
+# this because crab-shack-4 is private (Phase 0, plan kd-NO3Y8a4nW4).
+gitCredentialSecret: ""
+
 # Repo-relative path of the experiment manifest, committed at gitRef.
 manifest: experiments/suite-312.json
 # Number of arms in that manifest == Job completions. kube.mjs reads the
