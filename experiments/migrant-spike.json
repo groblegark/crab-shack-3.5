@@ -1,0 +1,11 @@
+{
+  "name": "migrant-spike",
+  "resources": { "requests": { "cpu": "2", "memory": "6Gi" }, "limits": { "cpu": "2", "memory": "10Gi" } },
+  "nodeSelector": { "karpenter.sh/nodepool": "ephemeral-pool" },
+  "tolerations": [{ "key": "gasboat.ephemeral", "operator": "Equal", "value": "true", "effect": "NoSchedule" }],
+  "arms": [
+    { "id": "migrant-s7",  "entry": "tools/neuro/trunk-spike/migrant.mjs", "args": ["--seed", "7"]  },
+    { "id": "migrant-s11", "entry": "tools/neuro/trunk-spike/migrant.mjs", "args": ["--seed", "11"] },
+    { "id": "migrant-s42", "entry": "tools/neuro/trunk-spike/migrant.mjs", "args": ["--seed", "42"] }
+  ]
+}
