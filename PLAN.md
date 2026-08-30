@@ -4657,7 +4657,15 @@ chatter (0.857 with the chatter off). The cure takes the edge off; nothing more.
   dirty stall stops loitering by the door and takes itself to the tide line, the
   sea wall, the notice board, the pier rail or the arcade window it cannot
   afford (`WANDER_SPOTS`, filtered to `WANDER_PX` **340** of their post, every
-  spot through `clearSpotY`). **Still clocked in** — `kstate` stays `"idle"` and
+  spot through `clearSpotY`). Six of the seven landmarks are permanent town
+  furniture; the arcade is a **$650 shop rung**, and `drawWorld` only draws a
+  business that is `bizUnlocked` — so that entry carries `needs: "arcade"` and
+  `alt: "THE EMPTY LOT"`, and `wanderLabel` resolves it **at read time** (bug
+  kd-xFaXxV413k: the static table named the building anyway, and the first bored
+  shack crab of a new save stood on bare sand reading `WATCHING THE ARCADE
+  WINDOW`). Deliberately a label and not a filter: dropping the landmark would
+  shrink `near` for the posts that need it most and move both `srand()` draws,
+  making a cosmetic fix a balance change. **Still clocked in** — `kstate` stays `"idle"` and
   the claim scan runs every frame, so a guest landing costs exactly the walk
   back and nothing else.
   What keeps it CHARMING at saturation (boredom is 0.72–0.85 town-wide with
@@ -4929,7 +4937,8 @@ Every arm is the same 8 seeds through the same harness with only
   0.131 → 0.127.
 
 ### Legibility
-Statuses: `WANDERED OFF TO THE ARCADE WINDOW` / `WATCHING THE PIER RAIL` /
+Statuses: `WANDERED OFF TO THE ARCADE WINDOW` (`THE EMPTY LOT` until it is
+bought — `wanderLabel`) / `WATCHING THE PIER RAIL` /
 `CHEWING THE FAT WITH SALTY` / `NODDED OFF AT THE GRILL` /
 `ASLEEP WHERE THEY DROPPED` / `WALKED OUT - ON THE BEACH`. Moods **RESTLESS**
 (0.6) and **AT A LOOSE END** (0.95), slotted into `crabMood`'s ladder so a crab

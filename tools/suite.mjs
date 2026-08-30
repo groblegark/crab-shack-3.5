@@ -5193,12 +5193,17 @@ scenario("social destination: the wander pick STEERS toward company, and _failOf
       O.wander = { x: 1578, y: 150, label: "THE ARCADE WINDOW" };
       const post = 1718;   // WANDER_PX=340 -> near = { arcade 1578 (140px), pier 1858 (140px) }
       const near = WANDER_SPOTS.filter(s => Math.abs(s.x - post) <= WANDER_PX);
+      // TALLIED BY X, NOT BY LABEL. This is a DISTRIBUTION gate - which landmark
+      // the draw picked - and the arcade landmark's label is not a constant: it
+      // reads THE EMPTY LOT until the $650 rung is bought (WANDER_SPOTS needs/alt),
+      // and this fixture is an idleTown that has bought nothing. Keying on the
+      // label made a cosmetic string load-bearing for a probability assertion.
       const tally = {};
       for (let t = 0; t < 600; t++) {
         const w = wanderSpot(C, post);
-        tally[w.label] = (tally[w.label] || 0) + 1;
+        tally[w.x] = (tally[w.x] || 0) + 1;
       }
-      return JSON.stringify({ nearN: near.length, arcade: tally["THE ARCADE WINDOW"] || 0, total: 600 });
+      return JSON.stringify({ nearN: near.length, arcade: tally[1578] || 0, total: 600 });
     })()`));
   };
   const on = arm(false), off = arm(true);
@@ -5214,6 +5219,64 @@ scenario("social destination: the wander pick STEERS toward company, and _failOf
   // ...and the steer is a real, large difference, not seed noise between arms.
   if (!(on.arcade > off.arcade + 90))
     return `the steer is within noise: on ${on.arcade} vs off ${off.arcade} of ${on.total}`;
+  return true;
+});
+
+// THE LANDMARK THAT ISN'T BUILT YET (bug kd-xFaXxV413k, Matt from a deployed
+// build: "crabs watch window of nonexistent arcade").
+//
+// Six of the seven WANDER_SPOTS are permanent town furniture. The seventh is a
+// $650 shop rung: drawWorld only draws a business that is `bizUnlocked`, so
+// until the arcade is bought there is no building at 1620-1800 - and the static
+// table named it anyway, so the first bored crab of a new save stood on bare
+// sand reading WATCHING THE ARCADE WINDOW. The shack spans 1220-1560 and
+// WANDER_PX is 340, so this is reachable from every shack post on DAY 1.
+//
+// The gate is on the string the PLAYER reads (crabStatus), not on wanderLabel,
+// because the defect was never in a helper - it was in what the follow card
+// told them about the world. And it checks BOTH directions across a purchase on
+// ONE unchanged wander object: the resolution is live, so a crab stood in front
+// of the lot when the player buys the arcade is watching the ARCADE by the next
+// frame rather than an empty lot with the machines lit up behind it.
+scenario("idle hands: an unbuilt arcade is THE EMPTY LOT on the follow card, and buying it re-labels the same wander", () => {
+  const sim = createSim({ seed: 21 });
+  idleTown(sim, 2);
+  if (!sim.runUntil(`crabs.some(c => c.dayState === "working" && c.kstate === "idle")`, { maxSteps: 300000 }))
+    return "no crab ever reached a kitchen shift";
+  // Everything below runs in ONE realm call with no frame stepped between the
+  // two reads, so the crab cannot be handed an order (which ends a wander) in
+  // the gap and the "same wander object" claim is literal rather than hopeful.
+  const r = JSON.parse(sim.G(`(function () {
+    window._noRival = true; refreshHatches();      // no stakeout branch: a plain landmark pick
+    const c = crabs.find(x => x.dayState === "working" && x.kstate === "idle");
+    const nearBefore = WANDER_SPOTS.filter(s => Math.abs(s.x - 1578) <= WANDER_PX).length;
+    let w = null;                                  // post 1578 -> the lot and the pier rail, ~half the draws
+    for (let i = 0; i < 400 && !w; i++) { const t = wanderSpot(c, 1578); if (t.x === 1578) w = t; }
+    if (!w) return JSON.stringify({ err: "wanderSpot never returned the 1578 landmark in 400 draws" });
+    c.wander = w; c.wanderT = 1;                   // arrived: the WATCHING branch of crabStatus
+    const locked = { unlocked: bizUnlocked("arcade"), status: crabStatus(c) };
+    coins = 200000; tryBuy("arcade");
+    const built = { unlocked: bizUnlocked("arcade"), status: crabStatus(c), sameSpot: c.wander === w };
+    const nearAfter = WANDER_SPOTS.filter(s => Math.abs(s.x - 1578) <= WANDER_PX).length;
+    return JSON.stringify({ locked, built, nearBefore, nearAfter });
+  })()`));
+  if (r.err) return r.err;
+  if (r.locked.unlocked) return "fixture drifted: idleTown already owns the arcade";
+  if (!r.built.unlocked) return "fixture drifted: tryBuy did not unlock the arcade";
+  if (!r.built.sameSpot) return "the purchase replaced the wander - this gate proves nothing about live re-reading";
+  // THE BUG. Nothing may name the arcade while the lot is empty.
+  if (r.locked.status.indexOf("ARCADE") >= 0)
+    return "a crab watched a building that is not in the world: " + r.locked.status;
+  if (r.locked.status.indexOf("THE EMPTY LOT") < 0)
+    return "the follow card does not name what is actually there: " + r.locked.status;
+  // ...and the fix is not a permanent rename: the window is a window once built.
+  if (r.built.status.indexOf("THE ARCADE WINDOW") < 0)
+    return "the arcade was bought and the card still says: " + r.built.status;
+  // INERTNESS. The landmark is never filtered out, so \`near\` - and with it both
+  // srand() draws in wanderSpot - is identical either side of the purchase. That
+  // is what makes this a label fix and not a balance change owing a matrix.
+  if (r.nearBefore !== r.nearAfter || r.nearBefore !== 2)
+    return `the candidate set moved with ownership: ${r.nearBefore} -> ${r.nearAfter} (expected 2 both)`;
   return true;
 });
 
