@@ -46,7 +46,8 @@ stays engine. So the battery sweeps **one geometry** — no per-culture
 multiplication. Palette variation enters the harness in exactly two places:
 the no-colour-only collapse test (§3 B5) and per-skin goldens (§2 I7). The
 base font pair is **fixed at 5x7 + 3x5** (UX-7, kd-eQRZgVPJCj); the charset is
-the 58-glyph English-only authored contract, declared in writing here (§3 B2).
+the `english-58` English-only authored contract, declared in writing here
+(§3 B2 — the name is a label, not a count; measured membership is 55).
 
 ## 1. THE MANIFEST FORMAT
 
@@ -466,14 +467,24 @@ content-box area, taken at the densest required fixture state
 **0.30 PROVISIONAL** — to be calibrated at first port against the densest 3.5
 card a reviewer accepts and the mush a reviewer rejects.
 
-**B2 `charset` — English-only, in writing.** The 58-glyph uppercase charset
-is the authored contract; the manifest's `charset` table IS the declaration
-UX-7 requires. Sweep every string every surface can print, over `every-branch`
-fixtures (the departures precedent: the whole rule table crossed against every
-modifier). Any character outside the table is red; the font tables cover
-exactly the contract; the fallback reports instead of substituting (I1e). No
-string table, no extended-glyph seam day one; a per-culture font that needs
-new glyphs is a scoped CS4-18 amendment **that must amend this table first**.
+**B2 `charset` — English-only, in writing.** The uppercase charset named
+`english-58` is the authored contract; the manifest's `charset` table IS the
+declaration UX-7 requires. Sweep every string every surface can print, over
+`every-branch` fixtures (the departures precedent: the whole rule table
+crossed against every modifier). Any character outside the table is red; the
+font tables cover exactly the contract; the fallback reports instead of
+substituting (I1e). No string table, no extended-glyph seam day one; a
+per-culture font that needs new glyphs is a scoped CS4-18 amendment **that
+must amend this table first**.
+
+*The name vs the count, reconciled once (kd-dKUTfmeogZ).* `english-58` is the
+UX-7 recon's historical label and stays as the contract's stable identity —
+the battery keys off the NAME, and renaming an identity is pure churn. The
+MEASURED membership — the union of `FONT` and `FONT_SMALL`, authored as
+measured in the CS4 tree's `screen/font.mjs` `CHARSET_ENGLISH_58` — is **55
+glyphs including the space**. Either the recon counted three glyphs that
+never existed or it counted a table that never shipped; nobody re-derives it
+from here. The name is an identity, not a count.
 
 **B3 `reduced-motion` — honoured for the blink/pulse class.** All chrome
 animation of the blink/pulse class routes through **one declared helper**.
