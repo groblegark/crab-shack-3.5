@@ -197,6 +197,22 @@ so the default answer is "body + policy, never brain."
   exclusive / priority-ordered) is **DIS-6**. The row schema does not forbid two
   rows being active on one town; the per-actor resolution POLICY is the decision.
 
+### DIS FORK RESOLUTIONS (operator, @matthew.baker, 2026-09-01)
+
+All six forks above are now RULED. Each answer binds Step 2 (kernel mechanics);
+none required a change to the field table above — every ruling either confirms a
+reserved field or settles a Step-2 policy. Full reasoning + Step-2 consequences
+live in the linked report beads.
+
+| fork | ruling | binds Step 2 to | decision / report |
+|---|---|---|---|
+| **DIS-1** contagious-in-incubation | **per-row author knob** | `contagiousInIncubation` is HONORED as authored (bool = off/full; int sixteenths = partial pre-symptomatic transmission); incubation stays invisible to all surfaces regardless | kd-8kkX1h6Hid / kd-C0mZssD0Iu |
+| **DIS-2** brain observables | **body + policy in v1, door left open** | v1 keeps infection/immunity in per-actor local state, five need planes verbatim, NO registry bump / NO retrain; shape the state so a FUTURE brain observable is an additive bump+retrain, not a rewrite (the one deferred option kept open) | kd-PnkFgIqn9K / kd-JcqVLU5wfs |
+| **DIS-3** immunity permanence | **three modes** | `immunity.mode` ∈ {`none`,`course`,`permanent`} is the whole bound; the only waning is `permanent`+`durationDays` as a hard expiry (a day comparison), NEVER a decay curve / per-day erosion roll | kd-uwOcisr5vV / kd-3T8dyyjfPu |
+| **DIS-4** player counter-levers | **informed avoidance only (v1)** | NO port-close / visitor-refusal policy slot in v1; counterplay = the free-diagnosis + dock-advisory surfaces (Step 3). Step 5 must prove *informed → avoidance effective → consequence real* before the first DIRE row | kd-zc7EbbsnrJ / kd-dx1N4Yjgd2 |
+| **DIS-5** cross-culture severity | **emergent from immunity only** | NO `crossCulture` knob; asymmetry comes only from `immunity`+`endemic` dynamics. Home immunity is EARNED over played time, not granted at world-gen (no born-immune shortcut) | kd-apOzWJmHyi / kd-m0cPrqhV1J |
+| **DIS-6** co-infection | **allowed (stacking under clamps)** | per-actor state is a SET of `(crab,malady)` records; effects compose then the PRODUCT is clamped (the barrier); each malady runs its own course + lethality; re-exposure while sick is NOT a no-op; compose in stable `id` order for a fingerprint independent of infection arrival | kd-2Nhd5JWDl6 / kd-gYFukZCzeT |
+
 ## 2. THE HOOK-TABLE REGISTRY (Layer 0 meets the kernel)
 
 `MR_TASTE` set the pattern: **the kernel reads data, never learns a
