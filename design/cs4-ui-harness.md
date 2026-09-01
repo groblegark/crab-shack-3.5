@@ -47,7 +47,8 @@ multiplication. Palette variation enters the harness in exactly two places:
 the no-colour-only collapse test (§3 B5) and per-skin goldens (§2 I7). The
 base font pair is **fixed at 5x7 + 3x5** (UX-7, kd-eQRZgVPJCj); the charset is
 the `english-58` English-only authored contract, declared in writing here
-(§3 B2 — the name is a label, not a count; measured membership is 55).
+(§3 B2 — the name is a label, not a count; measured membership is 66 since
+the echo-channel ruling kd-IvA742ICS6 widened it, battery rev 2).
 
 ## 1. THE MANIFEST FORMAT
 
@@ -481,10 +482,33 @@ must amend this table first**.
 UX-7 recon's historical label and stays as the contract's stable identity —
 the battery keys off the NAME, and renaming an identity is pure churn. The
 MEASURED membership — the union of `FONT` and `FONT_SMALL`, authored as
-measured in the CS4 tree's `screen/font.mjs` `CHARSET_ENGLISH_58` — is **55
-glyphs including the space**. Either the recon counted three glyphs that
-never existed or it counted a table that never shipped; nobody re-derives it
-from here. The name is an identity, not a count.
+measured in the CS4 tree's `screen/font.mjs` `CHARSET_ENGLISH_58` — was **55
+glyphs including the space** at seeding. Either the recon counted three
+glyphs that never existed or it counted a table that never shipped; nobody
+re-derives it from here. The name is an identity, not a count — which is why
+it survives the widening below unchanged, at **66 measured glyphs**.
+
+*The echo channel, ruled (kd-IvA742ICS6, ceremony four, rev 2).* Door
+sentences (`streamProblem` / `sessionProblem` / `frameEnvelopeProblem`
+refusals) ECHO hostile wire input mid-sentence, and no authored charset
+closes over an attacker's bytes — so the seeding scoped B2's day-1 domain to
+authored copy and filed the framing question as an open ruling rather than
+deciding it silently. The operator ruled: **widen**. `english-58` gains the
+eleven diagnostic-framing glyphs the door sentences' authored prose measures
+— `"` `;` `[` `]` `^` `_` `{` `}` `§` `—` `…` — hand-authored into BOTH
+fonts (B2's own law: every contract glyph exists in a font), so a door
+sentence landing on the HUD or client note renders pixel-true end to end
+whenever its echoed payload does; JSON-quoted echo of clean payloads now
+renders true as well, since the quote/bracket/brace punctuation
+`JSON.stringify` emits is in-contract. The echoed payload itself keeps the
+fonts' reporting `?` fallback as the honest rendering of untrusted bytes —
+that residue is accepted by the ruling, not exempted from it. The harness
+harvests the tampered-envelope door sentence onto the client-note fixtures
+with a charset-clean payload, so the framing is IN B2's sweep: a twelfth
+out-of-charset character in any door's prose goes red by machine. No
+exemption class exists; B2's domain is every string every surface can
+print, with the sole caveat that hostile payload bytes render as the
+reporting fallback they are.
 
 **B3 `reduced-motion` — honoured for the blink/pulse class.** All chrome
 animation of the blink/pulse class routes through **one declared helper**.
@@ -649,7 +673,10 @@ budgets, none of which is a pause).
 
 The CS4 tree's first `experiments/ui-harness-1.json`. Values marked
 provisional in §3 carry here; changing any of this after seeding is ceremony
-four.
+four. This appendix is the DAY-1 SNAPSHOT (rev 1) and stays as the seeding
+record; the live manifest in the CS4 tree is authoritative and has since
+amended — rev 2 widened `english-58` by the eleven diagnostic-framing glyphs
+(the echo-channel ruling, §3 B2, kd-IvA742ICS6).
 
 ```json
 {
