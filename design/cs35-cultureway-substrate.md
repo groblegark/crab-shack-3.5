@@ -71,7 +71,6 @@ v2 is strictly additive:
 | `foodways` | 0 | **live** (first slice 2026-08-22: dishes + items + the taught-then-learned gate; menus/drift later) | ingredients, recipes (BIZ-shaped rows), default menus, knowledge gates, exposure-drift params |
 | `management` | 0 | **new** | wage/tip/shift/meal-policy norms (the frozen conventions research §4 names) |
 | `conduct` | 0→1 | **new** | rule table first (hireable flags, taboo floors, complaint thresholds — the pig's whole conduct set is table-expressible); Layer-1 expressions when a rule needs a formula |
-| `maladies` | 0 | **new** | named diseases (CS4 disease program, plan kd-8eaukVv7X0): per-row id/name/blurb, `grade`, transmission params, incubation, course + care-lane modifiers, effects, immunity, endemicity, art kit — the authoring door for culturally-defined disease. Formalized in §1½ below |
 | `civics` | 0+1 | **future** | institutions, offices, policy step-tables, calendar phases, errand defs, invariants — lands with the capability APIs (phase E below) |
 
 **Versioning and migration**: `meta.ver` is the CULTURE author's version
@@ -90,13 +89,7 @@ apostrophes-only through `fitSmall` budgets (≤ ~38 diary, ≤ ~50 depart);
 tastes ≤ 64 entries in [0.5, 2.0]; purseMul [0.5, 1.5]; arrival repGate
 0..100, shareMax ≤ 0.5, shareRamp ≥ 1; foodways ≤ 32 recipes × ≤ 6 steps,
 pay/raw in whole cents on the author side crossing the ×100 boundary at
-load; maladies ≤ 32 rows, each `id` ≤ 24 chars and unique, `name` ≤ 40
-chars, `blurb` ≤ 120, every day count an integer 0..64 (no NaN, no
-negatives), `perContactRisk` and `endemic.ignitionChance` in thousandths
-0..1000, channel + incubation-contagion weights in sixteenths 0..16,
-effect multipliers in twentieths inside declared clamps (needRateMul
-0..160, speedMul/workMul 0..80), care-lane multipliers in twentieths
-0..80, immunity `durationDays` integer ≥ 1 when declared; Layer-1 (when it lands): expression source ≤ 1 KB, fuel ≤ 512 ops
+load; Layer-1 (when it lands): expression source ≤ 1 KB, fuel ≤ 512 ops
 per evaluation, tables it reads ≤ 4 KB. Every clamp fails with a named
 message at import; nothing fails at first draw. **The dogfood test stands
 as the format's acceptance bar: if the island's own ways cannot be written
@@ -112,106 +105,6 @@ document the game ships: the shipped pig is generated from
 drifted, so read pigway.json for the *shape* and the fixture for what the
 live pig *is*. The machine-checkable schema is
 `design/cultureways/cultureway.schema.json`.
-
-## 1½. THE MALADIES SECTION — the authoring door for disease (v2, strictly additive)
-
-*Formalizes the CS4 disease program's Step 1 (task kd-oCoUSQ2kfE) against the
-plan of record `gb bundle doc kd-8eaukVv7X0`. Amends the v2 table above: a new
-optional Layer-0 `maladies` section. Schema rule zero holds — no renames,
-additive only. This subsection is the SCHEMA (the validated door); the kernel
-that reads it is Step 2, and six authoring forks (DIS-1..DIS-6) are filed as
-decisions against this task, flagged inline where they touch a field.*
-
-**A malady is a cultureway section, and a section is a list of ROWS.** Each row
-authors one named disease. `maladies` is optional and absent-safe: a document
-with no `maladies` key is byte-identical to the pre-disease engine (the
-fingerprint discipline), so adding the section requires **no `meta.schema`
-bump** — it is forward-compatible by construction (unknown sections are ignored
-today; §1). The crab culture's generic 3.5 "sick" becomes the first authored
-row — `incubationDays: 0`, one care lane, the classic death-arming ladder — so
-the shipped behavior is the DEGENERATE CASE of the schema, never a parallel
-system.
-
-**The row.** Every field below is validated at import; nothing is validated at
-first draw. Grades bound authoring INTENT, not arithmetic — the clamps bound the
-numbers (no NaN, no negative day counts), never the horror (§ "Any culture is
-free to have terrible diseases", plan pillar 2).
-
-| field | shape + grid | clamp / rule | refusal |
-|---|---|---|---|
-| `id` | string | non-empty, ≤ 24 chars, unique within the section | `A MALADY WITH NO ID` / `A MALADY TWICE: <id>` |
-| `name` | string — printed on every surface | non-empty, ≤ 40 chars, apostrophes-only through the surface's `fitSmall` budget (dock advisory, dossier HEALTH row, follow-card tag, outbreak banner) | `A BAD MALADY NAME` |
-| `blurb` | string, optional | ≤ 120 chars | `A BAD MALADY BLURB` |
-| `grade` | enum | one of `nuisance` / `grave` / `dire` — drives UI weight + the calibration bar; DIRE is the honest "do not sail there while it burns" | `A BAD MALADY GRADE` |
-| `transmit.perContactRisk` | int **thousandths** 0..1000 | base exposure probability per qualifying contact; 0 = never transmits by contact | `A BAD MALADY RISK` |
-| `transmit.channels` | object, keys ⊆ {`work`,`dwelling`,`street`,`venue`} | each an int **sixteenths** 0..16 weighting `perContactRisk` on that channel's 2-D adjacency (§ ADR-2 radius = the contact graph); a missing channel = 0 (silent for that channel); an UNKNOWN key fails LOUD (the vacuous-mutation trap — a typo that weighted nothing is dead data) | `A BAD MALADY CHANNEL` |
-| `incubationDays` | int 0..64 | 0 allowed (= classic 3.5 shape); the ONLY fog — an incubating crab is invisible to every surface, the player included (plan pillar 4) | `A BAD MALADY DAY COUNT` |
-| `contagiousInIncubation` | bool **or** int sixteenths 0..16 | fraction of the symptomatic channel weights that apply while incubating. **DIS-1**: does the author get this knob, or is it fixed doctrine? The schema RESERVES the field either way; the decision picks which shape is honored | `A BAD MALADY INCUBATION` |
-| `courseDays` | int 1..64 | symptomatic course length once diagnosed | `A BAD MALADY DAY COUNT` |
-| `care` | object, keys ⊆ the CARE_LANES idiom | each a `{cureMul, dieMul}` pair in twentieths 0..80 (20 = ×1); the 3.5 per-lane cure/die ladder generalized per malady; unknown lane id fails LOUD | `A BAD MALADY CARE` |
-| `effects.needRateMul` | map, keys ⊆ the **five verbatim** need planes (CS4-05/05a) | int twentieths 0..160 (= ×[0,8]); unknown need id fails LOUD | `A BAD MALADY EFFECT` |
-| `effects.speedMul` / `effects.workMul` | int twentieths 0..80 (= ×[0,4]) | `workMul: 0` reproduces the 3.5 "sick day pays nothing → can't eat → sicker" money spiral | `A BAD MALADY EFFECT` |
-| `immunity.mode` | enum | `none` / `course` (only while sick) / `permanent`; per-(crab, malady) memory — what makes VARIETY bite (survived A, still naive to B) | `A BAD MALADY IMMUNITY` |
-| `immunity.durationDays` | int ≥ 1, optional (only with `permanent`) | omitted = lifetime; a waning permanent immunity when declared. **DIS-3** bounds this | `A BAD MALADY IMMUNITY` |
-| `endemic.ignitionChance` | int thousandths 0..1000 | per-settlement-day ignition roll in **home-culture towns only** (culturally SEEDED, plan pillar 3); everywhere else the malady arrives only by contact. `endemic.seasonality` reserved + ignored until the calendar exists (the `world`-section precedent) | `A BAD MALADY ENDEMIC` |
-| `art` | object, the cultureway `art` idiom | symptom pose/overlay, tint, particle, quipset; authored + validated under the art program's pipeline (kd-N3BfrR2km7) — pose rects validate against the palette like body art, and it never moves a fingerprint (render is the view, §2). The substrate reserves the sub-object and defers the kit's detailed clamps to the art idiom | `A BAD MALADY ART` |
-
-**Validation posture — `cultureProblem`, additive, named.** A `maladiesProblem(d.maladies)`
-check joins the existing chain exactly as `voiceProblem` / `departProblem` /
-`stakesProblem` do: `if (d.maladies != null) { const p = maladiesProblem(...); if (p) return p; }`.
-`maladies` must be an array (`A BAD MALADIES SECTION`); each entry an object
-(`A BAD MALADY`). Every clamp above fails with its NAMED message at import — a
-malady that fails is **refused at the validated door with the bundled row
-standing in its place** (the WAD fall-through / bundling rule, status box), never
-thrown at first draw. Absence of the section, and any single refused row,
-consume ZERO draws — the draw-count pin (§5) extends across the disease stage,
-so a hostile or half-authored `maladies` section is byte-identical to none.
-
-**Determinism.** All grids are integer and chosen HERE, at design time (the
-settled grid idiom, §2) — thousandths for probabilities, sixteenths for channel
-weights, twentieths for the multiplier family — so Step 2's kernel binds them
-without a later re-baseline. Ignition, exposure, course and outcome are ONE
-settlement stage consuming the closed RNG stream and hashed into the recursive
-day fingerprint (ADR-2 §4), like every other stage.
-
-**Data must bite (§5 applied to maladies).** Every authored row field owes an
-observability scenario: a malady whose effect no scenario can move is dead data
-or a missing test. The batch-mutation sweep (§5.2) extends to `maladies` keys.
-Whether disease is observable to the BRAIN as well as to policy and the player
-— an added need-plane observable, a `NEURO_REGISTRY_VERSION` bump and retrain —
-is **DIS-2**; v1 doctrine keeps infection/immunity in per-actor local state
-(the CS4-44 `field_plus_local_state` shape) with the five need planes verbatim,
-so the default answer is "body + policy, never brain."
-
-**What the maladies row deliberately does NOT own.**
-- **Player counter-levers** (close the port, turn away visitors) are POLICY —
-  they live in the `management` / `conduct` / `civics` slot space, not a malady
-  row. Whether they are in v1 scope is **DIS-4** (calibration doctrine wants the
-  avoid-decision loop proven before the first DIRE row lands).
-- **Cross-culture severity asymmetry** is EMERGENT from `immunity` memory (a
-  culture's own people are largely immune to their endemic malady; every visitor
-  is tinder). Whether authors ALSO get a direct knob — a strictly-additive
-  `crossCulture` severity map keyed by visitor culture — is **DIS-5**; the schema
-  reserves nothing extra for it now (emergent-only is the default).
-- **Co-infection resolution** (may a crab carry >1 active malady; allowed /
-  exclusive / priority-ordered) is **DIS-6**. The row schema does not forbid two
-  rows being active on one town; the per-actor resolution POLICY is the decision.
-
-### DIS FORK RESOLUTIONS (operator, @matthew.baker, 2026-09-01)
-
-All six forks above are now RULED. Each answer binds Step 2 (kernel mechanics);
-none required a change to the field table above — every ruling either confirms a
-reserved field or settles a Step-2 policy. Full reasoning + Step-2 consequences
-live in the linked report beads.
-
-| fork | ruling | binds Step 2 to | decision / report |
-|---|---|---|---|
-| **DIS-1** contagious-in-incubation | **per-row author knob** | `contagiousInIncubation` is HONORED as authored (bool = off/full; int sixteenths = partial pre-symptomatic transmission); incubation stays invisible to all surfaces regardless | kd-8kkX1h6Hid / kd-C0mZssD0Iu |
-| **DIS-2** brain observables | **body + policy in v1, door left open** | v1 keeps infection/immunity in per-actor local state, five need planes verbatim, NO registry bump / NO retrain; shape the state so a FUTURE brain observable is an additive bump+retrain, not a rewrite (the one deferred option kept open) | kd-PnkFgIqn9K / kd-JcqVLU5wfs |
-| **DIS-3** immunity permanence | **three modes** | `immunity.mode` ∈ {`none`,`course`,`permanent`} is the whole bound; the only waning is `permanent`+`durationDays` as a hard expiry (a day comparison), NEVER a decay curve / per-day erosion roll | kd-uwOcisr5vV / kd-3T8dyyjfPu |
-| **DIS-4** player counter-levers | **informed avoidance only (v1)** | NO port-close / visitor-refusal policy slot in v1; counterplay = the free-diagnosis + dock-advisory surfaces (Step 3). Step 5 must prove *informed → avoidance effective → consequence real* before the first DIRE row | kd-zc7EbbsnrJ / kd-dx1N4Yjgd2 |
-| **DIS-5** cross-culture severity | **emergent from immunity only** | NO `crossCulture` knob; asymmetry comes only from `immunity`+`endemic` dynamics. Home immunity is EARNED over played time, not granted at world-gen (no born-immune shortcut) | kd-apOzWJmHyi / kd-m0cPrqhV1J |
-| **DIS-6** co-infection | **allowed (stacking under clamps)** | per-actor state is a SET of `(crab,malady)` records; effects compose then the PRODUCT is clamped (the barrier); each malady runs its own course + lethality; re-exposure while sick is NOT a no-op; compose in stable `id` order for a fingerprint independent of infection arrival | kd-2Nhd5JWDl6 / kd-gYFukZCzeT |
 
 ## 2. THE HOOK-TABLE REGISTRY (Layer 0 meets the kernel)
 
