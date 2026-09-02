@@ -21,24 +21,41 @@ This note lives here rather than in a bead deliberately: the agent who would
 otherwise land a balance change reads `CLAUDE.md` at boot and will never open a
 doc bead.
 
-## DELIVERY IS FABLE-CLASS FOR NOW (CS4-46, Matt, 2026-08-30)
-**Implementation and final sign-off are performed by Fable-class agents** for the
-near term — the whole delivery path, not just the authored art of CS4-43.
+## CS4-46 IS RESCINDED — DELIVERY IS **NOT** FABLE-CLASS (Matt, 2026-09-02)
+**The model-class rule below was RESCINDED by the operator on 2026-09-02**
+(Slack thread `kd-jAnCKG6xiH`, standing advice `kd-1Er4Izc3jC`). Implementation
+and final sign-off are **no longer Fable-class**, and **the `cs` `crew-fable`
+role is RETIRED**.
 
-The sign-off half is the load-bearing one. CS4 deliberately *weakens* its own
-automated instrument: this tree's gate is two independent implementations
-agreeing (a check on the **spec**), and CS4 replaces it with golden fingerprints
-(a check on the **diff**) — where a wrong day-1 fingerprint is wrong forever AND
-green forever. A golden day must therefore be recorded from a **reviewed** run,
-and `backbone_allowed` left a pre-declared battery as the only blast-radius
-barrier.
+> **Spawn crews with the generic `--role crew`.** Do not pass `--role
+> crew-fable`, and do not pin a Fable model project-wide. Fable is reserved for
+> art/frontend agents, used conservatively.
+
+**This section is kept rather than deleted because deleting it is what makes it
+come back.** CS4-46 was cited as live doctrine *after* the rescission and it cost
+real work: on 2026-09-02 at 19:19Z the operator killed **five `crew-fable` pods
+in project `cs` in one sweep** — every one then in flight, including
+`cs-client-a-camera-2f6`, which a plan-captain had dispatched twenty minutes
+earlier "per CS4-46" while reading this file at boot. The rescission was already
+recorded in the plan epic and in advice; it was **not** recorded *here*, and this
+file is what an agent reads before it reads anything else. Leaving the old rule
+standing unmarked is a live footgun; leaving it marked is a receipt.
+
+**What SURVIVES the rescission — the reviewer, not the model class.** The
+sign-off half was always the load-bearing one, and its reasoning is untouched.
+CS4 deliberately *weakens* its own automated instrument: this tree's gate is two
+independent implementations agreeing (a check on the **spec**), and CS4 replaces
+it with golden fingerprints (a check on the **diff**) — where a wrong day-1
+fingerprint is wrong forever AND green forever. A golden day must therefore be
+recorded from a **reviewed** run, and `backbone_allowed` left a pre-declared
+battery as the only blast-radius barrier.
 
 > Until the corpus is seeded and the battery is declared, **the reviewer IS the
-> gate.**
+> gate — but the reviewer is NOT model-class-gated.**
 
-*"Near term"* has an expiry condition so it does not rot into folklore: **it lifts
-when the gate is a gate again** — golden corpus seeded from reviewed runs, and the
-battery declared ahead of the runs it judges.
+*"Near term"* keeps its expiry condition so it does not rot into folklore: **the
+reviewer-gate lifts when the gate is a gate again** — golden corpus seeded from
+reviewed runs, and the battery declared ahead of the runs it judges.
 
 ## KUBE POLICY (Matt, 2026-08-23; extended to ALL gates 2026-08-26 — ABSOLUTE)
 **EVERY gate runs on the cluster. No exceptions, Mac or pod.**
