@@ -28,3 +28,7 @@ music/archive-path.json
 # repo's own releases (tools/mkmusichost.mjs), so shipping the 1,201-row index
 # - 81 KB gzipped - gives a player the whole archive as a bench instead of only
 # the tracks a build copied in.
+
+# the one-file Newgrounds build and its re-encoded music (tools/mkonefile.mjs)
+dist/
+.onefile-cache/
