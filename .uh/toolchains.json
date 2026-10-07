@@ -1,0 +1,9 @@
+{
+  "default": "cs35",
+  "toolchains": {
+    "cs35": {
+      "kind": "image",
+      "image": "ghcr.io/groblegark/crab-shack-toolchain@sha256:35027d0d2f1f5c7c35ce45ef4cd3071de23a4fb45bf41a50ec792f29af7ef55e"
+    }
+  }
+}
